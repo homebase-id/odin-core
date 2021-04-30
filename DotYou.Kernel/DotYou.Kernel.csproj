@@ -13,4 +13,7 @@
     <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Identity\" />
+  </ItemGroup>
 </Project>

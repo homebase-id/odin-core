@@ -1,4 +1,7 @@
 ﻿using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Identity.Web.Certificate
 {
@@ -32,7 +35,8 @@ namespace Identity.Web.Certificate
         }
 
         public string DomainName { get; }
-        
+
         public CertificateLocation CertificateLocation { get; set; }
+
     }
 }

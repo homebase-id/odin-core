@@ -5,15 +5,15 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace DotYou.TenantHost.Certificate.FileBased
+namespace DotYou.Kernel.Identity
 {
 
     /// <summary>
-    /// Certificates are expected to be next to the assemblies
+    /// <see cref="ICertificateResolver"/> implementation which gets certificates from the IdentityRegistry
     /// </summary>
-    internal class FilebasedBasedCertificateResolver : ICertificateResolver
+    public class ContextBasedCertificateResolver : ICertificateResolver
     {
-        private readonly ILogger<FilebasedBasedCertificateResolver> _logger;
+        private readonly ILogger<ContextBasedCertificateResolver> _logger;
 
         //TODO: enable when i figure out DI at the hostbuilder level
         //public FileBasedCertificateResolver(ILogger<FileBasedCertificateResolver> logger)
@@ -21,24 +21,24 @@ namespace DotYou.TenantHost.Certificate.FileBased
         //    _logger = logger;
         //}
 
-        public X509Certificate2 Resolve(string hostname)
+        public X509Certificate2 Resolve(DotYouContext context)
         {
             //_logger.LogDebug($"looking up cert for [{hostname}]");
 
-            string certificatePath = Path.Combine(Environment.CurrentDirectory, "https", hostname, "certificate.crt");
-            string privateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", hostname, "private.key");
+            //TODO: lookup certificate based on the context.id
 
-            //string rootPath = $"Identity.Web.https.{hostname}";
-            //var assembly = this.GetType().Assembly;
-            //Stream resource = assembly.GetManifestResourceStream($"{rootPath}");
+
+            string certificatePath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "certificate.crt");
+            string privateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "private.key");
+
             if (!File.Exists(certificatePath))
             {
-                certificatePath = Path.Combine(Environment.CurrentDirectory, "https", hostname, "certificate.cer");
+                certificatePath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "certificate.cer");
             }
 
             if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
             {
-                throw new Exception($"No certificate configured for {hostname}");
+                throw new Exception($"No certificate configured for {context.Id}");
             }
 
             using (X509Certificate2 publicKey = new X509Certificate2(certificatePath))
