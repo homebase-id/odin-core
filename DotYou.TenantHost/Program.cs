@@ -1,12 +1,10 @@
+using System;
 using DotYou.Kernel.Identity;
 using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
+
 
 namespace DotYou.TenantHost
 {
