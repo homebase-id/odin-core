@@ -13,32 +13,16 @@ namespace DotYou.Kernel.Identity
     /// </summary>
     public class ContextBasedCertificateResolver : ICertificateResolver
     {
-        private readonly ILogger<ContextBasedCertificateResolver> _logger;
-
-        //TODO: enable when i figure out DI at the hostbuilder level
-        //public FileBasedCertificateResolver(ILogger<FileBasedCertificateResolver> logger)
-        //{
-        //    _logger = logger;
-        //}
-
         public X509Certificate2 Resolve(DotYouContext context)
         {
             //_logger.LogDebug($"looking up cert for [{hostname}]");
 
-            //TODO: lookup certificate based on the context.id
-
-
-            string certificatePath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "certificate.crt");
-            string privateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "private.key");
-
-            if (!File.Exists(certificatePath))
-            {
-                certificatePath = Path.Combine(Environment.CurrentDirectory, "https", context.Certificate.DomainName, "certificate.cer");
-            }
+            string certificatePath = context.Certificate.Location.CertificatePath;
+            string privateKeyPath = context.Certificate.Location.PrivateKeyPath;
 
             if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
             {
-                throw new Exception($"No certificate configured for {context.Id}");
+                throw new Exception($"No certificate configured for {context.Certificate.DomainName}");
             }
 
             using (X509Certificate2 publicKey = new X509Certificate2(certificatePath))

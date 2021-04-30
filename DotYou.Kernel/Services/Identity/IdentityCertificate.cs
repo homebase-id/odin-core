@@ -3,7 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Identity.Web.Certificate
+namespace DotYou.Kernel.Services.Identity
 {
     /// <summary>
     /// An IdentityCertificate defines a certificate held by an individual human or organization.
@@ -25,8 +25,8 @@ namespace Identity.Web.Certificate
                 throw new ArgumentNullException(nameof(domain));
             }
 
-            this.Key = key;
-            this.DomainName = domain;
+            Key = key;
+            DomainName = domain;
         }
 
         public Guid Key
@@ -36,7 +36,7 @@ namespace Identity.Web.Certificate
 
         public string DomainName { get; }
 
-        public CertificateLocation CertificateLocation { get; set; }
+        public CertificateLocation Location { get; set; }
 
     }
 }

@@ -4,22 +4,23 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace DotYou.TenantHost
 {
 
     public class Program
     {
-        static ICertificateResolver _certificateResolver;
-        static IdentityContextRegistry _registry;
+        private static IdentityContextRegistry _registry;
 
         public static void Main(string[] args)
         {
-            _certificateResolver = new ContextBasedCertificateResolver();
 
             _registry = new IdentityContextRegistry();
+            _registry.Initialize();
 
-            //TODO:load the registry
             CreateHostBuilder(args).Build().Run();
         }
 
@@ -46,7 +47,7 @@ namespace DotYou.TenantHost
                           opts.ServerCertificateSelector = (connectionContext, hostName) =>
                           {
                               var context = _registry.ResolveContext(hostName);
-                              return _certificateResolver.Resolve(context);
+                              return new ContextBasedCertificateResolver().Resolve(context);
                           };
                       });
                   })

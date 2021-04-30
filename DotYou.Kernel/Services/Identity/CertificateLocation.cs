@@ -1,4 +1,4 @@
-﻿namespace Identity.Web.Certificate
+﻿namespace DotYou.Kernel.Services.Identity
 {
     public class CertificateLocation
     {
@@ -6,7 +6,5 @@
 
         public string CertificatePath { get; set; }
 
-        public string BundlePath { get; set; }
-        
     }
 }

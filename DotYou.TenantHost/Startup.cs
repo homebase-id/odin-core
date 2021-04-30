@@ -2,8 +2,10 @@ using DotYou.Kernel;
 using DotYou.Kernel.Services.Verification;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 
 namespace DotYou.TenantHost
 {
@@ -33,6 +35,13 @@ namespace DotYou.TenantHost
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                if (env.IsDevelopment())
+                {
+                    endpoints.MapGet("/", async context =>
+                    {
+                        await context.Response.WriteAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+                    });
+                }
             });
         }
     }
