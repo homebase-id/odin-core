@@ -16,15 +16,14 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-
-            _registry = new IdentityContextRegistry();
-            _registry.Initialize();
-
             CreateHostBuilder(args).Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
+            _registry = new IdentityContextRegistry();
+            _registry.Initialize();
+
             return Host.CreateDefaultBuilder(args)
               .ConfigureLogging(config =>
               {
@@ -48,14 +47,9 @@ namespace DotYou.TenantHost
                               var context = _registry.ResolveContext(hostName);
                               return new ContextBasedCertificateResolver().Resolve(context);
                           };
-                      });
 
-
-                      options.ConfigureHttpsDefaults(opts =>
-                      {
-                          opts.ClientCertificateMode = ClientCertificateMode.NoCertificate;
+                          opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                       });
-                      
                   })
                   .UseKestrel() //Use Kestrel to ensure we can run this on linux
                   .UseUrls("http://*:80", "https://*:443") //you need to configure netsh on windows to allow 80 and 443

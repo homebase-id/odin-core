@@ -21,9 +21,10 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet]
-        public void Get()
+        public string Get()
         {
             
+            return User.Identity.Name;
         }
 
     }

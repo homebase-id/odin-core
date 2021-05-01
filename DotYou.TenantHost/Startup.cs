@@ -15,7 +15,7 @@ namespace DotYou.TenantHost
 {
     public class Startup
     {
-        private Task ValidateCertificate(CertificateValidatedContext context)
+        private Task CertificateValidated(CertificateValidatedContext context)
         {
             //todo: call out to additonal service to validate more rules
             // i.e. blocked list
@@ -23,7 +23,6 @@ namespace DotYou.TenantHost
             //add systemcircle claim based on my relationshiop to this person
             //lookup name for the individual and add to the claims
 
-            /*
             var claims = new[]
                 {
                     new Claim(
@@ -32,12 +31,16 @@ namespace DotYou.TenantHost
                         ClaimValueTypes.String,
                         context.Options.ClaimsIssuer),
 
+                    new Claim(ClaimTypes.Name,
+                        context.ClientCertificate.Subject,
+                        ClaimValueTypes.String,
+                        context.Options.ClaimsIssuer)
                 };
 
             context.Principal = new ClaimsPrincipal(
                 new ClaimsIdentity(claims, context.Scheme.Name));
 
-            */
+            Console.WriteLine("Validate Certificate");
 
             context.Success();
             return Task.CompletedTask;
@@ -45,7 +48,13 @@ namespace DotYou.TenantHost
 
         private Task HandleAuthenticationFailed(CertificateAuthenticationFailedContext context)
         {
+            Console.WriteLine("Authentication Failed");
+            return Task.CompletedTask;
+        }
 
+        private Task HandleCertificateChallenge(CertificateChallengeContext context)
+        {
+            Console.WriteLine("handle cert challenge");
             return Task.CompletedTask;
         }
 
@@ -57,32 +66,32 @@ namespace DotYou.TenantHost
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
 
-
             services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
                .AddCertificate(options =>
                {
                    options.AllowedCertificateTypes = CertificateTypes.Chained;
                    options.ValidateCertificateUse = true;
 
-                    //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
+                   //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
 
-                    //options.RevocationMode = X509RevocationMode.NoCheck
+                   //options.RevocationMode = X509RevocationMode.NoCheck
 
-                    options.Events = new CertificateAuthenticationEvents()
+                   options.Events = new CertificateAuthenticationEvents()
                    {
-                       OnCertificateValidated = context => this.ValidateCertificate(context),
-                       OnAuthenticationFailed = context => this.HandleAuthenticationFailed(context)
+                       OnCertificateValidated = context => this.CertificateValidated(context),
+                       OnAuthenticationFailed = context => this.HandleAuthenticationFailed(context),
+                       OnChallenge = context => this.HandleCertificateChallenge(context)
                    };
 
                })
                .AddCertificateCache(options =>
                {
-                    //TODO: revist this to see if it will serve as our re-validation method to ensure
-                    // caller certs are still good 
-                    options.CacheSize = 2048;
+                   //TODO: revist this to see if it will serve as our re-validation method to ensure
+                   // caller certs are still good 
+                   options.CacheSize = 2048;
                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                });
-            
+
             services.AddSingleton<IDotYouHttpClientProxy, DotYouHttpClientProxy>();
             //services.AddSingleton<IMemoryCache, MultiTenantMemoryCache>();
             services.AddMemoryCache();
@@ -97,7 +106,7 @@ namespace DotYou.TenantHost
                 app.UseDeveloperExceptionPage();
             }
 
-            //app.UseAuthentication();
+            app.UseAuthentication();
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>

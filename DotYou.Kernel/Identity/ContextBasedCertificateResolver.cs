@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DotYou.Types.Certificate;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Reflection;
@@ -25,25 +26,7 @@ namespace DotYou.Kernel.Identity
                 throw new Exception($"No certificate configured for {context.Certificate.DomainName}");
             }
 
-            using (X509Certificate2 publicKey = new X509Certificate2(certificatePath))
-            {
-                string encodedKey = File.ReadAllText(privateKeyPath);
-                RSA rsaPrivateKey;
-                using (rsaPrivateKey = RSA.Create())
-                {
-                    rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
-
-                    using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
-                    {
-                        //_logger.LogInformation($"Certificate resolved for [{hostname}]");
-
-                        // Export as PFX and re-import if you want "normal PFX private key lifetime"
-                        // (this step is currently required for SslStream, but not for most other things
-                        // using certificates)
-                        return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
-                    }
-                }
-            }
+            return CertificateLoader.LoadWithKeyFile(certificatePath, privateKeyPath);
 
         }
 
