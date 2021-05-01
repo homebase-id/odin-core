@@ -2,6 +2,7 @@ using System;
 using DotYou.Kernel.Identity;
 using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -48,6 +49,13 @@ namespace DotYou.TenantHost
                               return new ContextBasedCertificateResolver().Resolve(context);
                           };
                       });
+
+
+                      options.ConfigureHttpsDefaults(opts =>
+                      {
+                          opts.ClientCertificateMode = ClientCertificateMode.NoCertificate;
+                      });
+                      
                   })
                   .UseKestrel() //Use Kestrel to ensure we can run this on linux
                   .UseUrls("http://*:80", "https://*:443") //you need to configure netsh on windows to allow 80 and 443
