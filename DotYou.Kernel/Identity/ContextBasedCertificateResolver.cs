@@ -26,7 +26,7 @@ namespace DotYou.Kernel.Identity
                 throw new Exception($"No certificate configured for {context.Certificate.DomainName}");
             }
 
-            return CertificateLoader.LoadWithKeyFile(certificatePath, privateKeyPath);
+            return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
 
         }
 

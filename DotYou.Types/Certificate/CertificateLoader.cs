@@ -11,9 +11,28 @@ namespace DotYou.Types.Certificate
 {
     public static class CertificateLoader
     {
-        public static X509Certificate2 LoadWithKeyFile(string certificatePath, string privateKeyPath)
+        /// <summary>
+        /// Returns a <see cref="X509Certificate2"/> from public key certificate file.
+        /// </summary>
+        /// <param name="publicKeyPath">Path to the public key</param>
+        /// <returns></returns>
+        public static X509Certificate2 LoadPublicKeyCertificate(string publicKeyPath)
         {
-            using (X509Certificate2 publicKey = new X509Certificate2(certificatePath))
+            using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
+            {
+                return publicKey;
+            }
+        }
+
+        /// <summary>
+        /// Returns a <see cref="X509Certificate2"/> from an RSA public and private key files.
+        /// </summary>
+        /// <param name="publicKeyPath">Path to the public key .cer or .crt file</param>
+        /// <param name="privateKeyPath">Path to the private key file</param>
+        /// <returns></returns>
+        public static X509Certificate2 LoadPublicPrivateRSAKey(string publicKeyPath, string privateKeyPath)
+        {
+            using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
                 string encodedKey = File.ReadAllText(privateKeyPath);
                 RSA rsaPrivateKey;

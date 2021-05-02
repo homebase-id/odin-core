@@ -2,6 +2,7 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,13 +11,19 @@ namespace DotYou.Kernel
 {
     public class DotYouHttpClientProxy : IDotYouHttpClientProxy
     {
-        //TODO: determine if we need to create a single instance of HttpClient for this or create new one with each request
+        X509Certificate2 _clientCertificate;
+        public DotYouHttpClientProxy(X509Certificate2 cert)
+        {
+            _clientCertificate = cert;
+        }
 
         public async Task<bool> Post<T>(DotYouIdentity dotYouId, string path, T payload)
         {
-            //var handler = new HttpClientHandler();
-            //HttpClient client = new HttpClient(new SuppressExecutionContextHandler(handler));
-            using (HttpClient client = new HttpClient())
+            HttpClientHandler handler = new();
+            handler.ClientCertificates.Add(_clientCertificate);
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+
+            using (HttpClient client = new HttpClient(handler))
             {
                 UriBuilder b = new UriBuilder();
                 b.Scheme = "https";

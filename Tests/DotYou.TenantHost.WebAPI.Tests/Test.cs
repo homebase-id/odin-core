@@ -1,9 +1,12 @@
+using DotYou.Types;
 using DotYou.Types.Certificate;
+using DotYou.Types.TrustNetwork;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.WebAPI.Tests
@@ -29,23 +32,59 @@ namespace DotYou.TenantHost.WebAPI.Tests
             webserver.StopAsync();
         }
 
-        [Test(Description ="Test ensures a client certificate can be used to authenticate an identity")]
+        [Test(Description = "Test ensures a client certificate can be used to authenticate an identity")]
+        [Ignore("need to find a permentant certificate for testing")]
         public async Task CanAuthenticateWithClientCertificate()
         {
             string publicKeyFile = Path.Combine(Environment.CurrentDirectory, "https", samwise, "certificate.crt");
             string privateKeyFile = Path.Combine(Environment.CurrentDirectory, "https", samwise, "private.key");
 
-            HttpClientHandler handler = new HttpClientHandler();
-            handler.ClientCertificates.Add(CertificateLoader.LoadWithKeyFile(publicKeyFile, privateKeyFile));
+            var cert = CertificateLoader.LoadPublicPrivateRSAKey(publicKeyFile, privateKeyFile);
+
+            HttpClientHandler handler = new();
+            handler.ClientCertificates.Add(cert);
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+
             HttpClient client = new HttpClient(handler);
 
             var result = await client.GetStringAsync($"https://{frodo}/api/verify");
 
-            Console.WriteLine($"going {result}");
+            Console.WriteLine($"Result: [{result}]");
 
-            Assert.Pass(result);
-            //Assert.AreEqual(result, "pie");
+            Assert.AreEqual("CN=samwisegamgee.me", result);
+        }
+
+        [Test(Description = "Test scenario of sending a connection request to be added to an individual's network")]
+        public async Task CanSendConnectionRequest()
+        {
+            string publicKeyFile = Path.Combine(Environment.CurrentDirectory, "https", samwise, "certificate.crt");
+            string privateKeyFile = Path.Combine(Environment.CurrentDirectory, "https", samwise, "private.key");
+
+            var cert = CertificateLoader.LoadPublicPrivateRSAKey(publicKeyFile, privateKeyFile);
+
+            HttpClientHandler handler = new();
+            handler.ClientCertificates.Add(cert);
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+
+            HttpClient client = new HttpClient(handler);
+
+            var request = new ConnectionRequest()
+            {
+                Id = Guid.NewGuid(),
+                DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                Message = "Please add me",
+                Recipient = (DotYouIdentity)frodo,
+                Sender = (DotYouIdentity)samwise,
+                SenderGivenName = "Samwise",
+                SenderSurname = "Gamgee"
+            };
+
+            var result = await client.PostAsJsonAsync($"https://{frodo}/api/incoming/invitations/connect", request);
+
+            Assert.IsTrue(result.IsSuccessStatusCode, "Failed sending the request");
+
+            //TODO:need to check to see it was added to the DB
+
         }
     }
 }

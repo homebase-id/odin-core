@@ -1,63 +1,21 @@
 using DotYou.Kernel;
-using DotYou.Kernel.Services.Verification;
+using DotYou.Kernel.Identity;
+using DotYou.Kernel.Services.TrustNetwork;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace DotYou.TenantHost
 {
     public class Startup
     {
-        private Task CertificateValidated(CertificateValidatedContext context)
-        {
-            //todo: call out to additonal service to validate more rules
-            // i.e. blocked list
-            // determine if this certificate is in my network an add extra claims
-            //add systemcircle claim based on my relationshiop to this person
-            //lookup name for the individual and add to the claims
-
-            var claims = new[]
-                {
-                    new Claim(
-                        ClaimTypes.NameIdentifier,
-                        context.ClientCertificate.Subject,
-                        ClaimValueTypes.String,
-                        context.Options.ClaimsIssuer),
-
-                    new Claim(ClaimTypes.Name,
-                        context.ClientCertificate.Subject,
-                        ClaimValueTypes.String,
-                        context.Options.ClaimsIssuer)
-                };
-
-            context.Principal = new ClaimsPrincipal(
-                new ClaimsIdentity(claims, context.Scheme.Name));
-
-            Console.WriteLine("Validate Certificate");
-
-            context.Success();
-            return Task.CompletedTask;
-        }
-
-        private Task HandleAuthenticationFailed(CertificateAuthenticationFailedContext context)
-        {
-            Console.WriteLine("Authentication Failed");
-            return Task.CompletedTask;
-        }
-
-        private Task HandleCertificateChallenge(CertificateChallengeContext context)
-        {
-            Console.WriteLine("handle cert challenge");
-            return Task.CompletedTask;
-        }
-
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
@@ -84,6 +42,7 @@ namespace DotYou.TenantHost
                    };
 
                })
+               //TODO: this certificate cache is not multi-tenant
                .AddCertificateCache(options =>
                {
                    //TODO: revist this to see if it will serve as our re-validation method to ensure
@@ -92,10 +51,41 @@ namespace DotYou.TenantHost
                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                });
 
-            services.AddSingleton<IDotYouHttpClientProxy, DotYouHttpClientProxy>();
+            //services.AddSingleton<IDotYouHttpClientProxy, DotYouHttpClientProxy>();
             //services.AddSingleton<IMemoryCache, MultiTenantMemoryCache>();
             services.AddMemoryCache();
-            services.AddSingleton<ISenderVerificationService, SenderVerificationService>();
+            
+            services.AddScoped<IDotYouHttpClientProxy, DotYouHttpClientProxy>(svc=>
+            {
+                var accessor = svc.GetRequiredService<IHttpContextAccessor>();
+
+                //TODO: need to pass in the server certificate of this
+                //individual so we can get the client certificate
+                //HACK: we dont want to re-init the identit context registry here
+                IdentityContextRegistry reg = new();
+                reg.Initialize();
+
+                var ctx = reg.ResolveContext(accessor.HttpContext.Request.Host.Host);
+                var cert = new ContextBasedCertificateResolver().Resolve(ctx);
+
+                return new DotYouHttpClientProxy(cert);
+            });
+
+
+            services.AddScoped<ITrustNetworkService, TrustNetworkService>(svc =>
+            {
+                //TODO: why do i need the certificate here?  
+                //I wonder if i should just leave this in the HttpClientProxy as seen above
+                var context = new DotYouContext()
+                {
+                    Certificate = null,
+                };
+
+                var logger = svc.GetRequiredService<ILogger<TrustNetworkService>>();
+                var proxy = svc.GetRequiredService<IDotYouHttpClientProxy>();
+
+                return new TrustNetworkService(context, logger, proxy);
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -105,9 +95,10 @@ namespace DotYou.TenantHost
             {
                 app.UseDeveloperExceptionPage();
             }
-
-            app.UseAuthentication();
+            
+            //order matters
             app.UseRouting();
+            app.UseAuthentication();
 
             app.UseEndpoints(endpoints =>
             {
@@ -121,5 +112,39 @@ namespace DotYou.TenantHost
                 }
             });
         }
+
+        private Task CertificateValidated(CertificateValidatedContext context)
+        {
+            //todo: call out to additonal service to validate more rules
+            // i.e. blocked list
+            // determine if this certificate is in my network an add extra claims
+            //add systemcircle claim based on my relationshiop to this person
+            //lookup name for the individual and add to the claims
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
+                new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
+
+            };
+
+            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
+            context.Success();
+            return Task.CompletedTask;
+        }
+
+        private Task HandleAuthenticationFailed(CertificateAuthenticationFailedContext context)
+        {
+            Console.WriteLine("Authentication Failed");
+            return Task.CompletedTask;
+        }
+
+        private Task HandleCertificateChallenge(CertificateChallengeContext context)
+        {
+            Console.WriteLine("handle cert challenge");
+            return Task.CompletedTask;
+        }
+
+
     }
 }

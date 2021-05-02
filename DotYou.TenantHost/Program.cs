@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace DotYou.TenantHost
 {
-
     public class Program
     {
         private static IdentityContextRegistry _registry;
@@ -36,6 +35,7 @@ namespace DotYou.TenantHost
                               configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
                           });
               })
+              
               .ConfigureWebHostDefaults(webBuilder =>
               {
                   webBuilder.ConfigureKestrel(options =>
@@ -45,7 +45,8 @@ namespace DotYou.TenantHost
                           opts.ServerCertificateSelector = (connectionContext, hostName) =>
                           {
                               var context = _registry.ResolveContext(hostName);
-                              return new ContextBasedCertificateResolver().Resolve(context);
+                              var cert = new ContextBasedCertificateResolver().Resolve(context);
+                              return cert;
                           };
 
                           opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
