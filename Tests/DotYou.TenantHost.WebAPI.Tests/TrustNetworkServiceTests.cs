@@ -7,6 +7,7 @@ using DotYou.Types.TrustNetwork;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Refit;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -21,20 +22,26 @@ namespace DotYou.TenantHost.WebAPI.Tests
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
 
         IHost webserver;
-        IdentityContextRegistry _registry = new IdentityContextRegistry();
+        IdentityContextRegistry _registry;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
+            _registry = new IdentityContextRegistry();
             _registry.Initialize();
+
+            var args = new string[0];
+            webserver = Program.CreateHostBuilder(args).Build();
+            webserver.StartAsync();
+
+
+            
         }
 
         [SetUp]
         public void Setup()
         {
-            var args = new string[0];
-            webserver = Program.CreateHostBuilder(args).Build();
-            webserver.StartAsync();
+            
         }
 
         [TearDown]
@@ -43,48 +50,60 @@ namespace DotYou.TenantHost.WebAPI.Tests
             webserver.StopAsync();
         }
 
-        [Test(Description = "Test ensures a client certificate can be used to authenticate an identity")]
-        [Ignore("Need to add authentication endpoint")]
-        public async Task CanAuthenticateWithClientCertificate()
-        {
-            var ctx = _registry.ResolveContext(frodo);
-            var cert = ctx.TenantCertificate.LoadCertificate();
-
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(cert);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-
-            HttpClient client = new HttpClient(handler);
-
-            var result = await client.GetStringAsync($"https://{frodo}/api/verify");
-
-            Console.WriteLine($"Result: [{result}]");
-
-            Assert.AreEqual("CN=samwisegamgee.me", result);
-        }
-
-        [Test(Description = "Send a Connection Request to be added to an individual's network")]
-        [Order(1)]
+        [Test]
         public async Task CanSendConnectionRequest()
         {
             var request = await CreateConnectionRequestSamToFrodo();
 
-            var tn = CreateService(frodo);
-            var storedRequest = await tn.GetPendingRequest(request.Id);
-            Assert.IsNotNull(storedRequest, $"No request found with Id [{request.Id}]");
+            //var tn = CreateService(frodo);
+            //var storedRequest = await tn.GetPendingRequest(request.Id);
+            //Assert.IsNotNull(storedRequest, $"No request found with Id [{request.Id}]");
         }
 
-        [Test(Description ="Create then delete a connection request")]
-        [Order(2)]
-
+        [Test]
         public async Task CanDeleteConnectionRequest()
         {
             var request = await CreateConnectionRequestSamToFrodo();
             var tn = CreateService(frodo);
-            
+
             await tn.DeletePendingRequest(request.Id);
             var storedRequest = await tn.GetPendingRequest(request.Id);
             Assert.IsNull(storedRequest, $"Should not have found a request with Id [{request.Id}]");
+        }
+
+        [Test]
+        public async Task CanGetPendingConnectionRequestList()
+        {
+            var request = await CreateConnectionRequestSamToFrodo();
+
+            var tn = CreateService(frodo);
+            var pagedResult = await tn.GetPendingRequests(PageOptions.Default);
+            Assert.IsNotNull(pagedResult);
+            Assert.IsTrue(pagedResult.TotalPages == 1);
+            Assert.IsTrue(pagedResult.Results.Count == 1);
+            Assert.IsTrue(pagedResult.Results[0].Id == request.Id);
+        }
+
+        [Test]
+        public async Task CanGetSentConnectionRequestList()
+        {
+
+            var request = await CreateConnectionRequestSamToFrodo();
+
+            var tn = CreateService(samwise);
+
+            var pagedResult = await tn.GetSentRequests(PageOptions.Default);
+
+            Assert.IsNotNull(pagedResult);
+            Assert.IsTrue(pagedResult.TotalPages == 1);
+            Assert.IsTrue(pagedResult.Results.Count == 1);
+            Assert.IsTrue(pagedResult.Results[0].Id == request.Id);
+        }
+
+        [Test]
+        public async Task CanAcceptConnectionRequest()
+        {
+            Assert.Fail("awaiting implementation");
         }
 
         private ITrustNetworkService CreateService(DotYouIdentity identity)
@@ -104,6 +123,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
 
             HttpClient client = new(handler);
+
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 
@@ -122,11 +143,12 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using (var client = CreateHttpClient(samwise))
             {
-                var result = await client.PostAsJsonAsync($"https://{frodo}/api/incoming/invitations/connect", request);
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var result = await svc.SendConnectionRequest(request);
                 Assert.IsTrue(result.IsSuccessStatusCode, "Failed sending the request");
             }
 
-            return request;
+            return request;  
         }
 
         private ILogger<T> CreateLogger<T>()

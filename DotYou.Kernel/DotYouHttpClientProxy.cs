@@ -23,11 +23,6 @@ namespace DotYou.Kernel
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
 
             _client = new HttpClient(handler);
-            UriBuilder b = new UriBuilder();
-            b.Scheme = "https";
-            b.Host = context.DotYouId;
-
-            _client.BaseAddress = b.Uri;
 
             //TODO: add any headers
         }
@@ -45,13 +40,14 @@ namespace DotYou.Kernel
             }
         }
 
-        public async Task<bool> Post<T>(string path, T payload)
+        public async Task<bool> PostJson<T>(DotYouIdentity dotYouId, string path, T payload)
         {
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(_clientCertificate);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            UriBuilder b = new UriBuilder();
+            b.Scheme = "https";
+            b.Host = dotYouId;
+            b.Path = path;
 
-            var response = await _client.PostAsJsonAsync(path, payload);
+            var response = await _client.PostAsJsonAsync(b.Uri, payload);
             return response.IsSuccessStatusCode;
         }
 

@@ -39,7 +39,7 @@ namespace DotYou.Kernel.Services
         /// </summary>
         protected IDotYouHttpClientProxy HttpProxy { get => _httpProxy; }
 
-        protected void WithTenantStorage<T>(string collection, Action<IStorage<T>> action)
+        protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))

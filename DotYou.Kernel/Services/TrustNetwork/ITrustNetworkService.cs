@@ -18,13 +18,34 @@ namespace DotYou.Kernel.Services.TrustNetwork
         /// <returns></returns>
         Task SendConnectionRequest(ConnectionRequest request);
 
+        /// <summary>
+        /// Establishes a connection between two individuals.  This should be called when
+        /// from a recipient who has accpeted a sender's connection request
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        Task EstablishConnection(ConnectionRequest request);
+
+        /// <summary>
+        /// Accepts a connection request.  This will store the public key certificate 
+        /// of the sender then send the recipients public key certificate to the sender.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        Task AcceptConnectionRequest(Guid requestId);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient
         /// </summary>
         /// <returns></returns>
-        Task<PagedResult<ConnectionRequest>> GetSentRequests();
+        Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageRequest);
 
+        /// <summary>
+        /// Gets a sent <see cref="ConnectionRequest"/> by Id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        Task<ConnectionRequest> GetSentRequest(Guid id);
 
         /// <summary>
         /// Gets a list of requests awaiting approval.
@@ -40,7 +61,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
         Task<ConnectionRequest> GetPendingRequest(Guid id);
 
         /// <summary>
-        /// Stores an incoming request.
+        /// Stores an new incoming request that is not yet accepted.
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>

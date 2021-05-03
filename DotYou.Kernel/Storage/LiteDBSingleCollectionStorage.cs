@@ -39,6 +39,13 @@ namespace DotYou.Kernel.Storage
             string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
             logger.LogInformation($"Database path is [{finalPath}]");
 
+            //var cs = new ConnectionString()
+            //{
+            //    Filename = finalPath,
+            //    Connection = ConnectionType.Shared
+            //};
+
+            //_db = new LiteDatabase(cs);
             _db = new LiteDatabase(finalPath);
             _collectionName = collectionName;
         }
