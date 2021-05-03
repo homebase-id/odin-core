@@ -57,9 +57,10 @@ namespace DotYou.Kernel.Services.TrustNetwork
             return result;
         }
 
-        public Task DeletePendingRequest(Guid invitationId)
+        public Task DeletePendingRequest(Guid id)
         {
-            throw new NotImplementedException();
+            WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Delete(id));
+            return Task.CompletedTask;
         }
 
     }
