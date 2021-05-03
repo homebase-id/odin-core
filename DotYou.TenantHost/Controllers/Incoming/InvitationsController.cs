@@ -25,8 +25,18 @@ namespace DotYou.TenantHost.Controllers.Incoming
         //[Authorize(Policy = PolicyNames.MustBeIdentified)]
         public IActionResult ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
-            _trustNetwork.ReceiveConnectionRequest(request);
-            return Ok();
+            try
+            {
+                _trustNetwork.ReceiveConnectionRequest(request);
+                return Ok();
+            }
+            catch (System.Exception ex)
+            {
+                //TODO: add logging
+                //throw;
+
+                return StatusCode(500);
+            }
         }
     }
 }

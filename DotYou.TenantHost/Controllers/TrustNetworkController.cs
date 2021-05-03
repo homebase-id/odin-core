@@ -23,7 +23,7 @@ namespace DotYou.TenantHost.Controllers
         //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<PagedResult<ConnectionRequest>> GetList(int pageNumber, int pageSize)
         {
-            var result = await _trustNetwork.GetPendingRequests(new PageRequest(pageNumber, pageSize));
+            var result = await _trustNetwork.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             return result;
         }
 

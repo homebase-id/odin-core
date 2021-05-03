@@ -1,5 +1,6 @@
 ﻿using DotYou.Kernel;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,14 +13,13 @@ namespace DotYou.TenantHost
     /// </summary>
     /// Note: this is marked internal to ensure code running in a given instance 
     /// of any class in DotYou.Kernel.* cannot access other Identities
-    internal class IdentityContextRegistry
+    public class IdentityContextRegistry : IIdentityContextRegistry
     {
-
         private Trie _identityMap = new Trie();
 
         //temporary until the Trie supports Generics
-        private Dictionary<Guid, IdentityCertificate> _certificates = new Dictionary<Guid, IdentityCertificate>(); 
-        
+        private Dictionary<Guid, IdentityCertificate> _certificates = new Dictionary<Guid, IdentityCertificate>();
+
         /// <summary>
         /// Hard coded identity which lets you boostrap your system when you have no other sites
         /// Note: for a production system this must be moved to configuration.
@@ -40,7 +40,6 @@ namespace DotYou.TenantHost
         /// <returns></returns>
         public DotYouContext ResolveContext(string domainName)
         {
-
             var key = _identityMap.lookupName(domainName);
 
             if (key == Guid.Empty)
@@ -49,15 +48,12 @@ namespace DotYou.TenantHost
             }
 
             IdentityCertificate cert;
-            if(!_certificates.TryGetValue(key, out cert))
+            if (!_certificates.TryGetValue(key, out cert))
             {
                 throw new InvalidDataException($"The Trie map contains a key for domain {domainName} but it is not cached in the dictionary.");
             }
 
-            return new DotYouContext()
-            {
-                Certificate = cert
-            };
+            return new DotYouContext((DotYouIdentity)domainName, cert, CreateTenantStorage(domainName));
         }
 
         public void Initialize()
@@ -74,7 +70,7 @@ namespace DotYou.TenantHost
 
             IdentityCertificate frodo = new IdentityCertificate(Guid.NewGuid(), "frodobaggins.me")
             {
-                
+
                 Location = new CertificateLocation()
                 {
                     CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.crt"),
@@ -91,6 +87,24 @@ namespace DotYou.TenantHost
                 Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
                 this._identityMap.addName(c.DomainName, c.Key);
             }
+        }
+
+        private TenantStorageConfig CreateTenantStorage(string domainName)
+        {
+            const string DataRootPath = "DATA_ROOT_PATH";
+            string path = Environment.GetEnvironmentVariable(DataRootPath);
+
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrEmpty(path))
+            {
+                //_logger.LogInformation($"Environment variable [{DataRootPath}] was not set, path does not exist, or path is inaccessible.  Fallback back to default path.");
+                path = Environment.CurrentDirectory;
+            }
+
+            path = Path.Combine(path, domainName);
+
+            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(path, "images"));
+
+            return result;
         }
     }
 }

@@ -1,0 +1,60 @@
+﻿using DotYou.Kernel.Storage;
+using DotYou.Types;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+
+namespace DotYou.Kernel.Services
+{
+    /// <summary>
+    /// Base class for all services offering <see cref="IStorage<T>"/> and 
+    /// <see cref="IDotYouHttpClientProxy"/> instances based on 
+    /// the specified <see cref="DotYouContext"/>.
+    /// </summary>
+    public abstract class DotYouServiceBase
+    {
+        ILogger _logger;
+        private readonly IDotYouHttpClientProxy _httpProxy;
+        private readonly DotYouContext _context;
+        protected DotYouServiceBase(DotYouContext context, ILogger logger)
+        {
+            _logger = logger;
+            _context = context;
+            var proxy = new DotYouHttpClientProxy(context);
+            _httpProxy = proxy;
+        }
+
+        /// <summary>
+        /// Logger instance
+        /// </summary>
+        protected ILogger Logger { get => _logger; }
+
+        /// <summary>
+        /// The context for a given <see cref="DotYouIdentity"/>
+        /// </summary>
+        protected DotYouContext Context { get => _context; }
+
+        /// <summary>
+        /// Proxy which makes calls to other <see cref="DotYouIdentity"/> servers using a pre-configured HttpClient.
+        /// </summary>
+        protected IDotYouHttpClientProxy HttpProxy { get => _httpProxy; }
+
+        protected void WithTenantStorage<T>(string collection, Action<IStorage<T>> action)
+        {
+            var cfg = _context.StorageConfig;
+            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
+            {
+                action(storage);
+            }
+        }
+
+        protected Task<T> WithTenantStorageReturn<T>(string collection, Func<IStorage<T>, Task<T>> func)
+        {
+            var cfg = _context.StorageConfig;
+            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
+            {
+                return func(storage);
+            }
+        }
+    }
+}

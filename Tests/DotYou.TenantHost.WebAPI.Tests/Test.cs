@@ -1,7 +1,11 @@
+using DotYou.Kernel;
+using DotYou.Kernel.Services.TrustNetwork;
+using DotYou.Kernel.Storage;
 using DotYou.Types;
 using DotYou.Types.Certificate;
 using DotYou.Types.TrustNetwork;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System;
 using System.IO;
@@ -66,7 +70,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             handler.ClientCertificates.Add(cert);
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
 
-            HttpClient client = new HttpClient(handler);
+            HttpClient client = new(handler);
 
             var request = new ConnectionRequest()
             {
@@ -83,7 +87,18 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             Assert.IsTrue(result.IsSuccessStatusCode, "Failed sending the request");
 
-            //TODO:need to check to see it was added to the DB
+            IdentityContextRegistry reg = new IdentityContextRegistry();
+            reg.Initialize();
+
+            var ctx = reg.ResolveContext(frodo);
+            var lf = new LoggerFactory();
+            var logger  = lf.CreateLogger<TrustNetworkService>();
+            var tn = new TrustNetworkService(ctx, logger);
+
+            var storedRequest = await tn.GetPendingRequest(request.Id);
+
+            Assert.IsNotNull(storedRequest, $"No request found with Id [{request.Id}]");
+            Assert.AreEqual(request.Id, storedRequest.Id);
 
         }
     }

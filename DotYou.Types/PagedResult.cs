@@ -11,7 +11,7 @@ namespace DotYou.Types
 
         }
 
-        public PagedResult(PageRequest req, int totalPages, IList<T> results)
+        public PagedResult(PageOptions req, int totalPages, IList<T> results)
         {
             if (null == req)
             {
@@ -33,7 +33,7 @@ namespace DotYou.Types
             Results = results;
         }
 
-        public PageRequest Request { get; set; }
+        public PageOptions Request { get; set; }
 
         public int TotalPages { get; set; }
 

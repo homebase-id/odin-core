@@ -3,6 +3,7 @@ using DotYou.Kernel.Identity;
 using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +12,7 @@ namespace DotYou.TenantHost
 {
     public class Program
     {
-        private static IdentityContextRegistry _registry;
+        private static IIdentityContextRegistry _registry;
 
         public static void Main(string[] args)
         {
@@ -35,7 +36,11 @@ namespace DotYou.TenantHost
                               configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
                           });
               })
-              
+              .ConfigureServices(services =>
+              {
+                  //TODO: I'm not sure it's a good idea to add this as a service.
+                  services.Add(new ServiceDescriptor(typeof(IIdentityContextRegistry), _registry));
+              })
               .ConfigureWebHostDefaults(webBuilder =>
               {
                   webBuilder.ConfigureKestrel(options =>
@@ -45,7 +50,7 @@ namespace DotYou.TenantHost
                           opts.ServerCertificateSelector = (connectionContext, hostName) =>
                           {
                               var context = _registry.ResolveContext(hostName);
-                              var cert = new ContextBasedCertificateResolver().Resolve(context);
+                              var cert = context.TenantCertificate.LoadCertificate();
                               return cert;
                           };
 

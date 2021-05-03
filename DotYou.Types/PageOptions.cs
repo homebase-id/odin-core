@@ -6,12 +6,12 @@ namespace DotYou.Types
     /// <summary>
     /// Specifies details for how an <see cref="IEnumerable<T>"/> should be returned
     /// </summary>
-    public class PageRequest
+    public class PageOptions
     {
-        public readonly static PageRequest Default = new PageRequest(1, 55);
+        public readonly static PageOptions Default = new PageOptions(1, 55);
 
-        public PageRequest() { }
-        public PageRequest(int pageNumber, int pageSize)
+        public PageOptions() { }
+        public PageOptions(int pageNumber, int pageSize)
         {
             if (pageSize < 1)
             {

@@ -18,12 +18,12 @@ namespace DotYou.Kernel.Identity
         {
             //_logger.LogDebug($"looking up cert for [{hostname}]");
 
-            string certificatePath = context.Certificate.Location.CertificatePath;
-            string privateKeyPath = context.Certificate.Location.PrivateKeyPath;
+            string certificatePath = context.TenantCertificate.Location.CertificatePath;
+            string privateKeyPath = context.TenantCertificate.Location.PrivateKeyPath;
 
             if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
             {
-                throw new Exception($"No certificate configured for {context.Certificate.DomainName}");
+                throw new Exception($"No certificate configured for {context.TenantCertificate.DomainName}");
             }
 
             return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);

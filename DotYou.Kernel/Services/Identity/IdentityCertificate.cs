@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotYou.Types.Certificate;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -38,5 +39,20 @@ namespace DotYou.Kernel.Services.Identity
 
         public CertificateLocation Location { get; set; }
 
+        public X509Certificate2 LoadCertificate()
+        {
+            //_logger.LogDebug($"looking up cert for [{hostname}]");
+
+            string certificatePath = this.Location.CertificatePath;
+            string privateKeyPath = this.Location.PrivateKeyPath;
+
+            if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
+            {
+                throw new Exception($"No certificate configured for {this.DomainName}");
+            }
+
+            return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
+
+        }
     }
 }

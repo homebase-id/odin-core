@@ -12,28 +12,47 @@ namespace DotYou.Kernel
     public class DotYouHttpClientProxy : IDotYouHttpClientProxy
     {
         X509Certificate2 _clientCertificate;
-        public DotYouHttpClientProxy(X509Certificate2 cert)
+        HttpClient _client;
+        public DotYouHttpClientProxy(DotYouContext context)
         {
-            _clientCertificate = cert;
+            //TODO: Not sure if we need to keep an open instance of the certificate 
+            _clientCertificate = context.TenantCertificate.LoadCertificate();
+
+            HttpClientHandler handler = new();
+            handler.ClientCertificates.Add(_clientCertificate);
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+
+            _client = new HttpClient(handler);
+            UriBuilder b = new UriBuilder();
+            b.Scheme = "https";
+            b.Host = context.DotYouId;
+
+            _client.BaseAddress = b.Uri;
+
+            //TODO: add any headers
         }
 
-        public async Task<bool> Post<T>(DotYouIdentity dotYouId, string path, T payload)
+        public void Dispose()
+        {
+            if(_client != null)
+            {
+                _client.Dispose();
+            }
+
+            if(_clientCertificate != null)
+            {
+                _clientCertificate.Dispose();
+            }
+        }
+
+        public async Task<bool> Post<T>(string path, T payload)
         {
             HttpClientHandler handler = new();
             handler.ClientCertificates.Add(_clientCertificate);
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
 
-            using (HttpClient client = new HttpClient(handler))
-            {
-                UriBuilder b = new UriBuilder();
-                b.Scheme = "https";
-                b.Host = dotYouId;
-                b.Path = path;
-
-                var response = await client.PostAsJsonAsync(b.Uri, payload);
-
-                return response.IsSuccessStatusCode;
-            }
+            var response = await _client.PostAsJsonAsync(path, payload);
+            return response.IsSuccessStatusCode;
         }
 
     }
