@@ -1,18 +1,10 @@
-using DotYou.Kernel;
-using DotYou.Kernel.Services.TrustNetwork;
-using DotYou.Kernel.Storage;
 using DotYou.Types;
-using DotYou.Types.Certificate;
 using DotYou.Types.TrustNetwork;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Refit;
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.WebAPI.Tests
@@ -66,7 +58,9 @@ namespace DotYou.TenantHost.WebAPI.Tests
             {
                 var svc = RestService.For<ITrustNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(id);
+
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+
                 Assert.IsNotNull(response.Content, $"No request found with Id [{id}]");
                 Assert.IsTrue(response.Content.Id == id);
             }
@@ -75,41 +69,56 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [Test]
         public async Task CanDeleteConnectionRequest()
         {
-            //var request = await CreateConnectionRequestSamToFrodo();
-            //var tn = CreateService(frodo);
+            var request = await CreateConnectionRequestSamToFrodo();
 
-            //await tn.DeletePendingRequest(request.Id);
-            //var storedRequest = await tn.GetPendingRequest(request.Id);
-            //Assert.IsNull(storedRequest, $"Should not have found a request with Id [{request.Id}]");
+            using (var client = CreateHttpClient(frodo))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+
+                var response = await svc.DeletePendingRequest(request.Id);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+
+            }
         }
 
         [Test]
         public async Task CanGetPendingConnectionRequestList()
         {
-            //var request = await CreateConnectionRequestSamToFrodo();
+            var request = await CreateConnectionRequestSamToFrodo();
 
-            //var tn = CreateService(frodo);
-            //var pagedResult = await tn.GetPendingRequests(PageOptions.Default);
-            //Assert.IsNotNull(pagedResult);
-            //Assert.IsTrue(pagedResult.TotalPages == 1);
-            //Assert.IsTrue(pagedResult.Results.Count == 1);
-            //Assert.IsTrue(pagedResult.Results[0].Id == request.Id);
+            using (var client = CreateHttpClient(frodo))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+
+                var response = await svc.GetPendingRequestList(PageOptions.Default);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+
+                Assert.IsTrue(response.Content.TotalPages == 1);
+                Assert.IsTrue(response.Content.Results.Count == 1);
+                Assert.IsTrue(response.Content.Results[0].Id == request.Id);
+            }
         }
 
         [Test]
         public async Task CanGetSentConnectionRequestList()
         {
+            var request = await CreateConnectionRequestSamToFrodo();
 
-            //var request = await CreateConnectionRequestSamToFrodo();
+            //Check Sam's list of sent requests
+            using (var client = CreateHttpClient(samwise))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
 
-            //var tn = CreateService(samwise);
+                var response = await svc.GetSentRequestList(PageOptions.Default);
 
-            //var pagedResult = await tn.GetSentRequests(PageOptions.Default);
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-            //Assert.IsNotNull(pagedResult);
-            //Assert.IsTrue(pagedResult.TotalPages == 1);
-            //Assert.IsTrue(pagedResult.Results.Count == 1);
-            //Assert.IsTrue(pagedResult.Results[0].Id == request.Id);
+                Assert.IsTrue(response.Content.TotalPages == 1);
+                Assert.IsTrue(response.Content.Results.Count == 1);
+                Assert.IsTrue(response.Content.Results[0].Id == request.Id);
+            }
         }
 
         [Test]

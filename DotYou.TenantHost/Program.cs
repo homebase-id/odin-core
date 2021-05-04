@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using DotYou.Kernel.Identity;
 using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;
@@ -13,22 +15,27 @@ namespace DotYou.TenantHost
     public class Program
     {
         private static IIdentityContextRegistry _registry;
+        private const string LOG_PATH_ENV_NAME = "DOTYOU_LOGPATH";
 
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();
         }
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             _registry = new IdentityContextRegistry();
             _registry.Initialize();
+
+
+            string logPath = FindLogPath();
 
             return Host.CreateDefaultBuilder(args)
               .ConfigureLogging(config =>
               {
                   config.ClearProviders();
                   config.AddConsole();
-                  config.AddFile("log\\app_{0:yyyy}-{0:MM}-{0:dd}.log", opts =>
+                  config.AddFile(logPath, opts =>
                   {
                       //opts.FormatLogEntry
                       opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
@@ -66,6 +73,37 @@ namespace DotYou.TenantHost
                   .UseUrls("http://*:80", "https://*:443") //you need to configure netsh on windows to allow 80 and 443
                   .UseStartup<Startup>();
               });
+        }
+
+        private static string FindLogPath()
+        {
+
+            string logPath = Environment.GetEnvironmentVariable(LOG_PATH_ENV_NAME);
+
+            //try for env var
+            if(!string.IsNullOrEmpty(logPath) && !string.IsNullOrWhiteSpace(logPath))
+            {
+                //if set it must be a valid path.
+                if (!Directory.Exists(logPath))
+                {
+                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure you have an enviornment variable named [{LOG_PATH_ENV_NAME}] set to an existing path and your app has read/write access to the path.");
+                }
+            }
+            else
+            {
+                var isUnixBased = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
+                    RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ||
+                    RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+
+                logPath = isUnixBased ? "/tmp/dotyoulogs" : "\\temp\\dotyoulogs";
+
+            }
+
+            logPath = Path.Combine(logPath, "app_{0:yyyy}-{0:MM}-{0:dd}.log");
+
+            Console.WriteLine($"Logs will be found at [{logPath}]");
+            return logPath;
+
         }
     }
 }

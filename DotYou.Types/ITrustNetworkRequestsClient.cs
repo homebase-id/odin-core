@@ -21,18 +21,18 @@ namespace DotYou.Types
         Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(Guid id);
 
         [Get(sent_path_root)]
-        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequests(PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequestList(PageOptions pageRequest);
 
         [Get(sent_path_root + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetSentRequest(Guid id);
 
         [Get(pending_path_root)]
-        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequests([Query]PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequestList([Query]PageOptions pageRequest);
 
         [Get(pending_path_root + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetPendingRequest(Guid id);
 
         [Delete(pending_path_root + "/{id}")]
-        Task DeletePendingRequest(Guid id);
+        Task<ApiResponse<NoResultResponse>> DeletePendingRequest(Guid id);
     }
 }
