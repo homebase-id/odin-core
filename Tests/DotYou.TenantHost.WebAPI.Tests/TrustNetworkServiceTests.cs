@@ -1,6 +1,5 @@
 using DotYou.Types;
 using DotYou.Types.TrustNetwork;
-using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Refit;
 using System;
@@ -10,13 +9,13 @@ using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
+
     public class TrustNetworkServiceTests
     {
         static DotYouIdentity frodo = (DotYouIdentity)"frodobaggins.me";
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
 
-        IHost webserver;
-        IdentityContextRegistry _registry;
+        private IdentityContextRegistry _registry;
 
         public void SleepHack(int seconds)
         {
@@ -27,22 +26,10 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            var args = new string[0];
-            webserver = Program.CreateHostBuilder(args).Build();
-            webserver.Start();
-
             _registry = new IdentityContextRegistry();
             _registry.Initialize();
         }
 
-        [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-            //HACK: make the server wait a few seconds so it can complete all operations
-            System.Threading.Thread.Sleep(2 * 1000);
-            webserver.StopAsync().Wait();
-        }
 
         [SetUp]
         public void Setup() { }
@@ -80,7 +67,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
                 var getReponse = await svc.GetPendingRequest(request.Id);
-                Assert.IsTrue(getReponse.StatusCode ==  System.Net.HttpStatusCode.NotFound,  $"Failed - request with Id {request.Id} still exists");
+                Assert.IsTrue(getReponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {request.Id} still exists");
             }
         }
 
@@ -99,7 +86,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r=> r.Id == request.Id), $"Could not find request with id [{request.Id}] in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Id == request.Id), $"Could not find request with id [{request.Id}] in the results");
             }
         }
 

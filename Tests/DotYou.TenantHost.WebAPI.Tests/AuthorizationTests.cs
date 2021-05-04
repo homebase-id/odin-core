@@ -23,7 +23,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         static DotYouIdentity frodo = (DotYouIdentity)"frodobaggins.me";
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
 
-        IHost webserver;
+        //IHost webserver;
         IdentityContextRegistry _registry;
 
         public void SleepHack(int seconds)
@@ -35,11 +35,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            var args = new string[0];
-            webserver = Program.CreateHostBuilder(args).Build();
-            webserver.Start();
-
             _registry = new IdentityContextRegistry();
             _registry.Initialize();
         }
@@ -47,9 +42,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            //HACK: make the server wait a few seconds so it can complete all operations
-            System.Threading.Thread.Sleep(2 * 1000);
-            webserver.StopAsync().Wait();
         }
 
         [SetUp]
