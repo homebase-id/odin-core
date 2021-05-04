@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Refit;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -24,40 +25,53 @@ namespace DotYou.TenantHost.WebAPI.Tests
         IHost webserver;
         IdentityContextRegistry _registry;
 
+        public void SleepHack(int seconds)
+        {
+            //eww - until i figure out why async is not quite right
+            System.Threading.Thread.Sleep(seconds * 1000);
+        }
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _registry = new IdentityContextRegistry();
-            _registry.Initialize();
-
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
             var args = new string[0];
             webserver = Program.CreateHostBuilder(args).Build();
-            webserver.StartAsync();
+            webserver.Start();
 
+            _registry = new IdentityContextRegistry();
+            _registry.Initialize();
+        }
 
-            
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            //HACK: make the server wait a few seconds so it can complete all operations
+            System.Threading.Thread.Sleep(2 * 1000);
+            webserver.StopAsync().Wait();
         }
 
         [SetUp]
-        public void Setup()
-        {
-            
-        }
-
-        [TearDown]
-        public void Teardown()
-        {
-            webserver.StopAsync();
-        }
+        public void Setup() { }
 
         [Test]
         public async Task CanSendConnectionRequest()
         {
             var request = await CreateConnectionRequestSamToFrodo();
+            var id = request.Id;
 
-            //var tn = CreateService(frodo);
-            //var storedRequest = await tn.GetPendingRequest(request.Id);
-            //Assert.IsNotNull(storedRequest, $"No request found with Id [{request.Id}]");
+            //var id = Guid.Parse("c8bda6e3-202b-44c5-8dd9-2f06f2e1156e");
+            Console.WriteLine(id);
+
+            ////does frodo have the request?
+            using (var client = CreateHttpClient(frodo))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var response = await svc.GetPendingRequest(id);
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                Assert.IsNotNull(response.Content, $"No request found with Id [{id}]");
+                Assert.IsTrue(response.Content.Id == id);
+            }
         }
 
         [Test]
@@ -148,7 +162,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Assert.IsTrue(result.IsSuccessStatusCode, "Failed sending the request");
             }
 
-            return request;  
+            return request;
         }
 
         private ILogger<T> CreateLogger<T>()

@@ -2,6 +2,7 @@
 using DotYou.Types;
 using DotYou.Types.TrustNetwork;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace DotYou.TenantHost.Controllers
     public class TrustNetworkRequestsController: ControllerBase
     {
         ITrustNetworkService _trustNetwork;
+
         public TrustNetworkRequestsController(ITrustNetworkService trustNetwork)
         {
             _trustNetwork = trustNetwork;
@@ -31,7 +33,8 @@ namespace DotYou.TenantHost.Controllers
         //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<ConnectionRequest> GetPendingRequest(Guid id)
         {
-            return await _trustNetwork.GetPendingRequest(id);
+            var result = await _trustNetwork.GetPendingRequest(id);
+            return result;
         }
 
         [HttpGet("sent")]

@@ -1,0 +1,6 @@
+2021-05-03T21:20:23.7606752-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Now listening on: http://[::]:80
+2021-05-03T21:20:23.7624222-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Now listening on: https://[::]:443
+2021-05-03T21:20:23.7625197-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Application started. Press Ctrl+C to shut down.
+2021-05-03T21:20:23.7625304-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Hosting environment: Development
+2021-05-03T21:20:23.7625450-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Content root path: D:\src\youfoundation\DotYouCore\DotYou.TenantHost
+2021-05-03T21:20:30.4558561-07:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Application is shutting down...

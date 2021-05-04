@@ -18,7 +18,6 @@ namespace DotYou.TenantHost
         {
             CreateHostBuilder(args).Build().Run();
         }
-
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             _registry = new IdentityContextRegistry();
@@ -28,13 +27,19 @@ namespace DotYou.TenantHost
               .ConfigureLogging(config =>
               {
                   config.ClearProviders();
-                  config.AddMultiTenantLogger(
-                          configuration =>
-                          {
-                              configuration.LogLevels.Add(LogLevel.Information, ConsoleColor.Gray);
-                              configuration.LogLevels.Add(LogLevel.Warning, ConsoleColor.DarkMagenta);
-                              configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
-                          });
+                  config.AddConsole();
+                  config.AddFile("log\\app_{0:yyyy}-{0:MM}-{0:dd}.log", opts =>
+                  {
+                      //opts.FormatLogEntry
+                      opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
+                  });
+                  //config.AddMultiTenantLogger(
+                  //        configuration =>
+                  //        {
+                  //            configuration.LogLevels.Add(LogLevel.Information, ConsoleColor.Gray);
+                  //            configuration.LogLevels.Add(LogLevel.Warning, ConsoleColor.DarkMagenta);
+                  //            configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
+                  //        });
               })
               .ConfigureServices(services =>
               {

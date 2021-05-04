@@ -10,7 +10,7 @@ namespace DotYou.Types.TrustNetwork
     {
         public ConnectionRequest()
         {
-            Id = Guid.NewGuid();
+            
         }
 
         public Guid Id { get; set; }

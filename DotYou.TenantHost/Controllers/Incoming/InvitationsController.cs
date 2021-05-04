@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.Controllers.Incoming
 {
@@ -23,39 +24,23 @@ namespace DotYou.TenantHost.Controllers.Incoming
             _trustNetwork = trustNetwork;
         }
 
-        [HttpGet("faux")]
-        public IActionResult Faux()
-        {
-            var request = new ConnectionRequest()
-            {
-                Id = Guid.NewGuid(),
-                DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                Message = "Please add me",
-                Sender = (DotYouIdentity)"frodobaggins.me",
-                Recipient = (DotYouIdentity)"samwisegamgee.me",
-                SenderGivenName = "Samwise",
-                SenderSurname = "Gamgee"
-            };
-
-            _trustNetwork.SendConnectionRequest(request);
-            return Ok("sent");
-        }
-
         [HttpPost("connect")]
         //[Authorize(Policy = PolicyNames.MustBeIdentified)]
-        public IActionResult ReceiveConnectionRequest([FromBody] ConnectionRequest request)
+        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
             try
             {
-                _trustNetwork.ReceiveConnectionRequest(request);
+                await _trustNetwork.ReceiveConnectionRequest(request);
                 return Ok();
             }
             catch (System.Exception ex)
             {
+                Console.WriteLine("wtf frodo");
+                Console.WriteLine(ex.Message);
                 //TODO: add logging
-                //throw;
+                throw ex;
 
-                return StatusCode(500);
+                //return StatusCode(500);
             }
         }
     }

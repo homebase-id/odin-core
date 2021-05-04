@@ -33,6 +33,8 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
+            this.Logger.LogInformation($"receiving connection requst from [{request.Sender}]");
+
             WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Save(request));
 
             /*

@@ -7,6 +7,7 @@ using DotYou.Types.TrustNetwork;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -54,15 +56,13 @@ namespace DotYou.TenantHost
                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                });
 
-            //TODO
-            //dotnet add package PersistentMemoryCache --version 1.0.15-Beta
             services.AddMemoryCache();
-            
+
             services.AddScoped<ITrustNetworkService, TrustNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<TrustNetworkService>>();
-                
+
                 return new TrustNetworkService(context, logger);
             });
         }
@@ -76,6 +76,15 @@ namespace DotYou.TenantHost
             {
                 app.UseDeveloperExceptionPage();
             }
+            else
+            {
+                app.UseExceptionHandler(config =>
+                {
+
+                });
+            }
+
+            app.UseMiddleware<ExceptionMiddleware>();
 
             //order matters
             app.UseRouting();
