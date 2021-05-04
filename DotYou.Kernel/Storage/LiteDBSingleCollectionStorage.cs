@@ -57,7 +57,7 @@ namespace DotYou.Kernel.Storage
             var total = q.LongCount();
             //q.OrderByDescending()
 
-            var data = q.Limit(req.Size).Offset(req.PageIndex).ToList();
+            var data = q.Limit(req.PageSize).Offset(req.PageIndex).ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(total), data);
             return Task.FromResult(result);
         }
@@ -73,7 +73,7 @@ namespace DotYou.Kernel.Storage
             var col = GetCollection();
 
             var skip = req.GetSkipCount();
-            var limit = req.Size;
+            var limit = req.PageSize;
             var totalCount = col.Count(predicate);
             var data = col.Find(predicate, skip, limit).ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(totalCount), data);

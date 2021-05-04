@@ -1,5 +1,6 @@
 using DotYou.Kernel;
 using DotYou.Kernel.Identity;
+using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.TrustNetwork;
 using DotYou.Types;
@@ -56,6 +57,11 @@ namespace DotYou.TenantHost
                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                });
 
+            services.AddAuthorization(policy =>
+            {
+                policy.AddPolicy(DotYouPolicyNames.MustOwnThisIdentity, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
+            });
+
             services.AddMemoryCache();
 
             services.AddScoped<ITrustNetworkService, TrustNetworkService>(svc =>
@@ -86,9 +92,9 @@ namespace DotYou.TenantHost
 
             app.UseMiddleware<ExceptionMiddleware>();
 
-            //order matters
             app.UseRouting();
             app.UseAuthentication();
+            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
@@ -123,11 +129,18 @@ namespace DotYou.TenantHost
             //add systemcircle claim based on my relationshiop to this person
             //lookup name for the individual and add to the claims
 
+            bool isTenantOwner = false;
+            var dotYouContext = ResolveContext(context.HttpContext.RequestServices);
+            using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificate())
+            {
+                isTenantOwner = serverCertificate.Thumbprint == context.ClientCertificate.Thumbprint;
+            }
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower())
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

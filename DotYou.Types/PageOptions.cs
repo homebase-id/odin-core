@@ -23,35 +23,35 @@ namespace DotYou.Types
                 throw new Exception("Page Number must be greater than 0");
             }
 
-            Number = pageNumber;
-            Size = pageSize;
+            PageNumber = pageNumber;
+            PageSize = pageSize;
         }
 
         /// <summary>
         /// The page number (starting from 1)
         /// </summary>
-        public int Number { get; private set; }
+        public int PageNumber { get; private set; }
 
         /// <summary>
         /// Number of records per page
         /// </summary>
-        public int Size { get; private set; }
+        public int PageSize { get; private set; }
 
         /// <summary>
         /// Returns the total number of pages for the given number of records.
         /// </summary>
         public int GetTotalPages(long recordCount)
         {
-            return (int)Math.Ceiling((double)recordCount / Size);
+            return (int)Math.Ceiling((double)recordCount / PageSize);
         }
 
         /// <summary>
-        /// Returns the number of records to skip based on <see cref="Size"/> and <see cref="Number"/>
+        /// Returns the number of records to skip based on <see cref="PageSize"/> and <see cref="PageNumber"/>
         /// </summary>
         /// <returns></returns>
         public int GetSkipCount()
         {
-            return Size * PageIndex;
+            return PageSize * PageIndex;
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace DotYou.Types
         /// </summary>
         public int PageIndex
         {
-            get { return Number - 1; }
+            get { return PageNumber - 1; }
         }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace DotYou.Types
         /// <returns></returns>
         public string ToQueryStringParams()
         {
-            return $"pageNumber={Number}&pageSize={Size}";
+            return $"pageNumber={PageNumber}&pageSize={PageSize}";
         }
     }
 

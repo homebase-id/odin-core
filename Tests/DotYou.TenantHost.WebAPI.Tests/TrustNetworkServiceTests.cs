@@ -118,13 +118,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
             Assert.Fail("awaiting implementation");
         }
 
-        private ITrustNetworkService CreateService(DotYouIdentity identity)
-        {
-            var ctx = _registry.ResolveContext(identity);
-            var tn = new TrustNetworkService(ctx, CreateLogger<TrustNetworkService>());
-            return tn;
-        }
-
         private HttpClient CreateHttpClient(DotYouIdentity identity)
         {
             var samContext = _registry.ResolveContext(identity);
@@ -162,14 +155,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
             }
 
             return request;
-        }
-
-        private ILogger<T> CreateLogger<T>()
-        {
-            var lf = new LoggerFactory();
-            var logger = lf.CreateLogger<T>();
-            return logger;
-
         }
     }
 }

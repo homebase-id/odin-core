@@ -1,6 +1,8 @@
-﻿using DotYou.Kernel.Services.TrustNetwork;
+﻿using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.TrustNetwork;
 using DotYou.Types;
 using DotYou.Types.TrustNetwork;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -11,6 +13,7 @@ using System.Threading.Tasks;
 namespace DotYou.TenantHost.Controllers
 {
 
+    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
     [Route("api/trustnetwork/requests")]
     [ApiController]
     public class TrustNetworkRequestsController : ControllerBase
@@ -23,7 +26,6 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet("pending")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(int pageNumber, int pageSize)
         {
             var result = await _trustNetwork.GetPendingRequests(new PageOptions(pageNumber, pageSize));

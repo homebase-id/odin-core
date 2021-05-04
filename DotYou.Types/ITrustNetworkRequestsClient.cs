@@ -27,7 +27,7 @@ namespace DotYou.Types
         Task<ApiResponse<ConnectionRequest>> GetSentRequest(Guid id);
 
         [Get(pending_path_root)]
-        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequests(PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequests([Query]PageOptions pageRequest);
 
         [Get(pending_path_root + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetPendingRequest(Guid id);
