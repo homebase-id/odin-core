@@ -15,19 +15,19 @@ namespace DotYou.Types
         private const string pending_path_root = root_path + "/pending";
 
         [Post(sent_path_root)]
-        Task<ApiResponse<bool>> SendConnectionRequest([Body] ConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequest request);
 
         [Get(pending_path_root + "/accept/{id}")]
-        Task AcceptConnectionRequest(Guid id);
+        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(Guid id);
 
         [Get(sent_path_root)]
-        Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequests(PageOptions pageRequest);
 
         [Get(sent_path_root + "/{id}")]
-        Task<ConnectionRequest> GetSentRequest(Guid id);
+        Task<ApiResponse<ConnectionRequest>> GetSentRequest(Guid id);
 
         [Get(pending_path_root)]
-        Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequests(PageOptions pageRequest);
 
         [Get(pending_path_root + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetPendingRequest(Guid id);

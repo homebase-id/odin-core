@@ -10,9 +10,10 @@ using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.Controllers
 {
+
     [Route("api/trustnetwork/requests")]
     [ApiController]
-    public class TrustNetworkRequestsController: ControllerBase
+    public class TrustNetworkRequestsController : ControllerBase
     {
         ITrustNetworkService _trustNetwork;
 
@@ -54,17 +55,18 @@ namespace DotYou.TenantHost.Controllers
 
         [HttpPost("sent")]
         //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
-        public bool Send([FromBody] ConnectionRequest request)
+        public async Task<IActionResult> Send([FromBody] ConnectionRequest request)
         {
-            _trustNetwork.SendConnectionRequest(request);
-            return true;
+            await _trustNetwork.SendConnectionRequest(request);
+            return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpPost("pending/accept")]
         //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
-        public async void AcceptPending(Guid id)
+        public async Task<IActionResult> AcceptPending(Guid id)
         {
             await _trustNetwork.AcceptConnectionRequest(id);
+            return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpDelete("pending")]
@@ -72,7 +74,7 @@ namespace DotYou.TenantHost.Controllers
         public async Task<IActionResult> DeletePending(Guid id)
         {
             await _trustNetwork.DeletePendingRequest(id);
-            return Ok();
+            return new JsonResult(new NoResultResponse(true));
         }
 
     }

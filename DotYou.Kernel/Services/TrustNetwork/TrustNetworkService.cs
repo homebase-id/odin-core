@@ -26,6 +26,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public async Task SendConnectionRequest(ConnectionRequest request)
         {
+            this.Logger.LogInformation($"[{request.Sender}] is sending a request to the server of  [{request.Recipient}]");
             await base.HttpProxy.PostJson<ConnectionRequest>(request.Recipient, "/api/incoming/invitations/connect", request);
 
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
@@ -33,7 +34,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            this.Logger.LogInformation($"receiving connection requst from [{request.Sender}]");
+            this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
 
             WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Save(request));
 
@@ -57,6 +58,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public async Task<ConnectionRequest> GetPendingRequest(Guid id)
         {
+            this.Logger.LogInformation($"Context: {this.Context.DotYouId} GetPendingRequests for [{id}] called");
             var result = await WithTenantStorageReturn<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Get(id));
             return result;
         }

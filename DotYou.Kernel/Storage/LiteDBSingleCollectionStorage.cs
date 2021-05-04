@@ -112,7 +112,7 @@ namespace DotYou.Kernel.Storage
         {
             if (_db != null)
             {
-                _logger.LogInformation($"Disposing of {_collectionName} instance");
+                _logger.LogInformation($"Disposing of {_collectionName} litedb instance");
                 _db.Dispose();
             }
         }

@@ -28,20 +28,8 @@ namespace DotYou.TenantHost.Controllers.Incoming
         //[Authorize(Policy = PolicyNames.MustBeIdentified)]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
-            try
-            {
-                await _trustNetwork.ReceiveConnectionRequest(request);
-                return Ok();
-            }
-            catch (System.Exception ex)
-            {
-                Console.WriteLine("wtf frodo");
-                Console.WriteLine(ex.Message);
-                //TODO: add logging
-                throw ex;
-
-                //return StatusCode(500);
-            }
+            await _trustNetwork.ReceiveConnectionRequest(request);
+            return Ok();
         }
     }
 }
