@@ -146,7 +146,48 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [Test]
         public async Task CanAcceptConnectionRequest()
         {
-            Assert.Fail("awaiting implementation");
+
+            var request = await CreateConnectionRequestSamToFrodo();
+
+            using (var client = CreateHttpClient(frodo))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+
+                var acceptResponse = await svc.AcceptConnectionRequest(request.Id);
+
+                //
+                // The pending request should be removed
+                //
+                var getReponse = await svc.GetPendingRequest(request.Id);
+                Assert.IsTrue(getReponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {request.Id} still exists");
+
+                //
+                // Sam should be in frodo's contacts network.
+                //
+                var frodoContactSvc = RestService.For<IContactRequestsClient>(client);
+                var samResponse = await frodoContactSvc.GetContact(samwise);
+
+                Assert.IsTrue(samResponse.IsSuccessStatusCode, $"Failed to retrieve {samwise}");
+                Assert.IsNotNull(samResponse.Content, $"No contact with domain {samwise} found");
+
+                //TODO: add checks that Surname and Givenname are correct
+
+            }
+
+            using (var client = CreateHttpClient(samwise))
+            {
+                //
+                // Frodo should be in sam's contacts network
+                //
+                var contactSvc = RestService.For<IContactRequestsClient>(client);
+
+                var response = await contactSvc.GetContact(frodo);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {frodo}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {frodo} found");
+
+                //TODO: add checks that Surname and Givenname are correct
+            }
         }
 
         private HttpClient CreateHttpClient(DotYouIdentity identity)

@@ -9,14 +9,14 @@ namespace DotYou.Kernel.Services.TrustNetwork
 {
     public class TrustNetworkService : DotYouServiceBase, ITrustNetworkService
     {
-        const string INCOMING_CONNECTION_REQUESTS = "ConnectionRequests";
+        const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
         public TrustNetworkService(DotYouContext context, ILogger<TrustNetworkService> logger) : base(context, logger) { }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            var results = await WithTenantStorageReturnList<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
@@ -38,7 +38,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
         {
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
 
-            WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Save(request));
+            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
 
             /*
             try
@@ -61,13 +61,13 @@ namespace DotYou.Kernel.Services.TrustNetwork
         public async Task<ConnectionRequest> GetPendingRequest(Guid id)
         {
 
-            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Get(id));
+            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Get(id));
             return result;
         }
 
         public Task DeletePendingRequest(Guid id)
         {
-            WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Delete(id));
+            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
