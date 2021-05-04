@@ -1,21 +1,19 @@
-﻿using DotYou.Kernel.Services.Authorization;
+﻿using System;
+using System.Net;
+using System.Threading.Tasks;
+using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.TrustNetwork;
 using DotYou.Types;
 using DotYou.Types.TrustNetwork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.Controllers
 {
 
-    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
-    [Route("api/trustnetwork/requests")]
     [ApiController]
+    [Route("api/trustnetwork/requests")]
+    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
     public class TrustNetworkRequestsController : ControllerBase
     {
         ITrustNetworkService _trustNetwork;
@@ -33,15 +31,22 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet("pending/{id}")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
-        public async Task<ConnectionRequest> GetPendingRequest(Guid id)
+        public async Task<IActionResult> GetPendingRequest(Guid id)
         {
             var result = await _trustNetwork.GetPendingRequest(id);
-            return result;
+
+            if (result == null)
+            {
+                return new JsonResult(new NoResultResponse(true))
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+
+            return new JsonResult(result);
         }
 
         [HttpGet("sent")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(int pageNumber, int pageSize)
         {
             var result = await _trustNetwork.GetSentRequests(new PageOptions(pageNumber, pageSize));
@@ -49,14 +54,21 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet("sent/{id}")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
-        public async Task<ConnectionRequest> GetSentRequest(Guid id)
+        public async Task<IActionResult> GetSentRequest(Guid id)
         {
-            return await _trustNetwork.GetSentRequest(id);
+            var result = await _trustNetwork.GetSentRequest(id);
+            if (result == null)
+            {
+                return new JsonResult(new NoResultResponse(true))
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+
+            return new JsonResult(result);
         }
 
         [HttpPost("sent")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<IActionResult> Send([FromBody] ConnectionRequest request)
         {
             await _trustNetwork.SendConnectionRequest(request);
@@ -64,15 +76,13 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpPost("pending/accept")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
         public async Task<IActionResult> AcceptPending(Guid id)
         {
             await _trustNetwork.AcceptConnectionRequest(id);
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpDelete("pending")]
-        //[Authorize(Policy = PolicyNames.MustOwnThisIdentity)]
+        [HttpDelete("pending/{id}")]
         public async Task<IActionResult> DeletePending(Guid id)
         {
             await _trustNetwork.DeletePendingRequest(id);

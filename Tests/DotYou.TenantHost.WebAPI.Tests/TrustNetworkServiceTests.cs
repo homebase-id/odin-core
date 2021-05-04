@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Refit;
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -47,7 +48,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         public void Setup() { }
 
         [Test]
-        public async Task CanSendConnectionRequest()
+        public async Task CanSendConnectionRequestAndGetPendingReqeust()
         {
             //Have sam send Frodo a request.
             var request = await CreateConnectionRequestSamToFrodo();
@@ -61,8 +62,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsNotNull(response.Content, $"No request found with Id [{id}]");
-                Assert.IsTrue(response.Content.Id == id);
+                Assert.IsNotNull(response.Content, $"No request found with Id [{request.Id}]");
+                Assert.IsTrue(response.Content.Id == request.Id);
             }
         }
 
@@ -75,10 +76,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
             {
                 var svc = RestService.For<ITrustNetworkRequestsClient>(client);
 
-                var response = await svc.DeletePendingRequest(request.Id);
+                var deleteResponse = await svc.DeletePendingRequest(request.Id);
+                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-
+                var getReponse = await svc.GetPendingRequest(request.Id);
+                Assert.IsTrue(getReponse.StatusCode ==  System.Net.HttpStatusCode.NotFound,  $"Failed - request with Id {request.Id} still exists");
             }
         }
 
@@ -95,9 +97,9 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsTrue(response.Content.TotalPages == 1);
-                Assert.IsTrue(response.Content.Results.Count == 1);
-                Assert.IsTrue(response.Content.Results[0].Id == request.Id);
+                Assert.IsTrue(response.Content.TotalPages >= 1);
+                Assert.IsTrue(response.Content.Results.Count >= 1);
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r=> r.Id == request.Id), $"Could not find request with id [{request.Id}] in the results");
             }
         }
 
@@ -115,9 +117,29 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsTrue(response.Content.TotalPages == 1);
-                Assert.IsTrue(response.Content.Results.Count == 1);
-                Assert.IsTrue(response.Content.Results[0].Id == request.Id);
+                Assert.IsTrue(response.Content.TotalPages >= 1);
+                Assert.IsTrue(response.Content.Results.Count >= 1);
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Id == request.Id), $"Could not find request with id [{request.Id}] in the results");
+
+            }
+        }
+
+
+        [Test]
+        public async Task CanGetSentConnectionRequest()
+        {
+            var request = await CreateConnectionRequestSamToFrodo();
+
+            //Check Sam's list of sent requests
+            using (var client = CreateHttpClient(samwise))
+            {
+                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+
+                var response = await svc.GetSentRequest(request.Id);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                Assert.IsNotNull(response.Content, $"No request found with Id [{request.Id}]");
+                Assert.IsTrue(response.Content.Id == request.Id);
             }
         }
 

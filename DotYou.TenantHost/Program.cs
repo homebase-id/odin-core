@@ -80,23 +80,21 @@ namespace DotYou.TenantHost
 
             string logPath = Environment.GetEnvironmentVariable(LOG_PATH_ENV_NAME);
 
-            //try for env var
-            if(!string.IsNullOrEmpty(logPath) && !string.IsNullOrWhiteSpace(logPath))
-            {
-                //if set it must be a valid path.
-                if (!Directory.Exists(logPath))
-                {
-                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure you have an enviornment variable named [{LOG_PATH_ENV_NAME}] set to an existing path and your app has read/write access to the path.");
-                }
-            }
-            else
+            if(string.IsNullOrEmpty(logPath) && string.IsNullOrWhiteSpace(logPath))
             {
                 var isUnixBased = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                     RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ||
                     RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
                 logPath = isUnixBased ? "/tmp/dotyoulogs" : "\\temp\\dotyoulogs";
-
+            }
+            else
+            {
+                //if an env var is set it must be a valid path.
+                if (!Directory.Exists(logPath))
+                {
+                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure you have an enviornment variable named [{LOG_PATH_ENV_NAME}] set to an existing path and your app has read/write access to the path.");
+                }
             }
 
             logPath = Path.Combine(logPath, "app_{0:yyyy}-{0:MM}-{0:dd}.log");

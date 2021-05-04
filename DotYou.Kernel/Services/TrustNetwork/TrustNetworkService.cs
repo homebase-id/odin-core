@@ -14,14 +14,16 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public TrustNetworkService(DotYouContext context, ILogger<TrustNetworkService> logger) : base(context, logger) { }
 
-        public Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
+        public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            throw new System.NotImplementedException();
+            var results = await WithTenantStorageReturnList<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            return results;
         }
 
-        public Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageRequest)
+        public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            throw new System.NotImplementedException();
+            var results = await WithTenantStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            return results;
         }
 
         public async Task SendConnectionRequest(ConnectionRequest request)
@@ -58,8 +60,8 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public async Task<ConnectionRequest> GetPendingRequest(Guid id)
         {
-            this.Logger.LogInformation($"Context: {this.Context.DotYouId} GetPendingRequests for [{id}] called");
-            var result = await WithTenantStorageReturn<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Get(id));
+
+            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Get(id));
             return result;
         }
 
@@ -67,6 +69,12 @@ namespace DotYou.Kernel.Services.TrustNetwork
         {
             WithTenantStorage<ConnectionRequest>(INCOMING_CONNECTION_REQUESTS, s => s.Delete(id));
             return Task.CompletedTask;
+        }
+
+        public async Task<ConnectionRequest> GetSentRequest(Guid id)
+        {
+            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(id));
+            return result;
         }
 
         public Task EstablishConnection(ConnectionRequest request)
@@ -79,9 +87,5 @@ namespace DotYou.Kernel.Services.TrustNetwork
             throw new NotImplementedException();
         }
 
-        public Task<ConnectionRequest> GetSentRequest(Guid id)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

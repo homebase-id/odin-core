@@ -48,7 +48,16 @@ namespace DotYou.Kernel.Services
             }
         }
 
-        protected Task<T> WithTenantStorageReturn<T>(string collection, Func<IStorage<T>, Task<T>> func)
+        protected Task<PagedResult<T>> WithTenantStorageReturnList<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<PagedResult<T>>> func)
+        {
+            var cfg = _context.StorageConfig;
+            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
+            {
+                return func(storage);
+            }
+        }
+
+        protected Task<T> WithTenantStorageReturnSingle<T>(string collection, Func<LiteDBSingleCollectionStorage<T>,Task<T>> func)
         {
             var cfg = _context.StorageConfig;
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
