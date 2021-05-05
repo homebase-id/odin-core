@@ -16,9 +16,17 @@ namespace DotYou.Types.Certificate
         /// </summary>
         /// <param name="publicKeyPath">Path to the public key</param>
         /// <returns></returns>
-        public static X509Certificate2 LoadPublicKeyCertificate(string publicKeyPath)
+        public static X509Certificate2 LoadPublicKeyCertificateFromPath(string publicKeyPath)
         {
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
+            {
+                return publicKey;
+            }
+        }
+
+        public static X509Certificate2 LoadPublicKeyCertificate(string data)
+        {
+            using (X509Certificate2 publicKey = new X509Certificate2(GetByteArray(data)))
             {
                 return publicKey;
             }
@@ -51,6 +59,26 @@ namespace DotYou.Types.Certificate
                     }
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Convert a hexidecimal string to a byte[]
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        /// <remarks>/// Via https://stackoverflow.com/questions/311165/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-and-vice-versa/26304129#26304129</remarks>
+        public static byte[] GetByteArray(string hexadecimalString)
+        {
+            var outputLength = hexadecimalString.Length / 2;
+            var output = new byte[outputLength];
+            var numeral = new char[2];
+            for (int i = 0; i < outputLength; i++)
+            {
+                hexadecimalString.CopyTo(i * 2, numeral, 0, 2);
+                output[i] = Convert.ToByte(new string(numeral), 16);
+            }
+            return output;
         }
     }
 }

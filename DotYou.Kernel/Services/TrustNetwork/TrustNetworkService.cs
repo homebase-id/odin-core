@@ -1,6 +1,8 @@
 ﻿using DotYou.Kernel.Storage;
 using DotYou.Types;
+using DotYou.Types.Certificate;
 using DotYou.Types.TrustNetwork;
+using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -12,7 +14,12 @@ namespace DotYou.Kernel.Services.TrustNetwork
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
-        public TrustNetworkService(DotYouContext context, ILogger<TrustNetworkService> logger) : base(context, logger) { }
+        private readonly IContactService _contactService;
+
+        public TrustNetworkService(DotYouContext context, IContactService contactService, ILogger<TrustNetworkService> logger) : base(context, logger)
+        {
+            _contactService = contactService;
+        }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
@@ -36,6 +43,8 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
+            request.Validate();
+
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
 
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
@@ -77,15 +86,99 @@ namespace DotYou.Kernel.Services.TrustNetwork
             return result;
         }
 
-        public Task EstablishConnection(ConnectionRequest request)
+        public async Task EstablishConnection(EstablishConnectionRequest request)
         {
-            throw new NotImplementedException();
+
+            var originalRequest = await this.GetSentRequest(request.ConnectionRequestId);
+
+            if(null == originalRequest)
+            {
+                throw new InvalidOperationException("The original request no longer exists in Sent Requests");
+            }
+
+            string recipientDomain = GetCertificateDomain(request.RecipientPublicKey);
+            var ec = await _contactService.GetByDomainName(recipientDomain);
+
+            //TODO: address how this contact merge should really happen
+            var contact = new Contact()
+            {
+                GivenName = request.RecipientGivenName,
+                Surname = request.RecipientSurname,
+                DotYouId = (DotYouIdentity)recipientDomain,
+                SystemCircle = SystemCircle.Connected,
+                PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
+                PublicKeyCertificate = request.RecipientPublicKey,
+                Tag = null == ec ? "" : ec.Tag
+            };
+
+            await _contactService.Save(contact);
+
+
+
         }
 
-        public Task AcceptConnectionRequest(Guid requestId)
+        public async Task AcceptConnectionRequest(Guid requestId)
         {
-            throw new NotImplementedException();
+            //get the requst
+            var request = await GetPendingRequest(requestId);
+            if (null == request)
+            {
+                throw new InvalidOperationException($"No pending request was found with id [{requestId}]");
+            }
+
+            request.Validate();
+
+            this.Logger.LogInformation($"Accept Connection request called for sender {request.Sender} to {request.Recipient}");
+
+            string domain = GetCertificateDomain(request.SenderPublicKey);
+
+            var ec = await _contactService.GetByDomainName(domain);
+
+            //TODO: address how this contact merge should really happen
+            var contact = new Contact()
+            {
+                GivenName = request.SenderGivenName,
+                Surname = request.SenderSurname,
+                DotYouId = (DotYouIdentity)domain,
+                SystemCircle = SystemCircle.Connected,
+                PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
+                PublicKeyCertificate = request.SenderPublicKey,
+                Tag = null == ec ? "" : ec.Tag
+            };
+
+            //Upsert
+            await _contactService.Save(contact);
+
+            //call to request.Sender's agent to establish connection.
+            EstablishConnectionRequest acceptedReq = new()
+            {
+                ConnectionRequestId = requestId,
+                RecipientPublicKey = "",
+                RecipientGivenName = "",
+                RecipientSurname = ""
+            };
+
+            var response = await this.HttpProxy.PostJson(request.Sender, "api/incoming/invitations/establishconnection", acceptedReq);
+            
+            if(!response)
+            {
+                //TODO: add more info
+                throw new Exception("Failed to establish connection request");
+            }
+
+            await this.DeletePendingRequest(request.Id);
         }
 
+        private string GetCertificateDomain(string publicKeyCertificate)
+        {
+            string domain = "";
+            using (var certificate = CertificateLoader.LoadPublicKeyCertificate(publicKeyCertificate))
+            {
+                //HACK - need to put this sort of parsing into a class OR accept the subject as the domain?
+                domain = certificate.Subject.Split("=")[0];
+            }
+            return domain;
+
+        }
     }
 }

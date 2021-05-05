@@ -24,14 +24,11 @@ namespace DotYou.TenantHost
         /// Hard coded identity which lets you boostrap your system when you have no other sites
         /// Note: for a production system this must be moved to configuration.
         /// </summary>
-        private static readonly IdentityCertificate RootIdentityCertificate = new IdentityCertificate(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id")
+        private static readonly IdentityCertificate RootIdentityCertificate = new IdentityCertificate(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id", new CertificateLocation()
         {
-            Location = new CertificateLocation()
-            {
-                CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
-                PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key"),
-            }
-        };
+            CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
+            PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key"),
+        });
 
         /// <summary>
         /// Resolves a context based on a given domain name
@@ -59,24 +56,17 @@ namespace DotYou.TenantHost
         public void Initialize()
         {
 
-            IdentityCertificate samwise = new IdentityCertificate(Guid.NewGuid(), "samwisegamgee.me")
+            IdentityCertificate samwise = new IdentityCertificate(Guid.NewGuid(), "samwisegamgee.me", new CertificateLocation()
             {
-                Location = new CertificateLocation()
-                {
-                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "certificate.crt"),
-                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "private.key"),
-                }
-            };
+                CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "certificate.crt"),
+                PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "private.key"),
+            });
 
-            IdentityCertificate frodo = new IdentityCertificate(Guid.NewGuid(), "frodobaggins.me")
+            IdentityCertificate frodo = new IdentityCertificate(Guid.NewGuid(), "frodobaggins.me", new CertificateLocation()
             {
-
-                Location = new CertificateLocation()
-                {
-                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.crt"),
-                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key"),
-                }
-            };
+                CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.crt"),
+                PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key"),
+            });
 
             _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
             _certificates.Add(samwise.Key, samwise);

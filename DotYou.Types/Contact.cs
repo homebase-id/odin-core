@@ -13,41 +13,20 @@ namespace DotYou.Types
 
         public string PrimaryEmail { get; set; }
 
-        public string CertificateThumprint { get; set; }
+        /// <summary>
+        /// A hexidecimal string of this contacts public key certificate.  This must be 
+        /// populated if <see cref="SystemCircle"/> is <see cref="SystemCircle.Connected"/>.
+        /// </summary>
+        public string PublicKeyCertificate { get; set; }
 
-        /*
-        public NetworkCircle NetworkConnectionType
-        {
-            get
-            {
-                return this.RelationshipId == Guid.Empty ? NetworkCircle.None : NetworkCircle.Connected;
-            }
-        }
-        */
+        /// <summary>
+        /// Specifies which system circle this contact exists with-in.
+        /// </summary>
+        public SystemCircle SystemCircle { get; set; }
+
         public override string ToString()
         {
             return $"{GivenName} {Surname}";
         }
-    }
-
-    /// <summary>
-    /// Specifies the nature of the relationship of the contact to this <see cref="DotYouIdentity"/>.
-    /// </summary>
-    public enum NetworkCircle
-    {
-        /// <summary>
-        /// Any type of contact whether or not they have a <see cref="DotYouIdentity"/>
-        /// </summary>
-        PublicAnonymous = 0,
-
-        /// <summary>
-        /// The contact has a valid certificate
-        /// </summary>
-        Identified = 1,
-
-        /// <summary>
-        /// 
-        /// </summary>
-        Connected = 2
     }
 }

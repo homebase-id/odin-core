@@ -24,7 +24,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        Task EstablishConnection(ConnectionRequest request);
+        Task EstablishConnection(EstablishConnectionRequest request);
 
         /// <summary>
         /// Accepts a connection request.  This will store the public key certificate 

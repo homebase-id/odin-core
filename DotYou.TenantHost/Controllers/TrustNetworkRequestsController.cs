@@ -75,7 +75,7 @@ namespace DotYou.TenantHost.Controllers
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpPost("pending/accept")]
+        [HttpPost("pending/accept/{id}")]
         public async Task<IActionResult> AcceptPending(Guid id)
         {
             await _trustNetwork.AcceptConnectionRequest(id);

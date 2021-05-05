@@ -3,6 +3,7 @@ using DotYou.Kernel.Services;
 using DotYou.Types;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
@@ -22,7 +23,7 @@ namespace Identity.Web.Services.Contacts
 
         public Task Save(Contact contact)
         {
-            WithTenantStorage<Contact>(CONTACT_COLLECTION,storage => storage.Save(contact));
+            WithTenantStorage<Contact>(CONTACT_COLLECTION, storage => storage.Save(contact));
             return Task.CompletedTask;
         }
 
@@ -45,39 +46,11 @@ namespace Identity.Web.Services.Contacts
             return Task.CompletedTask;
         }
 
-        public Task<Contact> GetByDomainName(string domainName)
+        public async Task<Contact> GetByDomainName(string domainName)
         {
-
-            throw new NotImplementedException();
+            //TODO: need to add support for unique keys in the storage
+            var page = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(c => c.DotYouId == domainName, PageOptions.Default));
+            return page.Results.SingleOrDefault();
         }
-
-        /*
-        public async Task AddToNetwork(Contact contact)
-        {
-            if(contact.RelationshipId == Guid.Empty)
-            {
-                //TODO: this is being swallowed for some reason
-                throw new InvalidOperationException("RelationshipId cannot be an Empty Guid when adding a contact to your network");
-            }
-
-            //TODO: address deduplication
-
-            await this.Save(contact);
-
-        }
-
-        public async Task AddToNetwork(AcceptedConnectionRequest acknowledgment)
-        {
-            var contact = new Contact()
-            {
-                DotYouId = acknowledgment.OriginalConnectionRequest.Recipient,
-                GivenName = acknowledgment.RecipientGivenName,
-                Surname = acknowledgment.RecipientSurname,
-                RelationshipId = acknowledgment.RelationshipId
-            };
-
-            await this.AddToNetwork(contact);
-        }
-        */
     }
 }

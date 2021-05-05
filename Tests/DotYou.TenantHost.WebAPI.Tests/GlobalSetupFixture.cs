@@ -29,7 +29,6 @@ public class GlobalSetupFixture
         var args = new string[0];
         webserver = Program.CreateHostBuilder(args).Build();
         webserver.Start();
-
     }
 
     [OneTimeTearDown]

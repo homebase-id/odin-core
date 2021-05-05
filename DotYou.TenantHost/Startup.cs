@@ -5,8 +5,10 @@ using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.TrustNetwork;
 using DotYou.Types;
 using DotYou.Types.TrustNetwork;
+using Identity.Web.Services.Contacts;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
@@ -57,19 +59,25 @@ namespace DotYou.TenantHost
                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                });
 
-            services.AddAuthorization(policy =>
-            {
-                policy.AddPolicy(DotYouPolicyNames.MustOwnThisIdentity, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
-            });
+            services.AddAuthorization(AddPolicies());
 
             services.AddMemoryCache();
+
+            //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
+
+            services.AddScoped<IContactService, ContactService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ContactService>>();
+                return new ContactService(context, logger);
+            });
 
             services.AddScoped<ITrustNetworkService, TrustNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<TrustNetworkService>>();
-
-                return new TrustNetworkService(context, logger);
+                var contactSvc = svc.GetRequiredService<IContactService>();
+                return new TrustNetworkService(context, contactSvc, logger);
             });
         }
 
@@ -121,6 +129,18 @@ namespace DotYou.TenantHost
             return context;
         }
 
+        private static Action<AuthorizationOptions> AddPolicies()
+        {
+            return policy =>
+            {
+                policy.AddPolicy(DotYouPolicyNames.MustOwnThisIdentity,
+                    pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
+
+                policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,
+                    pb => pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower()));
+            };
+        }
+
         private Task CertificateValidated(CertificateValidatedContext context)
         {
             //todo: call out to additonal service to validate more rules
@@ -133,14 +153,20 @@ namespace DotYou.TenantHost
             var dotYouContext = ResolveContext(context.HttpContext.RequestServices);
             using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificate())
             {
+                //HACK: this is not sufficient for establsihing the client and server certificates are the same.
+                //https://eprint.iacr.org/2019/130.pdf - first few paragraphs
                 isTenantOwner = serverCertificate.Thumbprint == context.ClientCertificate.Thumbprint;
             }
+
+            //By logging in with a client certificate for this #prototrial, you are identified
+            bool isIdentified = true;
 
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower())
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation"),
+                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation")
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

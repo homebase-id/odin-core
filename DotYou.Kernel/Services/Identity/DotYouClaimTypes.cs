@@ -17,9 +17,9 @@ namespace DotYou.Kernel.Services.Identity
         public static string IsIdentityOwner = "https://schemas.youfoundation.id/2021/3/identity/IsIdentityOwner";
 
         /// <summary>
-        /// Indicates the current <see cref="ClaimsPrincipal"/> is a user verified with a certificate
+        /// Indicates the current <see cref="ClaimsPrincipal"/> is a user with a valid certificate
         /// </summary>
-        public static string IsVerifiedUser = "https://schemas.youfoundation.id/2021/3/identity/IsVerifiedUser";
+        public static string IsIdentified = "https://schemas.youfoundation.id/2021/3/identity/IsIdentified";
 
         /// <summary>
         /// Specifies the identity performing actions on a given identity

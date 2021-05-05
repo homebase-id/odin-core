@@ -14,7 +14,7 @@ namespace DotYou.Kernel.Services.Identity
         //private empty ctor handles deserialization
         private IdentityCertificate() { }
 
-        public IdentityCertificate(Guid key, string domain)
+        public IdentityCertificate(Guid key, string domain, CertificateLocation location)
         {
             if (key == Guid.Empty)
             {
@@ -26,8 +26,16 @@ namespace DotYou.Kernel.Services.Identity
                 throw new ArgumentNullException(nameof(domain));
             }
 
+            if(null == location)
+            {
+                throw new ArgumentNullException(nameof(domain));
+            }
+
             Key = key;
             DomainName = domain;
+            Location = location;
+
+            SetCertificateInfo();
         }
 
         public Guid Key
@@ -37,7 +45,29 @@ namespace DotYou.Kernel.Services.Identity
 
         public string DomainName { get; }
 
-        public CertificateLocation Location { get; set; }
+        /// <summary>
+        /// The Subject for the certificate
+        /// </summary>
+        public string CertificateSubject { get; private set; }
+
+        /// <summary>
+        /// A hexidecimal string of the Public Key
+        /// </summary>
+        public string CertificatePublicKeyString { get; private set; }
+         
+        /// <summary>
+        /// The file location of the certificates
+        /// </summary>
+        public CertificateLocation Location { get; private set; }
+
+        private void SetCertificateInfo()
+        {
+            using (var cert = this.LoadCertificate())
+            {
+                this.CertificatePublicKeyString = cert.GetPublicKeyString();
+                this.CertificateSubject = cert.Subject;
+            }
+        }
 
         public X509Certificate2 LoadCertificate()
         {

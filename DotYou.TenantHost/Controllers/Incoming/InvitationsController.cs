@@ -31,5 +31,13 @@ namespace DotYou.TenantHost.Controllers.Incoming
             await _trustNetwork.ReceiveConnectionRequest(request);
             return Ok();
         }
+
+        
+        [HttpPost("establishconnection")]
+        public async Task<IActionResult> EstablishConnection([FromBody] EstablishConnectionRequest request)
+        {
+            await _trustNetwork.EstablishConnection(request);
+            return Ok();
+        }
     }
 }

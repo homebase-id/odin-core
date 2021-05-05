@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 
 namespace DotYou.Kernel.Storage
 {
+    //TODO: need to add support for unique keys in the storage
+
     /// <summary>
     /// Generic class for storing an object in a single collection.  The database filename will be the collection.
     /// </summary>

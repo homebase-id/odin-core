@@ -1,5 +1,6 @@
 ﻿using DotYou.Kernel.Storage;
 using DotYou.Types;
+using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;

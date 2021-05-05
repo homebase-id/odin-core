@@ -10,7 +10,7 @@ namespace DotYou.Types.TrustNetwork
     {
         public ConnectionRequest()
         {
-            
+
         }
 
         public Guid Id { get; set; }
@@ -24,6 +24,11 @@ namespace DotYou.Types.TrustNetwork
         /// Individual who sent the invite
         /// </summary>
         public DotYouIdentity Sender { get; set; }
+
+        /// <summary>
+        /// The public key certificate of the sender in string format.
+        /// </summary>
+        public string SenderPublicKey { get; set; }
 
         /// <summary>
         /// First name of the sender at the time of the invitation
@@ -48,6 +53,29 @@ namespace DotYou.Types.TrustNetwork
         public string GetSenderDisplayName()
         {
             return $"{Sender} ({SenderGivenName} {SenderSurname})";
+        }
+
+        /// <summary>
+        /// Validates this instance has the minimal amount of information to be used.
+        /// </summary>
+        public virtual void Validate()
+        {
+            var isInvalid = string.IsNullOrEmpty(this.SenderPublicKey)
+            || string.IsNullOrWhiteSpace(this.SenderPublicKey)
+            || string.IsNullOrEmpty(this.Sender)
+            || string.IsNullOrWhiteSpace(this.Sender)
+            || string.IsNullOrEmpty(this.Recipient)
+            || string.IsNullOrWhiteSpace(this.Recipient)
+            || this.Id == Guid.Empty
+            || string.IsNullOrEmpty(this.SenderGivenName)
+            || string.IsNullOrWhiteSpace(this.SenderGivenName);
+            
+            //TODO: add other checks
+
+            if (isInvalid)
+            {
+                throw new InvalidDataException("Connection Request is invalid");
+            }
         }
     }
 }

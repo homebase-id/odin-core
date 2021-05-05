@@ -194,6 +194,10 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<ConnectionRequest> CreateConnectionRequestSamToFrodo()
         {
+            var samContext = _registry.ResolveContext(samwise);
+            var samCert = samContext.TenantCertificate.LoadCertificate();
+
+            
             var request = new ConnectionRequest()
             {
                 Id = Guid.NewGuid(),
@@ -201,6 +205,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Message = "Please add me",
                 Recipient = (DotYouIdentity)frodo,
                 Sender = (DotYouIdentity)samwise,
+                SenderPublicKey = samCert.GetPublicKeyString(),
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
             };
