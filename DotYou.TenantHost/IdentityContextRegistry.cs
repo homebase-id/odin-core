@@ -15,7 +15,7 @@ namespace DotYou.TenantHost
     /// of any class in DotYou.Kernel.* cannot access other Identities
     public class IdentityContextRegistry : IIdentityContextRegistry
     {
-        private Trie _identityMap = new Trie();
+        private Trie<Guid> _identityMap = new Trie<Guid>();
 
         //temporary until the Trie supports Generics
         private Dictionary<Guid, IdentityCertificate> _certificates = new Dictionary<Guid, IdentityCertificate>();
@@ -37,7 +37,7 @@ namespace DotYou.TenantHost
         /// <returns></returns>
         public DotYouContext ResolveContext(string domainName)
         {
-            var key = _identityMap.lookupName(domainName);
+            var key = _identityMap.LookupName(domainName);
 
             if (key == Guid.Empty)
             {
@@ -75,7 +75,7 @@ namespace DotYou.TenantHost
             foreach (var c in _certificates.Values)
             {
                 Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
-                this._identityMap.addName(c.DomainName, c.Key);
+                this._identityMap.AddDomain(c.DomainName, c.Key);
             }
         }
 

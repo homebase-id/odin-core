@@ -6,6 +6,10 @@
 
   <ItemGroup>
     <PackageReference Include="Refit" Version="6.0.38" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Identity\" />
+  </ItemGroup>
 </Project>

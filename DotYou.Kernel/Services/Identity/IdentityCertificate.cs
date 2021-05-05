@@ -1,5 +1,7 @@
 ﻿using DotYou.Types.Certificate;
+using Identity.DataType.Attributes;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -35,6 +37,9 @@ namespace DotYou.Kernel.Services.Identity
             DomainName = domain;
             Location = location;
 
+            //todo; accept in ctor 
+            Attributes = new List<IdentityAttribute<BaseAttribute>>();
+
             SetCertificateInfo();
         }
 
@@ -44,6 +49,8 @@ namespace DotYou.Kernel.Services.Identity
         }
 
         public string DomainName { get; }
+
+        public List<IdentityAttribute<BaseAttribute>> Attributes { get; }
 
         /// <summary>
         /// The Subject for the certificate

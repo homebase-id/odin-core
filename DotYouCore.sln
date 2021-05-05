@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.Types.Tests", "DotYo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.TenantHost.WebAPI.Tests", "Tests\DotYou.TenantHost.WebAPI.Tests\DotYou.TenantHost.WebAPI.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.TenantHost.DataType.Tests", "Tests\DotYou.TenantHost.DataType.Tests\DotYou.TenantHost.DataType.Tests.csproj", "{99F77839-75B5-4C90-9E5C-213DEB23D5DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,10 @@ Global
 		{CD961B92-658E-4EEC-B430-85665BAC1830}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CD961B92-658E-4EEC-B430-85665BAC1830}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CD961B92-658E-4EEC-B430-85665BAC1830}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -48,6 +54,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{3A017EDD-9D0D-4B08-A0E6-0AE410340B00} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{CD961B92-658E-4EEC-B430-85665BAC1830} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

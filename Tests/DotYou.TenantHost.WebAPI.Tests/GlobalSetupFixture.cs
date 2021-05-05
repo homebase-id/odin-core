@@ -16,9 +16,11 @@ public class GlobalSetupFixture
     [OneTimeSetUp]
     public void RunBeforeAnyTests()
     {
-        string testDataPath = @"\temp\dotyoudata";
 
-        if(Directory.Exists(testDataPath))
+        //string testDataPath = @"\temp\dotyoudata";
+        string testDataPath = @"/tmp/dotyoudata";
+
+        if (Directory.Exists(testDataPath))
         {
             Console.WriteLine($"Removing data in [{testDataPath}]");
             Directory.Delete(testDataPath, true);
