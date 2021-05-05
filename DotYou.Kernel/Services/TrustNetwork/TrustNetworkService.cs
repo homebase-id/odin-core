@@ -96,7 +96,9 @@ namespace DotYou.Kernel.Services.TrustNetwork
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            string recipientDomain = GetCertificateDomain(request.RecipientPublicKey);
+            //TODO: find a better way to get the recpient domain
+            //string recipientDomain = GetCertificateDomain(request.RecipientPublicKey);
+            string recipientDomain = originalRequest.Recipient;
             var ec = await _contactService.GetByDomainName(recipientDomain);
 
             //TODO: address how this contact merge should really happen
@@ -107,14 +109,11 @@ namespace DotYou.Kernel.Services.TrustNetwork
                 DotYouId = (DotYouIdentity)recipientDomain,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.RecipientPublicKey,
+                PublicKeyCertificate = request.RecipientRSAPublicKeyInfoBase64,
                 Tag = null == ec ? "" : ec.Tag
             };
 
             await _contactService.Save(contact);
-
-
-
         }
 
         public async Task AcceptConnectionRequest(Guid requestId)
@@ -130,7 +129,8 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
             this.Logger.LogInformation($"Accept Connection request called for sender {request.Sender} to {request.Recipient}");
 
-            string domain = GetCertificateDomain(request.SenderPublicKey);
+            //string domain = GetCertificateDomain(request.SenderRSAPublicKeyInfoBase64);
+            string domain = request.Sender;
 
             var ec = await _contactService.GetByDomainName(domain);
 
@@ -142,7 +142,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
                 DotYouId = (DotYouIdentity)domain,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.SenderPublicKey,
+                PublicKeyCertificate = request.SenderRSAPublicKeyInfoBase64,
                 Tag = null == ec ? "" : ec.Tag
             };
 
@@ -153,9 +153,9 @@ namespace DotYou.Kernel.Services.TrustNetwork
             EstablishConnectionRequest acceptedReq = new()
             {
                 ConnectionRequestId = requestId,
-                RecipientPublicKey = "",
-                RecipientGivenName = "",
-                RecipientSurname = ""
+                RecipientRSAPublicKeyInfoBase64 = Context.TenantCertificate.CertificatePublicKeyString,
+                RecipientGivenName = "TODO - where",
+                RecipientSurname = "do i get this"
             };
 
             var response = await this.HttpProxy.PostJson(request.Sender, "api/incoming/invitations/establishconnection", acceptedReq);

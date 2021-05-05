@@ -23,13 +23,8 @@ namespace DotYou.TenantHost.Controllers
             _contactService = contactService;
         }
 
-        public async Task<IActionResult> DeleteContact(Guid id)
-        {
-            await _contactService.Delete(id);
-            return new JsonResult(new NoResultResponse(true));
 
-        }
-
+        [HttpGet("find")]
         public async Task<PagedResult<Contact>> Find(string text,int pageNumber, int pageSize)
         {
 
@@ -62,7 +57,8 @@ namespace DotYou.TenantHost.Controllers
             return results;
         }
 
-        public async Task<IActionResult> GetContact(Guid id)
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetContactById(Guid id)
         {
             var result = await _contactService.Get(id);
             if (result == null)
@@ -76,7 +72,8 @@ namespace DotYou.TenantHost.Controllers
             return new JsonResult(result);
         }
 
-        public async Task<IActionResult> GetContact(string domainName)
+        [HttpGet("{domainName}")]
+        public async Task<IActionResult> GetContactByDomainName(string domainName)
         {
             var result = await _contactService.GetByDomainName(domainName);
             if (result == null)
@@ -97,10 +94,19 @@ namespace DotYou.TenantHost.Controllers
 
         }
 
+        [HttpPost()]
         public async Task<IActionResult> SaveContact(Contact contact)
         {
             await _contactService.Save(contact);
             return new JsonResult(new NoResultResponse(true));
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteContact(Guid id)
+        {
+            await _contactService.Delete(id);
+            return new JsonResult(new NoResultResponse(true));
+
         }
     }
 }

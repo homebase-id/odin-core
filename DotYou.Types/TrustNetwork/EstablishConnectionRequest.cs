@@ -14,15 +14,18 @@ namespace DotYou.Types.TrustNetwork
         public Guid ConnectionRequestId { get; set; }
         /// <summary>
         /// The public key certificate of the <see cref="ConnectionRequest.Recipient"/> in string format.
+        /// 
+        /// Generated from RSA.ExportSubjectPublicKeyInfo #prototrial
         /// </summary>
-        public string RecipientPublicKey { get; set; }
+        public string RecipientRSAPublicKeyInfoBase64 { get; set; }
 
         public string RecipientGivenName { get; set; }
+        
         public string RecipientSurname { get; set; }
 
         public void Validate()
         {
-            if (string.IsNullOrEmpty(RecipientPublicKey) ||string.IsNullOrWhiteSpace(RecipientPublicKey))
+            if (string.IsNullOrEmpty(RecipientRSAPublicKeyInfoBase64) ||string.IsNullOrWhiteSpace(RecipientRSAPublicKeyInfoBase64))
             {
                 throw new InvalidDataException("Accepted Connection Request is invalid");
             }

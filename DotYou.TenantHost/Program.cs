@@ -62,7 +62,7 @@ namespace DotYou.TenantHost
                           opts.ServerCertificateSelector = (connectionContext, hostName) =>
                           {
                               var context = _registry.ResolveContext(hostName);
-                              var cert = context.TenantCertificate.LoadCertificate();
+                              var cert = context.TenantCertificate.LoadCertificateWithPrivateKey();
                               return cert;
                           };
 

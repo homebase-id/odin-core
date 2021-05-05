@@ -24,9 +24,17 @@ namespace DotYou.Types.Certificate
             }
         }
 
-        public static X509Certificate2 LoadPublicKeyCertificate(string data)
+
+        public static X509Certificate2 LoadPublicKeyCertificate(string base64data)
         {
-            using (X509Certificate2 publicKey = new X509Certificate2(GetByteArray(data)))
+            //https://stackoverflow.com/questions/58792114/how-to-create-certificate-object-from-public-key-in-pem-format
+
+            var bytes = Convert.FromBase64String(base64data);
+
+            //var rsa = RSA.Create();
+            //rsa.ImportSubjectPublicKeyInfo(bytes, out _);
+            
+            using (X509Certificate2 publicKey = new X509Certificate2(bytes))
             {
                 return publicKey;
             }

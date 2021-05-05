@@ -26,9 +26,10 @@ namespace DotYou.Types.TrustNetwork
         public DotYouIdentity Sender { get; set; }
 
         /// <summary>
-        /// The public key certificate of the sender in string format.
-        /// </summary>
-        public string SenderPublicKey { get; set; }
+        /// The public key certificate of the <see cref="ConnectionRequest.Sender"/> in string format.
+        /// 
+        /// Generated from RSA.ExportSubjectPublicKeyInfo #prototrial
+        public string SenderRSAPublicKeyInfoBase64 { get; set; }
 
         /// <summary>
         /// First name of the sender at the time of the invitation
@@ -60,8 +61,8 @@ namespace DotYou.Types.TrustNetwork
         /// </summary>
         public virtual void Validate()
         {
-            var isInvalid = string.IsNullOrEmpty(this.SenderPublicKey)
-            || string.IsNullOrWhiteSpace(this.SenderPublicKey)
+            var isInvalid = string.IsNullOrEmpty(this.SenderRSAPublicKeyInfoBase64)
+            || string.IsNullOrWhiteSpace(this.SenderRSAPublicKeyInfoBase64)
             || string.IsNullOrEmpty(this.Sender)
             || string.IsNullOrWhiteSpace(this.Sender)
             || string.IsNullOrEmpty(this.Recipient)

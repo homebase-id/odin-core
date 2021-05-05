@@ -62,14 +62,30 @@ namespace DotYou.Kernel.Services.Identity
 
         private void SetCertificateInfo()
         {
-            using (var cert = this.LoadCertificate())
+            using (var cert = this.LoadCertificateWithPrivateKey())
             {
-                this.CertificatePublicKeyString = cert.GetPublicKeyString();
+                var rsa = (RSA)cert.PublicKey.Key;
+                byte[] certBytes = rsa.ExportSubjectPublicKeyInfo();
+                string certPublicKey = Convert.ToBase64String(certBytes);
+
+                this.CertificatePublicKeyString = certPublicKey;
                 this.CertificateSubject = cert.Subject;
             }
         }
 
-        public X509Certificate2 LoadCertificate()
+        public X509Certificate2 LoadPublicKeyCertificate()
+        {
+            string certificatePath = this.Location.CertificatePath;
+            
+            if (!File.Exists(certificatePath))
+            {
+                throw new Exception($"No certificate configured for {this.DomainName}");
+            }
+
+            return CertificateLoader.LoadPublicKeyCertificateFromPath(certificatePath);
+        }
+
+        public X509Certificate2 LoadCertificateWithPrivateKey()
         {
             //_logger.LogDebug($"looking up cert for [{hostname}]");
 

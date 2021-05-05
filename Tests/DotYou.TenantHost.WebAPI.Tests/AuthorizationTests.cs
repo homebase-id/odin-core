@@ -81,7 +81,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         private HttpClient CreateHttpClient(DotYouIdentity identity)
         {
             var samContext = _registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificate();
+            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
 
             HttpClientHandler handler = new();
             handler.ClientCertificates.Add(samCert);

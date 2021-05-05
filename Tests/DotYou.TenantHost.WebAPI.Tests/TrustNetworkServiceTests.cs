@@ -5,6 +5,7 @@ using Refit;
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.WebAPI.Tests
@@ -142,6 +143,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 var acceptResponse = await svc.AcceptConnectionRequest(request.Id);
 
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+
                 //
                 // The pending request should be removed
                 //
@@ -152,9 +155,9 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 // Sam should be in frodo's contacts network.
                 //
                 var frodoContactSvc = RestService.For<IContactRequestsClient>(client);
-                var samResponse = await frodoContactSvc.GetContact(samwise);
+                var samResponse = await frodoContactSvc.GetContactByDomain(samwise);
 
-                Assert.IsTrue(samResponse.IsSuccessStatusCode, $"Failed to retrieve {samwise}");
+                Assert.IsTrue(samResponse.IsSuccessStatusCode, $"Failed to retrieve {samwise}.  Status code was {samResponse.StatusCode}");
                 Assert.IsNotNull(samResponse.Content, $"No contact with domain {samwise} found");
 
                 //TODO: add checks that Surname and Givenname are correct
@@ -168,7 +171,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 //
                 var contactSvc = RestService.For<IContactRequestsClient>(client);
 
-                var response = await contactSvc.GetContact(frodo);
+                var response = await contactSvc.GetContactByDomain(frodo);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {frodo}");
                 Assert.IsNotNull(response.Content, $"No contact with domain {frodo} found");
@@ -180,7 +183,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         private HttpClient CreateHttpClient(DotYouIdentity identity)
         {
             var samContext = _registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificate();
+            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
 
             HttpClientHandler handler = new();
             handler.ClientCertificates.Add(samCert);
@@ -195,8 +198,12 @@ namespace DotYou.TenantHost.WebAPI.Tests
         private async Task<ConnectionRequest> CreateConnectionRequestSamToFrodo()
         {
             var samContext = _registry.ResolveContext(samwise);
-            var samCert = samContext.TenantCertificate.LoadCertificate();
-
+            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
+            
+            var rsa = (RSA)samCert.PublicKey.Key;
+            byte[] certBytes = rsa.ExportSubjectPublicKeyInfo();
+            //byte[] certBytes = x.ExportRSAPublicKey();
+            string certPublicKey = Convert.ToBase64String(certBytes);
             
             var request = new ConnectionRequest()
             {
@@ -205,7 +212,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Message = "Please add me",
                 Recipient = (DotYouIdentity)frodo,
                 Sender = (DotYouIdentity)samwise,
-                SenderPublicKey = samCert.GetPublicKeyString(),
+                SenderRSAPublicKeyInfoBase64 = certPublicKey,
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
             };

@@ -17,12 +17,12 @@ namespace DotYou.Types
         Task<ApiResponse<Contact>> GetContact(Guid id);
 
         [Get(root_path + "/{domainName}")]
-        Task<ApiResponse<Contact>> GetContact(string domainName);
+        Task<ApiResponse<Contact>> GetContactByDomain(string domainName);
 
         [Get(root_path)]
         Task<ApiResponse<PagedResult<Contact>>> GetContactsList(PageOptions pageRequest);
 
-        [Post(root_path + "/{id}")]
+        [Post(root_path)]
         Task<ApiResponse<NoResultResponse>> SaveContact(Contact contact);
 
         [Get(root_path)]

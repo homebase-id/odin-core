@@ -17,7 +17,7 @@ namespace DotYou.Types
         [Post(sent_path_root)]
         Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequest request);
 
-        [Get(pending_path_root + "/accept/{id}")]
+        [Post(pending_path_root + "/accept/{id}")]
         Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(Guid id);
 
         [Get(sent_path_root)]

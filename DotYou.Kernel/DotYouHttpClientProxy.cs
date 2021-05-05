@@ -16,7 +16,7 @@ namespace DotYou.Kernel
         public DotYouHttpClientProxy(DotYouContext context)
         {
             //TODO: Not sure if we need to keep an open instance of the certificate 
-            _clientCertificate = context.TenantCertificate.LoadCertificate();
+            _clientCertificate = context.TenantCertificate.LoadCertificateWithPrivateKey();
 
             HttpClientHandler handler = new();
             handler.ClientCertificates.Add(_clientCertificate);

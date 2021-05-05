@@ -151,7 +151,7 @@ namespace DotYou.TenantHost
 
             bool isTenantOwner = false;
             var dotYouContext = ResolveContext(context.HttpContext.RequestServices);
-            using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificate())
+            using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificateWithPrivateKey())
             {
                 //HACK: this is not sufficient for establsihing the client and server certificates are the same.
                 //https://eprint.iacr.org/2019/130.pdf - first few paragraphs
