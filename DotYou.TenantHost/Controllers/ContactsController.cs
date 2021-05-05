@@ -87,6 +87,7 @@ namespace DotYou.TenantHost.Controllers
             return new JsonResult(result);
         }
 
+        [HttpGet]
         public async Task<PagedResult<Contact>> GetContactsList(int pageNumber, int pageSize)
         {
             var result = await _contactService.GetContacts(new PageOptions(pageNumber, pageSize));
@@ -94,8 +95,8 @@ namespace DotYou.TenantHost.Controllers
 
         }
 
-        [HttpPost()]
-        public async Task<IActionResult> SaveContact(Contact contact)
+        [HttpPost]
+        public async Task<IActionResult> SaveContact([FromBody]Contact contact)
         {
             await _contactService.Save(contact);
             return new JsonResult(new NoResultResponse(true));
