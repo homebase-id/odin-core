@@ -2,9 +2,9 @@
 using System.Net;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.TrustNetwork;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,15 +12,15 @@ namespace DotYou.TenantHost.Controllers
 {
 
     [ApiController]
-    [Route("api/trustnetwork/requests")]
+    [Route("api/circlenetwork/requests")]
     [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
-    public class TrustNetworkRequestsController : ControllerBase
+    public class CircleNetworkRequestsController : ControllerBase
     {
-        ICircleNetworkService _circleNetwork;
+        readonly ICircleNetworkService _circleNetwork;
 
-        public TrustNetworkRequestsController(ICircleNetworkService trustNetwork)
+        public CircleNetworkRequestsController(ICircleNetworkService cn)
         {
-            _circleNetwork = trustNetwork;
+            _circleNetwork = cn;
         }
 
         [HttpGet("pending")]

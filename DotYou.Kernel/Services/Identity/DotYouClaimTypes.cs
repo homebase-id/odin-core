@@ -25,5 +25,7 @@ namespace DotYou.Kernel.Services.Identity
         /// Specifies the identity performing actions on a given identity
         /// </summary>
         public static string Actor = "https://schemas.youfoundation.id/2021/3/identity/Actor";
+
+        public static string PublicKeyCertificateXml = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
     }
 }

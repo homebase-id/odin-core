@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Types.TrustNetwork
+namespace DotYou.Types.Circle
 {
     /// <summary>
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 

@@ -3,36 +3,36 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Refit;
 
 namespace DotYou.Types
 {
-    public interface ITrustNetworkRequestsClient
+    public interface ICircleNetworkRequestsClient
     {
-        private const string root_path = "/api/trustnetwork/requests";
-        private const string sent_path_root = root_path + "/sent";
-        private const string pending_path_root = root_path + "/pending";
+        private const string RootPath = "/api/circlenetwork/requests";
+        private const string SentPathRoot = RootPath + "/sent";
+        private const string PendingPathRoot = RootPath + "/pending";
 
-        [Post(sent_path_root)]
+        [Post(SentPathRoot)]
         Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequest request);
 
-        [Post(pending_path_root + "/accept/{id}")]
+        [Post(PendingPathRoot + "/accept/{id}")]
         Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(Guid id);
 
-        [Get(sent_path_root)]
+        [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequestList(PageOptions pageRequest);
 
-        [Get(sent_path_root + "/{id}")]
+        [Get(SentPathRoot + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetSentRequest(Guid id);
 
-        [Get(pending_path_root)]
+        [Get(PendingPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequest>>> GetPendingRequestList([Query]PageOptions pageRequest);
 
-        [Get(pending_path_root + "/{id}")]
+        [Get(PendingPathRoot + "/{id}")]
         Task<ApiResponse<ConnectionRequest>> GetPendingRequest(Guid id);
 
-        [Delete(pending_path_root + "/{id}")]
+        [Delete(PendingPathRoot + "/{id}")]
         Task<ApiResponse<NoResultResponse>> DeletePendingRequest(Guid id);
     }
 }

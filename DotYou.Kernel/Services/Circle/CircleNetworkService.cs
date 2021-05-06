@@ -1,13 +1,13 @@
 ﻿using DotYou.Kernel.Storage;
 using DotYou.Types;
 using DotYou.Types.Certificate;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace DotYou.Kernel.Services.TrustNetwork
+namespace DotYou.Kernel.Services.Circle
 {
 
     //Need to consider using the recpient public key instead of the dotyouid
@@ -128,13 +128,13 @@ namespace DotYou.Kernel.Services.TrustNetwork
             //await this.DeleteSentRequest(request.ConnectionRequestId);
         }
 
-        public async Task AcceptConnectionRequest(Guid requestId)
+        public async Task AcceptConnectionRequest(Guid id)
         {
             //get the requst
-            var request = await GetPendingRequest(requestId);
+            var request = await GetPendingRequest(id);
             if (null == request)
             {
-                throw new InvalidOperationException($"No pending request was found with id [{requestId}]");
+                throw new InvalidOperationException($"No pending request was found with id [{id}]");
             }
 
             request.Validate();
@@ -166,7 +166,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
             //call to request.Sender's agent to establish connection.
             EstablishConnectionRequest acceptedReq = new()
             {
-                ConnectionRequestId = requestId,
+                ConnectionRequestId = id,
                 //todo: have sam take this from the handshake
                 RecipientRSAPublicKeyInfoBase64 = Context.TenantCertificate.CertificatePublicKeyString,
                 RecipientGivenName = "TODO - where",

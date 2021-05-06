@@ -1,5 +1,5 @@
 using DotYou.Types;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using NUnit.Framework;
 using Refit;
 using System;
@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace DotYou.TenantHost.WebAPI.Tests
 {
 
-    public class TrustNetworkServiceTests
+    public class CircleNetworkServiceTests
     {
         static DotYouIdentity frodo = (DotYouIdentity)"frodobaggins.me";
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
@@ -45,7 +45,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             //Check if Frodo received the request?
             using (var client = CreateHttpClient(frodo))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(id);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
@@ -62,7 +62,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using (var client = CreateHttpClient(frodo))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
                 var deleteResponse = await svc.DeletePendingRequest(request.Id);
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
@@ -79,7 +79,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using (var client = CreateHttpClient(frodo))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
@@ -99,12 +99,12 @@ namespace DotYou.TenantHost.WebAPI.Tests
             //Check Sam's list of sent requests
             using (var client = CreateHttpClient(samwise))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
                 var response = await svc.GetSentRequestList(PageOptions.Default);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-
+                Assert.IsNotNull(response.Content, "No result returned");
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Id == request.Id), $"Could not find request with id [{request.Id}] in the results");
@@ -121,7 +121,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             //Check Sam's list of sent requests
             using (var client = CreateHttpClient(samwise))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
                 var response = await svc.GetSentRequest(request.Id);
 
@@ -139,7 +139,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using (var client = CreateHttpClient(frodo))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
                 var acceptResponse = await svc.AcceptConnectionRequest(request.Id);
 
@@ -223,7 +223,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using (var client = CreateHttpClient(samwise))
             {
-                var svc = RestService.For<ITrustNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.SendConnectionRequest(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, "Failed sending the request");
                 Assert.IsTrue(response.Content.Success, "Failed sending the request");

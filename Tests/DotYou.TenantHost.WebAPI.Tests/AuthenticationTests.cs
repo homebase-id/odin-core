@@ -1,9 +1,9 @@
 using DotYou.Kernel;
-using DotYou.Kernel.Services.TrustNetwork;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Storage;
 using DotYou.Types;
 using DotYou.Types.Certificate;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;

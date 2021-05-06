@@ -2,9 +2,9 @@ using DotYou.Kernel;
 using DotYou.Kernel.Identity;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Identity;
-using DotYou.Kernel.Services.TrustNetwork;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Identity.Web.Services.Contacts;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -20,12 +20,16 @@ using System;
 using System.IO;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DotYou.TenantHost.Security;
 
 namespace DotYou.TenantHost
 {
     public class Startup
     {
+        const string YouFoundationIssuer = "YouFoundation";
+
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
@@ -35,31 +39,31 @@ namespace DotYou.TenantHost
             services.AddHttpContextAccessor();
 
             services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
-               .AddCertificate(options =>
-               {
-                   options.AllowedCertificateTypes = CertificateTypes.Chained;
-                   options.ValidateCertificateUse = true;
+                .AddCertificate(options =>
+                {
+                    options.AllowedCertificateTypes = CertificateTypes.Chained;
+                    options.ValidateCertificateUse = true;
 
-                   //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-                   //options.RevocationMode = X509RevocationMode.NoCheck
+                    //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
+                    //options.RevocationMode = X509RevocationMode.NoCheck
 
-                   options.Events = new CertificateAuthenticationEvents()
-                   {
-                       OnCertificateValidated = context => this.CertificateValidated(context),
-                       OnAuthenticationFailed = context => this.HandleAuthenticationFailed(context),
-                       OnChallenge = context => this.HandleCertificateChallenge(context)
-                   };
-               })
-               //TODO: this certificate cache is not multi-tenant
-               .AddCertificateCache(options =>
-               {
-                   //TODO: revist this to see if it will serve as our re-validation method to ensure
-                   // caller certs are still good 
-                   options.CacheSize = 2048;
-                   options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
-               });
+                    options.Events = new CertificateAuthenticationEvents()
+                    {
+                        OnCertificateValidated = this.CertificateValidated,
+                        OnAuthenticationFailed = this.HandleAuthenticationFailed,
+                        OnChallenge = this.HandleCertificateChallenge
+                    };
+                })
+                //TODO: this certificate cache is not multi-tenant
+                .AddCertificateCache(options =>
+                {
+                    //TODO: revist this to see if it will serve as our re-validation method to ensure
+                    // caller certs are still good 
+                    options.CacheSize = 2048;
+                    options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
+                });
 
-            services.AddAuthorization(AddPolicies());
+            services.AddAuthorization(options => new PolicyConfig().AddPolicies(options));
 
             services.AddMemoryCache();
 
@@ -92,10 +96,7 @@ namespace DotYou.TenantHost
             }
             else
             {
-                app.UseExceptionHandler(config =>
-                {
-
-                });
+                app.UseExceptionHandler(config => { });
             }
 
             app.UseMiddleware<ExceptionMiddleware>();
@@ -109,10 +110,11 @@ namespace DotYou.TenantHost
                 endpoints.MapControllers();
                 if (env.IsDevelopment())
                 {
-                    endpoints.MapGet("/", async context =>
-                    {
-                        await context.Response.WriteAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-                    });
+                    endpoints.MapGet("/",
+                        async context =>
+                        {
+                            await context.Response.WriteAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+                        });
                 }
             });
         }
@@ -129,24 +131,12 @@ namespace DotYou.TenantHost
             return context;
         }
 
-        private static Action<AuthorizationOptions> AddPolicies()
-        {
-            return policy =>
-            {
-                policy.AddPolicy(DotYouPolicyNames.MustOwnThisIdentity,
-                    pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
-
-                policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,
-                    pb => pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower()));
-            };
-        }
-
         private Task CertificateValidated(CertificateValidatedContext context)
         {
             //todo: call out to additonal service to validate more rules
             // i.e. blocked list
             // determine if this certificate is in my network an add extra claims
-            //add systemcircle claim based on my relationshiop to this person
+            //add system circle claim based on my relationshiop to this person
             //lookup name for the individual and add to the claims
 
             bool isTenantOwner = false;
@@ -161,18 +151,17 @@ namespace DotYou.TenantHost
             //By logging in with a client certificate for this #prototrial, you are identified
             bool isIdentified = true;
 
-            string clientPublicKey = "TODO";
-
-            //context.ClientCertificate.PublicKey.Key
+            string publicKeyXml = context.ClientCertificate.PublicKey.Key.ToXmlString(false);
+            
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation"),
-                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation")
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
 
-                //new Claim(DotYouClaimTypes.PublicKeyCertificate, clientPublicKey, ClaimValueTypes.String, "YouFoundation");
-
+                //HACK: I don't know if this is a good idea to put this whole thing in the claims
+                new Claim(DotYouClaimTypes.PublicKeyCertificateXml, publicKeyXml, ClaimValueTypes.String, YouFoundationIssuer)
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
@@ -198,7 +187,7 @@ namespace DotYou.TenantHost
             BsonMapper.Global.RegisterType<DotYouIdentity>(
                 serialize: (identity) => identity.ToString(),
                 deserialize: (bson) => new DotYouIdentity(bson.AsString)
-                );
+            );
         }
     }
 }

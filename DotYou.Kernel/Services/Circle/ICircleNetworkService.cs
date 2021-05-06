@@ -1,9 +1,9 @@
 ﻿using DotYou.Types;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using System;
 using System.Threading.Tasks;
 
-namespace DotYou.Kernel.Services.TrustNetwork
+namespace DotYou.Kernel.Services.Circle
 {
 
     /// <summary>
@@ -30,9 +30,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        Task AcceptConnectionRequest(Guid requestId);
+        Task AcceptConnectionRequest(Guid id);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient
@@ -70,8 +68,6 @@ namespace DotYou.Kernel.Services.TrustNetwork
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
-        /// <param name="requestId"></param>
-        /// <returns></returns>
-        Task DeletePendingRequest(Guid requestId);
+        Task DeletePendingRequest(Guid id);
     }
 }

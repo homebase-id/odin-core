@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DotYou.Types.TrustNetwork
+namespace DotYou.Types.Circle
 {
     public class ConnectionRequest
     {

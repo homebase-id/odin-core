@@ -1,11 +1,12 @@
-﻿using DotYou.Kernel.Services.TrustNetwork;
+﻿using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
-using DotYou.Types.TrustNetwork;
+using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.Services.Authorization;
 
 namespace DotYou.TenantHost.Controllers.Incoming
 {
@@ -15,7 +16,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
     /// </summary>
     [ApiController]
     [Route("api/incoming/invitations")]
-    //[Authorize(Policy = PolicyNames.MustBeIdentified)]
+    [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;
