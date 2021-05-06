@@ -16,11 +16,11 @@ namespace DotYou.Types.Certificate
         /// </summary>
         /// <param name="publicKeyPath">Path to the public key</param>
         /// <returns></returns>
-        public static X509Certificate2 LoadPublicKeyCertificateFromPath(string publicKeyPath)
+        public static string LoadPublicKeyCertificateFromPath(string publicKeyPath)
         {
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
-                return publicKey;
+                return publicKey.GetNameInfo(X509NameType.SimpleName, false);
             }
         }
 

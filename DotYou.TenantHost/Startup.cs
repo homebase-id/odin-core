@@ -72,12 +72,12 @@ namespace DotYou.TenantHost
                 return new ContactService(context, logger);
             });
 
-            services.AddScoped<ITrustNetworkService, TrustNetworkService>(svc =>
+            services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<TrustNetworkService>>();
+                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
                 var contactSvc = svc.GetRequiredService<IContactService>();
-                return new TrustNetworkService(context, contactSvc, logger);
+                return new CircleNetworkService(context, contactSvc, logger);
             });
         }
 
@@ -161,12 +161,18 @@ namespace DotYou.TenantHost
             //By logging in with a client certificate for this #prototrial, you are identified
             bool isIdentified = true;
 
+            string clientPublicKey = "TODO";
+
+            //context.ClientCertificate.PublicKey.Key
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation"),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, "YouFoundation")
+
+                //new Claim(DotYouClaimTypes.PublicKeyCertificate, clientPublicKey, ClaimValueTypes.String, "YouFoundation");
+
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

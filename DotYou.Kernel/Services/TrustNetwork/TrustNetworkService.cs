@@ -9,14 +9,23 @@ using System.Threading.Tasks;
 
 namespace DotYou.Kernel.Services.TrustNetwork
 {
-    public class TrustNetworkService : DotYouServiceBase, ITrustNetworkService
+
+    //Need to consider using the recpient public key instead of the dotyouid
+    //meaning i can go to frodo site, click connect and the public ke cert has all i need to
+    //make the connect-request as well as encrypt the request.
+
+    //see: DotYouClaimTypes.PublicKeyCertificate
+
+    //can I get SAMs public key certificate from the request of the original client cert auth
+
+    public class CircleNetworkService : DotYouServiceBase, ICircleNetworkService
     {
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
         private readonly IContactService _contactService;
 
-        public TrustNetworkService(DotYouContext context, IContactService contactService, ILogger<TrustNetworkService> logger) : base(context, logger)
+        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger) : base(context, logger)
         {
             _contactService = contactService;
         }
@@ -43,6 +52,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
+            //note: this would occur during the operation verification process
             request.Validate();
 
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
@@ -109,11 +119,13 @@ namespace DotYou.Kernel.Services.TrustNetwork
                 DotYouId = (DotYouIdentity)recipientDomain,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.RecipientRSAPublicKeyInfoBase64,
+                PublicKeyCertificate = request.RecipientRSAPublicKeyInfoBase64, //note: this has to be captured at the original connect request from DotYouContext
                 Tag = null == ec ? "" : ec.Tag
             };
 
             await _contactService.Save(contact);
+
+            //await this.DeleteSentRequest(request.ConnectionRequestId);
         }
 
         public async Task AcceptConnectionRequest(Guid requestId)
@@ -134,6 +146,8 @@ namespace DotYou.Kernel.Services.TrustNetwork
 
             var ec = await _contactService.GetByDomainName(domain);
 
+            //TODO: add relationshipId for future analysis
+
             //TODO: address how this contact merge should really happen
             var contact = new Contact()
             {
@@ -153,6 +167,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
             EstablishConnectionRequest acceptedReq = new()
             {
                 ConnectionRequestId = requestId,
+                //todo: have sam take this from the handshake
                 RecipientRSAPublicKeyInfoBase64 = Context.TenantCertificate.CertificatePublicKeyString,
                 RecipientGivenName = "TODO - where",
                 RecipientSurname = "do i get this"

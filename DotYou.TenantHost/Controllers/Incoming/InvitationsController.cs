@@ -15,20 +15,20 @@ namespace DotYou.TenantHost.Controllers.Incoming
     /// </summary>
     [ApiController]
     [Route("api/incoming/invitations")]
+    //[Authorize(Policy = PolicyNames.MustBeIdentified)]
     public class InvitationsController : ControllerBase
     {
-        private readonly ITrustNetworkService _trustNetwork;
+        private readonly ICircleNetworkService _circleNetwork;
 
-        public InvitationsController(ITrustNetworkService trustNetwork)
+        public InvitationsController(ICircleNetworkService cirlceNetwork)
         {
-            _trustNetwork = trustNetwork;
+            _circleNetwork = cirlceNetwork;
         }
 
         [HttpPost("connect")]
-        //[Authorize(Policy = PolicyNames.MustBeIdentified)]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
-            await _trustNetwork.ReceiveConnectionRequest(request);
+            await _circleNetwork.ReceiveConnectionRequest(request);
             return Ok();
         }
 
@@ -36,7 +36,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] EstablishConnectionRequest request)
         {
-            await _trustNetwork.EstablishConnection(request);
+            await _circleNetwork.EstablishConnection(request);
             return Ok();
         }
     }

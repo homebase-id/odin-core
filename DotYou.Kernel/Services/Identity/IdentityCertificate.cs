@@ -80,7 +80,7 @@ namespace DotYou.Kernel.Services.Identity
             }
         }
 
-        public X509Certificate2 LoadPublicKeyCertificate()
+        public string LoadPublicKeyCertificate()
         {
             string certificatePath = this.Location.CertificatePath;
             

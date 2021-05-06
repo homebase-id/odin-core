@@ -9,7 +9,7 @@ namespace DotYou.Kernel.Services.TrustNetwork
     /// <summary>
     /// Establishes connections between individuals
     /// </summary>
-    public interface ITrustNetworkService
+    public interface ICircleNetworkService
     {
 
         /// <summary>

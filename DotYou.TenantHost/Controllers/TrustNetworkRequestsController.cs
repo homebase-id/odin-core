@@ -16,24 +16,24 @@ namespace DotYou.TenantHost.Controllers
     [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
     public class TrustNetworkRequestsController : ControllerBase
     {
-        ITrustNetworkService _trustNetwork;
+        ICircleNetworkService _circleNetwork;
 
-        public TrustNetworkRequestsController(ITrustNetworkService trustNetwork)
+        public TrustNetworkRequestsController(ICircleNetworkService trustNetwork)
         {
-            _trustNetwork = trustNetwork;
+            _circleNetwork = trustNetwork;
         }
 
         [HttpGet("pending")]
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(int pageNumber, int pageSize)
         {
-            var result = await _trustNetwork.GetPendingRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _circleNetwork.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             return result;
         }
 
         [HttpGet("pending/{id}")]
         public async Task<IActionResult> GetPendingRequest(Guid id)
         {
-            var result = await _trustNetwork.GetPendingRequest(id);
+            var result = await _circleNetwork.GetPendingRequest(id);
 
             if (result == null)
             {
@@ -49,14 +49,14 @@ namespace DotYou.TenantHost.Controllers
         [HttpGet("sent")]
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(int pageNumber, int pageSize)
         {
-            var result = await _trustNetwork.GetSentRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _circleNetwork.GetSentRequests(new PageOptions(pageNumber, pageSize));
             return result;
         }
 
         [HttpGet("sent/{id}")]
         public async Task<IActionResult> GetSentRequest(Guid id)
         {
-            var result = await _trustNetwork.GetSentRequest(id);
+            var result = await _circleNetwork.GetSentRequest(id);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
@@ -71,21 +71,21 @@ namespace DotYou.TenantHost.Controllers
         [HttpPost("sent")]
         public async Task<IActionResult> Send([FromBody] ConnectionRequest request)
         {
-            await _trustNetwork.SendConnectionRequest(request);
+            await _circleNetwork.SendConnectionRequest(request);
             return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpPost("pending/accept/{id}")]
         public async Task<IActionResult> AcceptPending(Guid id)
         {
-            await _trustNetwork.AcceptConnectionRequest(id);
+            await _circleNetwork.AcceptConnectionRequest(id);
             return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpDelete("pending/{id}")]
         public async Task<IActionResult> DeletePending(Guid id)
         {
-            await _trustNetwork.DeletePendingRequest(id);
+            await _circleNetwork.DeletePendingRequest(id);
             return new JsonResult(new NoResultResponse(true));
         }
 

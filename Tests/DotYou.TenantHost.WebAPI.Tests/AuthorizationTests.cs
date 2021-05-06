@@ -2,8 +2,10 @@ using DotYou.Types;
 using NUnit.Framework;
 using Refit;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace DotYou.TenantHost.WebAPI.Tests
@@ -36,6 +38,22 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         [SetUp]
         public void Setup() { }
+
+        [Test]
+        public void GetCertInfo()
+        {
+            var samContext = _registry.ResolveContext(samwise);
+            var samCert = samContext.TenantCertificate.LoadPublicKeyCertificate();
+
+            Console.WriteLine($"yooo: {samCert}");
+
+            string path = samContext.TenantCertificate.Location.CertificatePath;
+            //path = "/Users/taud/src/DotYouCore/ossl.crt";
+            //using (X509Certificate2 publicKey = new X509Certificate2(path))
+            //{
+            //    Console.WriteLine($"simple name: {publicKey.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false)}");
+            //}
+        }
 
         [Test]
         public async Task CannotPerformUnauthorizedAction()

@@ -212,6 +212,10 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Message = "Please add me",
                 Recipient = (DotYouIdentity)frodo,
                 Sender = (DotYouIdentity)samwise,
+
+
+                //note need to remove this and just pull from the client cert in the request
+                // see DotYouClaimTypes.PublicKeyCertificate
                 SenderRSAPublicKeyInfoBase64 = certPublicKey,
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
