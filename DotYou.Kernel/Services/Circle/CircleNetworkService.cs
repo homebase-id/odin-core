@@ -98,17 +98,16 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task EstablishConnection(EstablishConnectionRequest request)
         {
-
             var originalRequest = await this.GetSentRequest(request.ConnectionRequestId);
 
+            //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if(null == originalRequest)
             {
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            //TODO: find a better way to get the recpient domain
-            //string recipientDomain = GetCertificateDomain(request.RecipientPublicKey);
-            string recipientDomain = originalRequest.Recipient;
+            //TODO: find a better way to get the recipient domain
+            string recipientDomain = GetCertificateDomain(request.SenderPublicKeyCertificate);
             var ec = await _contactService.GetByDomainName(recipientDomain);
 
             //TODO: address how this contact merge should really happen
@@ -119,7 +118,7 @@ namespace DotYou.Kernel.Services.Circle
                 DotYouId = (DotYouIdentity)recipientDomain,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.RecipientRSAPublicKeyInfoBase64, //note: this has to be captured at the original connect request from DotYouContext
+                PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
                 Tag = null == ec ? "" : ec.Tag
             };
 
@@ -141,8 +140,7 @@ namespace DotYou.Kernel.Services.Circle
 
             this.Logger.LogInformation($"Accept Connection request called for sender {request.Sender} to {request.Recipient}");
 
-            //string domain = GetCertificateDomain(request.SenderRSAPublicKeyInfoBase64);
-            string domain = request.Sender;
+            string domain = GetCertificateDomain(request.SenderPublicKeyCertificate);
 
             var ec = await _contactService.GetByDomainName(domain);
 
@@ -156,7 +154,7 @@ namespace DotYou.Kernel.Services.Circle
                 DotYouId = (DotYouIdentity)domain,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.SenderRSAPublicKeyInfoBase64,
+                PublicKeyCertificate = request.SenderPublicKeyCertificate,
                 Tag = null == ec ? "" : ec.Tag
             };
 
@@ -187,7 +185,7 @@ namespace DotYou.Kernel.Services.Circle
         private string GetCertificateDomain(string publicKeyCertificate)
         {
             string domain = "";
-            using (var certificate = CertificateLoader.LoadPublicKeyCertificate(publicKeyCertificate))
+            using (var certificate = CertificateLoader.LoadPublicKeyCertificateXml(publicKeyCertificate))
             {
                 //HACK - need to put this sort of parsing into a class OR accept the subject as the domain?
                 domain = certificate.Subject.Split("=")[0];

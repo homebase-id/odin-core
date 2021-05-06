@@ -18,13 +18,13 @@ namespace AttributeUnitTest
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
 
         //IHost webserver;
-        IdentityContextRegistry _registry;
+        // IdentityContextRegistry _registry;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _registry = new IdentityContextRegistry();
-            _registry.Initialize();
+            // _registry = new IdentityContextRegistry();
+            // _registry.Initialize();
             //_id = _registry.ResolveContext()
         }
 

@@ -17,9 +17,7 @@ namespace DotYou.Types
             {
                 throw new ArgumentNullException(nameof(identifier));
             }
-
-            //TODO: add other validations such as format (
-
+            
             _identifier = identifier;
         }
 

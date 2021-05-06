@@ -326,7 +326,7 @@ namespace TrieUnitTest
                 if (g != g5)
                     throw new Exception();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Fail();
                 return;
@@ -387,7 +387,7 @@ namespace TrieUnitTest
                 if (g != g5)
                     throw new Exception();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Fail();
                 return;

@@ -15,20 +15,50 @@ namespace DotYou.TenantHost
     public class Program
     {
         private static IIdentityContextRegistry _registry;
-        private const string LOG_PATH_ENV_NAME = "DOTYOU_LOGPATH";
 
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            const string logPathEnvName = "DOTYOU_LOGPATH";
+            const string dataRootPath = "DATA_ROOT_PATH";
+            string path = Environment.GetEnvironmentVariable(dataRootPath);
+            string logPath = Environment.GetEnvironmentVariable(logPathEnvName);
+
+            var newargs = new[] {path, logPath};
+            
+            CreateHostBuilder(newargs).Build().Run();
         }
 
+        private static Args ParseArgs(string[] args)
+        {
+            if (args.Length != 2)
+            {
+                throw new InvalidDataException(
+                    "Args are invalid.  the first must be the DataPathRoot indicating where to store tenant data and the second must be LogPath for your log files.");
+            }
+
+            var parsed = new Args()
+            {
+                DataPathRoot = args[0],
+                LogFilePath = args[1]
+            };
+
+            if (Directory.Exists(parsed.DataPathRoot) && Directory.Exists(parsed.LogFilePath))
+            {
+                return parsed;
+            }
+
+            throw new InvalidDataException(
+                $"Could not find or access the DatPathRoot at [{parsed.DataPathRoot}] or the LogFilePath at [{parsed.LogFilePath}]");
+        }
+        
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            _registry = new IdentityContextRegistry();
+            var parsedArgs = ParseArgs(args);
+            
+            _registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
             _registry.Initialize();
 
-
-            string logPath = FindLogPath();
+            string logPath = FindLogPath(parsedArgs);
 
             return Host.CreateDefaultBuilder(args)
               .ConfigureLogging(config =>
@@ -75,11 +105,11 @@ namespace DotYou.TenantHost
               });
         }
 
-        private static string FindLogPath()
+        private static string FindLogPath(Args args)
         {
 
-            string logPath = Environment.GetEnvironmentVariable(LOG_PATH_ENV_NAME);
-
+            string logPath = args.LogFilePath;
+            
             if(string.IsNullOrEmpty(logPath) && string.IsNullOrWhiteSpace(logPath))
             {
                 var isUnixBased = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
@@ -93,7 +123,7 @@ namespace DotYou.TenantHost
                 //if an env var is set it must be a valid path.
                 if (!Directory.Exists(logPath))
                 {
-                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure you have an enviornment variable named [{LOG_PATH_ENV_NAME}] set to an existing path and your app has read/write access to the path.");
+                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure your app has read/write access to the path.");
                 }
             }
 
@@ -103,5 +133,11 @@ namespace DotYou.TenantHost
             return logPath;
 
         }
+    }
+
+    internal class Args
+    {
+        public string DataPathRoot { get; set; }
+        public string LogFilePath { get; set; }
     }
 }

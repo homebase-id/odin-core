@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace DotYou.Types.Circle
 {
-    public class ConnectionRequest
+    
+    public class ConnectionRequest: IncomingMessageBase
     {
         public ConnectionRequest()
         {
@@ -24,13 +26,7 @@ namespace DotYou.Types.Circle
         /// Individual who sent the invite
         /// </summary>
         public DotYouIdentity Sender { get; set; }
-
-        /// <summary>
-        /// The public key certificate of the <see cref="ConnectionRequest.Sender"/> in string format.
-        /// 
-        /// Generated from RSA.ExportSubjectPublicKeyInfo #prototrial
-        public string SenderRSAPublicKeyInfoBase64 { get; set; }
-
+        
         /// <summary>
         /// First name of the sender at the time of the invitation
         /// </summary>
@@ -61,8 +57,8 @@ namespace DotYou.Types.Circle
         /// </summary>
         public virtual void Validate()
         {
-            var isInvalid = string.IsNullOrEmpty(this.SenderRSAPublicKeyInfoBase64)
-            || string.IsNullOrWhiteSpace(this.SenderRSAPublicKeyInfoBase64)
+            var isInvalid = string.IsNullOrEmpty(this.SenderPublicKeyCertificate)
+            || string.IsNullOrWhiteSpace(this.SenderPublicKeyCertificate)
             || string.IsNullOrEmpty(this.Sender)
             || string.IsNullOrWhiteSpace(this.Sender)
             || string.IsNullOrEmpty(this.Recipient)
@@ -76,6 +72,50 @@ namespace DotYou.Types.Circle
             if (isInvalid)
             {
                 throw new InvalidDataException("Connection Request is invalid");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Base class for requests incoming from other digital identities
+    /// </summary>
+    public abstract class IncomingMessageBase
+    {
+        private string senderKey;
+        
+        /// <summary>
+        /// Specifies the pubilc key certificate of the <see cref="DotYouIdentity"/> who sent this message
+        /// </summary>
+        public string SenderPublicKeyCertificate
+        {
+            get
+            {
+                return senderKey;
+            }
+            set
+            {
+                AssertClassCanSetValue();
+                senderKey = value;
+            }
+        }
+
+        private void AssertClassCanSetValue()
+        {
+            //HACK: i cannot think of a better way to ensure
+            //this value is only set at the right time
+            
+            //check if the call is coming from the incoming namespace
+
+            string ns = "DotYou.TenantHost.Controllers.Incoming";
+            
+            var stack = new StackTrace();
+            var namespaceAuthorized = stack.GetFrames().Any(frame => frame.GetMethod() != null
+                                           && frame.GetMethod().DeclaringType.FullName.StartsWith(ns));
+
+            if (!namespaceAuthorized)
+            {
+                throw new InvalidOperationException(
+                    $"You can only set this MessageSenderInfoBase from the classes in the namespace [{ns}]");
             }
         }
     }

@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.Identity;
 
 namespace DotYou.TenantHost.Controllers.Incoming
 {
@@ -21,14 +23,15 @@ namespace DotYou.TenantHost.Controllers.Incoming
     {
         private readonly ICircleNetworkService _circleNetwork;
 
-        public InvitationsController(ICircleNetworkService cirlceNetwork)
+        public InvitationsController(ICircleNetworkService circleNetwork)
         {
-            _circleNetwork = cirlceNetwork;
+            _circleNetwork = circleNetwork;
         }
 
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
+            request.SenderPublicKeyCertificate = User.FindFirstValue(DotYouClaimTypes.PublicKeyCertificateXml);
             await _circleNetwork.ReceiveConnectionRequest(request);
             return Ok();
         }

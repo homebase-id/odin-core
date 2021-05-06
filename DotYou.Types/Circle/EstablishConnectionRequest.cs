@@ -6,7 +6,7 @@ namespace DotYou.Types.Circle
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 
     /// to establish a connection
     /// </summary>
-    public class EstablishConnectionRequest
+    public class EstablishConnectionRequest: IncomingMessageBase
     {
         /// <summary>
         /// The Id of the original connection request

@@ -16,6 +16,18 @@ namespace DotYou.TenantHost
     public class IdentityContextRegistry : IIdentityContextRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
+        
+        private string _dataStoragePath;
+
+        public IdentityContextRegistry(string dataStoragePath)
+        {
+            if (!Directory.Exists(dataStoragePath))
+            {
+                throw new InvalidDataException($"Could find or access path at [{dataStoragePath}]");
+            }
+
+            _dataStoragePath = dataStoragePath;
+        }
 
         //temporary until the Trie supports Generics
         private Dictionary<Guid, IdentityCertificate> _certificates = new Dictionary<Guid, IdentityCertificate>();
@@ -81,19 +93,8 @@ namespace DotYou.TenantHost
 
         private TenantStorageConfig CreateTenantStorage(string domainName)
         {
-            const string DataRootPath = "DATA_ROOT_PATH";
-            string path = Environment.GetEnvironmentVariable(DataRootPath);
-
-            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrEmpty(path))
-            {
-                //_logger.LogInformation($"Environment variable [{DataRootPath}] was not set, path does not exist, or path is inaccessible.  Fallback back to default path.");
-                path = Environment.CurrentDirectory;
-            }
-
-            path = Path.Combine(path, domainName);
-
+            string path = Path.Combine(_dataStoragePath, domainName);
             var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(path, "images"));
-
             return result;
         }
     }

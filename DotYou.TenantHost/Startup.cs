@@ -152,7 +152,7 @@ namespace DotYou.TenantHost
             bool isIdentified = true;
 
             string publicKeyXml = context.ClientCertificate.PublicKey.Key.ToXmlString(false);
-            
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),

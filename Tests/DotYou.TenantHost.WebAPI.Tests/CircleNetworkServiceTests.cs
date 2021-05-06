@@ -3,35 +3,70 @@ using DotYou.Types.Circle;
 using NUnit.Framework;
 using Refit;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
 
     public class CircleNetworkServiceTests
     {
+
+        private IHost webserver;
+
         static DotYouIdentity frodo = (DotYouIdentity)"frodobaggins.me";
         static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
 
-        private IdentityContextRegistry _registry;
-
-        public void SleepHack(int seconds)
-        {
-            //eww - until i figure out why async is not quite right
-            System.Threading.Thread.Sleep(seconds * 1000);
-        }
-
+        //IHost webserver;
+        IdentityContextRegistry _registry;
+        
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            _registry = new IdentityContextRegistry();
+            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string testDataPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp","dotyoudata", folder);
+            string logFilePath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp","dotyoulogs", folder);
+
+            if (Directory.Exists(testDataPath))
+            {
+                Console.WriteLine($"Removing data in [{testDataPath}]");
+                Directory.Delete(testDataPath, true);
+            }
+            
+            if (Directory.Exists(logFilePath))
+            {
+                Console.WriteLine($"Removing data in [{logFilePath}]");
+                Directory.Delete(logFilePath, true);
+            }
+
+            Directory.CreateDirectory(testDataPath);
+            Directory.CreateDirectory(logFilePath);
+
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+            var args = new string[2];
+            args[0] = testDataPath;
+            args[1] = logFilePath;
+            webserver = Program.CreateHostBuilder(args).Build();
+            webserver.Start();
+            
+            _registry = new IdentityContextRegistry(testDataPath);
             _registry.Initialize();
         }
 
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            System.Threading.Thread.Sleep(2000);
+            webserver.StopAsync();
+            webserver.Dispose();
 
+        }
+        
         [SetUp]
         public void Setup() { }
 
@@ -212,11 +247,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Message = "Please add me",
                 Recipient = (DotYouIdentity)frodo,
                 Sender = (DotYouIdentity)samwise,
-
-
-                //note need to remove this and just pull from the client cert in the request
-                // see DotYouClaimTypes.PublicKeyCertificate
-                SenderRSAPublicKeyInfoBase64 = certPublicKey,
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
             };
