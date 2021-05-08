@@ -48,7 +48,7 @@ namespace DotYou.TenantHost
             }
 
             throw new InvalidDataException(
-                $"Could not find or access the DatPathRoot at [{parsed.DataPathRoot}] or the LogFilePath at [{parsed.LogFilePath}]");
+                $"Could not find or access the DatPathRoot at [{parsed.DataPathRoot}] or the LogFilePath at [{parsed.LogFilePath}].  The directories must exist and be accessible to the process.");
         }
         
         public static IHostBuilder CreateHostBuilder(string[] args)

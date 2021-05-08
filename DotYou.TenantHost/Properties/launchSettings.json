@@ -10,7 +10,9 @@
       "launchBrowser": true,
       "applicationUrl": "https://frodobaggins.me",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATA_ROOT_PATH": "\\tmp\\web\\dotyoudata",
+        "DOTYOU_LOGPATH": "\\tmp\\web\\dotyoulogs"
       }
     }
   }

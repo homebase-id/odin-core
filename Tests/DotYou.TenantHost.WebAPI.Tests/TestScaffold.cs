@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net.Http;
 using DotYou.Types;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -73,6 +74,21 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 webserver.StopAsync();
                 webserver.Dispose();
             }
+        }
+
+        public HttpClient CreateHttpClient(DotYouIdentity identity)
+        {
+            var samContext = this.Registry.ResolveContext(identity);
+            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
+
+            HttpClientHandler handler = new();
+            handler.ClientCertificates.Add(samCert);
+            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+
+            HttpClient client = new(handler);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
         }
     }
 }

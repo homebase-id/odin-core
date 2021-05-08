@@ -30,14 +30,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
             scaffold.RunAfterAnyTests();
         }
 
-        [SetUp]
-        public void Setup() { }
-
         [Test]
         public async Task CanAddAndGetContactByDomain()
         {
             //Add frodo to sams list as just a contact.
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 await AddFrodoToSamsContacts();
 
@@ -56,7 +53,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         public async Task CanGetContactList()
         {
             //have sam perform a normal operation on his site
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 await AddFrodoToSamsContacts();
 
@@ -73,7 +70,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task AddFrodoToSamsContacts()
         {
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<IContactRequestsClient>(client);
 
@@ -93,21 +90,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
 
             }
-        }
-
-        private HttpClient CreateHttpClient(DotYouIdentity identity)
-        {
-            var samContext = scaffold.Registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
-
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(samCert);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-
-            HttpClient client = new(handler);
-
-            client.BaseAddress = new Uri($"https://{identity}");
-            return client;
         }
 
     }

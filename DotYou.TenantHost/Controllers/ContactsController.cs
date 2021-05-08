@@ -13,7 +13,7 @@ namespace DotYou.TenantHost.Controllers
 {
     [ApiController]
     [Route("api/contacts")]
-    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
+//    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
     public class ContactsController : ControllerBase
     {
         IContactService _contactService;

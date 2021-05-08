@@ -37,7 +37,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         public async Task CannotPerformUnauthorizedAction()
         {
             //have sam attempted to perform an action on frodos site
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 //point sams client to frodo
                 client.BaseAddress = new Uri($"https://{scaffold.Frodo}");
@@ -53,7 +53,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         public async Task CanSuccessfullyPerformAuthorized()
         {
             //have sam perform a normal operation on his site
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
@@ -62,22 +62,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             }
         }
-
-
-        private HttpClient CreateHttpClient(DotYouIdentity identity)
-        {
-            var samContext = scaffold.Registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
-
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(samCert);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-
-            HttpClient client = new(handler);
-
-            client.BaseAddress = new Uri($"https://{identity}");
-            return client;
-        }
-
+        
     }
 }

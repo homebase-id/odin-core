@@ -43,7 +43,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var id = request.Id;
 
             //Check if Frodo received the request?
-            using (var client = CreateHttpClient(scaffold.Frodo))
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(id);
@@ -60,7 +60,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(scaffold.Frodo))
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -77,7 +77,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(scaffold.Frodo))
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -97,7 +97,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var request = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -119,7 +119,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var request = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -137,7 +137,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(scaffold.Frodo))
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -164,7 +164,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             }
 
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 //
                 // Frodo should be in sam's contacts network
@@ -180,20 +180,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
             }
         }
 
-        private HttpClient CreateHttpClient(DotYouIdentity identity)
-        {
-            var samContext = scaffold.Registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
-
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(samCert);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-
-            HttpClient client = new(handler);
-
-            client.BaseAddress = new Uri($"https://{identity}");
-            return client;
-        }
 
         private async Task<ConnectionRequest> CreateConnectionRequestSamToFrodo()
         {
@@ -210,8 +196,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
             };
-
-            using (var client = CreateHttpClient(scaffold.Samwise))
+            
+            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.SendConnectionRequest(request);
