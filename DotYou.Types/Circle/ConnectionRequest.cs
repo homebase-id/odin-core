@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace DotYou.Types.Circle
 {
-    
-    public class ConnectionRequest: IncomingMessageBase
+    public class ConnectionRequest: IRequireSenderCertificate
     {
-        public ConnectionRequest()
-        {
+        [JsonConstructor]
+        public ConnectionRequest() { }
 
-        }
+        // public ConnectionRequest(string senderPublicKey)
+        // {
+        //     this.SenderPublicKeyCertificate
+        // }
 
         public Guid Id { get; set; }
 
@@ -74,49 +75,7 @@ namespace DotYou.Types.Circle
                 throw new InvalidDataException("Connection Request is invalid");
             }
         }
-    }
 
-    /// <summary>
-    /// Base class for requests incoming from other digital identities
-    /// </summary>
-    public abstract class IncomingMessageBase
-    {
-        private string senderKey;
-        
-        /// <summary>
-        /// Specifies the pubilc key certificate of the <see cref="DotYouIdentity"/> who sent this message
-        /// </summary>
-        public string SenderPublicKeyCertificate
-        {
-            get
-            {
-                return senderKey;
-            }
-            set
-            {
-                AssertClassCanSetValue();
-                senderKey = value;
-            }
-        }
-
-        private void AssertClassCanSetValue()
-        {
-            //HACK: i cannot think of a better way to ensure
-            //this value is only set at the right time
-            
-            //check if the call is coming from the incoming namespace
-
-            string ns = "DotYou.TenantHost.Controllers.Incoming";
-            
-            var stack = new StackTrace();
-            var namespaceAuthorized = stack.GetFrames().Any(frame => frame.GetMethod() != null
-                                           && frame.GetMethod().DeclaringType.FullName.StartsWith(ns));
-
-            if (!namespaceAuthorized)
-            {
-                throw new InvalidOperationException(
-                    $"You can only set this MessageSenderInfoBase from the classes in the namespace [{ns}]");
-            }
-        }
+        public string SenderPublicKeyCertificate { get; set; }
     }
 }

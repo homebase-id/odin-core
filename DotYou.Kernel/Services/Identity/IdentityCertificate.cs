@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Dawn;
 
 namespace DotYou.Kernel.Services.Identity
 {
@@ -16,26 +17,21 @@ namespace DotYou.Kernel.Services.Identity
         //private empty ctor handles deserialization
         private IdentityCertificate() { }
 
-        public IdentityCertificate(Guid key, string domain, CertificateLocation location)
+        public IdentityCertificate(Guid key, string domain, NameAttribute owner, CertificateLocation location)
         {
-            if (key == Guid.Empty)
-            {
-                throw new Exception("Guid must not be empty");
-            }
+            Guard.Argument(key, nameof(key)).NotEqual(Guid.Empty);
+            Guard.Argument(domain, nameof(domain)).NotEmpty();
+            Guard.Argument(location, nameof(location)).NotNull();
 
-            if (null == domain)
-            {
-                throw new ArgumentNullException(nameof(domain));
-            }
-
-            if(null == location)
-            {
-                throw new ArgumentNullException(nameof(domain));
-            }
-
+            Guard.Argument(location.CertificatePath, nameof(CertificateLocation.CertificatePath)).NotEmpty();
+            Guard.Argument(location.PrivateKeyPath, nameof(CertificateLocation.PrivateKeyPath)).NotEmpty();
+            
+            Guard.Argument(owner, nameof(owner)).NotNull();
+            
             Key = key;
             DomainName = domain;
             Location = location;
+            OwnerName = owner;
 
             //todo; accept in ctor 
             Attributes = new List<IdentityAttribute<BaseAttribute>>();
@@ -50,6 +46,11 @@ namespace DotYou.Kernel.Services.Identity
 
         public string DomainName { get; }
 
+        /// <summary>
+        /// Specifies the Name of the individual holding the certifiate
+        /// </summary>
+        public NameAttribute OwnerName { get; }
+        
         public List<IdentityAttribute<BaseAttribute>> Attributes { get; }
 
         /// <summary>
@@ -57,11 +58,6 @@ namespace DotYou.Kernel.Services.Identity
         /// </summary>
         public string CertificateSubject { get; private set; }
 
-        /// <summary>
-        /// A hexidecimal string of the Public Key
-        /// </summary>
-        public string CertificatePublicKeyString { get; private set; }
-         
         /// <summary>
         /// The file location of the certificates
         /// </summary>
@@ -71,11 +67,6 @@ namespace DotYou.Kernel.Services.Identity
         {
             using (var cert = this.LoadCertificateWithPrivateKey())
             {
-                var rsa = (RSA)cert.PublicKey.Key;
-                byte[] certBytes = rsa.ExportSubjectPublicKeyInfo();
-                string certPublicKey = Convert.ToBase64String(certBytes);
-
-                this.CertificatePublicKeyString = certPublicKey;
                 this.CertificateSubject = cert.Subject;
             }
         }

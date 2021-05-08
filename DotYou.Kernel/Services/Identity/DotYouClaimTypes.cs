@@ -26,6 +26,6 @@ namespace DotYou.Kernel.Services.Identity
         /// </summary>
         public static string Actor = "https://schemas.youfoundation.id/2021/3/identity/Actor";
 
-        public static string PublicKeyCertificateXml = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
+        public static string PublicKeyCertificate = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
     }
 }

@@ -31,7 +31,6 @@ namespace DotYou.TenantHost.Controllers.Incoming
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
-            request.SenderPublicKeyCertificate = User.FindFirstValue(DotYouClaimTypes.PublicKeyCertificateXml);
             await _circleNetwork.ReceiveConnectionRequest(request);
             return Ok();
         }

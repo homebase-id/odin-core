@@ -4,6 +4,7 @@ using DotYou.Types;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Identity.DataType.Attributes;
 
 namespace DotYou.TenantHost
 {
@@ -16,7 +17,7 @@ namespace DotYou.TenantHost
     public class IdentityContextRegistry : IIdentityContextRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
-        
+
         private string _dataStoragePath;
 
         public IdentityContextRegistry(string dataStoragePath)
@@ -36,11 +37,16 @@ namespace DotYou.TenantHost
         /// Hard coded identity which lets you boostrap your system when you have no other sites
         /// Note: for a production system this must be moved to configuration.
         /// </summary>
-        private static readonly IdentityCertificate RootIdentityCertificate = new IdentityCertificate(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id", new CertificateLocation()
-        {
-            CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
-            PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key"),
-        });
+        private static readonly IdentityCertificate RootIdentityCertificate =
+            new IdentityCertificate(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id",
+                new NameAttribute() {Personal = "You Foundation", Surname = "System User"},
+                new CertificateLocation()
+                {
+                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id",
+                        "certificate.cer"),
+                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id",
+                        "private.key"),
+                });
 
         /// <summary>
         /// Resolves a context based on a given domain name
@@ -59,26 +65,34 @@ namespace DotYou.TenantHost
             IdentityCertificate cert;
             if (!_certificates.TryGetValue(key, out cert))
             {
-                throw new InvalidDataException($"The Trie map contains a key for domain {domainName} but it is not cached in the dictionary.");
+                throw new InvalidDataException(
+                    $"The Trie map contains a key for domain {domainName} but it is not cached in the dictionary.");
             }
 
-            return new DotYouContext((DotYouIdentity)domainName, cert, CreateTenantStorage(domainName));
+            return new DotYouContext((DotYouIdentity) domainName, cert, CreateTenantStorage(domainName));
         }
 
         public void Initialize()
         {
+            IdentityCertificate samwise =
+                new(Guid.NewGuid(), "samwisegamgee.me", new NameAttribute() {Personal = "Samwise", Surname = "Gamgee"},
+                    new CertificateLocation()
+                    {
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me",
+                            "certificate.crt"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me",
+                            "private.key"),
+                    });
 
-            IdentityCertificate samwise = new IdentityCertificate(Guid.NewGuid(), "samwisegamgee.me", new CertificateLocation()
-            {
-                CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "certificate.crt"),
-                PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "private.key"),
-            });
-
-            IdentityCertificate frodo = new IdentityCertificate(Guid.NewGuid(), "frodobaggins.me", new CertificateLocation()
-            {
-                CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.crt"),
-                PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key"),
-            });
+            IdentityCertificate frodo =
+                new(Guid.NewGuid(), "frodobaggins.me", new NameAttribute() {Personal = "Frodo", Surname = "Baggins"},
+                    new CertificateLocation()
+                    {
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me",
+                            "certificate.crt"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me",
+                            "private.key"),
+                    });
 
             _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
             _certificates.Add(samwise.Key, samwise);

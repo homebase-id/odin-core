@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DotYou.Kernel.Services.Identity;
 using Microsoft.Extensions.Primitives;
 
 namespace DotYou.TenantHost.WebAPI.Tests
@@ -68,7 +69,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 //Console.WriteLine($"Portable: {portableFormat}");
             }
 
-            
+            new DomainCertificate(portableFormat);
             using (X509Certificate2 importedCert = new X509Certificate2(Convert.FromBase64String(portableFormat)))
             {
                 //reload portable format

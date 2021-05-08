@@ -6,6 +6,7 @@ using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.Services.Identity;
 
 namespace DotYou.Kernel.Services.Circle
 {
@@ -106,16 +107,16 @@ namespace DotYou.Kernel.Services.Circle
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            //TODO: find a better way to get the recipient domain
-            string recipientDomain = GetCertificateDomain(request.SenderPublicKeyCertificate);
-            var ec = await _contactService.GetByDomainName(recipientDomain);
+            //TODO: this is a strange way 
+            DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
+            var ec = await _contactService.GetByDomainName(cert.DotYouId);
 
             //TODO: address how this contact merge should really happen
             var contact = new Contact()
             {
                 GivenName = request.RecipientGivenName,
                 Surname = request.RecipientSurname,
-                DotYouId = (DotYouIdentity)recipientDomain,
+                DotYouId = (DotYouIdentity)cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
                 PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
@@ -129,7 +130,7 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task AcceptConnectionRequest(Guid id)
         {
-            //get the requst
+
             var request = await GetPendingRequest(id);
             if (null == request)
             {
@@ -140,9 +141,8 @@ namespace DotYou.Kernel.Services.Circle
 
             this.Logger.LogInformation($"Accept Connection request called for sender {request.Sender} to {request.Recipient}");
 
-            string domain = GetCertificateDomain(request.SenderPublicKeyCertificate);
-
-            var ec = await _contactService.GetByDomainName(domain);
+            var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
+            var ec = await _contactService.GetByDomainName(cert.DotYouId);
 
             //TODO: add relationshipId for future analysis
 
@@ -151,7 +151,7 @@ namespace DotYou.Kernel.Services.Circle
             {
                 GivenName = request.SenderGivenName,
                 Surname = request.SenderSurname,
-                DotYouId = (DotYouIdentity)domain,
+                DotYouId = (DotYouIdentity)cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
                 PublicKeyCertificate = request.SenderPublicKeyCertificate,
@@ -165,10 +165,8 @@ namespace DotYou.Kernel.Services.Circle
             EstablishConnectionRequest acceptedReq = new()
             {
                 ConnectionRequestId = id,
-                //todo: have sam take this from the handshake
-                RecipientRSAPublicKeyInfoBase64 = Context.TenantCertificate.CertificatePublicKeyString,
-                RecipientGivenName = "TODO - where",
-                RecipientSurname = "do i get this"
+                RecipientGivenName = this.Context.TenantCertificate.OwnerName.Personal,
+                RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
             };
 
             var response = await this.HttpProxy.PostJson(request.Sender, "api/incoming/invitations/establishconnection", acceptedReq);
@@ -180,18 +178,6 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             await this.DeletePendingRequest(request.Id);
-        }
-
-        private string GetCertificateDomain(string publicKeyCertificate)
-        {
-            string domain = "";
-            using (var certificate = CertificateLoader.LoadPublicKeyCertificateXml(publicKeyCertificate))
-            {
-                //HACK - need to put this sort of parsing into a class OR accept the subject as the domain?
-                domain = certificate.Subject.Split("=")[0];
-            }
-            return domain;
-
         }
     }
 }

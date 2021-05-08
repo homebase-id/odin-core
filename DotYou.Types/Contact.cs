@@ -14,7 +14,7 @@ namespace DotYou.Types
         public string PrimaryEmail { get; set; }
 
         /// <summary>
-        /// A hexidecimal string of this contacts public key certificate.  This must be 
+        /// A base64 string of this contacts public key certificate.  This must be 
         /// populated if <see cref="SystemCircle"/> is <see cref="SystemCircle.Connected"/>.
         /// </summary>
         public string PublicKeyCertificate { get; set; }

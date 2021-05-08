@@ -22,6 +22,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 
 namespace DotYou.TenantHost
@@ -32,7 +33,8 @@ namespace DotYou.TenantHost
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
+            services.AddControllers(config =>
+                config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter()));
 
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
@@ -151,17 +153,21 @@ namespace DotYou.TenantHost
             //By logging in with a client certificate for this #prototrial, you are identified
             bool isIdentified = true;
 
-            string publicKeyXml = context.ClientCertificate.PublicKey.Key.ToXmlString(false);
+            var bytes = context.ClientCertificate.Export(X509ContentType.Pkcs12);
+            string clientCertificatePortable = Convert.ToBase64String(bytes);
+            
+            //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
+            string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(ClaimTypes.Name, context.ClientCertificate.Subject, ClaimValueTypes.String, context.Options.ClaimsIssuer),
+                new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
+                new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-
+                
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
-                new Claim(DotYouClaimTypes.PublicKeyCertificateXml, publicKeyXml, ClaimValueTypes.String, YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

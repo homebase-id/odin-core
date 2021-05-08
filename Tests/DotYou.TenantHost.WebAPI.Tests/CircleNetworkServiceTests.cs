@@ -190,12 +190,12 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 // Sam should be in frodo's contacts network.
                 //
                 var frodoContactSvc = RestService.For<IContactRequestsClient>(client);
-                var samResponse = await frodoContactSvc.GetContactByDomain(samwise);
+                var response = await frodoContactSvc.GetContactByDomain(samwise);
 
-                Assert.IsTrue(samResponse.IsSuccessStatusCode, $"Failed to retrieve {samwise}.  Status code was {samResponse.StatusCode}");
-                Assert.IsNotNull(samResponse.Content, $"No contact with domain {samwise} found");
-
-                //TODO: add checks that Surname and Givenname are correct
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {samwise}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {samwise} found");
+                Assert.IsTrue(response.Content.GivenName == "Samwise");
+                Assert.IsTrue(response.Content.Surname == "Gamgee");
 
             }
 
@@ -210,8 +210,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {frodo}");
                 Assert.IsNotNull(response.Content, $"No contact with domain {frodo} found");
-
-                //TODO: add checks that Surname and Givenname are correct
+                Assert.IsTrue(response.Content.GivenName == "Frodo");
+                Assert.IsTrue(response.Content.Surname == "Baggins");
             }
         }
 
@@ -235,11 +235,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var samContext = _registry.ResolveContext(samwise);
             var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
             
-            var rsa = (RSA)samCert.PublicKey.Key;
-            byte[] certBytes = rsa.ExportSubjectPublicKeyInfo();
-            //byte[] certBytes = x.ExportRSAPublicKey();
-            string certPublicKey = Convert.ToBase64String(certBytes);
-            
             var request = new ConnectionRequest()
             {
                 Id = Guid.NewGuid(),
@@ -255,7 +250,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.SendConnectionRequest(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, "Failed sending the request");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
                 Assert.IsTrue(response.Content.Success, "Failed sending the request");
             }
 
