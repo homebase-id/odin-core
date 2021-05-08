@@ -16,69 +16,34 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
     public class CircleNetworkServiceTests
     {
+        private TestScaffold scaffold;
 
-        private IHost webserver;
-
-        static DotYouIdentity frodo = (DotYouIdentity)"frodobaggins.me";
-        static DotYouIdentity samwise = (DotYouIdentity)"samwisegamgee.me";
-
-        //IHost webserver;
-        IdentityContextRegistry _registry;
-        
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            string testDataPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp","dotyoudata", folder);
-            string logFilePath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp","dotyoulogs", folder);
-
-            if (Directory.Exists(testDataPath))
-            {
-                Console.WriteLine($"Removing data in [{testDataPath}]");
-                Directory.Delete(testDataPath, true);
-            }
-            
-            if (Directory.Exists(logFilePath))
-            {
-                Console.WriteLine($"Removing data in [{logFilePath}]");
-                Directory.Delete(logFilePath, true);
-            }
-
-            Directory.CreateDirectory(testDataPath);
-            Directory.CreateDirectory(logFilePath);
-
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            var args = new string[2];
-            args[0] = testDataPath;
-            args[1] = logFilePath;
-            webserver = Program.CreateHostBuilder(args).Build();
-            webserver.Start();
-            
-            _registry = new IdentityContextRegistry(testDataPath);
-            _registry.Initialize();
+            scaffold = new TestScaffold(folder);
+            scaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            System.Threading.Thread.Sleep(2000);
-            webserver.StopAsync();
-            webserver.Dispose();
-
+            scaffold.RunAfterAnyTests();
         }
         
         [SetUp]
         public void Setup() { }
 
         [Test]
-        public async Task CanSendConnectionRequestAndGetPendingReqeust()
+        public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
             //Have sam send Frodo a request.
             var request = await CreateConnectionRequestSamToFrodo();
             var id = request.Id;
 
             //Check if Frodo received the request?
-            using (var client = CreateHttpClient(frodo))
+            using (var client = CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(id);
@@ -95,7 +60,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(frodo))
+            using (var client = CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -112,7 +77,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(frodo))
+            using (var client = CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -132,7 +97,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var request = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = CreateHttpClient(samwise))
+            using (var client = CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -154,7 +119,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var request = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = CreateHttpClient(samwise))
+            using (var client = CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -172,7 +137,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             var request = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = CreateHttpClient(frodo))
+            using (var client = CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -187,29 +152,29 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Assert.IsTrue(getReponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {request.Id} still exists");
 
                 //
-                // Sam should be in frodo's contacts network.
+                // Sam should be in scaffold.Frodo's contacts network.
                 //
                 var frodoContactSvc = RestService.For<IContactRequestsClient>(client);
-                var response = await frodoContactSvc.GetContactByDomain(samwise);
+                var response = await frodoContactSvc.GetContactByDomain(scaffold.Samwise);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {samwise}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No contact with domain {samwise} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {scaffold.Samwise}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {scaffold.Samwise} found");
                 Assert.IsTrue(response.Content.GivenName == "Samwise");
                 Assert.IsTrue(response.Content.Surname == "Gamgee");
 
             }
 
-            using (var client = CreateHttpClient(samwise))
+            using (var client = CreateHttpClient(scaffold.Samwise))
             {
                 //
                 // Frodo should be in sam's contacts network
                 //
                 var contactSvc = RestService.For<IContactRequestsClient>(client);
 
-                var response = await contactSvc.GetContactByDomain(frodo);
+                var response = await contactSvc.GetContactByDomain(scaffold.Frodo);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {frodo}");
-                Assert.IsNotNull(response.Content, $"No contact with domain {frodo} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {scaffold.Frodo}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {scaffold.Frodo} found");
                 Assert.IsTrue(response.Content.GivenName == "Frodo");
                 Assert.IsTrue(response.Content.Surname == "Baggins");
             }
@@ -217,7 +182,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private HttpClient CreateHttpClient(DotYouIdentity identity)
         {
-            var samContext = _registry.ResolveContext(identity);
+            var samContext = scaffold.Registry.ResolveContext(identity);
             var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
 
             HttpClientHandler handler = new();
@@ -232,7 +197,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<ConnectionRequest> CreateConnectionRequestSamToFrodo()
         {
-            var samContext = _registry.ResolveContext(samwise);
+            var samContext = scaffold.Registry.ResolveContext(scaffold.Samwise);
             var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
             
             var request = new ConnectionRequest()
@@ -240,13 +205,13 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 Id = Guid.NewGuid(),
                 DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 Message = "Please add me",
-                Recipient = (DotYouIdentity)frodo,
-                Sender = (DotYouIdentity)samwise,
+                Recipient = (DotYouIdentity)scaffold.Frodo,
+                Sender = (DotYouIdentity)scaffold.Samwise,
                 SenderGivenName = "Samwise",
                 SenderSurname = "Gamgee"
             };
 
-            using (var client = CreateHttpClient(samwise))
+            using (var client = CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.SendConnectionRequest(request);

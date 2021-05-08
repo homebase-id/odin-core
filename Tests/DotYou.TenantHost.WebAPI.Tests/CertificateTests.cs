@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Identity;
@@ -14,40 +15,26 @@ namespace DotYou.TenantHost.WebAPI.Tests
 {
     public class CertificateTests
     {
-        static DotYouIdentity frodo = (DotYouIdentity) "frodobaggins.me";
-        static DotYouIdentity samwise = (DotYouIdentity) "samwisegamgee.me";
-
-        //IHost webserver;
-        IdentityContextRegistry _registry;
+        private TestScaffold scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string testDataPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"temp","dotyoudata");
-
-            if (Directory.Exists(testDataPath))
-            {
-                Console.WriteLine($"Removing data in [{testDataPath}]");
-                Directory.Delete(testDataPath, true);
-            }
-            _registry = new IdentityContextRegistry(testDataPath);
-            _registry.Initialize();
+            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            scaffold = new TestScaffold(folder);
+            scaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
+            scaffold.RunAfterAnyTests();
         }
-
-        [SetUp]
-        public void Setup()
-        {
-        }
-
+        
         [Test]
         public void CanMakePublicKeyCertificatePortable()
         {
-            var samContext = _registry.ResolveContext(samwise);
+            var samContext = scaffold.Registry.ResolveContext(scaffold.Samwise);
 
             string certificatePath = samContext.TenantCertificate.Location.CertificatePath;
 
