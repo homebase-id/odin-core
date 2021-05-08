@@ -98,7 +98,9 @@ namespace DotYou.TenantHost
             }
 
             app.UseMiddleware<ExceptionMiddleware>();
-
+            app.UseStaticFiles();
+            app.UseBlazorFrameworkFiles();
+            
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
