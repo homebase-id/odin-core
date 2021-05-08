@@ -96,10 +96,6 @@ namespace DotYou.TenantHost
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                app.UseExceptionHandler(config => { });
-            }
 
             app.UseMiddleware<ExceptionMiddleware>();
 

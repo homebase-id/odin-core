@@ -33,18 +33,17 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [Test]
         public async Task CanAddAndGetContactByDomain()
         {
-            //Add frodo to sams list as just a contact.
-            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
+            await AddSamToFrodosContacts();
+            
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
-                await AddFrodoToSamsContacts();
-
                 var svc = RestService.For<IContactRequestsClient>(client);                
-                var contactResponse = await svc.GetContactByDomain(scaffold.Frodo);
+                var contactResponse = await svc.GetContactByDomain(scaffold.Samwise);
 
-                Assert.IsNotNull(contactResponse.Content, $"Contact was not found by domain [{scaffold.Frodo}]");
-                Assert.IsTrue(contactResponse.Content.GivenName == "Frodo");
-                Assert.IsTrue(contactResponse.Content.Surname == "Baggins");
-                Assert.IsTrue(contactResponse.Content.PrimaryEmail == "mail@frodobaggins.me");
+                Assert.IsNotNull(contactResponse.Content, $"Contact was not found by domain [{scaffold.Samwise}]");
+                Assert.IsTrue(contactResponse.Content.GivenName == "Samwise");
+                Assert.IsTrue(contactResponse.Content.Surname == "Gamgee");
+                Assert.IsTrue(contactResponse.Content.PrimaryEmail == "mail@samwisegamgee.me");
 
             }
         }
@@ -52,7 +51,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [Test]
         public async Task CanGetContactList()
         {
-            //have sam perform a normal operation on his site
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 await AddFrodoToSamsContacts();
@@ -61,6 +59,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
                 var response = await svc.GetContactsList(PageOptions.Default);
 
+                await scaffold.OutputRequestInfo(response);
+                
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(c => c.DotYouId.ToString().ToLower() == scaffold.Frodo.ToString().ToLower()), $"Could not find contact with domain [{scaffold.Frodo}] in the results");
@@ -68,12 +68,37 @@ namespace DotYou.TenantHost.WebAPI.Tests
             }
         }
 
+        private async Task AddSamToFrodosContacts()
+        {
+            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
+            {
+                var svc = RestService.For<IContactRequestsClient>(client);
+                
+                Contact contact = new()
+                {
+                    DotYouId = scaffold.Samwise,
+                    GivenName = "Samwise",
+                    Surname = "Gamgee",
+                    PrimaryEmail = "mail@samwisegamgee.me",
+                    PublicKeyCertificate = "",
+                    SystemCircle = SystemCircle.PublicAnonymous,
+                    Tag = "fellowship",
+                };
+
+                var response = await svc.SaveContact(contact);
+                await scaffold.OutputRequestInfo(response);
+                
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
+
+            }
+        }
+        
         private async Task AddFrodoToSamsContacts()
         {
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<IContactRequestsClient>(client);
-
+                
                 Contact contact = new()
                 {
                     DotYouId = scaffold.Frodo,
@@ -86,7 +111,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 };
 
                 var response = await svc.SaveContact(contact);
-
+                await scaffold.OutputRequestInfo(response);
+                
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
 
             }

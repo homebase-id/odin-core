@@ -47,10 +47,14 @@ namespace DotYou.TenantHost.Controllers
             }
             */
 
+            // predicate = c =>
+            //                 c.GivenName.ToLower().Contains(q) ||
+            //                 c.Surname.ToLower().Contains(q) ||
+            //                 c.DotYouId.Value.Id.Contains(q);
+            
             predicate = c =>
-                            c.GivenName.ToLower().Contains(q) ||
-                            c.Surname.ToLower().Contains(q) ||
-                            c.DotYouId.Value.Id.Contains(q);
+                c.GivenName.ToLower().Contains(q) ||
+                c.Surname.ToLower().Contains(q);
 
             var results = await _contactService.FindContacts(predicate, new PageOptions(pageNumber, pageSize));
 
@@ -96,7 +100,7 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> SaveContact([FromBody]Contact contact)
+        public async Task<IActionResult> SaveContact(Contact contact)
         {
             await _contactService.Save(contact);
             return new JsonResult(new NoResultResponse(true));

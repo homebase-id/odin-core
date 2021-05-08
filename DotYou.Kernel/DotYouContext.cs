@@ -1,4 +1,5 @@
 ﻿using System;
+using Dawn;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Types;
 using Identity.DataType.Attributes;
@@ -12,6 +13,9 @@ namespace DotYou.Kernel
     {
         public DotYouContext(DotYouIdentity dotYouId, IdentityCertificate tenantCertificate, TenantStorageConfig storageConfig)
         {
+            Guard.Argument(tenantCertificate, nameof(tenantCertificate)).NotNull();
+            Guard.Argument(storageConfig, nameof(storageConfig)).NotNull();
+            
             this.DotYouId = dotYouId;
             this.StorageConfig = storageConfig;
             this.TenantCertificate = tenantCertificate;

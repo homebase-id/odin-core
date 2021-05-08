@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Text.Json.Serialization;
+
 namespace DotYou.Types
 {
-
     public class Contact
     {
-        public DotYouIdentity? DotYouId { get; set; }
+        public string DotYouId { get; set; }
 
         public string GivenName { get; set; }
         public string Surname { get; set; }
@@ -22,6 +23,7 @@ namespace DotYou.Types
         /// <summary>
         /// Specifies which system circle this contact exists with-in.
         /// </summary>
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public SystemCircle SystemCircle { get; set; }
 
         public override string ToString()

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading.Tasks;
 using DotYou.Types;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Refit;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
@@ -89,6 +91,28 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
+        }
+
+        public async Task OutputRequestInfo<T>(ApiResponse<T> response)
+        {
+            if (null == response.RequestMessage || null == response.RequestMessage.RequestUri)
+            {
+                return;
+            }
+
+            ConsoleColor prev = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Uri -> {response.RequestMessage.RequestUri}");
+
+            string content = "No Content";
+            // if (response.RequestMessage.Content != null)
+            // {
+            //     content = await response.RequestMessage.Content.ReadAsStringAsync();
+            // }
+            
+            Console.WriteLine($"Content ->\n {content}");
+            Console.ForegroundColor = prev;
+
         }
     }
 }
