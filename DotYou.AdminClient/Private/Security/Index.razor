@@ -1,0 +1,22 @@
+﻿@page "/private/security"
+@inject HttpClient Http
+@inject NavigationManager nav
+
+@inject NavBarLeftInjectableMenu menu
+@menu.SetContent(null, false);
+
+<ContentHeader>
+    @*<Header>
+        <PageTitle Title="Invitations" />
+    </Header>*@
+</ContentHeader>
+<ContentMain>
+    <Row>
+        <Column Classes="col.sm._2"></Column>
+        <Column Classes="col.sm._8">
+            <H3>Dashboard</H3>
+        </Column>
+        <Column Classes="col.sm._2"></Column>
+    </Row>
+
+</ContentMain>

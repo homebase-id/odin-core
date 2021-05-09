@@ -1,0 +1,60 @@
+﻿@inject HttpClient http
+@inject NavigationManager nav
+
+<ContentMain>
+    <Row>
+        <Column Classes="col.sm._5"></Column>
+        <Column Classes="col.sm._2">
+            <div class="mt-5"></div>
+            <EditForm Model="@model">
+                <FormGroup>
+                    <Input @bind-Value="username" />
+                </FormGroup>
+                <FormGroup>
+                    <Input @bind-Value="password" />
+                </FormGroup>
+                <div style="max-width:100px">
+                    <Button Size="ButtonSize.Normal" @onclick="@login">Login</Button>
+                </div>
+            </EditForm>
+        </Column>
+        <Column Classes="col.sm._5"></Column>
+
+    </Row>
+</ContentMain>
+
+@code {
+
+
+    private InputState username = new InputState()
+    {
+        Identifier = "dotYouId",
+        Label = "dotYou Id",
+        Placeholder = "Who are you?"
+    };
+
+    private InputState password = new InputState()
+    {
+        Identifier = "password",
+        Label = "Password",
+        Placeholder = "Enter your password"
+    };
+
+    private DummyModel model = new DummyModel();
+    public class DummyModel { }
+
+    private async void login()
+    {
+
+        var parameters = new { pwd = password.Value };
+        var response = await http.PostAsJsonAsync("/auth/login", parameters);
+        var responseString = await response.Content.ReadAsStringAsync();
+
+        response.EnsureSuccessStatusCode();
+
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            nav.NavigateTo(nav.Uri, true);
+        }
+    }
+}

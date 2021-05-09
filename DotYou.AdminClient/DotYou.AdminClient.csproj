@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Blazored.Toast" Version="3.1.2" />
+        <PackageReference Include="Blazored.Typeahead" Version="4.6.0" />
+        <PackageReference Include="Blazorized.AdminLte" Version="0.1.8" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.5" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.5" PrivateAssets="all" />
+        <PackageReference Include="Refit" Version="6.0.38" />
+        <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\sample-data\weather.json" />
+      <_ContentIncludedByDefault Remove="Shared\MainLayout.razor" />
+      <_ContentIncludedByDefault Remove="Shared\NavMenu.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Chat\ChatContextMenu.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Chat\ChatIndex.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Chat\Components\ChatHeader.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Chat\CreateCircle.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\EmailIndex.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\Views\ComposeMessage.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\Views\Drafts.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\Views\Inbox.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\Views\Overview.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Email\Views\SentItems.razor" />
+      <_ContentIncludedByDefault Remove="Private\Messaging\Index.razor" />
+      <_ContentIncludedByDefault Remove="Private\Security\Devices\Index.razor" />
+      <_ContentIncludedByDefault Remove="Private\Security\Devices\Register.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
+    </ItemGroup>
+
+</Project>

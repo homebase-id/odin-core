@@ -36,6 +36,13 @@ namespace DotYou.TenantHost
             services.AddControllers(config =>
                 config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter()));
 
+            services.AddRazorPages(options =>
+            {
+                options.RootDirectory = "/Views";
+            });
+            
+            //services.AddSignalR();
+            
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
@@ -108,14 +115,7 @@ namespace DotYou.TenantHost
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                if (env.IsDevelopment())
-                {
-                    endpoints.MapGet("/",
-                        async context =>
-                        {
-                            await context.Response.WriteAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-                        });
-                }
+                endpoints.MapFallbackToFile("index.html");
             });
         }
 

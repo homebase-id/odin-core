@@ -1,0 +1,26 @@
+﻿@page "/private/demodata"
+@inject NavBarLeftInjectableMenu menu
+@menu.SetContent(null, false);
+
+@inject HttpClient http
+
+<ContentMain>
+    <PageTitle Title="Setup sample data"/>
+    <Row>
+        <h5 style="color:red">This might delete existing data.</h5>
+        <Column Classes="col.sm._10">
+            <div style="width:150px">
+                <Button Size="ButtonSize.Normal" @onclick="@importContacts">Import Contacts</Button>
+            </div>
+        </Column>
+    </Row>
+</ContentMain>
+
+@code {
+
+    private async void importContacts()
+    {
+        //call the identityserver api
+        await http.GetAsync("/api/demodata/contacts");
+    }
+}

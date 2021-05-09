@@ -1,0 +1,21 @@
+﻿@inject NavigationManager nav
+
+<NavBarDropDown>
+    <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Tags</a>
+    <NavBarDropDownMenu>
+        @*<NavBarDropDownMenuItem>
+                <NavBarMenuItem Link="/" OnClick="HandleCirclesOnClick">Circle 1</NavBarMenuItem>
+            </NavBarDropDownMenuItem>*@
+        <DropdownDivider />
+        <DropdownFooter Link="" OnClick="HandleCreateNewTags">Create new Tags</DropdownFooter>
+    </NavBarDropDownMenu>
+</NavBarDropDown>
+
+@code {
+
+    private void HandleCreateNewTags(Tuple<IDropdownFooter, MouseEventArgs> args)
+    {
+        nav.NavigateTo("/private/contacts/createtags");
+    }
+
+}

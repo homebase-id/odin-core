@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DotYou.AdminClient\DotYou.AdminClient.csproj" />
     <ProjectReference Include="..\DotYou.Kernel\DotYou.Kernel.csproj" />
   </ItemGroup>
 

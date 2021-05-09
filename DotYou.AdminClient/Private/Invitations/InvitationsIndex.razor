@@ -1,0 +1,123 @@
+﻿@page "/private/invitations"
+@using DotYou.Types.Circle
+@using DotYou.Types
+@using Refit
+
+@inject NavigationManager nav
+@inject AppState state
+@inject HttpClient Http
+@* @inject IProxyService proxy *@
+@inject NavBarLeftInjectableMenu menu
+@menu.SetContent(null, false);
+
+<ContentHeader>
+    <Header>
+        <PageTitle Title="Invitations"/>
+    </Header>
+</ContentHeader>
+<ContentMain>
+    <Row>
+        <Column Classes="col.sm._2">
+            <div class="list-group">
+                <a class="list-group-item list-group-item-action" @onclick="@(() => ApplyTagFilter(null))" @onclick:preventDefault>All Invitations</a>
+
+                @foreach (var tag in this.tags)
+                {
+                    <a class="list-group-item list-group-item-action @(IsTagApplied(tag) ? "list-group-item-info" : "")" @onclick="@(() => ApplyTagFilter(tag))" @onclick:preventDefault>@tag</a>
+                }
+
+            </div>
+        </Column>
+        <Column Classes="col.sm._10">
+            <div class="list-group">
+                @foreach (var request in this.invitations)
+                {
+                    <div class="list-group-item list-group-item-action flex-column align-items-start" @onclick:preventDefault>
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">@request.GetSenderDisplayName()</h5>
+                            <small>@request.DateSent</small>
+                        </div>
+                        <p class="mb-1">@request.GetSenderDisplayName()</p>
+                        <p class="mb-1">@request.Message</p>
+                        @* @if (request.GetType() == typeof(CircleInvite)) *@
+                        @* { *@
+                        @*     <small><Badge Classes="badge.info">Circle</Badge></small> *@
+                        @* } *@
+                        @if (request.GetType() == typeof(ConnectionRequest))
+                        {
+                            <small>
+                                <Badge Classes="badge.info">Connect</Badge>
+                            </small>
+                        }
+
+                        <a class="float-right btn btn-outline-primary btn-danger ml-2">Block</a>
+                        <a class="float-right btn text-white btn-info ml-2" @onclick="@(() => DeleteConnectionRequest(request.Id))">Ignore</a>
+                        <a class="float-right btn btn-outline-primary ml-2" @onclick="@(() => AcceptConnectionRequest(request.Id))">Accept</a>
+                    </div>
+                }
+            </div>
+        </Column>
+    </Row>
+
+</ContentMain>
+
+@code {
+
+    private List<string> tags;
+    private string appliedTag;
+    private List<ConnectionRequest> invitations;
+    private PageOptions page = PageOptions.Default;
+
+    protected async override Task OnInitializedAsync()
+    {
+    // this.tags = new List<string>();
+        this.invitations = new List<ConnectionRequest>();
+
+        this.tags.Add("Connection Requests");
+    // this.tags.Add("Circle Invitations");
+
+        RefreshData();
+
+        await base.OnInitializedAsync();
+    }
+
+    private void ApplyTagFilter(string tag)
+    {
+        this.appliedTag = tag;
+
+        RefreshData();
+    }
+
+    private bool IsTagApplied(string tag)
+    {
+        return string.Equals(this.appliedTag, tag, StringComparison.InvariantCultureIgnoreCase);
+    //return this.appliedTags.Contains(tag);
+    }
+
+    private async void DeleteConnectionRequest(Guid invitationId)
+    {
+        //await proxy.DeleteConnectionRequest(invitationId);
+        RefreshData();
+    }
+
+    private async void AcceptConnectionRequest(Guid invitationId)
+    {
+        //await proxy.AcceptConnectionRequest(invitationId);
+        RefreshData();
+    }
+
+    private async void RefreshData()
+    {
+        this.invitations.Clear();
+
+        // RestService.For<ICircleNetworkRequestsClient>(client);
+        // var crPage = await Http.GetFromJsonAsync<PagedResult<ConnectionRequest>>($"/api/connectrequests?{page.ToQueryStringParams()}");
+        // this.invitations.AddRange(crPage.Results.ToList());
+
+    // var ciPage = await Http.GetFromJsonAsync<PagedResult<CircleInvite>>("/api/circles/invite");
+    // this.invitations.AddRange(ciPage.Results.ToList());
+
+        StateHasChanged();
+    }
+
+}

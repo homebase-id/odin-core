@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.TenantHost.WebAPI.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.TenantHost.DataType.Tests", "Tests\DotYou.TenantHost.DataType.Tests\DotYou.TenantHost.DataType.Tests.csproj", "{99F77839-75B5-4C90-9E5C-213DEB23D5DC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.AdminClient", "DotYou.AdminClient\DotYou.AdminClient.csproj", "{B6DCA214-9E06-492B-A701-CE94605C8F36}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6DCA214-9E06-492B-A701-CE94605C8F36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B6DCA214-9E06-492B-A701-CE94605C8F36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B6DCA214-9E06-492B-A701-CE94605C8F36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B6DCA214-9E06-492B-A701-CE94605C8F36}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

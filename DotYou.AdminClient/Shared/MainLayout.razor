@@ -1,0 +1,47 @@
+﻿@using Blazored.Toast.Configuration
+@inherits LayoutComponentBase
+@inject ILayoutManager layoutManager
+@inject NavigationManager nav
+@inject AppState state
+
+
+@if (state.CurrentActor.IsAuthenticated == false)
+{
+    <Identity.Client.Private.Components.Login/>
+}
+
+@if (state.CurrentActor.IsAuthenticated)
+{
+    <TopNavbar/>
+    <DotYouSidebar/>
+    <ContentWrapper>
+        @Body
+    </ContentWrapper>
+    @*<ControlSideBar>notifications here</ControlSideBar>*@
+    <BlazoredToasts Position="ToastPosition.BottomRight"
+                    Timeout="10"
+                    IconType="IconType.FontAwesome"/>
+    <MainFooter>
+        <Default>
+            <strong>Copyright &copy; 2021 dotYou.</strong> All rights reserved.
+        </Default>
+        <Right>
+            Legal
+        </Right>
+    </MainFooter>
+}
+
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+    }
+
+    protected override void OnAfterRender(bool isFirstRender)
+    {
+        layoutManager.IsFooterFixed = true;
+        layoutManager.IsNavBarFixed = true;
+        layoutManager.IsSideBarFixed = true;
+        base.OnAfterRender(isFirstRender);
+    }
+}

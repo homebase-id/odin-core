@@ -1,0 +1,112 @@
+﻿@inject IToastService toastService
+@* @inject IClientNotificationEvents notificationEvents *@
+@inject NavigationManager nav
+@*<NavBarDropDown>
+        <NavBarBadge Color="Color.Danger" Icon="far fa-comments">4</NavBarBadge>
+        <NavBarDropDownMenu>
+            <NavBarDropDownMenuItem>
+                <UserMessage DateTime="DateTime.Now.AddMinutes(-2)" ProfilePicture="/api/avatar?identifier=samwisegamgee.me" Icon="fas fa-star">
+                    <UserName>Samwise Gamgee</UserName>
+                    <Message>Beers with Rosie Cotton</Message>
+                </UserMessage>
+            </NavBarDropDownMenuItem>
+            <DropdownDivider />
+            <DropdownFooter OnClick="SeeAllMessages">See All Messages</DropdownFooter>
+        </NavBarDropDownMenu>
+    </NavBarDropDown>*@
+
+<NavBarDropDown>
+    <NavBarBadge Color="Color.Info" Icon="far fa-bell">@(notifications.Count()>0 ? notifications.Count() : "")</NavBarBadge>
+    <NavBarDropDownMenu>
+        <DropdownHeader>@notifications.Count() Notifications</DropdownHeader>
+        <DropdownDivider></DropdownDivider>
+
+        @foreach (var n in notifications)
+        {
+            <NotificationMessage DateTime="DateTimeOffset.FromUnixTimeSeconds(n.DateTimeReceived).DateTime" Icon="fas fa-envelope mr-2">
+                <Message>@n.MessageText</Message>
+            </NotificationMessage>
+        }
+
+        <DropdownDivider></DropdownDivider>
+        <DropdownFooter OnClick="SeeAllNotifications">See All Notifications</DropdownFooter>
+    </NavBarDropDownMenu>
+</NavBarDropDown>
+@code {
+
+    private class Notification
+    {
+        public Guid Id = Guid.NewGuid();
+        public Int64 DateTimeReceived;
+        public string MessageText;
+    }
+
+    private List<Notification> notifications = new List<Notification>();
+
+    private void SeeAllMessages(Tuple<IDropdownFooter, MouseEventArgs> args)
+    {
+        nav.NavigateTo("private/messaging/chat");
+    }
+
+    private void SeeAllNotifications(Tuple<IDropdownFooter, MouseEventArgs> args)
+    {
+        //nav.NavigateTo("private/notifications/");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // notificationEvents.ConnectionRequestReceived += ConnectionRequestReceived;
+        // notificationEvents.CircleInviteReceieved += CircleInviteReceieved;
+        // notificationEvents.ConnectionRequestAccepted += ConnectionRequestAccepted;
+    }
+
+
+    // void CircleInviteReceieved(CircleInvite invite)
+    // {
+    //     string message = $"{invite.Sender} has invited you to join {invite.CircleName}";
+    //     //update
+    //     this.notifications.Add(new Notification()
+    //     {
+    //
+    //         MessageText = message,
+    //         DateTimeReceived = invite.DateSent
+    //     });
+    //
+    //     toastService.ShowInfo(message, "Invitation");
+    //
+    //     StateHasChanged();
+    // }
+
+    void ConnectionRequestReceived(ConnectionRequest request)
+    {
+        //update notifications bar
+        this.notifications.Add(new Notification()
+        {
+            MessageText = $"{request.Sender} invited you to connect",
+            DateTimeReceived = request.DateSent
+        });
+
+        string message = $"{request.Sender} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";
+        toastService.ShowInfo(message, "Connect!");
+
+        StateHasChanged();
+    }
+
+    // void ConnectionRequestAccepted(AcceptedConnectionRequest acceptedRequest)
+    // {
+    //
+    //     //update notifications bar
+    //     this.notifications.Add(new Notification()
+    //     {
+    //         MessageText = $"{acceptedRequest.OriginalConnectionRequest.Recipient} accepted your connection!",
+    //         DateTimeReceived = acceptedRequest.DateAccepted
+    //     });
+    //
+    //     string message = $"{acceptedRequest.OriginalConnectionRequest.Recipient} ({acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname}) accepted your request!";
+    //     toastService.ShowInfo(message, "You are Connected!");
+    //
+    //     StateHasChanged();
+    //
+    // }
+
+}

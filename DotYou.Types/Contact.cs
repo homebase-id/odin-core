@@ -5,7 +5,7 @@ namespace DotYou.Types
 {
     public class Contact
     {
-        public string DotYouId { get; set; }
+        public DotYouIdentity? DotYouId { get; set; }
 
         public string GivenName { get; set; }
         public string Surname { get; set; }

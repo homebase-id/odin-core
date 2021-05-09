@@ -1,0 +1,74 @@
+﻿@inject NavigationManager nav
+@inject AppState state
+
+<SideBarContainer>
+    <BrandLogo Link="#" Logo="/assets/logo/yflogo.svg">dotYou</BrandLogo>
+    <SideBar>
+        <!-- Sidebar user panel (optional) -->
+        <SideBarUserPanel ImageEffect="ImageEffect.Rounded"
+                          Link="/private" Elevation="Elevation.One"
+                          UserImage="@($"/api/avatar?identifier={@state.CurrentActor.Identity}")">
+            @state.CurrentActor.GivenName @state.CurrentActor.Surname
+        </SideBarUserPanel>
+        @*<SideBarSearch></SideBarSearch>*@
+    <SideBarMenu>
+        <SideBarMenuItem Link="/private" Icon="fas fa-th fa-2x">
+            Dashboard
+        </SideBarMenuItem>
+        <SideBarMenuItem Link="/private/contacts" Icon="fas fa-users fa-2x">
+            Contacts
+        </SideBarMenuItem>
+        <SideBarMenuItem Link="/private/invitations" Icon="fas fa-envelope-open fa-2x">
+            Invitations
+        </SideBarMenuItem>
+        @*<SideBarMenuItem Link="/private/messaging" Icon="fas fa-comment-alt fa-2x">
+            Messaging
+            <span class="right badge badge-danger">3 new</span>
+        </SideBarMenuItem>*@
+        @*<SideBarTreeView Icon="fas fa-mail-bulk fa-2x">
+            <Title>Email</Title>
+            <Items>
+                <SideBarMenuItem Icon="far fa-envelope" Link="private/messaging/inbox">
+                    Inbox
+                </SideBarMenuItem>
+                <SideBarMenuItem Icon="far fa-edit" Link="injections/navbar-left">
+                    Drafts
+                </SideBarMenuItem>
+                <SideBarMenuItem Icon="far fa-paper-plane" Link="injections/navbar-left-override">
+                    Sent
+                </SideBarMenuItem>
+            </Items>
+        </SideBarTreeView>*@
+        <SideBarMenuItem Link="/private/messaging/email" Icon="fas fa-mail-bulk fa-2x">
+            Email
+        </SideBarMenuItem>
+        <SideBarMenuItem Link="/private/messaging/chat" Icon="fas fa-comment-alt fa-2x">
+            Chat
+        </SideBarMenuItem>
+        <SideBarMenuItem Link="/private/security" Icon="fas fa-user-shield fa-2x">
+            Security
+        </SideBarMenuItem>
+
+        <SideBarMenuItem Link="/private/demodata" Icon="fas fa-database fa-2x">
+            Demo Data
+        </SideBarMenuItem>
+
+        @*<SideBarTreeView Icon="fas fa-tachometer-alt">
+            <Title>Content Injections</Title>
+            <Items>
+                <SideBarMenuItem Icon="far fa-circle" Link="injections/navbar-left">
+                    NavBar Left
+                </SideBarMenuItem>
+                <SideBarMenuItem Icon="far fa-circle" Link="injections/navbar-left-override">
+                    NavBar Left Override
+                </SideBarMenuItem>
+            </Items>
+        </SideBarTreeView>*@
+    </SideBarMenu>
+    </SideBar>
+</SideBarContainer>
+
+
+@code{ private const int iconWidth = 55;
+    private const int iconHeight = 55;
+  }
