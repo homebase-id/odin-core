@@ -33,21 +33,17 @@ namespace DotYou.TenantHost
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers(config =>
-                config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter()));
-
-            services.AddRazorPages(options =>
-            {
-                options.RootDirectory = "/Views";
-            });
-            
+            services.AddControllers(config => config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter()));
+            services.AddRazorPages(options =>  { options.RootDirectory = "/Views"; });
             //services.AddSignalR();
             
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
 
-            services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
+            services.AddAuthentication(AuthSchemes.DotIdentityOwner).AddCookie();
+
+            services.AddAuthentication(AuthSchemes.OtherDigitialIdentityClientCertificate)
                 .AddCertificate(options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;

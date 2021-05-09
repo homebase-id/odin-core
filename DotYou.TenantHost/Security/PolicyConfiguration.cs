@@ -22,4 +22,17 @@ namespace DotYou.TenantHost.Security
                     true.ToString().ToLower()));
         }
     }
+
+    public static class AuthSchemes
+    {
+        /// <summary>
+        /// Scheme for authenticating an individual to the Digital Identity they own
+        /// </summary>
+        public static string DotIdentityOwner = "digital-identity-owner";
+        
+        /// <summary>
+        /// Scheme for authenticating other Digital Identity servers
+        /// </summary>
+        public static string OtherDigitialIdentityClientCertificate = "other-digital-identity-certs";
+    }
 }
