@@ -13,5 +13,11 @@ namespace DotYou.Types
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);
+
+        [Post(RootPath + "/expire")]
+        Task<ApiResponse<NoResultResponse>> Expire(Guid token);
+
+        [Get(RootPath)]
+        Task<ApiResponse<bool>> IsValid(Guid token);
     }
 }

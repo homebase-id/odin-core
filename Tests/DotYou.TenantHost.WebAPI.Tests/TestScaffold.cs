@@ -95,11 +95,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
             return client;
         }
 
-        public async Task OutputRequestInfo<T>(ApiResponse<T> response)
+        public Task OutputRequestInfo<T>(ApiResponse<T> response)
         {
             if (null == response.RequestMessage || null == response.RequestMessage.RequestUri)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             ConsoleColor prev = Console.ForegroundColor;
@@ -115,6 +115,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             Console.WriteLine($"Content ->\n {content}");
             Console.ForegroundColor = prev;
 
+            return Task.CompletedTask;
         }
     }
 }

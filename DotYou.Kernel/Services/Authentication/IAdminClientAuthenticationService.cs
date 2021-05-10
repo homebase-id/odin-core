@@ -26,7 +26,7 @@ namespace DotYou.Kernel.Services.Authentication
         /// <param name="token">The token to be validated</param>
         /// <param name="actorIdentifier">Out parameter populated with the identifier related to the token if it is valid</param>
         /// <returns></returns>
-        Task<bool> IsAuthenticated(Guid token);
+        Task<bool> IsValidToken(Guid token);
         
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
@@ -40,6 +40,6 @@ namespace DotYou.Kernel.Services.Authentication
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        void ExpireAuthenticationToken(Guid token);
+        void ExpireToken(Guid token);
     }
 }

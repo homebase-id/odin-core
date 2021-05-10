@@ -28,6 +28,9 @@ namespace DotYou.Kernel.Services.Authentication
         
         public Task<Guid> Authenticate(string password, int ttlSeconds)
         {
+            
+            //TODO: Handle multiple clients
+            
             AssertValidPassword(password);
 
             var entry = new AuthTokenEntry()
@@ -41,7 +44,7 @@ namespace DotYou.Kernel.Services.Authentication
             return Task.FromResult(entry.Id);
         }
 
-        public async Task<bool> IsAuthenticated(Guid token)
+        public async Task<bool> IsValidToken(Guid token)
         {
             var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             return IsTokenValid(entry);
@@ -56,7 +59,7 @@ namespace DotYou.Kernel.Services.Authentication
             WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.Save(entry));
         }
 
-        public void ExpireAuthenticationToken(Guid token)
+        public void ExpireToken(Guid token)
         {
             WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.Delete(token));
         }
@@ -77,9 +80,17 @@ namespace DotYou.Kernel.Services.Authentication
 
         private bool IsTokenValid(AuthTokenEntry entry)
         {
-            return 
+            if (null == entry)
+            {
+                return false;
+            }
+            
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var result = 
                 entry.Id != Guid.Empty &&
-                entry.ExpiryUnixTime <= DateTimeOffset.UtcNow.ToUnixTimeSeconds() ;
+                entry.ExpiryUnixTime > now;
+
+            return result;
         }
         private void AssertTokenIsValid(AuthTokenEntry entry)
         {
