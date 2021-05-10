@@ -23,8 +23,22 @@ namespace DotYou.TenantHost
             string path = Environment.GetEnvironmentVariable(dataRootPath);
             string logPath = Environment.GetEnvironmentVariable(logPathEnvName);
 
+            //HACK: need a centralized method to handle paths by operating system
+            path = path.Replace('\\', Path.DirectorySeparatorChar);
+            logPath = logPath.Replace('\\', Path.DirectorySeparatorChar);
+
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            if (!Directory.Exists(logPath))
+            {
+                Directory.CreateDirectory(logPath);
+            }
+
             var newargs = new[] {path, logPath};
-            
+
             CreateHostBuilder(newargs).Build().Run();
         }
 
@@ -50,71 +64,71 @@ namespace DotYou.TenantHost
             throw new InvalidDataException(
                 $"Could not find or access the DatPathRoot at [{parsed.DataPathRoot}] or the LogFilePath at [{parsed.LogFilePath}].  The directories must exist and be accessible to the process.");
         }
-        
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             var parsedArgs = ParseArgs(args);
-            
+
             _registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
             _registry.Initialize();
 
             string logPath = FindLogPath(parsedArgs);
 
             return Host.CreateDefaultBuilder(args)
-              .ConfigureLogging(config =>
-              {
-                  config.ClearProviders();
-                  config.AddConsole();
-                  config.AddFile(logPath, opts =>
-                  {
-                      //opts.FormatLogEntry
-                      opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
-                  });
-                  //config.AddMultiTenantLogger(
-                  //        configuration =>
-                  //        {
-                  //            configuration.LogLevels.Add(LogLevel.Information, ConsoleColor.Gray);
-                  //            configuration.LogLevels.Add(LogLevel.Warning, ConsoleColor.DarkMagenta);
-                  //            configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
-                  //        });
-              })
-              .ConfigureServices(services =>
-              {
-                  //TODO: I'm not sure it's a good idea to add this as a service.
-                  services.Add(new ServiceDescriptor(typeof(IIdentityContextRegistry), _registry));
-              })
-              .ConfigureWebHostDefaults(webBuilder =>
-              {
-                  webBuilder.ConfigureKestrel(options =>
-                  {
-                      options.ConfigureHttpsDefaults(opts =>
-                      {
-                          opts.ServerCertificateSelector = (connectionContext, hostName) =>
-                          {
-                              var context = _registry.ResolveContext(hostName);
-                              var cert = context.TenantCertificate.LoadCertificateWithPrivateKey();
-                              return cert;
-                          };
+                .ConfigureLogging(config =>
+                {
+                    config.ClearProviders();
+                    config.AddConsole();
+                    config.AddFile(logPath, opts =>
+                    {
+                        //opts.FormatLogEntry
+                        opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
+                    });
+                    //config.AddMultiTenantLogger(
+                    //        configuration =>
+                    //        {
+                    //            configuration.LogLevels.Add(LogLevel.Information, ConsoleColor.Gray);
+                    //            configuration.LogLevels.Add(LogLevel.Warning, ConsoleColor.DarkMagenta);
+                    //            configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
+                    //        });
+                })
+                .ConfigureServices(services =>
+                {
+                    //TODO: I'm not sure it's a good idea to add this as a service.
+                    services.Add(new ServiceDescriptor(typeof(IIdentityContextRegistry), _registry));
+                })
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureKestrel(options =>
+                        {
+                            options.ConfigureHttpsDefaults(opts =>
+                            {
+                                opts.ServerCertificateSelector = (connectionContext, hostName) =>
+                                {
+                                    var context = _registry.ResolveContext(hostName);
+                                    var cert = context.TenantCertificate.LoadCertificateWithPrivateKey();
+                                    return cert;
+                                };
 
-                          opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
-                      });
-                  })
-                  .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                  .UseUrls("http://*:80", "https://*:443") //you need to configure netsh on windows to allow 80 and 443
-                  .UseStartup<Startup>();
-              });
+                                opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                            });
+                        })
+                        .UseKestrel() //Use Kestrel to ensure we can run this on linux
+                        .UseUrls("http://*:80",
+                            "https://*:443") //you need to configure netsh on windows to allow 80 and 443
+                        .UseStartup<Startup>();
+                });
         }
 
         private static string FindLogPath(Args args)
         {
-
             string logPath = args.LogFilePath;
-            
-            if(string.IsNullOrEmpty(logPath) && string.IsNullOrWhiteSpace(logPath))
+
+            if (string.IsNullOrEmpty(logPath) && string.IsNullOrWhiteSpace(logPath))
             {
                 var isUnixBased = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
-                    RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ||
-                    RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+                                  RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ||
+                                  RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
                 logPath = isUnixBased ? "/tmp/dotyoulogs" : "\\temp\\dotyoulogs";
             }
@@ -123,7 +137,8 @@ namespace DotYou.TenantHost
                 //if an env var is set it must be a valid path.
                 if (!Directory.Exists(logPath))
                 {
-                    throw new InvalidConfigurationException($"No path found at [{logPath}].  Please be sure your app has read/write access to the path.");
+                    throw new InvalidConfigurationException(
+                        $"No path found at [{logPath}].  Please be sure your app has read/write access to the path.");
                 }
             }
 
@@ -131,7 +146,6 @@ namespace DotYou.TenantHost
 
             Console.WriteLine($"Logs will be found at [{logPath}]");
             return logPath;
-
         }
     }
 
