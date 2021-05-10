@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.Kernel", "DotYou.Kernel\DotYou.Kernel.csproj", "{6BCBC06F-E07B-4952-9A63-832F26B0891B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.TenantHost", "DotYou.TenantHost\DotYou.TenantHost.csproj", "{BC28F7AF-BD57-4137-9629-716E5A1DC2E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.DigitalIdentityHost", "DotYou.DigitalIdentityHost\DotYou.DigitalIdentityHost.csproj", "{BC28F7AF-BD57-4137-9629-716E5A1DC2E9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.Types", "DotYou.Types\DotYou.Types.csproj", "{CC952126-C89A-4C0D-8D09-7ED381AD7B7D}"
 EndProject
