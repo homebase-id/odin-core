@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Dawn;
+using DotYou.IdentityRegistry;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Authentication

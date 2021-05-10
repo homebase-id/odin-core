@@ -1,13 +1,11 @@
-﻿using DotYou.Types.Certificate;
-using Identity.DataType.Attributes;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Dawn;
+using DotYou.Types.Certificate;
 
-namespace DotYou.Kernel.Services.Identity
+namespace DotYou.IdentityRegistry
 {
     /// <summary>
     /// An IdentityCertificate defines a certificate held by an individual human or organization.
@@ -17,7 +15,7 @@ namespace DotYou.Kernel.Services.Identity
         //private empty ctor handles deserialization
         private IdentityCertificate() { }
 
-        public IdentityCertificate(Guid key, string domain, NameAttribute owner, CertificateLocation location)
+        public IdentityCertificate(Guid key, string domain, NameInfo owner, CertificateLocation location)
         {
             Guard.Argument(key, nameof(key)).NotEqual(Guid.Empty);
             Guard.Argument(domain, nameof(domain)).NotEmpty();
@@ -32,10 +30,7 @@ namespace DotYou.Kernel.Services.Identity
             DomainName = domain;
             Location = location;
             OwnerName = owner;
-
-            //todo; accept in ctor 
-            Attributes = new List<IdentityAttribute<BaseAttribute>>();
-
+            
             SetCertificateInfo();
         }
 
@@ -49,10 +44,8 @@ namespace DotYou.Kernel.Services.Identity
         /// <summary>
         /// Specifies the Name of the individual holding the certifiate
         /// </summary>
-        public NameAttribute OwnerName { get; }
+        public NameInfo OwnerName { get; }
         
-        public List<IdentityAttribute<BaseAttribute>> Attributes { get; }
-
         /// <summary>
         /// The Subject for the certificate
         /// </summary>

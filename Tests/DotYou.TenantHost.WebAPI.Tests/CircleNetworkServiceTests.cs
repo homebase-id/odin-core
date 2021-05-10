@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {

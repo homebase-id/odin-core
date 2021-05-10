@@ -1,15 +1,8 @@
-using DotYou.Types;
 using NUnit.Framework;
-using Refit;
 using System;
-using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using DotYou.Kernel.Services.Identity;
-using Microsoft.Extensions.Primitives;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {

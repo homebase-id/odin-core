@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.TenantHost
+namespace DotYou.IdentityRegistry
 {
     [Serializable]
     public class DomainTooLong : Exception

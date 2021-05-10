@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using DotYou.IdentityRegistry;
 
 
 namespace DotYou.Kernel

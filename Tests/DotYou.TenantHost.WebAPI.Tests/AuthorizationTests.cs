@@ -8,7 +8,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
@@ -29,10 +28,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             scaffold.RunAfterAnyTests();
         }
-
-        [SetUp]
-        public void Setup() { }
-
+        
         [Test]
         public async Task CannotPerformUnauthorizedAction()
         {
@@ -41,6 +37,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             {
                 //point sams client to frodo
                 client.BaseAddress = new Uri($"https://{scaffold.Frodo}");
+                
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 

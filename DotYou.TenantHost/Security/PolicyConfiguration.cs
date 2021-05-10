@@ -33,6 +33,7 @@ namespace DotYou.TenantHost.Security
         /// <summary>
         /// Scheme for authenticating other Digital Identity servers
         /// </summary>
-        public static string OtherDigitialIdentityClientCertificate = "other-digital-identity-certs";
+        //TODO: determine why I cannot use my own name here.  I must use 'certificate'
+        public static string OtherDigitialIdentityClientCertificate = "Certificate";
     }
 }

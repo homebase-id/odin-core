@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using System;
 using System.Diagnostics;
+using DotYou.IdentityRegistry;
 
 
 namespace DomainUnitTest

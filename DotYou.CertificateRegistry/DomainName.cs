@@ -1,9 +1,10 @@
 ﻿using System;
-using System.Net;
 using System.Diagnostics;
+using System.Net;
+
 //using DnsClient; // https://www.nuget.org/packages/DnsClient/
 
-namespace DotYou.TenantHost
+namespace DotYou.IdentityRegistry
 {
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //
@@ -13,24 +14,21 @@ namespace DotYou.TenantHost
         // false not OK. true OK.
         public static bool ValidLabel(string label)
         {
-            if ((label.Length < 1) || (label.Length > 63))
+            if (label.Length < 1 || label.Length > 63)
                 return false; // Too short or long
 
             // The first and last character cannot be the hyphen
             if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[0]) == -1)
                 return false; // Starts with illegal character
 
-            int ln = label.Length - 1;
+            var ln = label.Length - 1;
 
             if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[ln]) == -1)
                 return false; // Ends with illegal character
 
             for (ln--; ln > 0; ln--)
-            {
                 if ("-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[ln]) == -1)
                     return false; // Ends with illegal character
-
-            }
 
             return true;
         }
@@ -44,12 +42,12 @@ namespace DotYou.TenantHost
             if (domain.Length < 3)
                 throw new DomainTooShort(); // Too short (a.a minimum)
 
-            string[] labels = domain.Split('.');
+            var labels = domain.Split('.');
 
             if (labels.Length < 2)
                 throw new DomainNeedsTwoLabels(); // Need at least two labels
 
-            for (int i = 0; i < labels.Length; i++)
+            for (var i = 0; i < labels.Length; i++)
                 if (ValidLabel(labels[i]) == false)
                     throw new DomainIllegalCharacter();
             // All clear
@@ -79,20 +77,14 @@ namespace DotYou.TenantHost
         // or replace with DnsClient 
         public void SampleLookup(string domain)
         {
-            IPHostEntry hostInfo = Dns.GetHostEntry(domain);
+            var hostInfo = Dns.GetHostEntry(domain);
 
             Console.WriteLine(hostInfo);
             Console.WriteLine("AddressList:");
-            for (int i = 0; i < hostInfo.AddressList.Length; i++)
-            {
-                Console.WriteLine(hostInfo.AddressList[i]);
-            }
+            for (var i = 0; i < hostInfo.AddressList.Length; i++) Console.WriteLine(hostInfo.AddressList[i]);
 
             Console.WriteLine("Aliases:");
-            for (int i = 0; i < hostInfo.Aliases.Length; i++)
-            {
-                Console.WriteLine(hostInfo.Aliases[i]);
-            }
+            for (var i = 0; i < hostInfo.Aliases.Length; i++) Console.WriteLine(hostInfo.Aliases[i]);
 
             Console.WriteLine("Hostname: " + hostInfo.HostName);
         }
@@ -100,22 +92,24 @@ namespace DotYou.TenantHost
         public void _Test()
         {
             // Test valid labels
-            Debug.Assert(DomainName.ValidLabel("") == false, "Empty name error");
-            Debug.Assert(DomainName.ValidLabel("012345678901234567890123456789012345678901234567890123456789012") == true, "63 chars not allowed");
-            Debug.Assert(DomainName.ValidLabel("0123456789012345678901234567890123456789012345678901234567890123") == false, "64 chars allowed");
-            Debug.Assert(DomainName.ValidLabel("-a") == false, "Allowed to start with -");
-            Debug.Assert(DomainName.ValidLabel("a-") == false, "Allowed to end with -");
-            Debug.Assert(DomainName.ValidLabel("a") == true, "one char not allowed");
+            Debug.Assert(ValidLabel("") == false, "Empty name error");
+            Debug.Assert(ValidLabel("012345678901234567890123456789012345678901234567890123456789012") == true,
+                "63 chars not allowed");
+            Debug.Assert(ValidLabel("0123456789012345678901234567890123456789012345678901234567890123") == false,
+                "64 chars allowed");
+            Debug.Assert(ValidLabel("-a") == false, "Allowed to start with -");
+            Debug.Assert(ValidLabel("a-") == false, "Allowed to end with -");
+            Debug.Assert(ValidLabel("a") == true, "one char not allowed");
 
-            DomainName.ValidateDomain("a.com");
-            DomainName.ValidateDomain(".com");
-            DomainName.ValidateDomain("a.");
-            DomainName.ValidateDomain("-a.com");
-            DomainName.ValidateDomain("a-.com");
-            DomainName.ValidateDomain("a.com-");
-            DomainName.ValidateDomain(".");
-            DomainName.ValidateDomain("..");
-            DomainName.ValidateDomain("...");
+            ValidateDomain("a.com");
+            ValidateDomain(".com");
+            ValidateDomain("a.");
+            ValidateDomain("-a.com");
+            ValidateDomain("a-.com");
+            ValidateDomain("a.com-");
+            ValidateDomain(".");
+            ValidateDomain("..");
+            ValidateDomain("...");
 
             Console.WriteLine("Looking up www.dnsimple.com for CNAME");
 
@@ -124,5 +118,4 @@ namespace DotYou.TenantHost
             Console.WriteLine("Domain tests passed.");
         }
     }
-
 }

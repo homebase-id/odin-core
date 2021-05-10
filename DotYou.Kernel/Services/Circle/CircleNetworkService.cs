@@ -6,6 +6,7 @@ using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Identity;
 
 namespace DotYou.Kernel.Services.Circle
@@ -165,7 +166,7 @@ namespace DotYou.Kernel.Services.Circle
             EstablishConnectionRequest acceptedReq = new()
             {
                 ConnectionRequestId = id,
-                RecipientGivenName = this.Context.TenantCertificate.OwnerName.Personal,
+                RecipientGivenName = this.Context.TenantCertificate.OwnerName.GivenName,
                 RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
             };
 

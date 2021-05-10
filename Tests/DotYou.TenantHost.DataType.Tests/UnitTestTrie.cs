@@ -1,6 +1,7 @@
 using DotYou.TenantHost;
 using NUnit.Framework;
 using System;
+using DotYou.IdentityRegistry;
 
 namespace TrieUnitTest
 {

@@ -1,5 +1,4 @@
 using DotYou.Kernel;
-using DotYou.Kernel.Identity;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Circle;
@@ -22,6 +21,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DotYou.IdentityRegistry;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 
@@ -41,8 +41,7 @@ namespace DotYou.TenantHost
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
 
-            services.AddAuthentication(AuthSchemes.DotIdentityOwner).AddCookie();
-
+            //services.AddAuthentication(AuthSchemes.DotIdentityOwner).AddCookie();
             services.AddAuthentication(AuthSchemes.OtherDigitialIdentityClientCertificate)
                 .AddCertificate(options =>
                 {

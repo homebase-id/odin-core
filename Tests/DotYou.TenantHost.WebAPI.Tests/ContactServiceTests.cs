@@ -8,7 +8,6 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {

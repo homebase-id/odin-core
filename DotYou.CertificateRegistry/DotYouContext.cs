@@ -1,10 +1,7 @@
-﻿using System;
-using Dawn;
-using DotYou.Kernel.Services.Identity;
+﻿using Dawn;
 using DotYou.Types;
-using Identity.DataType.Attributes;
 
-namespace DotYou.Kernel
+namespace DotYou.IdentityRegistry
 {
     /// <summary>
     /// Contains all information required to execute commands in the DotYou.Kernel services.

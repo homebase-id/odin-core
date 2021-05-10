@@ -10,10 +10,19 @@
     <PackageReference Include="NUnit" Version="3.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.16.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
+    <PackageReference Include="Refit" Version="6.0.38" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\DotYou.Kernel\DotYou.Kernel.csproj" />
     <ProjectReference Include="..\..\DotYou.TenantHost\DotYou.TenantHost.csproj" />
+    <ProjectReference Include="..\..\DotYou.Types\DotYou.Types.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Hosting.Abstractions, Version=5.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
+      <HintPath>..\..\..\..\..\..\usr\local\share\dotnet\shared\Microsoft.AspNetCore.App\5.0.5\Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

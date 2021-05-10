@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.TenantHost
+namespace DotYou.IdentityRegistry
 {
     [Serializable]
     public class DuplicateDomainNameInsertedException : Exception
@@ -14,11 +14,13 @@ namespace DotYou.TenantHost
         {
         }
 
-        public DuplicateDomainNameInsertedException(string message, Exception innerException) : base(message, innerException)
+        public DuplicateDomainNameInsertedException(string message, Exception innerException) : base(message,
+            innerException)
         {
         }
 
-        protected DuplicateDomainNameInsertedException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected DuplicateDomainNameInsertedException(SerializationInfo info, StreamingContext context) : base(info,
+            context)
         {
         }
     }
