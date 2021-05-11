@@ -2,7 +2,7 @@
 
 namespace DotYou.TenantHost.Security.Authentication
 {
-    public class YFCookieAuthSchemeOptions : AuthenticationSchemeOptions
+    public class DotIdentityOwnerAuthenticationSchemeOptions : AuthenticationSchemeOptions
     {
 
         public string LoginUri { get; set; }

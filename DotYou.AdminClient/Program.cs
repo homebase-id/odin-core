@@ -1,12 +1,9 @@
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
-using System.Threading;
 using Blazor.AdminLte;
 using Blazored.LocalStorage;
 using Blazored.Toast;
 using DotYou.Types;
-using DotYou.Types.Security;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
@@ -62,26 +59,6 @@ namespace DotYou.AdminClient
             await appState.InitializeContext();
 
             await host.RunAsync();
-        }
-    }
-
-    /// <summary>
-    /// Adds the auth token as a header to all http requests
-    /// </summary>
-    public class AuthTokenMessageHandler : DelegatingHandler
-    {
-        private AuthState _state;
-
-        public AuthTokenMessageHandler(AuthState state)
-        {
-            _state = state;
-        }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
-            request.Headers.Add(DotYouHeaderNames.AuthToken, _state.Token.ToString());
-            return base.SendAsync(request, cancellationToken);
         }
     }
 }

@@ -1,4 +1,4 @@
-namespace DotYou.Types.Security
+namespace DotYou.Types.Admin
 {
     public static class DotYouHeaderNames
     {

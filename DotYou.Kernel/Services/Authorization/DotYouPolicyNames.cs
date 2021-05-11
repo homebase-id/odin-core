@@ -8,7 +8,7 @@ namespace DotYou.Kernel.Services.Authorization
 {
     public static class DotYouPolicyNames
     {
-        public const string MustOwnThisIdentity = "MustOwnThisIdentity";
+        public const string IsDigitalIdentityOwner = "MustOwnThisIdentity";
 
         public const string MustBeIdentified = "MustBeIdentified";
     }

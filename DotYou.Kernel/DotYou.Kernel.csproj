@@ -14,9 +14,4 @@
     <ProjectReference Include="..\DotYou.CertificateRegistry\DotYou.CertificateRegistry.csproj" />
     <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Identity" />
-    <Folder Include="Identity\" />
-  </ItemGroup>
 </Project>

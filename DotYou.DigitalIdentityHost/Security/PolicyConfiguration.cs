@@ -13,27 +13,9 @@ namespace DotYou.TenantHost.Security
     {
         public void AddPolicies(AuthorizationOptions policy)
         {
-            policy.AddPolicy(DotYouPolicyNames.MustOwnThisIdentity,
-                pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner,
-                    true.ToString().ToLower()));
+            policy.AddPolicy(DotYouPolicyNames.IsDigitalIdentityOwner, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
 
-            policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,
-                pb => pb.RequireClaim(DotYouClaimTypes.IsIdentified,
-                    true.ToString().ToLower()));
+            policy.AddPolicy(DotYouPolicyNames.MustBeIdentified, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower()));
         }
-    }
-
-    public static class AuthSchemes
-    {
-        /// <summary>
-        /// Scheme for authenticating an individual to the Digital Identity they own
-        /// </summary>
-        public static string DotIdentityOwner = "digital-identity-owner";
-        
-        /// <summary>
-        /// Scheme for authenticating external Digital Identity hosts. 
-        /// </summary>
-        //TODO: determine why I cannot use my own name here.  I must use 'certificate'
-        public static string ExternalDigitialIdentityClientCertificate = "Certificate";
     }
 }

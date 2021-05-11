@@ -4,7 +4,8 @@ using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
 using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Types.Security;
+using DotYou.Kernel.Services.Identity;
+using DotYou.Types.Admin;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -13,11 +14,11 @@ using Microsoft.Extensions.Options;
 namespace DotYou.TenantHost.Security.Authentication
 {
 
-    public class YFCookieAuthHandler : AuthenticationHandler<YFCookieAuthSchemeOptions>, IAuthenticationSignInHandler
+    public class DotIdentityOwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        public static string SchemeName = "yf.cookie.scheme";
+        
 
-        public YFCookieAuthHandler(IOptionsMonitor<YFCookieAuthSchemeOptions> options, ILoggerFactory logger,
+        public DotIdentityOwnerAuthenticationHandler(IOptionsMonitor<DotIdentityOwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
             UrlEncoder encoder, ISystemClock clock)
             : base(options, logger, encoder, clock)
         {
@@ -41,20 +42,32 @@ namespace DotYou.TenantHost.Security.Authentication
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            const string YouFoundationIssuer = "YouFoundation";
+
             Guid token;
             if (GetToken(out token))
             {
                 var authService = Context.RequestServices.GetRequiredService<IAdminClientAuthenticationService>();
+
                 if (await authService.IsValidToken(token))
                 {
-                    //TODO: add Identity
-                    ClaimsPrincipal principal = new();
-                    var ticket = new AuthenticationTicket(principal, SchemeName);
+                    //add more life since a request was made
+                    await authService.ExtendTokenLife(token, 60 * 20);
+                    
+                    var claims = new[]
+                    {
+                        new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+                    };
+                    
+                    ClaimsPrincipal principal  = new ClaimsPrincipal(new ClaimsIdentity(claims, DotYouAuthSchemes.DotIdentityOwner));
+                    var ticket = new AuthenticationTicket(principal, DotYouAuthSchemes.DotIdentityOwner);
+                    ticket.Properties.SetParameter("token", token);
                     return AuthenticateResult.Success(ticket);
                 }
             }
             
-            return AuthenticateResult.Fail("Actor is not authenticated");
+            return AuthenticateResult.Fail("Invalid or missing token");
         }
 
         protected override Task HandleForbiddenAsync(AuthenticationProperties properties)

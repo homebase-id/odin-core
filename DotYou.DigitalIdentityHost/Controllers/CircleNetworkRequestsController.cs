@@ -13,7 +13,7 @@ namespace DotYou.TenantHost.Controllers
 
     [ApiController]
     [Route("api/circlenetwork/requests")]
-    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly ICircleNetworkService _circleNetwork;

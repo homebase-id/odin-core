@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authentication;
@@ -24,10 +25,6 @@ namespace DotYou.TenantHost.Controllers.Admin
         [HttpPost]
         public async Task<IActionResult> Authenticate(string password)
         {
-            var ident = new ClaimsIdentity("bob");
-            var principal = new ClaimsPrincipal(ident);
-            await HttpContext.SignInAsync(YFCookieAuthHandler.SchemeName, principal);
-            
             Guid token = await _authService.Authenticate(password, 100);
             return new JsonResult(token);
         }

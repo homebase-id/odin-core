@@ -54,17 +54,8 @@ namespace DotYou.TenantHost
             services.AddHttpContextAccessor();
 
             services.AddAuthentication()
-                .AddScheme<YFCookieAuthSchemeOptions, YFCookieAuthHandler>(YFCookieAuthHandler.SchemeName, op =>
-                {
-                    op.LoginUri = "/login?herewego=1";
-                })
-                // .AddCookie(AuthSchemes.DotIdentityOwner,
-                //     options =>
-                //     {
-                //         
-                //
-                //     })
-                .AddCertificate(AuthSchemes.ExternalDigitialIdentityClientCertificate, options =>
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op => { op.LoginUri = "/login"; })
+                .AddCertificate(DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = true;
@@ -196,14 +187,11 @@ namespace DotYou.TenantHost
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean,
-                    YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean,
-                    YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
 
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
-                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String,
-                    YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

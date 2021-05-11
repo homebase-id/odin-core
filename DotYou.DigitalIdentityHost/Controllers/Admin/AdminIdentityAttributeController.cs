@@ -1,14 +1,17 @@
 ﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
+using DotYou.Kernel.Services.Authorization;
+using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.TenantHost.Controllers.Admin
 {
     [ApiController]
     [Route("/api/admin/identity")]
-    //[Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthSchemes.DotIdentityOwner)]
     public class AdminIdentityAttributeController : Controller
     {
         private readonly IAdminIdentityAttributeService _identService;
