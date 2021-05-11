@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authentication;
+using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Types;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,21 +9,20 @@ using Microsoft.AspNetCore.Mvc;
 namespace DotYou.TenantHost.Controllers.Security
 {
     [ApiController]
-    [Route("/api/authentication/admin")]
-    public class AdminAuthentication : Controller
+    [Route("/api/admin/authentication")]
+    public class AdminAuthenticationController : Controller
     {
         private readonly IAdminClientAuthenticationService _authService;
 
-        public AdminAuthentication(IAdminClientAuthenticationService authService)
+        public AdminAuthenticationController(IAdminClientAuthenticationService authService)
         {
             _authService = authService;
         }
-
+        
         [HttpPost]
         public async Task<IActionResult> Authenticate(string password)
         {
             Guid token = await _authService.Authenticate(password, 100);
-            //WriteTokenCookie(token);
             return new JsonResult(token);
         }
 

@@ -1,24 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using Identity.DataType.Attributes;
 using Newtonsoft.Json;
 
-namespace Identity.DataType.Attributes
+namespace DotYou.Types.Identity
 {
-
-    public class IdentityAttribute : BaseAttribute
-    {
-        public override int AttributeType { get { return (int)AttributeTypes.Identity; } set { } }
-
-        public override string ToString()
-        {
-            return this.Identity;
-        }
-
-        [JsonProperty("identity")]
-        public string Identity { get; set; }
-    }
-
-
     /// <summary>
     /// Summary description for Class1
     /// </summary>

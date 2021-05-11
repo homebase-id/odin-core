@@ -22,6 +22,8 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
@@ -74,6 +76,14 @@ namespace DotYou.TenantHost
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
+            services.AddScoped<IAdminIdentityAttributeService, AdminAdminIdentityAttributeService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+
+                return new AdminAdminIdentityAttributeService(context, logger);
+            });
+            
             services.AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
                 svc =>
                 {

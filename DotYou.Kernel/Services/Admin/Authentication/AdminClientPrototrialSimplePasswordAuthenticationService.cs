@@ -2,6 +2,8 @@ using System;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Kernel.Services.Admin.IdentityManagement;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Authentication
@@ -22,14 +24,14 @@ namespace DotYou.Kernel.Services.Authentication
     public class AdminClientPrototrialSimplePasswordAuthenticationService : DotYouServiceBase, IAdminClientAuthenticationService
     {
         private const string AUTH_TOKEN_COLLECTION = "AuthToken";
-        public AdminClientPrototrialSimplePasswordAuthenticationService(DotYouContext context, ILogger<AdminClientPrototrialSimplePasswordAuthenticationService> logger) : base(context, logger)
+
+        public AdminClientPrototrialSimplePasswordAuthenticationService(DotYouContext context, ILogger logger) : base(context, logger)
         {
         }
         
         public Task<Guid> Authenticate(string password, int ttlSeconds)
         {
-            
-            //TODO: Handle multiple clients
+            //TODO: Handle multiple clients (i.e. phone, other browser instances, etc.)
             
             AssertValidPassword(password);
 
@@ -73,30 +75,27 @@ namespace DotYou.Kernel.Services.Authentication
         
         private void AssertValidPassword(string password)
         {
-            //no-op
+            //no-op for now
             
             //throw exception if no valid password
         }
 
         private bool IsTokenValid(AuthTokenEntry entry)
         {
-            if (null == entry)
-            {
-                return false;
-            }
-            
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var result = 
+            var valid = 
+                null != entry &&
                 entry.Id != Guid.Empty &&
                 entry.ExpiryUnixTime > now;
 
-            return result;
+            return valid;
         }
+        
         private void AssertTokenIsValid(AuthTokenEntry entry)
         {
             if(IsTokenValid(entry) ==false)
             {
-                throw new InvalidAuthTokenException();
+                throw new AuthenticationException();
             }
         }
     }

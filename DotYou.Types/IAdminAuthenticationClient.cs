@@ -6,7 +6,7 @@ namespace DotYou.Types
 {
     public interface IAdminAuthenticationClient
     {
-        private const string RootPath = "/api/authentication/admin";
+        private const string RootPath = "/api/admin/authentication";
 
         [Post(RootPath)]
         Task<ApiResponse<Guid>> Authenticate(string password);

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DotYou.Types.Identity;
+using Newtonsoft.Json;
 
 namespace Identity.DataType.Attributes
 {

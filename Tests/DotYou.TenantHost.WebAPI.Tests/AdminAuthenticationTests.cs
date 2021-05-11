@@ -7,7 +7,7 @@ using Refit;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
-    public class AdminClientAuthenticationTests
+    public class AdminAuthenticationTests
     {
         private TestScaffold scaffold;
 

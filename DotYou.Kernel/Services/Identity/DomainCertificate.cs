@@ -7,7 +7,7 @@ namespace DotYou.Kernel.Services.Identity
 {
     public class DomainCertificate : IDomainCertificate
     {
-        private string _certData;
+        private readonly string _certData;
 
         /// <summary>
         /// A base64 string of the certificate data

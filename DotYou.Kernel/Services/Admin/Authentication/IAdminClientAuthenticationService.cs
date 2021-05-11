@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using DotYou.Types;
 
-namespace DotYou.Kernel.Services.Authentication
+namespace DotYou.Kernel.Services.Admin.Authentication
 {
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity
@@ -17,6 +17,7 @@ namespace DotYou.Kernel.Services.Authentication
         /// </summary>
         /// <param name="password"></param>
         /// <param name="ttlSeconds"></param>
+        /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<Guid> Authenticate(string password, int ttlSeconds);
         
@@ -24,7 +25,6 @@ namespace DotYou.Kernel.Services.Authentication
         /// Determines if the <paramref name="token"/> is valid and has not expired.  
         /// </summary>
         /// <param name="token">The token to be validated</param>
-        /// <param name="actorIdentifier">Out parameter populated with the identifier related to the token if it is valid</param>
         /// <returns></returns>
         Task<bool> IsValidToken(Guid token);
         

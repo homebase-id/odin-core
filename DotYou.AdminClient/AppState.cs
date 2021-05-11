@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using DotYou.Types;
+using Refit;
 
 namespace DotYou.AdminClient
 {
@@ -53,7 +55,8 @@ namespace DotYou.AdminClient
         {
             try
             {
-                //gets the actor from the http endpoint /api/actorinfo
+                var authService = RestService.For<IAdminAuthenticationClient>(_http);
+
                 //_currentActor = await _http.GetFromJsonAsync<YFAppContext>("/api/actorinfo");
                 var ctx = new YFAppContext()
                 {
