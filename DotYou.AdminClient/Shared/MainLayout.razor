@@ -2,15 +2,15 @@
 @inherits LayoutComponentBase
 @inject ILayoutManager layoutManager
 @inject NavigationManager nav
-@inject AppState state
+@inject AuthState authState
 
 
-@if (state.User.IsAuthenticated == false)
+@if (authState.IsAuthenticated == false)
 {
     <DotYou.AdminClient.Private.Components.Login />
 }
 
-@if (state.User.IsAuthenticated)
+@if (authState.IsAuthenticated)
 {
     <TopNavbar/>
     <DotYouSidebar/>

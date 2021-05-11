@@ -3,7 +3,7 @@
 @using BlazorState
 @inject HttpClient http
 @inject NavigationManager nav
-@inject AppState state
+@inject AppState appState
 
 <ContentMain>
     <Row>
@@ -51,10 +51,10 @@
 
     private async void login()
     {
-        var success = await state.Login(password.Value);
+        var success = await appState.Login(password.Value);
         if (success)
         {
-            nav.NavigateTo(nav.Uri, false);
+            nav.NavigateTo(nav.Uri, true);
         }
     }
 

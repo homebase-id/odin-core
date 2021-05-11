@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -14,15 +15,15 @@ namespace DotYou.AdminClient
 {
     public class AppState
     {
-        private const string TOKEN_STORAGE_KEY = "TK";
-        private Guid _token;
         private readonly UserContext _user;
-        private HttpClient _http;
+        private AuthState _authState;
+        private readonly IAdminIdentityAttributeClient _client;
         private ILocalStorageService _localStorage;
 
-        public AppState(HttpClient client, ILocalStorageService localStorage)
+        public AppState(AuthState authState, IAdminIdentityAttributeClient client, ILocalStorageService localStorage)
         {
-            _http = client;
+            _authState = authState;
+            _client = client;
             _localStorage = localStorage;
             _user = new UserContext();
         }
@@ -34,48 +35,29 @@ namespace DotYou.AdminClient
 
         public async Task<bool> Login(string password)
         {
-            await _localStorage.RemoveItemAsync(TOKEN_STORAGE_KEY);
-            var authService = RestService.For<IAdminAuthenticationClient>(_http);
-            var response = await authService.Authenticate(password);
+            var success = await _authState.Login(password);
 
-            if (response.IsSuccessStatusCode)
+            if (success)
             {
-                _token = response.Content;
                 await this.InitializeContext();
-                return true;
             }
 
-            return false;
+            return success;
         }
 
         public async Task InitializeContext()
         {
             try
             {
-                var exists = await _localStorage.ContainKeyAsync(TOKEN_STORAGE_KEY);
-
-                if (exists)
+                if (_authState.IsAuthenticated)
                 {
-                    _token = await _localStorage.GetItemAsync<Guid>(TOKEN_STORAGE_KEY);
-                }
-
-                var authService = RestService.For<IAdminAuthenticationClient>(_http);
-                var identityService = RestService.For<IAdminIdentityAttributeClient>(_http);
-
-                var response = await authService.IsValid(_token);
-
-                await response.EnsureSuccessStatusCodeAsync();
-
-                _user.IsAuthenticated = response.Content;
-
-                if (_user.IsAuthenticated)
-                {
-                    var nameResponse = await identityService.GetPrimaryName();
+                    
+                    var nameResponse = await _client.GetPrimaryName();
                     await nameResponse.EnsureSuccessStatusCodeAsync();
-
-                    var uriResponse = await identityService.GetPrimaryAvatarUri();
+                    
+                    var uriResponse = await _client.GetPrimaryAvatarUri();
                     await uriResponse.EnsureSuccessStatusCodeAsync();
-
+                    
                     if (nameResponse.Content != null)
                     {
                         var name = nameResponse.Content;
@@ -83,15 +65,16 @@ namespace DotYou.AdminClient
                         _user.Surname = name.Surname;
                         _user.GivenName = name.Personal;
                     }
-                    
-                    _user.AvatarUri = uriResponse.Content;
 
-                    await _localStorage.SetItemAsync(TOKEN_STORAGE_KEY, _token);
+                    if (uriResponse.Content != null)
+                    {
+                        _user.AvatarUri = uriResponse.Content;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception("Failed to initialize YFContext", ex);
+                throw new Exception("Failed to initialize App state", ex);
             }
         }
     }
