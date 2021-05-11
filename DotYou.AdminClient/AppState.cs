@@ -1,78 +1,80 @@
 ﻿using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DotYou.Types;
+using DotYou.Types.Identity;
 using Refit;
 
 namespace DotYou.AdminClient
 {
-    public class YFAppContext
-    {
-        public string GivenName { get; set; }
-        public string Surname { get; set; }
-        
-        /// <summary>
-        /// Specifies if this actor owns this website
-        /// </summary>
-        public bool IsIdentityOwner { get; set; }
-
-        public bool IsAuthenticated { get; set; }
-        
-        /// <summary>
-        /// The identity of the actor (i.e. frodobaggins.me, odin.vahalla.com)
-        /// </summary>
-        public string Identity { get; set; }
-
-        public SubjectContext Subject { get; set; }
-    }
-    
-    public class SubjectContext
-    {
-        public string GivenName { get; set; }
-
-        public string Surname { get; set; }
-
-        /// <summary>
-        /// The identity of the subject (i.e. frodobaggins.me, odin.vahalla.com)
-        /// </summary>
-        public string Identifier { get; set; }
-    }
-    
     public class AppState
     {
-        private YFAppContext _currentActor;
+        private Guid _token;
+        private readonly UserContext _user;
         private HttpClient _http;
+
         public AppState(HttpClient client)
         {
             _http = client;
+            _user = new UserContext();
         }
 
-        public YFAppContext CurrentActor { get => _currentActor; set => _currentActor = value; }
+        public UserContext User
+        {
+            get => _user;
+        }
 
+        public async Task<bool> Login(string password)
+        {
+            var authService = RestService.For<IAdminAuthenticationClient>(_http);
+            var response = await authService.Authenticate(password);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _token = response.Content;
+                await this.InitializeContext();
+                return true;
+            }
+
+            return false;
+        }
+        
         public async Task InitializeContext()
         {
             try
             {
                 var authService = RestService.For<IAdminAuthenticationClient>(_http);
+                var identityService = RestService.For<IAdminIdentityAttributeClient>(_http);
 
-                //_currentActor = await _http.GetFromJsonAsync<YFAppContext>("/api/actorinfo");
-                var ctx = new YFAppContext()
+                var response = await authService.IsValid(_token);
+                
+                await response.EnsureSuccessStatusCodeAsync();
+
+                _user.IsAuthenticated = response.Content;
+                
+                if (_user.IsAuthenticated)
                 {
-                    Identity = "TODO",
-                    Subject = new SubjectContext()
+                    var nameResponse = await identityService.GetPrimaryName();
+//                    await nameResponse.EnsureSuccessStatusCodeAsync();
+                    Console.WriteLine($"status: {nameResponse.StatusCode}");
+
+                    // var uriResponse = await identityService.GetPrimaryAvatarUri();
+                    // await uriResponse.EnsureSuccessStatusCodeAsync();
+
+
+                    if (nameResponse.StatusCode != HttpStatusCode.NoContent)
                     {
-                        Identifier = "subject todo",
-                        Surname = "subject surname",
-                        GivenName = "subject given"
-                    },
-                    Surname = "actor surname",
-                    GivenName = "actor givenname",
-                    IsAuthenticated = true,
-                    IsIdentityOwner = true
-                };
-                _currentActor = ctx;
+                        var name = nameResponse.Content;
+                        _user.Identity = "TODO";
+                        _user.Surname = name.Surname;
+                        _user.GivenName = name.Personal;
+                    }
+
+                    //_user.AvatarUri = uriResponse.Content;
+                }
             }
             catch (Exception ex)
             {

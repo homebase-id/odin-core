@@ -5,12 +5,12 @@
 @inject AppState state
 
 
-@if (state.CurrentActor.IsAuthenticated == false)
+@if (state.User.IsAuthenticated == false)
 {
-    <Identity.Client.Private.Components.Login/>
+    <DotYou.AdminClient.Private.Components.Login />
 }
 
-@if (state.CurrentActor.IsAuthenticated)
+@if (state.User.IsAuthenticated)
 {
     <TopNavbar/>
     <DotYouSidebar/>

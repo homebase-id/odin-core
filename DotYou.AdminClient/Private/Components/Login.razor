@@ -1,5 +1,9 @@
-﻿@inject HttpClient http
+@using Refit
+@using DotYou.Types
+@using BlazorState
+@inject HttpClient http
 @inject NavigationManager nav
+@inject AppState state
 
 <ContentMain>
     <Row>
@@ -8,10 +12,10 @@
             <div class="mt-5"></div>
             <EditForm Model="@model">
                 <FormGroup>
-                    <Input @bind-Value="username" />
+                    <Input @bind-Value="username"/>
                 </FormGroup>
                 <FormGroup>
-                    <Input @bind-Value="password" />
+                    <Input @bind-Value="password"/>
                 </FormGroup>
                 <div style="max-width:100px">
                     <Button Size="ButtonSize.Normal" @onclick="@login">Login</Button>
@@ -24,8 +28,7 @@
 </ContentMain>
 
 @code {
-
-
+    
     private InputState username = new InputState()
     {
         Identifier = "dotYouId",
@@ -41,20 +44,18 @@
     };
 
     private DummyModel model = new DummyModel();
-    public class DummyModel { }
+
+    public class DummyModel
+    {
+    }
 
     private async void login()
     {
-
-        var parameters = new { pwd = password.Value };
-        var response = await http.PostAsJsonAsync("/auth/login", parameters);
-        var responseString = await response.Content.ReadAsStringAsync();
-
-        response.EnsureSuccessStatusCode();
-
-        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        var success = await state.Login(password.Value);
+        if (success)
         {
             nav.NavigateTo(nav.Uri, true);
         }
     }
+
 }

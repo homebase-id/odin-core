@@ -1,10 +1,10 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Types;
 using DotYou.Types.Identity;
-using Identity.DataType.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +12,7 @@ namespace DotYou.TenantHost.Controllers.Security
 {
     [ApiController]
     [Route("/api/admin/identity")]
-    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
+    //[Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
     public class AdminIdentityAttributeController : Controller
     {
         private readonly IAdminIdentityAttributeService _identService;
@@ -29,13 +29,24 @@ namespace DotYou.TenantHost.Controllers.Security
 
             if (result == null)
             {
-                return new JsonResult(new NoResultResponse(true))
+                var x = new NameAttribute()
                 {
-                    StatusCode = (int)HttpStatusCode.NotFound
+                    Personal = "pie"
+                };
+                return new JsonResult(x)
+                {
+                    StatusCode = (int)HttpStatusCode.NoContent
                 };
             }
             
             return new JsonResult(result);
+        }
+
+        [HttpGet("primary/avatar")]
+        public IActionResult GetPrimaryAvatar()
+        {
+            //TODO: update to send the path of a stored photo
+            return new JsonResult("/assets/unknown.jpg");
         }
 
         [HttpPost("primary")]

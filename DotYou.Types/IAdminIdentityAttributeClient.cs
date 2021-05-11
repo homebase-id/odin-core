@@ -14,5 +14,8 @@ namespace DotYou.Types
 
         [Post(RootPath + "/primary")]
         Task<ApiResponse<NoResultResponse>> SavePrimaryName([Body]NameAttribute name);
+
+        [Get(RootPath + "/primary/avatar")]
+        Task<ApiResponse<string>> GetPrimaryAvatarUri();
     }
 }

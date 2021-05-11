@@ -136,7 +136,7 @@
     {
         var request = new ConnectionRequest()
         {
-            Sender = (DotYouIdentity)state.CurrentActor.Identity,
+            Sender = (DotYouIdentity)state.User.Identity,
             Recipient = identity,
             Message = "Please add me to your network."
         };

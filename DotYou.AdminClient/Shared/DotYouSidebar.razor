@@ -7,8 +7,8 @@
         <!-- Sidebar user panel (optional) -->
         <SideBarUserPanel ImageEffect="ImageEffect.Rounded"
                           Link="/private" Elevation="Elevation.One"
-                          UserImage="@($"/api/avatar?identifier={@state.CurrentActor.Identity}")">
-            @state.CurrentActor.GivenName @state.CurrentActor.Surname
+                          UserImage="@state.User.AvatarUri">
+            @state.User.GivenName @state.User.Surname
         </SideBarUserPanel>
         @*<SideBarSearch></SideBarSearch>*@
     <SideBarMenu>

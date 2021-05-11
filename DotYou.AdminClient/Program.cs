@@ -26,15 +26,19 @@ namespace DotYou.AdminClient
                 var client =svc.GetRequiredService<HttpClient>();
                 var state = new AppState(client);
                 
-                //TODO: move this to a proper async
-                state.InitializeContext().Wait();
                 return state;
             });
             
             builder.Services.AddAdminLte();
             builder.Services.AddBlazoredToast();
             
-            await builder.Build().RunAsync();
+            var host = builder.Build();
+
+            var stateService = host.Services.GetRequiredService<AppState>();
+            await stateService.InitializeContext();
+
+            await host.RunAsync();
+
         }
     }
 }
