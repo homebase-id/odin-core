@@ -31,9 +31,9 @@ namespace DotYou.TenantHost.Security
         public static string DotIdentityOwner = "digital-identity-owner";
         
         /// <summary>
-        /// Scheme for authenticating other Digital Identity servers
+        /// Scheme for authenticating external Digital Identity hosts. 
         /// </summary>
         //TODO: determine why I cannot use my own name here.  I must use 'certificate'
-        public static string OtherDigitialIdentityClientCertificate = "Certificate";
+        public static string ExternalDigitialIdentityClientCertificate = "Certificate";
     }
 }

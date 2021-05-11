@@ -27,6 +27,8 @@ using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
+using DotYou.TenantHost.Security.Authentication;
+using Microsoft.AspNetCore.Mvc.Formatters;
 
 namespace DotYou.TenantHost
 {
@@ -36,17 +38,33 @@ namespace DotYou.TenantHost
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers(config => config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter()));
-            services.AddRazorPages(options =>  { options.RootDirectory = "/Views"; });
+            services.AddControllers(config =>
+                {
+                    config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter());
+                    config.OutputFormatters
+                        .RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
+                }
+            );
+
+            services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
             //services.AddSignalR();
-            
+
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
 
-            //services.AddAuthentication(AuthSchemes.DotIdentityOwner).AddCookie();
-            services.AddAuthentication(AuthSchemes.OtherDigitialIdentityClientCertificate)
-                .AddCertificate(options =>
+            services.AddAuthentication()
+                .AddScheme<YFCookieAuthSchemeOptions, YFCookieAuthHandler>(YFCookieAuthHandler.SchemeName, op =>
+                {
+                    op.LoginUri = "/login?herewego=1";
+                })
+                // .AddCookie(AuthSchemes.DotIdentityOwner,
+                //     options =>
+                //     {
+                //         
+                //
+                //     })
+                .AddCertificate(AuthSchemes.ExternalDigitialIdentityClientCertificate, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = true;
@@ -79,19 +97,22 @@ namespace DotYou.TenantHost
             services.AddScoped<IAdminIdentityAttributeService, AdminAdminIdentityAttributeService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+                var logger =
+                    svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
 
                 return new AdminAdminIdentityAttributeService(context, logger);
             });
-            
-            services.AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
-                svc =>
-                {
-                    var context = ResolveContext(svc);
-                    var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
-                    return new AdminClientPrototrialSimplePasswordAuthenticationService(context, logger);
-                });
-            
+
+            services
+                .AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
+                    svc =>
+                    {
+                        var context = ResolveContext(svc);
+                        var logger =
+                            svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+                        return new AdminClientPrototrialSimplePasswordAuthenticationService(context, logger);
+                    });
+
             services.AddScoped<IContactService, ContactService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -121,7 +142,7 @@ namespace DotYou.TenantHost
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
             app.UseBlazorFrameworkFiles();
-            
+
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
@@ -167,7 +188,7 @@ namespace DotYou.TenantHost
 
             var bytes = context.ClientCertificate.Export(X509ContentType.Pkcs12);
             string clientCertificatePortable = Convert.ToBase64String(bytes);
-            
+
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
@@ -175,11 +196,14 @@ namespace DotYou.TenantHost
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean,
+                    YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean,
+                    YouFoundationIssuer),
+
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
-                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String,
+                    YouFoundationIssuer)
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

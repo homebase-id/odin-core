@@ -1,3 +1,6 @@
+using System;
+using DotYou.Types;
+
 namespace DotYou.AdminClient
 {
     public class UserContext
@@ -12,6 +15,7 @@ namespace DotYou.AdminClient
         /// </summary>
         public string Identity { get; set; }
 
-        public string AvatarUri { get; set; }
+        public AvatarUri AvatarUri { get; set; }
+
     }
 }

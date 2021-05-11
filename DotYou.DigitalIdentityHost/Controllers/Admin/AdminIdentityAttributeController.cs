@@ -1,14 +1,10 @@
-﻿using System;
-using System.Net;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
-using DotYou.Kernel.Services.Authorization;
 using DotYou.Types;
 using DotYou.Types.Identity;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Security
+namespace DotYou.TenantHost.Controllers.Admin
 {
     [ApiController]
     [Route("/api/admin/identity")]
@@ -23,30 +19,17 @@ namespace DotYou.TenantHost.Controllers.Security
         }
 
         [HttpGet("primary")]
-        public async Task<IActionResult> GetPrimaryName()
+        public async Task<NameAttribute> GetPrimaryName()
         {
             var result = await _identService.GetPrimaryName();
-
-            if (result == null)
-            {
-                var x = new NameAttribute()
-                {
-                    Personal = "pie"
-                };
-                return new JsonResult(x)
-                {
-                    StatusCode = (int)HttpStatusCode.NoContent
-                };
-            }
-            
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpGet("primary/avatar")]
         public IActionResult GetPrimaryAvatar()
         {
             //TODO: update to send the path of a stored photo
-            return new JsonResult("/assets/unknown.jpg");
+            return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
         }
 
         [HttpPost("primary")]

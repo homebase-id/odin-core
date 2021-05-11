@@ -1,12 +1,14 @@
 ﻿using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
+using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Security
+namespace DotYou.TenantHost.Controllers.Admin
 {
     [ApiController]
     [Route("/api/admin/authentication")]
@@ -22,6 +24,10 @@ namespace DotYou.TenantHost.Controllers.Security
         [HttpPost]
         public async Task<IActionResult> Authenticate(string password)
         {
+            var ident = new ClaimsIdentity("bob");
+            var principal = new ClaimsPrincipal(ident);
+            await HttpContext.SignInAsync(YFCookieAuthHandler.SchemeName, principal);
+            
             Guid token = await _authService.Authenticate(password, 100);
             return new JsonResult(token);
         }
@@ -46,20 +52,6 @@ namespace DotYou.TenantHost.Controllers.Security
             var isValid = await _authService.IsValidToken(token);
             return isValid;
         }
-
-        private void WriteTokenCookie(Guid token)
-        {
-            HttpContext.Response.Cookies.Append(
-                "Token",
-                token.ToString(),
-                new CookieOptions()
-                {
-                    Path = "/",
-                    SameSite = SameSiteMode.Strict,
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = true
-                });
-        }
+        
     }
 }

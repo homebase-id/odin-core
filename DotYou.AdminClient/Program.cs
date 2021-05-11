@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Text;
 using Blazor.AdminLte;
+using Blazored.LocalStorage;
 using Blazored.Toast;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -18,14 +19,14 @@ namespace DotYou.AdminClient
         {
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
             builder.RootComponents.Add<App>("#app");
+            builder.Services.AddBlazoredLocalStorage();
 
             builder.Services.AddScoped(sp => new HttpClient {BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)});
-
             builder.Services.AddSingleton<AppState>(svc =>
             {
                 var client =svc.GetRequiredService<HttpClient>();
-                var state = new AppState(client);
-                
+                var storage = svc.GetRequiredService<ILocalStorageService>();
+                var state = new AppState(client, storage);
                 return state;
             });
             

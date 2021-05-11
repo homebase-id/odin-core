@@ -54,7 +54,7 @@
         var success = await state.Login(password.Value);
         if (success)
         {
-            nav.NavigateTo(nav.Uri, true);
+            nav.NavigateTo(nav.Uri, false);
         }
     }
 
