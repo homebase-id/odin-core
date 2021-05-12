@@ -1,21 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using DotYou.Types.Circle;
 using Refit;
 
-namespace DotYou.Types
+namespace DotYou.Types.ApiClient
 {
-    public interface ICircleNetworkRequestsClient
+    public interface ICircleNetworkClient
     {
         private const string RootPath = "/api/circlenetwork/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 
         [Post(SentPathRoot)]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequest request);
+        //Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept/{id}")]
         Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(Guid id);

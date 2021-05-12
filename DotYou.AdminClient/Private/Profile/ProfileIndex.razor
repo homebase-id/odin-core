@@ -1,4 +1,5 @@
-﻿@page "/private/security"
+﻿@page "/private/profile"
+@using DotYou.AdminClient.Private.Profile.Views
 @inject NavigationManager nav
 @inject NavBarLeftInjectableMenu menu
 @menu.SetContent(null, false);
@@ -12,18 +13,15 @@
     <Row>
         <Column Classes="col.sm._2">
             <div class="list-group">
-                <a class="list-group-item list-group-item-action" @onclick="@(()=>SetView(View.DataContracts))" @onclick:preventDefault>Data Contracts</a>
+                <a class="list-group-item list-group-item-action" @onclick="@(() => SetView(View.PublicInfo))" @onclick:preventDefault>Public Info</a>
             </div>
         </Column>
         <Column Classes="col.sm._10">
             @switch (_currentView)
             {
-                case View.Overview:
-                    <h3>Overview</h3>
-                    break;
                     
-                case View.DataContracts:
-                    <h3>Data Contracts</h3>
+                case View.PublicInfo:
+                    <PublicInfo/>
                     break;
                     
             }
@@ -37,11 +35,10 @@
 
     public enum View
     {
-        Overview = 0,
-        DataContracts = 1
+        PublicInfo = 0,
     }
 
-    private View _currentView = View.Overview;
+    private View _currentView = View.PublicInfo;
     private void SetView(View view)
     {
         this._currentView = view;

@@ -1,8 +1,7 @@
 ﻿@page "/private/demodata"
 @inject NavBarLeftInjectableMenu menu
+@inject IDemoDataClient _demoDataClient
 @menu.SetContent(null, false);
-
-@inject HttpClient http
 
 <ContentMain>
     <PageTitle Title="Setup sample data"/>
@@ -20,7 +19,6 @@
 
     private async void importContacts()
     {
-        //call the identityserver api
-        await http.GetAsync("/api/demodata/contacts");
+        await _demoDataClient.ImportContacts();
     }
 }

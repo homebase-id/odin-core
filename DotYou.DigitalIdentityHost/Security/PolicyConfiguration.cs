@@ -13,9 +13,20 @@ namespace DotYou.TenantHost.Security
     {
         public void AddPolicies(AuthorizationOptions policy)
         {
-            policy.AddPolicy(DotYouPolicyNames.IsDigitalIdentityOwner, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()));
+            policy.AddPolicy(DotYouPolicyNames.IsDigitalIdentityOwner, 
+                pb =>
+                {
+                    pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
+                    pb.AuthenticationSchemes.Add(DotYouAuthSchemes.DotIdentityOwner);
+                });
 
-            policy.AddPolicy(DotYouPolicyNames.MustBeIdentified, pb => pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower()));
+            policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,
+                pb =>
+                {
+                    pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
+                    //pb.AuthenticationSchemes.Add((DotYouAuthSchemes.DotIdentityOwner));
+                    pb.AuthenticationSchemes.Add((DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate));
+                });
         }
     }
 }

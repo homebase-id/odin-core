@@ -1,9 +1,8 @@
 using System.Threading.Tasks;
 using DotYou.Types.Identity;
-using Identity.DataType.Attributes;
 using Refit;
 
-namespace DotYou.Types
+namespace DotYou.Types.ApiClient
 {
     public interface IAdminIdentityAttributeClient
     {

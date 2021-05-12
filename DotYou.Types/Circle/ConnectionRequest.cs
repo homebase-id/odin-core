@@ -6,7 +6,27 @@ using Newtonsoft.Json;
 
 namespace DotYou.Types.Circle
 {
-    public class ConnectionRequest: IRequireSenderCertificate
+    public class ConnectionRequestHeader
+    {
+        [JsonConstructor]
+        public ConnectionRequestHeader() { }
+        
+        
+        public Guid Id { get; set; }
+        
+        /// <summary>
+        /// Individual receiving the invite
+        /// </summary>
+        public DotYouIdentity Recipient { get; set; }
+        
+        /// <summary>
+        /// Text to be sent with the invite explaining why you should connect with me.
+        /// </summary>
+        public string Message { get; set; }
+        
+    }
+    
+    public class ConnectionRequest: ConnectionRequestHeader, IRequireSenderCertificate
     {
         [JsonConstructor]
         public ConnectionRequest() { }
@@ -16,12 +36,6 @@ namespace DotYou.Types.Circle
         //     this.SenderPublicKeyCertificate
         // }
 
-        public Guid Id { get; set; }
-
-        /// <summary>
-        /// Individual receiving the invite
-        /// </summary>
-        public DotYouIdentity Recipient { get; set; }
 
         /// <summary>
         /// Individual who sent the invite
@@ -42,11 +56,7 @@ namespace DotYou.Types.Circle
         /// The date the invititation was sent from the <see cref="Sender"/>'s server.
         /// </summary>
         public Int64 DateSent { get; set; }
-
-        /// <summary>
-        /// Text to be sent with the invite explaining why you should connect with me.
-        /// </summary>
-        public string Message { get; set; }
+        
 
         public string GetSenderDisplayName()
         {

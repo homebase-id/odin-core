@@ -69,9 +69,9 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpPost("sent")]
-        public async Task<IActionResult> Send([FromBody] ConnectionRequest request)
+        public async Task<IActionResult> Send([FromBody] ConnectionRequestHeader requestHeader)
         {
-            await _circleNetwork.SendConnectionRequest(request);
+            await _circleNetwork.SendConnectionRequest(requestHeader);
             return new JsonResult(new NoResultResponse(true));
         }
 

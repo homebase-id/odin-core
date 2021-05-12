@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Refit;
 
-namespace DotYou.Types
+namespace DotYou.Types.ApiClient
 {
     public interface IAdminAuthenticationClient
     {

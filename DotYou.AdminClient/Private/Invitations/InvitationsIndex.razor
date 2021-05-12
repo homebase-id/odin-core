@@ -1,12 +1,10 @@
 ﻿@page "/private/invitations"
 @using DotYou.Types.Circle
 @using DotYou.Types
-@using Refit
 
 @inject NavigationManager nav
 @inject AppState state
-@inject HttpClient Http
-@* @inject IProxyService proxy *@
+@inject ICircleNetworkClient _circleNetworkClient;
 @inject NavBarLeftInjectableMenu menu
 @menu.SetContent(null, false);
 
@@ -70,11 +68,11 @@
 
     protected async override Task OnInitializedAsync()
     {
-    // this.tags = new List<string>();
+        this.tags = new List<string>();
         this.invitations = new List<ConnectionRequest>();
 
         this.tags.Add("Connection Requests");
-    // this.tags.Add("Circle Invitations");
+        //this.tags.Add("Circle Invitations");
 
         RefreshData();
 
@@ -94,15 +92,15 @@
     //return this.appliedTags.Contains(tag);
     }
 
-    private async void DeleteConnectionRequest(Guid invitationId)
+    private async void DeleteConnectionRequest(Guid requestId)
     {
-        //await proxy.DeleteConnectionRequest(invitationId);
+        await _circleNetworkClient.DeletePendingRequest(requestId);
         RefreshData();
     }
 
-    private async void AcceptConnectionRequest(Guid invitationId)
+    private async void AcceptConnectionRequest(Guid requestId)
     {
-        //await proxy.AcceptConnectionRequest(invitationId);
+        await _circleNetworkClient.AcceptConnectionRequest(requestId);
         RefreshData();
     }
 
@@ -110,9 +108,12 @@
     {
         this.invitations.Clear();
 
-        // RestService.For<ICircleNetworkRequestsClient>(client);
-        // var crPage = await Http.GetFromJsonAsync<PagedResult<ConnectionRequest>>($"/api/connectrequests?{page.ToQueryStringParams()}");
-        // this.invitations.AddRange(crPage.Results.ToList());
+        var crResponse = await _circleNetworkClient.GetPendingRequestList(PageOptions.Default);
+        if (crResponse.IsSuccessStatusCode && crResponse.Content != null)
+        {
+            var page = crResponse.Content;
+            this.invitations.AddRange(page.Results.ToList());
+        }
 
     // var ciPage = await Http.GetFromJsonAsync<PagedResult<CircleInvite>>("/api/circles/invite");
     // this.invitations.AddRange(ciPage.Results.ToList());

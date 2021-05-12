@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
 using Microsoft.Extensions.Hosting;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using NUnit.Framework;
 using Refit;
 

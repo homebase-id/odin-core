@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
+using DotYou.Types.ApiClient;
 
 namespace DotYou.AdminClient
 {

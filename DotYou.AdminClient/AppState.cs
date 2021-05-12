@@ -8,6 +8,7 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
+using DotYou.Types.ApiClient;
 using DotYou.Types.Identity;
 using Refit;
 

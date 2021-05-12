@@ -1,16 +1,20 @@
 ﻿@using Blazored.Toast.Configuration
+@using DotYou.AdminClient.Services
+@using DotYou.Types.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
 @inherits LayoutComponentBase
-@inject ILayoutManager layoutManager
-@inject NavigationManager nav
-@inject AuthState authState
+@inject ILayoutManager _layoutManager
+@inject NavigationManager _nav
+@inject AuthState _authState
+@inject IClientNotificationEvents notificationEvents
 
 
-@if (authState.IsAuthenticated == false)
+@if (_authState.IsAuthenticated == false)
 {
     <DotYou.AdminClient.Private.Components.Login />
 }
 
-@if (authState.IsAuthenticated)
+@if (_authState.IsAuthenticated)
 {
     <TopNavbar/>
     <DotYouSidebar/>
@@ -33,15 +37,42 @@
 
 @code
 {
+    private HubConnection connection;
+    
     protected override async Task OnInitializedAsync()
     {
+        UriBuilder b = new UriBuilder(_nav.BaseUri);
+        b.Path = "live/notifications";
+
+        connection = new HubConnectionBuilder()
+            .WithUrl(b.Uri.AbsoluteUri)
+            .WithAutomaticReconnect()
+            .Build();
+
+        // connection.On<CircleInvite>(nameof(INotificationHub.NotificationOfCircleInvite), (invite) =>
+        // {
+        //     notificationEvents.BroadcastCircleInviteReceived(invite);
+        // });
+
+        connection.On<ConnectionRequest>(nameof(INotificationHub.NotifyOfConnectionRequest), (request) =>
+        {
+            notificationEvents.BroadcastConnectionRequestRecieved(request);
+        });
+
+        connection.On<EstablishConnectionRequest>(nameof(INotificationHub.NotifyOfConnectionRequestAccepted), (acceptedRequest) =>
+        {
+            notificationEvents.BroadcastConnectionRequestAccepted(acceptedRequest);
+        });
+
+        await connection.StartAsync();
     }
 
     protected override void OnAfterRender(bool isFirstRender)
     {
-        layoutManager.IsFooterFixed = true;
-        layoutManager.IsNavBarFixed = true;
-        layoutManager.IsSideBarFixed = true;
+        _layoutManager.IsFooterFixed = true;
+        _layoutManager.IsNavBarFixed = true;
+        _layoutManager.IsSideBarFixed = true;
+        Console.WriteLine("fixed sht");
         base.OnAfterRender(isFirstRender);
     }
 }

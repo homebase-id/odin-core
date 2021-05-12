@@ -1,13 +1,13 @@
-﻿using DotYou.Kernel.Storage;
-using DotYou.Types;
-using DotYou.Types.Certificate;
+﻿using DotYou.Types;
 using DotYou.Types.Circle;
 using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types.SignalR;
 
 namespace DotYou.Kernel.Services.Circle
 {
@@ -26,7 +26,7 @@ namespace DotYou.Kernel.Services.Circle
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
         private readonly IContactService _contactService;
-
+        
         public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger) : base(context, logger)
         {
             _contactService = contactService;
@@ -44,8 +44,25 @@ namespace DotYou.Kernel.Services.Circle
             return results;
         }
 
-        public async Task SendConnectionRequest(ConnectionRequest request)
+        //public async Task SendConnectionRequest(ConnectionRequest request)
+        public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
+            Guard.Argument(header, nameof(header)).NotNull();
+            Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
+            Guard.Argument(header.Id, nameof(header.Id)).HasValue();
+
+            var request = new ConnectionRequest();
+            request.Id = header.Id;
+            request.Recipient = header.Recipient;
+            request.Message = header.Message;
+            
+            request.Sender = this.Context.DotYouId;
+            request.DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            
+            //TODO: these need to pull from the identity attribute server using the public profile attributes
+            request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;
+            request.SenderSurname = this.Context.TenantCertificate.OwnerName.Surname;
+
             this.Logger.LogInformation($"[{request.Sender}] is sending a request to the server of  [{request.Recipient}]");
             await base.HttpProxy.PostJson<ConnectionRequest>(request.Recipient, "/api/incoming/invitations/connect", request);
 

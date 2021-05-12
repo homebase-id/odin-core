@@ -4,11 +4,11 @@
 <SideBarContainer>
     <BrandLogo Link="#" Logo="/assets/logo/yflogo.svg">dotYou</BrandLogo>
     <SideBar>
-        <!-- Sidebar user panel (optional) -->
         <SideBarUserPanel ImageEffect="ImageEffect.Rounded"
-                          Link="/private" Elevation="Elevation.One"
+                          Link="/private/profile"
+                          Elevation="Elevation.One"
                           UserImage=@state.User.AvatarUri.Uri>
-            @state.User.GivenName @state.User.Surname
+            @RenderName()
         </SideBarUserPanel>
         @*<SideBarSearch></SideBarSearch>*@
     <SideBarMenu>
@@ -71,4 +71,17 @@
 
 @code{ private const int iconWidth = 55;
     private const int iconHeight = 55;
-  }
+
+    private string RenderName()
+    {
+        if ((string.IsNullOrEmpty(state.User.GivenName) || string.IsNullOrWhiteSpace(state.User.GivenName)) &&
+            (string.IsNullOrEmpty(state.User.Surname) || string.IsNullOrWhiteSpace(state.User.Surname)))
+        {
+            return "Update your name...";
+        }
+
+        return $"{state.User.GivenName} {state.User.Surname}";
+
+    }
+
+}

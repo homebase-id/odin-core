@@ -3,6 +3,7 @@ using DotYou.Types;
 using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
+using DotYou.Types.ApiClient;
 using Refit;
 
 namespace DotYou.TenantHost.WebAPI.Tests

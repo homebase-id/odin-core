@@ -16,7 +16,8 @@ namespace DotYou.Kernel.Services.Circle
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-        Task SendConnectionRequest(ConnectionRequest request);
+
+        Task SendConnectionRequest(ConnectionRequestHeader header);
 
         /// <summary>
         /// Establishes a connection between two individuals.  This should be called when
@@ -69,5 +70,6 @@ namespace DotYou.Kernel.Services.Circle
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
         Task DeletePendingRequest(Guid id);
+        
     }
 }

@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using DotYou.Types.Circle;
 using Refit;
 
-namespace DotYou.Types
+namespace DotYou.Types.ApiClient
 {
-    public interface IContactRequestsClient
+    public interface IContactManagementClient
     {
         private const string root_path = "/api/contacts";
 

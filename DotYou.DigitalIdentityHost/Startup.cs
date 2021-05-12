@@ -22,6 +22,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
@@ -116,8 +117,12 @@ namespace DotYou.TenantHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
                 var contactSvc = svc.GetRequiredService<IContactService>();
+                
+                
                 return new CircleNetworkService(context, contactSvc, logger);
             });
+
+            services.AddSignalR();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -142,6 +147,7 @@ namespace DotYou.TenantHost
             {
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");
+                endpoints.MapHub<NotificationHub>("/live/notifications");
             });
         }
 
@@ -162,14 +168,14 @@ namespace DotYou.TenantHost
             //todo: call out to additonal service to validate more rules
             // i.e. blocked list
             // determine if this certificate is in my network an add extra claims
-            //add system circle claim based on my relationshiop to this person
+            //add system circle claim based on my relationship to this person
             //lookup name for the individual and add to the claims
 
             bool isTenantOwner = false;
             var dotYouContext = ResolveContext(context.HttpContext.RequestServices);
             using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificateWithPrivateKey())
             {
-                //HACK: this is not sufficient for establsihing the client and server certificates are the same.
+                //HACK: this is not sufficient for establishing the client and server certificates are the same.
                 //https://eprint.iacr.org/2019/130.pdf - first few paragraphs
                 isTenantOwner = serverCertificate.Thumbprint == context.ClientCertificate.Thumbprint;
             }

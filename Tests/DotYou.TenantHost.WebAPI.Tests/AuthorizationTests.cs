@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DotYou.Types.ApiClient;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
@@ -38,7 +39,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 //point sams client to frodo
                 client.BaseAddress = new Uri($"https://{scaffold.Frodo}");
                 
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkClient>(client);
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, "User was able to perform unauthorized action");
@@ -52,7 +53,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             //have sam perform a normal operation on his site
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkClient>(client);
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, "User was able to perform unauthorized action");

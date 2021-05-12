@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using DotYou.Types.ApiClient;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {
@@ -36,7 +37,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             
             using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
-                var svc = RestService.For<IContactRequestsClient>(client);                
+                var svc = RestService.For<IContactManagementClient>(client);                
                 var contactResponse = await svc.GetContactByDomain(scaffold.Samwise);
 
                 Assert.IsNotNull(contactResponse.Content, $"Contact was not found by domain [{scaffold.Samwise}]");
@@ -54,7 +55,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             {
                 await AddFrodoToSamsContacts();
 
-                var svc = RestService.For<IContactRequestsClient>(client);
+                var svc = RestService.For<IContactManagementClient>(client);
 
                 var response = await svc.GetContactsList(PageOptions.Default);
 
@@ -71,7 +72,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
-                var svc = RestService.For<IContactRequestsClient>(client);
+                var svc = RestService.For<IContactManagementClient>(client);
                 
                 Contact contact = new()
                 {
@@ -96,7 +97,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
-                var svc = RestService.For<IContactRequestsClient>(client);
+                var svc = RestService.For<IContactManagementClient>(client);
                 
                 Contact contact = new()
                 {

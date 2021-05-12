@@ -1,0 +1,69 @@
+﻿@using DotYou.Types.Identity
+@inject IAdminIdentityAttributeClient _attributeClient
+
+<EditForm Model="@_profile">
+
+    <FormGroup>
+        <Input @bind-Value="givenNameInput"/>
+    </FormGroup>
+    <FormGroup>
+        <Input @bind-Value="surnameInput"/>
+    </FormGroup>
+    <div style="max-width:100px">
+        <Button Size="ButtonSize.Normal" @onclick="@SaveProfile">Save</Button>
+    </div>
+</EditForm>
+
+@code {
+
+    protected class ProfileForm
+    {
+        public string GivenName { get; set; }
+        public string Surname { get; set; }
+    }
+    
+    private bool showToast = false;
+
+    private InputState givenNameInput = new InputState()
+    {
+        Identifier = "givenName",
+        Label = "GivenName",
+        Placeholder = "What is your first name?",
+    };
+    
+    private InputState surnameInput = new InputState()
+    {
+        Identifier = "surname",
+        Label = "surname",
+        Placeholder = "What is your last name?",
+    };
+    
+    protected ProfileForm _profile { get; set; } = new ProfileForm();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await _attributeClient.GetPrimaryName();
+        if (response.IsSuccessStatusCode && response.Content != null)
+        {
+            var name = response.Content;
+            givenNameInput.Value = name.Personal;
+            surnameInput.Value = name.Surname;
+        }
+
+    }
+    
+    private async void SaveProfile()
+    {
+        var name = new NameAttribute()
+        {
+            Personal = givenNameInput.Value,
+            Surname = surnameInput.Value
+        };
+        
+        await _attributeClient.SavePrimaryName(name);
+        
+        showToast = true;
+        StateHasChanged();
+    }
+
+}

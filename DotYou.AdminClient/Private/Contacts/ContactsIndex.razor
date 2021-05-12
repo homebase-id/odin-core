@@ -7,24 +7,25 @@
 @inject NavigationManager nav
 @inject AppState state
 @inject NavBarLeftInjectableMenu menu
-@* @inject IProxyService proxy *@
+@inject IContactManagementClient _contactManagementClient
+@inject ICircleNetworkClient _circleNetworkClient
 
-@menu.SetContent(@<ContactsTopNavContextMenu />                                                                                                                                                                                                                                                                                                            , false);
+@menu.SetContent(@<ContactsTopNavContextMenu/>, false);
 
 <ContentHeader>
     <Header>
-        <PageTitle Title="Contacts" />
+        <PageTitle Title="Contacts"/>
     </Header>
 </ContentHeader>
 <ContentMain>
     <Row>
         <Column Classes="col.sm._2">
             <div class="list-group">
-                <a class="list-group-item list-group-item-action" @onclick="@(()=>ApplyTagFilter(null))" @onclick:preventDefault>All Tags</a>
+                <a class="list-group-item list-group-item-action" @onclick="@(() => ApplyTagFilter(null))" @onclick:preventDefault>All Tags</a>
 
                 @foreach (var tag in this.tags)
                 {
-                    <a class="list-group-item list-group-item-action @(IsTagApplied(tag)? "list-group-item-info":"")" @onclick="@(()=>ApplyTagFilter(tag))" @onclick:preventDefault>@tag</a>
+                    <a class="list-group-item list-group-item-action @(IsTagApplied(tag) ? "list-group-item-info" : "")" @onclick="@(() => ApplyTagFilter(tag))" @onclick:preventDefault>@tag</a>
                 }
 
             </div>
@@ -52,7 +53,7 @@
                                 }
                                 else if (contact.DotYouId.HasValue)
                                 {
-                                    <Button OnClick="@(()=>InviteToConnect(contact.DotYouId.GetValueOrDefault()))">
+                                    <Button OnClick="@(() => InviteToConnect(contact.DotYouId.GetValueOrDefault()))">
                                         <i class="right fas fa-link"></i>
                                     </Button>
                                 }
@@ -65,7 +66,9 @@
                             <TableCell>@contact.DotYouId.GetValueOrDefault().Id</TableCell>
                             <TableCell>@contact.ToString()</TableCell>
                             <TableCell>@contact.PrimaryEmail</TableCell>
-                            <TableCell><Badge Classes="badge.info">@contact.Tag</Badge></TableCell>
+                            <TableCell>
+                                <Badge Classes="badge.info">@contact.Tag</Badge>
+                            </TableCell>
                         </TableRow>
                     }
                 </TableBody>
@@ -85,12 +88,11 @@
 
     protected async override Task OnInitializedAsync()
     {
-
         this.tags = new List<string>();
         this.contacts = new List<Contact>();
-        //this.appliedTags = new List<string>();
+    //this.appliedTags = new List<string>();
 
-        //TODO: need to pull tags from the db and let the user configure their own
+    //TODO: need to pull tags from the db and let the user configure their own
         this.tags.Add("Close Friends");
         this.tags.Add("Acquaintance");
         this.tags.Add("Family");
@@ -105,21 +107,21 @@
 
     private void ApplyTagFilter(string tag)
     {
-        //if (tag == null)
-        //{
-        //    this.appliedTags.Clear();
-        //}
-        //else
-        //{
-        //    if (this.appliedTags.Contains(tag))
-        //    {
-        //        this.appliedTags.Remove(tag);
-        //    }
-        //    else
-        //    {
-        //        this.appliedTags.Add(tag);
-        //    }
-        //}
+    //if (tag == null)
+    //{
+    //    this.appliedTags.Clear();
+    //}
+    //else
+    //{
+    //    if (this.appliedTags.Contains(tag))
+    //    {
+    //        this.appliedTags.Remove(tag);
+    //    }
+    //    else
+    //    {
+    //        this.appliedTags.Add(tag);
+    //    }
+    //}
 
         this.appliedTag = tag;
 
@@ -129,35 +131,40 @@
     private bool IsTagApplied(string tag)
     {
         return string.Equals(this.appliedTag, tag, StringComparison.InvariantCultureIgnoreCase);
-        //return this.appliedTags.Contains(tag);
+    //return this.appliedTags.Contains(tag);
     }
 
     private async void InviteToConnect(DotYouIdentity identity)
     {
-        var request = new ConnectionRequest()
+
+        var requestHeader = new ConnectionRequestHeader()
         {
-            Sender = (DotYouIdentity)state.User.Identity,
+            Id = Guid.NewGuid(),
             Recipient = identity,
             Message = "Please add me to your network."
         };
 
-        // await proxy.SendConnectionRequest(request);
+        await _circleNetworkClient.SendConnectionRequest(requestHeader);
     }
-
 
     private async void RefreshData()
     {
-        PagedResult<Contact> pagedResult;
+        PagedResult<Contact> pagedResult = null;
         if (appliedTag == null)
         {
-            pagedResult = await Http.GetFromJsonAsync<PagedResult<Contact>>($"/api/contacts?{page.ToQueryStringParams()}");
+            var response = await _contactManagementClient.GetContactsList(PageOptions.Default);
+            pagedResult = response.Content;
         }
-        else
-        {
-            pagedResult = await Http.GetFromJsonAsync<PagedResult<Contact>>($"/api/contacts/filterbytag?tag={appliedTag}&{page.ToQueryStringParams()}");
-        }
+    // else
+    // {
+    //     pagedResult = await Http.GetFromJsonAsync<PagedResult<Contact>>($"/api/contacts/filterbytag?tag={appliedTag}&{page.ToQueryStringParams()}");
+    // }
 
-        this.contacts = pagedResult.Results.ToList();
+        if (null != pagedResult)
+        {
+            this.contacts = pagedResult.Results.ToList();
+        }
         StateHasChanged();
     }
+
 }

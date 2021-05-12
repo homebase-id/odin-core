@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using Blazor.AdminLte;
 using Blazored.LocalStorage;
 using Blazored.Toast;
+using DotYou.AdminClient.Services;
 using DotYou.Types;
+using DotYou.Types.ApiClient;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
@@ -35,7 +37,15 @@ namespace DotYou.AdminClient
                 .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
                 
-            builder.Services.AddRefitClient<ICircleNetworkRequestsClient>()
+            builder.Services.AddRefitClient<ICircleNetworkClient>()
+                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .AddHttpMessageHandler<AuthTokenMessageHandler>();
+            
+            builder.Services.AddRefitClient<IContactManagementClient>()
+                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .AddHttpMessageHandler<AuthTokenMessageHandler>();
+            
+            builder.Services.AddRefitClient<IDemoDataClient>()
                 .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
@@ -47,6 +57,8 @@ namespace DotYou.AdminClient
                 var state = new AppState(auth, client, storage);
                 return state;
             });
+            
+            builder.Services.AddSingleton<IClientNotificationEvents, ClientNotificationEvents>();
             
             builder.Services.AddAdminLte();
             builder.Services.AddBlazoredToast();
