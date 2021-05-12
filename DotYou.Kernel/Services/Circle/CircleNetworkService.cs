@@ -8,6 +8,7 @@ using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Types.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 namespace DotYou.Kernel.Services.Circle
 {
@@ -27,7 +28,7 @@ namespace DotYou.Kernel.Services.Circle
 
         private readonly IContactService _contactService;
         
-        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger) : base(context, logger)
+        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger) : base(context, logger, null)
         {
             _contactService = contactService;
         }
@@ -73,26 +74,9 @@ namespace DotYou.Kernel.Services.Circle
         {
             //note: this would occur during the operation verification process
             request.Validate();
-
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
-
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
-
-            /*
-            try
-            {
-                //Note: since we're hosting both frodo and sam on the same server
-                //we MUST specify the user, otherwise all people connected to this server 
-                //will get the notification
-
-                //the ci.RecpientIdentifier must also be authenticated
-                _notificationHub.Clients.User(_tenantContext.Identifier).NotifyOfConnectionRequest(request);
-            }
-            catch (Exception)
-            {
-                //_logger.LogWarning("Failed to send notification to clients");
-            }
-             */
+             
             return Task.CompletedTask;
         }
 

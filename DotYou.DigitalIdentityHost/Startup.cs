@@ -29,7 +29,9 @@ using DotYou.Kernel.Services.Authentication;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
+using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.SignalR;
 
 namespace DotYou.TenantHost
 {
@@ -83,6 +85,7 @@ namespace DotYou.TenantHost
             services.AddAuthorization(options => new PolicyConfig().AddPolicies(options));
 
             services.AddMemoryCache();
+            services.AddSignalR();
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
@@ -117,12 +120,9 @@ namespace DotYou.TenantHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
                 var contactSvc = svc.GetRequiredService<IContactService>();
-                
-                
+
                 return new CircleNetworkService(context, contactSvc, logger);
             });
-
-            services.AddSignalR();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

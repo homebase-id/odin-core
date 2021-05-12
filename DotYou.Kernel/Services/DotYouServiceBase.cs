@@ -25,9 +25,10 @@ namespace DotYou.Kernel.Services
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
 
 
-        protected DotYouServiceBase(DotYouContext context, ILogger logger)
+        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub)
         {
             _logger = logger;
+            _notificationHub = notificationHub;
             _context = context;
             var proxy = new DotYouHttpClientProxy(context);
             _httpProxy = proxy;
@@ -57,6 +58,7 @@ namespace DotYou.Kernel.Services
             get => _httpProxy;
         }
 
+       
         protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;

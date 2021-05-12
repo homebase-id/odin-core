@@ -7,8 +7,11 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 namespace DotYou.TenantHost.Controllers.Incoming
 {
@@ -22,10 +25,12 @@ namespace DotYou.TenantHost.Controllers.Incoming
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;
+        private readonly IHubContext<NotificationHub, INotificationHub> _hub;
 
-        public InvitationsController(ICircleNetworkService circleNetwork)
+        public InvitationsController(ICircleNetworkService circleNetwork, IHubContext<NotificationHub, INotificationHub> hub)
         {
             _circleNetwork = circleNetwork;
+            this._hub = hub;
         }
 
         [HttpPost("connect")]
@@ -35,7 +40,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
             return Ok();
         }
 
-        
+
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] EstablishConnectionRequest request)
         {

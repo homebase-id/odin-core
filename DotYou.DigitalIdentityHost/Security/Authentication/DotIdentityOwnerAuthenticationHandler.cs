@@ -53,14 +53,21 @@ namespace DotYou.TenantHost.Security.Authentication
                 {
                     //add more life since a request was made
                     await authService.ExtendTokenLife(token, 60 * 20);
+
+                    //TODO: this needs to be pulled from context rather than the domain
                     
+                    string domain = this.Context.Request.Host.Host;
                     var claims = new[]
                     {
+                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, YouFoundationIssuer),
+                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                     };
+
+                    var identity = new ClaimsIdentity(claims, DotYouAuthSchemes.DotIdentityOwner);
+                    ClaimsPrincipal principal  = new ClaimsPrincipal(identity);
                     
-                    ClaimsPrincipal principal  = new ClaimsPrincipal(new ClaimsIdentity(claims, DotYouAuthSchemes.DotIdentityOwner));
                     var ticket = new AuthenticationTicket(principal, DotYouAuthSchemes.DotIdentityOwner);
                     ticket.Properties.SetParameter("token", token);
                     return AuthenticateResult.Success(ticket);

@@ -25,7 +25,7 @@ namespace DotYou.Kernel.Services.Authentication
     {
         private const string AUTH_TOKEN_COLLECTION = "AuthToken";
 
-        public AdminClientPrototrialSimplePasswordAuthenticationService(DotYouContext context, ILogger logger) : base(context, logger)
+        public AdminClientPrototrialSimplePasswordAuthenticationService(DotYouContext context, ILogger logger) : base(context, logger, null)
         {
         }
         

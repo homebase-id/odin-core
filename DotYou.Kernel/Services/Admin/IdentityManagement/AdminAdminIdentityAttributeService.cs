@@ -13,7 +13,7 @@ namespace DotYou.Kernel.Services.Admin.IdentityManagement
         private const string ADMIN_IDENTITY_COLLECTION = "AdminIdentity";
         private readonly Guid NAME_ATTRIBUTE_ID = Guid.Parse("ff06ce6d-d871-4a82-9775-071aa70fdab4");
         
-        public AdminAdminIdentityAttributeService(DotYouContext context, ILogger logger) : base(context, logger)
+        public AdminAdminIdentityAttributeService(DotYouContext context, ILogger logger) : base(context, logger, null)
         {
         }
         

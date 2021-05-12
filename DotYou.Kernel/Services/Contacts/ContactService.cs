@@ -14,7 +14,7 @@ namespace Identity.Web.Services.Contacts
     {
         const string CONTACT_COLLECTION = "contacts";
 
-        public ContactService(DotYouContext context, ILogger<ContactService> logger) : base(context, logger) { }
+        public ContactService(DotYouContext context, ILogger<ContactService> logger) : base(context, logger, null) { }
 
         public Task<Contact> Get(Guid id)
         {
