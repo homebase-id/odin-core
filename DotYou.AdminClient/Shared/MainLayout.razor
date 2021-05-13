@@ -7,7 +7,7 @@
 @inject ILayoutManager _layoutManager
 @inject NavigationManager _nav
 @inject AuthState _authState
-@inject IClientNotificationEvents notificationEvents
+@inject IClientNotificationEvents _notificationEvents
 
 
 @if (_authState.IsAuthenticated == false)
@@ -63,12 +63,12 @@
         connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
         {
             Console.WriteLine("connection request came in.");
-            notificationEvents.BroadcastConnectionRequestRecieved(request);
+            _notificationEvents.BroadcastConnectionRequestReceived(request);
         });
 
         connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
         {
-            notificationEvents.BroadcastConnectionRequestAccepted(acceptedRequest);
+            _notificationEvents.BroadcastConnectionRequestAccepted(acceptedRequest);
         });
 
         await connection.StartAsync();

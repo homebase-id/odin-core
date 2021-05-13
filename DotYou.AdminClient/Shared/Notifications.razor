@@ -1,6 +1,9 @@
-﻿@inject IToastService toastService
-@* @inject IClientNotificationEvents notificationEvents *@
-@inject NavigationManager nav
+﻿@using Identity.DataType
+@using DotYou.AdminClient.Services
+
+@inject IToastService _toastService
+@inject IClientNotificationEvents _notificationEvents
+@inject NavigationManager _nav
 @*<NavBarDropDown>
         <NavBarBadge Color="Color.Danger" Icon="far fa-comments">4</NavBarBadge>
         <NavBarDropDownMenu>
@@ -45,7 +48,7 @@
 
     private void SeeAllMessages(Tuple<IDropdownFooter, MouseEventArgs> args)
     {
-        nav.NavigateTo("private/messaging/chat");
+        _nav.NavigateTo("private/messaging/chat");
     }
 
     private void SeeAllNotifications(Tuple<IDropdownFooter, MouseEventArgs> args)
@@ -55,9 +58,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // notificationEvents.ConnectionRequestReceived += ConnectionRequestReceived;
-        // notificationEvents.CircleInviteReceieved += CircleInviteReceieved;
-        // notificationEvents.ConnectionRequestAccepted += ConnectionRequestAccepted;
+        _notificationEvents.ConnectionRequestReceived += ConnectionRequestReceived;
+        //notificationEvents.CircleInviteReceieved += CircleInviteReceieved;
+        _notificationEvents.ConnectionRequestAccepted += ConnectionRequestAccepted;
     }
 
 
@@ -79,6 +82,7 @@
 
     void ConnectionRequestReceived(ConnectionRequest request)
     {
+        Console.WriteLine("requst event came in");
         //update notifications bar
         this.notifications.Add(new Notification()
         {
@@ -87,26 +91,24 @@
         });
 
         string message = $"{request.Sender} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";
-        toastService.ShowInfo(message, "Connect!");
+        _toastService.ShowInfo(message, "Connect!");
 
         StateHasChanged();
     }
 
-    // void ConnectionRequestAccepted(AcceptedConnectionRequest acceptedRequest)
-    // {
-    //
-    //     //update notifications bar
-    //     this.notifications.Add(new Notification()
-    //     {
-    //         MessageText = $"{acceptedRequest.OriginalConnectionRequest.Recipient} accepted your connection!",
-    //         DateTimeReceived = acceptedRequest.DateAccepted
-    //     });
-    //
-    //     string message = $"{acceptedRequest.OriginalConnectionRequest.Recipient} ({acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname}) accepted your request!";
-    //     toastService.ShowInfo(message, "You are Connected!");
-    //
-    //     StateHasChanged();
-    //
-    // }
+    void ConnectionRequestAccepted(EstablishConnectionRequest acceptedRequest)
+    {
+        //update notifications bar
+        this.notifications.Add(new Notification()
+        {
+            MessageText = $"{acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname} accepted your connection!",
+            //DateTimeReceived = acceptedRequest.
+        });
+        
+        string message = $"TODO: add domain ({acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname}) accepted your request!";
+        _toastService.ShowInfo(message, "You are Connected!");
+        
+        StateHasChanged();
 
+    }
 }

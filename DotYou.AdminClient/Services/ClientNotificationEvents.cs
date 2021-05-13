@@ -22,7 +22,7 @@ namespace DotYou.AdminClient.Services
             ConnectionRequestAccepted?.Invoke(acceptedRequest);
         }
 
-        public void BroadcastConnectionRequestRecieved(ConnectionRequest request)
+        public void BroadcastConnectionRequestReceived(ConnectionRequest request)
         {
             Console.WriteLine($"Broadcast incoming request from {request.Sender}");
             ConnectionRequestReceived?.Invoke(request);

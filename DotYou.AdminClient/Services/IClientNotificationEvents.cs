@@ -8,13 +8,13 @@ namespace DotYou.AdminClient.Services
     /// </summary>
     public interface IClientNotificationEvents
     {
-        //event Action<CircleInvite> CircleInviteReceieved;
+        //event Action<CircleInvite> CircleInviteReceived;
 
         event Action<ConnectionRequest> ConnectionRequestReceived;
 
         event Action<EstablishConnectionRequest> ConnectionRequestAccepted;
 
-        void BroadcastConnectionRequestRecieved(ConnectionRequest request);
+        void BroadcastConnectionRequestReceived(ConnectionRequest request);
 
         //void BroadcastCircleInviteReceived(CircleInvite invite);
 
