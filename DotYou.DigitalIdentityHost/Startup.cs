@@ -156,6 +156,9 @@ namespace DotYou.TenantHost
                 endpoints.MapFallbackToFile("index.html");
                 endpoints.MapHub<NotificationHub>("/live/notifications", o =>
                 {
+                    //TODO: for #prototrial, i narrowed this to websockets
+                    //only so i could disable negotiation from the client
+                    //as it was causing issues with authentication.
                     o.Transports = HttpTransportType.WebSockets;
                 });
             });

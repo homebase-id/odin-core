@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
+using DotYou.Types.Admin;
+using DotYou.Types.ApiClient;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Refit;
@@ -12,13 +15,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
 {
     public class TestScaffold
     {
-        // private IHost webserver;
         private string _folder;
-        private IHost webserver;
-        IdentityContextRegistry _registry;
+        private IHost _webserver;
+        private Dictionary<string, Guid> tokens = new Dictionary<string, Guid>(StringComparer.InvariantCultureIgnoreCase);
 
-        public static DotYouIdentity frodo = (DotYouIdentity) "frodobaggins.me";
-        public static DotYouIdentity samwise = (DotYouIdentity) "samwisegamgee.me";
+        IdentityContextRegistry _registry;
 
         public TestScaffold(string folder)
         {
@@ -63,33 +64,58 @@ namespace DotYou.TenantHost.WebAPI.Tests
                 var args = new string[2];
                 args[0] = testDataPath;
                 args[1] = logFilePath;
-                webserver = Program.CreateHostBuilder(args).Build();
-                webserver.Start();
+                _webserver = Program.CreateHostBuilder(args).Build();
+                _webserver.Start();
             }
         }
 
         [OneTimeTearDown]
         public void RunAfterAnyTests()
         {
-            if (null != webserver)
+            if (null != _webserver)
             {
                 System.Threading.Thread.Sleep(2000);
-                webserver.StopAsync();
-                webserver.Dispose();
+                _webserver.StopAsync();
+                _webserver.Dispose();
             }
+        }
+
+        private Guid EnsureAuthToken(DotYouIdentity identity)
+        {
+            if (tokens.TryGetValue(identity, out Guid token))
+            {
+                return token;
+            }
+
+            using HttpClient authClient = new();
+            authClient.BaseAddress = new Uri($"https://{identity}");
+            var svc = RestService.For<IAdminAuthenticationClient>(authClient);
+
+            string password = "";
+            var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+            var newToken = response.Content;
+            Assert.IsTrue(newToken != Guid.Empty);
+
+            tokens.Add(identity, newToken);
+            return newToken;
         }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
-            var samContext = this.Registry.ResolveContext(identity);
-            var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
+            var token = EnsureAuthToken(identity);
 
-            HttpClientHandler handler = new();
-            handler.ClientCertificates.Add(samCert);
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            // var samContext = this.Registry.ResolveContext(identity);
+            // var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
 
-            HttpClient client = new(handler);
+            //HttpClientHandler handler = new();
+            // handler.ClientCertificates.Add(samCert);
+            // handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+            //HttpClient client = new(handler);
 
+            HttpClient client = new();
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
@@ -110,7 +136,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             // {
             //     content = await response.RequestMessage.Content.ReadAsStringAsync();
             // }
-            
+
             Console.WriteLine($"Content ->\n {content}");
             Console.ForegroundColor = prev;
 

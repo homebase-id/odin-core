@@ -183,19 +183,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<Guid> CreateConnectionRequestSamToFrodo()
         {
-            var samContext = scaffold.Registry.ResolveContext(scaffold.Samwise);
-
-            // var request = new ConnectionRequest()
-            // {
-            //     Id = Guid.NewGuid(),
-            //     DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            //     Message = "Please add me",
-            //     Recipient = (DotYouIdentity)scaffold.Frodo,
-            //     Sender = (DotYouIdentity)scaffold.Samwise,
-            //     SenderGivenName = "Samwise",
-            //     SenderSurname = "Gamgee"
-            // };
-            
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
