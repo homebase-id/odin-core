@@ -6,7 +6,6 @@ using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types.ApiClient;
-using DotYou.Types.Circle;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 
@@ -23,8 +22,7 @@ namespace DotYou.Kernel.Services
         private readonly IDotYouHttpClientProxy _httpProxy;
         private readonly DotYouContext _context;
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
-
-
+        
         protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub)
         {
             _logger = logger;
@@ -58,7 +56,10 @@ namespace DotYou.Kernel.Services
             get => _httpProxy;
         }
 
-       
+        protected INotificationHub Notify
+        {
+            get => _notificationHub.Clients.User(this.Context.DotYouId);
+        }
         protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;
@@ -84,28 +85,6 @@ namespace DotYou.Kernel.Services
             {
                 return func(storage);
             }
-        }
-    }
-
-    public class NotificationHub : Hub<INotificationHub>
-    {
-        // public Task NotifyOfCircleInvite(CircleInvite circleInvite)
-        // {
-        //     Clients.All.NotificationOfCircleInvite(circleInvite);
-        //
-        //     return Task.CompletedTask;
-        // }
-
-        public Task NotifyOfConnectionRequest(ConnectionRequest request)
-        {
-            Clients.All.NotifyOfConnectionRequest(request);
-            return Task.CompletedTask;
-        }
-
-        public Task NotifyOfConnectionRequestAccepted(EstablishConnectionRequest acceptedRequest)
-        {
-            Clients.All.NotifyOfConnectionRequestAccepted(acceptedRequest);
-            return Task.CompletedTask;
         }
     }
 }

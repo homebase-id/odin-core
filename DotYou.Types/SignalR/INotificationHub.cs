@@ -7,9 +7,9 @@ namespace DotYou.Types.SignalR
     {
         //Task NotificationOfCircleInvite(CircleInvite circleInvite);
 
-        Task NotifyOfConnectionRequest(ConnectionRequest request);
+        Task ConnectionRequestReceived(ConnectionRequest request);
 
-        Task NotifyOfConnectionRequestAccepted(EstablishConnectionRequest acceptedRequest);
+        Task ConnectionRequestAccepted(EstablishConnectionRequest request);
     }
 
 }

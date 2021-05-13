@@ -13,11 +13,8 @@ using Microsoft.Extensions.Options;
 
 namespace DotYou.TenantHost.Security.Authentication
 {
-
     public class DotIdentityOwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        
-
         public DotIdentityOwnerAuthenticationHandler(IOptionsMonitor<DotIdentityOwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
             UrlEncoder encoder, ISystemClock clock)
             : base(options, logger, encoder, clock)
@@ -39,6 +36,7 @@ namespace DotYou.TenantHost.Security.Authentication
 
             return Task.CompletedTask;
         }
+        
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
@@ -55,7 +53,7 @@ namespace DotYou.TenantHost.Security.Authentication
                     await authService.ExtendTokenLife(token, 60 * 20);
 
                     //TODO: this needs to be pulled from context rather than the domain
-                    
+
                     string domain = this.Context.Request.Host.Host;
                     var claims = new[]
                     {
@@ -66,14 +64,20 @@ namespace DotYou.TenantHost.Security.Authentication
                     };
 
                     var identity = new ClaimsIdentity(claims, DotYouAuthSchemes.DotIdentityOwner);
-                    ClaimsPrincipal principal  = new ClaimsPrincipal(identity);
+                    ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+
+                    AuthenticationProperties authProperties = new AuthenticationProperties();
+                    authProperties.IssuedUtc = DateTime.UtcNow;
+                    authProperties.ExpiresUtc = DateTime.UtcNow.AddDays(1);
+                    authProperties.AllowRefresh = true;
+                    authProperties.IsPersistent = true;
                     
-                    var ticket = new AuthenticationTicket(principal, DotYouAuthSchemes.DotIdentityOwner);
+                    var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthSchemes.DotIdentityOwner);
                     ticket.Properties.SetParameter("token", token);
                     return AuthenticateResult.Success(ticket);
                 }
             }
-            
+
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
@@ -101,7 +105,20 @@ namespace DotYou.TenantHost.Security.Authentication
 
         private bool GetToken(out Guid token)
         {
-            return Guid.TryParse(Context.Request.Headers[DotYouHeaderNames.AuthToken], out token);
+            if (Guid.TryParse(Context.Request.Headers[DotYouHeaderNames.AuthToken], out token))
+            {
+                return true;
+            }
+
+            //TODO: need to avoid the access token on the querystring after #prototrial
+            //look for token on querying string as it will come from SignalR
+            if (Context.Request.Path.StartsWithSegments("/live", StringComparison.OrdinalIgnoreCase) &&
+                Context.Request.Query.TryGetValue("access_token", out var accessToken))
+            {
+                return Guid.TryParse(accessToken, out token);
+            }
+            
+            return false;
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿@using Blazored.Toast.Configuration
 @using DotYou.AdminClient.Services
 @using DotYou.Types.SignalR
+@using Microsoft.AspNetCore.Http.Connections
 @using Microsoft.AspNetCore.SignalR.Client
 @inherits LayoutComponentBase
 @inject ILayoutManager _layoutManager
@@ -45,7 +46,12 @@
         b.Path = "live/notifications";
 
         connection = new HubConnectionBuilder()
-            .WithUrl(b.Uri.AbsoluteUri)
+            .WithUrl(b.Uri.AbsoluteUri, options =>
+            {
+                options.SkipNegotiation = true;
+                options.Transports = HttpTransportType.WebSockets;
+                options.AccessTokenProvider= ()=> Task.FromResult(_authState.Token.ToString());
+            })
             .WithAutomaticReconnect()
             .Build();
 
@@ -54,19 +60,20 @@
         //     notificationEvents.BroadcastCircleInviteReceived(invite);
         // });
 
-        connection.On<ConnectionRequest>(nameof(INotificationHub.NotifyOfConnectionRequest), (request) =>
+        connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
         {
-            Console.WriteLine("request came in.");
+            Console.WriteLine("connection request came in.");
             notificationEvents.BroadcastConnectionRequestRecieved(request);
         });
 
-        connection.On<EstablishConnectionRequest>(nameof(INotificationHub.NotifyOfConnectionRequestAccepted), (acceptedRequest) =>
+        connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
         {
             notificationEvents.BroadcastConnectionRequestAccepted(acceptedRequest);
         });
 
         await connection.StartAsync();
     }
+
 
     protected override void OnAfterRender(bool isFirstRender)
     {

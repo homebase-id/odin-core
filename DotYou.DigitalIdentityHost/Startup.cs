@@ -30,6 +30,7 @@ using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types.SignalR;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.SignalR;
 
@@ -57,15 +58,18 @@ namespace DotYou.TenantHost
             services.AddHttpContextAccessor();
 
             services.AddAuthentication()
-                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op => { op.LoginUri = "/login"; })
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op =>
+                {
+                    op.LoginUri = "/login";
+                })
                 .AddCertificate(DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = true;
-
+                
                     //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                     //options.RevocationMode = X509RevocationMode.NoCheck
-
+                
                     options.Events = new CertificateAuthenticationEvents()
                     {
                         OnCertificateValidated = this.CertificateValidated,
@@ -85,15 +89,17 @@ namespace DotYou.TenantHost
             services.AddAuthorization(options => new PolicyConfig().AddPolicies(options));
 
             services.AddMemoryCache();
-            services.AddSignalR();
+            services.AddSignalR(options =>
+            {
+                options.EnableDetailedErrors = true;
+            });
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
             services.AddScoped<IAdminIdentityAttributeService, AdminAdminIdentityAttributeService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger =
-                    svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+                var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
 
                 return new AdminAdminIdentityAttributeService(context, logger);
             });
@@ -121,7 +127,8 @@ namespace DotYou.TenantHost
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
                 var contactSvc = svc.GetRequiredService<IContactService>();
 
-                return new CircleNetworkService(context, contactSvc, logger);
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new CircleNetworkService(context, contactSvc, logger, hub);
             });
         }
 
@@ -147,7 +154,10 @@ namespace DotYou.TenantHost
             {
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");
-                endpoints.MapHub<NotificationHub>("/live/notifications");
+                endpoints.MapHub<NotificationHub>("/live/notifications", o =>
+                {
+                    o.Transports = HttpTransportType.WebSockets;
+                });
             });
         }
 

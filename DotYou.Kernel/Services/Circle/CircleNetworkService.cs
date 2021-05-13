@@ -28,7 +28,7 @@ namespace DotYou.Kernel.Services.Circle
 
         private readonly IContactService _contactService;
         
-        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger) : base(context, logger, null)
+        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub) : base(context, logger, hub)
         {
             _contactService = contactService;
         }
@@ -68,6 +68,7 @@ namespace DotYou.Kernel.Services.Circle
             await base.HttpProxy.PostJson<ConnectionRequest>(request.Recipient, "/api/incoming/invitations/connect", request);
 
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
+            
         }
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -77,6 +78,8 @@ namespace DotYou.Kernel.Services.Circle
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
              
+            this.Notify.ConnectionRequestReceived(request).Wait();
+
             return Task.CompletedTask;
         }
 
@@ -128,6 +131,8 @@ namespace DotYou.Kernel.Services.Circle
             await _contactService.Save(contact);
 
             //await this.DeleteSentRequest(request.ConnectionRequestId);
+
+            this.Notify.ConnectionRequestAccepted(request).Wait();
         }
 
         public async Task AcceptConnectionRequest(Guid id)
