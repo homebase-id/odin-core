@@ -22,8 +22,6 @@
         public string Surname { get; set; }
     }
     
-    private bool showToast = false;
-
     private InputState givenNameInput = new InputState()
     {
         Identifier = "givenName",
@@ -62,7 +60,6 @@
         
         await _attributeClient.SavePrimaryName(name);
         
-        showToast = true;
         StateHasChanged();
     }
 

@@ -2,30 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using Dawn;
 using Newtonsoft.Json;
 
 namespace DotYou.Types.Circle
 {
-    public class ConnectionRequestHeader
-    {
-        [JsonConstructor]
-        public ConnectionRequestHeader() { }
-        
-        
-        public Guid Id { get; set; }
-        
-        /// <summary>
-        /// Individual receiving the invite
-        /// </summary>
-        public DotYouIdentity Recipient { get; set; }
-        
-        /// <summary>
-        /// Text to be sent with the invite explaining why you should connect with me.
-        /// </summary>
-        public string Message { get; set; }
-        
-    }
-    
     public class ConnectionRequest: ConnectionRequestHeader, IRequireSenderCertificate
     {
         [JsonConstructor]
@@ -40,8 +21,10 @@ namespace DotYou.Types.Circle
         /// <summary>
         /// Individual who sent the invite
         /// </summary>
-        public DotYouIdentity Sender { get; set; }
+        public DotYouIdentity SenderDotYouId { get; set; }
         
+        public string SenderPublicKeyCertificate { get; set; }
+
         /// <summary>
         /// First name of the sender at the time of the invitation
         /// </summary>
@@ -53,14 +36,14 @@ namespace DotYou.Types.Circle
         public string SenderSurname { get; set; }
 
         /// <summary>
-        /// The date the invititation was sent from the <see cref="Sender"/>'s server.
+        /// The date the invititation was sent from the <see cref="SenderDotYouId"/>'s server.
         /// </summary>
         public Int64 DateSent { get; set; }
         
 
         public string GetSenderDisplayName()
         {
-            return $"{Sender} ({SenderGivenName} {SenderSurname})";
+            return $"{SenderDotYouId} ({SenderGivenName} {SenderSurname})";
         }
 
         /// <summary>
@@ -68,24 +51,17 @@ namespace DotYou.Types.Circle
         /// </summary>
         public virtual void Validate()
         {
-            var isInvalid = string.IsNullOrEmpty(this.SenderPublicKeyCertificate)
-            || string.IsNullOrWhiteSpace(this.SenderPublicKeyCertificate)
-            || string.IsNullOrEmpty(this.Sender)
-            || string.IsNullOrWhiteSpace(this.Sender)
-            || string.IsNullOrEmpty(this.Recipient)
-            || string.IsNullOrWhiteSpace(this.Recipient)
-            || this.Id == Guid.Empty
-            || string.IsNullOrEmpty(this.SenderGivenName)
-            || string.IsNullOrWhiteSpace(this.SenderGivenName);
-            
-            //TODO: add other checks
+            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
+            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(SenderGivenName, nameof(SenderGivenName)).NotEmpty().NotNull();
+            Guard.Argument(SenderSurname, nameof(SenderSurname)).NotEmpty().NotNull();
 
-            if (isInvalid)
-            {
-                throw new InvalidDataException("Connection Request is invalid");
-            }
+            Guard.Argument(Recipient.ToString(), nameof(Recipient)).NotEmpty().NotNull();
+            Guard.Argument(Recipient.ToString(), nameof(Recipient)).NotEmpty().NotNull();
+
+            Guard.Argument(Id, nameof(Id)).NotEqual(Guid.Empty);
         }
 
-        public string SenderPublicKeyCertificate { get; set; }
     }
 }

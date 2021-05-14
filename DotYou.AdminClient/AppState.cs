@@ -7,9 +7,15 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
+using DotYou.AdminClient.Services;
 using DotYou.Types;
 using DotYou.Types.ApiClient;
+using DotYou.Types.Circle;
 using DotYou.Types.Identity;
+using DotYou.Types.SignalR;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 using Refit;
 
 namespace DotYou.AdminClient
@@ -19,13 +25,15 @@ namespace DotYou.AdminClient
         private readonly UserContext _user;
         private AuthState _authState;
         private readonly IAdminIdentityAttributeClient _client;
-        private ILocalStorageService _localStorage;
+        private readonly NavigationManager _nav;
+        private readonly IClientNotificationEvents _notificationEventHandler;
 
-        public AppState(AuthState authState, IAdminIdentityAttributeClient client, ILocalStorageService localStorage)
+        public AppState(AuthState authState, IAdminIdentityAttributeClient client, NavigationManager nav, IClientNotificationEvents notificationEventHandler)
         {
             _authState = authState;
             _client = client;
-            _localStorage = localStorage;
+            _nav = nav;
+            _notificationEventHandler = notificationEventHandler;
             _user = new UserContext();
         }
 
@@ -62,7 +70,7 @@ namespace DotYou.AdminClient
                     if (nameResponse.Content != null)
                     {
                         var name = nameResponse.Content;
-                        _user.Identity = "TODO";
+                        _user.Identity = _authState.AuthResult.DotYouId;
                         _user.Surname = name.Surname;
                         _user.GivenName = name.Personal;
                     }
@@ -71,12 +79,54 @@ namespace DotYou.AdminClient
                     {
                         _user.AvatarUri = uriResponse.Content;
                     }
+
+                    await InitializeNotifications();
                 }
             }
             catch (Exception ex)
             {
                 throw new Exception("Failed to initialize App state", ex);
             }
+        }
+        
+        private HubConnection connection;
+    
+        private async Task InitializeNotifications()
+        {
+            UriBuilder b = new UriBuilder(_nav.BaseUri);
+            b.Path = "live/notifications";
+
+            connection = new HubConnectionBuilder()
+                .WithUrl(b.Uri.AbsoluteUri, options =>
+                {
+                    //TODO: SkipNegotiation disabled for prototrial so we can use the auth token
+                    options.SkipNegotiation = true;    
+                    options.Transports = HttpTransportType.WebSockets;
+                    options.AccessTokenProvider = ()=>
+                    {
+                        Guid token = _authState.AuthResult?.Token ?? Guid.Empty;
+                        return Task.FromResult(token.ToString());
+                    };
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            // connection.On<CircleInvite>(nameof(INotificationHub.NotificationOfCircleInvite), (invite) =>
+            // {
+            //     notificationEvents.BroadcastCircleInviteReceived(invite);
+            // });
+
+            connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
+            {
+                _notificationEventHandler.BroadcastConnectionRequestReceived(request);
+            });
+
+            connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
+            {
+                _notificationEventHandler.BroadcastConnectionRequestAccepted(acceptedRequest);
+            });
+
+            await connection.StartAsync();
         }
     }
 }

@@ -24,7 +24,7 @@ namespace DotYou.AdminClient.Services
 
         public void BroadcastConnectionRequestReceived(ConnectionRequest request)
         {
-            Console.WriteLine($"Broadcast incoming request from {request.Sender}");
+            Console.WriteLine($"Broadcast incoming request from {request.SenderDotYouId}");
             ConnectionRequestReceived?.Invoke(request);
         }
     }

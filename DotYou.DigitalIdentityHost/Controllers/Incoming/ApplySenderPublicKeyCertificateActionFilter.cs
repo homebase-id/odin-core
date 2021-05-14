@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Claims;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -22,9 +23,14 @@ namespace DotYou.TenantHost.Controllers.Incoming
             if (instances.Any())
             {
                 var cert = context.HttpContext.User.FindFirstValue(DotYouClaimTypes.PublicKeyCertificate);
+                
                 foreach (var rc in instances)
                 {
-                    ((IRequireSenderCertificate) rc).SenderPublicKeyCertificate = cert;
+                    var rsc = (IRequireSenderCertificate) rc; 
+                    rsc.SenderPublicKeyCertificate = cert;
+                    
+                    //No null check here because the identity must be set at authentication.
+                    rsc.SenderDotYouId = (DotYouIdentity)context.HttpContext.User.Identity.Name;
                 }
             }
         }

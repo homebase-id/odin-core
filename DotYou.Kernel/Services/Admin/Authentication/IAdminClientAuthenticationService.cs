@@ -12,14 +12,14 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <summary>
         /// Authenticates a user for this <see cref="DotYouIdentity"/>.  Returns a token which can be later used
         /// to determine if the user is still authenticated.
-        ///
+        /// 
         /// Note: for #prototrial, we are only using a password yet need to find a stronger methdod, such as certificate or otherwise.
         /// </summary>
         /// <param name="password"></param>
         /// <param name="ttlSeconds"></param>
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<Guid> Authenticate(string password, int ttlSeconds);
+        Task<AuthenticationResult> Authenticate(string password, int ttlSeconds);
         
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  

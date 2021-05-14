@@ -20,12 +20,15 @@ namespace DotYou.Types.Circle
         
         public string SenderPublicKeyCertificate { get; set; }
         
+        public DotYouIdentity SenderDotYouId { get; set; }
+
         public void Validate()
         {
             Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);
-            Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty();
-            Guard.Argument(RecipientGivenName, nameof(RecipientGivenName)).NotEmpty();
-            Guard.Argument(RecipientSurname, nameof(RecipientSurname)).NotEmpty();
+            Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
+            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(RecipientGivenName, nameof(RecipientGivenName)).NotEmpty().NotNull();
+            Guard.Argument(RecipientSurname, nameof(RecipientSurname)).NotEmpty().NotNull();
         }
 
     }

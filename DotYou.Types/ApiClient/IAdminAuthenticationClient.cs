@@ -9,7 +9,7 @@ namespace DotYou.Types.ApiClient
         private const string RootPath = "/api/admin/authentication";
 
         [Post(RootPath)]
-        Task<ApiResponse<Guid>> Authenticate(string password);
+        Task<ApiResponse<AuthenticationResult>> Authenticate(string password);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);

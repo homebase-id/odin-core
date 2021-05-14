@@ -38,42 +38,11 @@
 
 @code
 {
-    private HubConnection connection;
     
     protected override async Task OnInitializedAsync()
     {
-        UriBuilder b = new UriBuilder(_nav.BaseUri);
-        b.Path = "live/notifications";
-
-        connection = new HubConnectionBuilder()
-            .WithUrl(b.Uri.AbsoluteUri, options =>
-            {
-                options.SkipNegotiation = true;
-                options.Transports = HttpTransportType.WebSockets;
-                options.AccessTokenProvider= ()=> Task.FromResult(_authState.Token.ToString());
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        // connection.On<CircleInvite>(nameof(INotificationHub.NotificationOfCircleInvite), (invite) =>
-        // {
-        //     notificationEvents.BroadcastCircleInviteReceived(invite);
-        // });
-
-        connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
-        {
-            Console.WriteLine("connection request came in.");
-            _notificationEvents.BroadcastConnectionRequestReceived(request);
-        });
-
-        connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
-        {
-            _notificationEvents.BroadcastConnectionRequestAccepted(acceptedRequest);
-        });
-
-        await connection.StartAsync();
+       
     }
-
 
     protected override void OnAfterRender(bool isFirstRender)
     {

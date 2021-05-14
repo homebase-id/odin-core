@@ -4,6 +4,7 @@ using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
+using DotYou.Types;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Authentication
@@ -29,7 +30,7 @@ namespace DotYou.Kernel.Services.Authentication
         {
         }
         
-        public Task<Guid> Authenticate(string password, int ttlSeconds)
+        public Task<AuthenticationResult> Authenticate(string password, int ttlSeconds)
         {
             //TODO: Handle multiple clients (i.e. phone, other browser instances, etc.)
             
@@ -43,7 +44,11 @@ namespace DotYou.Kernel.Services.Authentication
             
             WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.Save(entry));
 
-            return Task.FromResult(entry.Id);
+            return Task.FromResult(new AuthenticationResult()
+            {
+                Token = entry.Id,
+                DotYouId =  this.Context.DotYouId
+            });
         }
 
         public async Task<bool> IsValidToken(Guid token)

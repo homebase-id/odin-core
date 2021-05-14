@@ -8,7 +8,7 @@ using DotYou.Types.Identity;
 using Identity.DataType.Attributes;
 using Refit;
 
-namespace DotYou.TenantHost.WebAPI.Tests
+namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {
     public class AdminIdentityAttributeTests
     {

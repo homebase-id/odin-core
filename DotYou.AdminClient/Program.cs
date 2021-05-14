@@ -4,8 +4,8 @@ using Blazor.AdminLte;
 using Blazored.LocalStorage;
 using Blazored.Toast;
 using DotYou.AdminClient.Services;
-using DotYou.Types;
 using DotYou.Types.ApiClient;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
@@ -53,8 +53,10 @@ namespace DotYou.AdminClient
             {
                 var auth = svc.GetRequiredService<AuthState>();
                 var client = svc.GetRequiredService<IAdminIdentityAttributeClient>();
-                var storage = svc.GetRequiredService<ILocalStorageService>();
-                var state = new AppState(auth, client, storage);
+                var nav = svc.GetRequiredService<NavigationManager>();
+                var events = svc.GetRequiredService<IClientNotificationEvents>();
+                
+                var state = new AppState(auth, client, nav, events);
                 return state;
             });
             

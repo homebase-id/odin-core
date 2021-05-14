@@ -3,13 +3,14 @@ using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
 using DotYou.Types.ApiClient;
+using Newtonsoft.Json;
 
 namespace DotYou.AdminClient
 {
     public class AuthState
     {
-        private const string TOKEN_STORAGE_KEY = "TK";
-        private Guid _token;
+        private const string AUTH_RESULT_STORAGE_KEY = "ARSK";
+        private AuthenticationResult _authResult;
         private bool _isAuthenticated;
         private IAdminAuthenticationClient _client;
         private ILocalStorageService _localStorage;
@@ -25,46 +26,64 @@ namespace DotYou.AdminClient
             get => _isAuthenticated;
         }
 
-        public Guid Token
+        public AuthenticationResult AuthResult
         {
-            get => _token;
+            get => _authResult;
         }
 
         public async Task<bool> Login(string password)
         {
-            await _localStorage.RemoveItemAsync(TOKEN_STORAGE_KEY);
+            await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
             var response = await _client.Authenticate(password);
 
             if (response.IsSuccessStatusCode)
             {
-                _token = response.Content;
+                _authResult = response.Content;
                 await this.InitializeContext();
+
                 return true;
             }
 
             return false;
         }
 
+        private async Task<AuthenticationResult> GetValidatedResultFromStorage()
+        {
+            var exists = await _localStorage.ContainKeyAsync(AUTH_RESULT_STORAGE_KEY);
+            if (exists)
+            {
+                string json = await _localStorage.GetItemAsync<string>(AUTH_RESULT_STORAGE_KEY);
+                var cachedResult = JsonConvert.DeserializeObject<AuthenticationResult>(json);
+
+                if (cachedResult == null)
+                {
+                    return null;
+                }
+
+                var response = await _client.IsValid(cachedResult.Token);
+                await response.EnsureSuccessStatusCodeAsync();
+                
+                var isValid = response.Content;
+                if (isValid)
+                {
+                    return cachedResult;
+                }
+            }
+
+            return null;
+            
+        }
+
         public async Task InitializeContext()
         {
             try
             {
-                var exists = await _localStorage.ContainKeyAsync(TOKEN_STORAGE_KEY);
-
-                if (exists)
+                var r = _authResult ?? await GetValidatedResultFromStorage();
+                if (r != null)
                 {
-                    _token = await _localStorage.GetItemAsync<Guid>(TOKEN_STORAGE_KEY);
-                }
-
-                var response = await _client.IsValid(_token);
-
-                await response.EnsureSuccessStatusCodeAsync();
-
-                _isAuthenticated = response.Content;
-
-                if (_isAuthenticated)
-                {
-                    await _localStorage.SetItemAsync(TOKEN_STORAGE_KEY, _token);
+                    _authResult = r;
+                    _isAuthenticated = true;
+                    await _localStorage.SetItemAsync(AUTH_RESULT_STORAGE_KEY, JsonConvert.SerializeObject(_authResult));
                 }
             }
             catch (Exception ex)

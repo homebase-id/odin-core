@@ -26,6 +26,7 @@ using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
+using DotYou.Kernel.Services.Contacts;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;

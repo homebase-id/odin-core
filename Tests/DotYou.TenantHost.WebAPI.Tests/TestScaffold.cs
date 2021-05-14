@@ -95,7 +95,9 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
-            var newToken = response.Content;
+            var result = response.Content;
+            Assert.NotNull(result, "No authentication result returned");
+            var newToken = result.Token;
             Assert.IsTrue(newToken != Guid.Empty);
 
             tokens.Add(identity, newToken);

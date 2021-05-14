@@ -20,7 +20,7 @@ namespace DotYou.AdminClient
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            request.Headers.Add(DotYouHeaderNames.AuthToken, _state.Token.ToString());
+            request.Headers.Add(DotYouHeaderNames.AuthToken, _state.AuthResult.Token.ToString());
             return base.SendAsync(request, cancellationToken);
         }
     }

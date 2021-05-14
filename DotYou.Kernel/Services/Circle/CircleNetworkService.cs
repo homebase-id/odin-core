@@ -57,14 +57,14 @@ namespace DotYou.Kernel.Services.Circle
             request.Recipient = header.Recipient;
             request.Message = header.Message;
             
-            request.Sender = this.Context.DotYouId;
+            request.SenderDotYouId = this.Context.DotYouId;
             request.DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
             //TODO: these need to pull from the identity attribute server using the public profile attributes
             request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;
             request.SenderSurname = this.Context.TenantCertificate.OwnerName.Surname;
 
-            this.Logger.LogInformation($"[{request.Sender}] is sending a request to the server of  [{request.Recipient}]");
+            this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
             await base.HttpProxy.PostJson<ConnectionRequest>(request.Recipient, "/api/incoming/invitations/connect", request);
 
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
@@ -75,7 +75,7 @@ namespace DotYou.Kernel.Services.Circle
         {
             //note: this would occur during the operation verification process
             request.Validate();
-            this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.Sender}]");
+            this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
              
             this.Notify.ConnectionRequestReceived(request).Wait();
@@ -146,7 +146,7 @@ namespace DotYou.Kernel.Services.Circle
 
             request.Validate();
 
-            this.Logger.LogInformation($"Accept Connection request called for sender {request.Sender} to {request.Recipient}");
+            this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
             var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
             var ec = await _contactService.GetByDomainName(cert.DotYouId);
@@ -176,7 +176,7 @@ namespace DotYou.Kernel.Services.Circle
                 RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
             };
 
-            var response = await this.HttpProxy.PostJson(request.Sender, "api/incoming/invitations/establishconnection", acceptedReq);
+            var response = await this.HttpProxy.PostJson(request.SenderDotYouId, "api/incoming/invitations/establishconnection", acceptedReq);
             
             if(!response)
             {

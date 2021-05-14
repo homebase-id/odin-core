@@ -12,9 +12,6 @@
             <div class="mt-5"></div>
             <EditForm Model="@model">
                 <FormGroup>
-                    <Input @bind-Value="username"/>
-                </FormGroup>
-                <FormGroup>
                     <Input @bind-Value="password"/>
                 </FormGroup>
                 <div style="max-width:100px">
@@ -29,12 +26,6 @@
 
 @code {
     
-    private InputState username = new InputState()
-    {
-        Identifier = "dotYouId",
-        Label = "dotYou Id",
-        Placeholder = "Who are you?"
-    };
 
     private InputState password = new InputState()
     {
@@ -54,7 +45,7 @@
         var success = await appState.Login(password.Value);
         if (success)
         {
-            nav.NavigateTo(nav.Uri, true);
+            nav.NavigateTo(nav.Uri, false);
         }
     }
 

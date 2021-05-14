@@ -86,26 +86,26 @@
         //update notifications bar
         this.notifications.Add(new Notification()
         {
-            MessageText = $"{request.Sender} invited you to connect",
+            MessageText = $"{request.SenderDotYouId} invited you to connect",
             DateTimeReceived = request.DateSent
         });
 
-        string message = $"{request.Sender} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";
+        string message = $"{request.SenderDotYouId} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";
         _toastService.ShowInfo(message, "Connect!");
 
         StateHasChanged();
     }
 
-    void ConnectionRequestAccepted(EstablishConnectionRequest acceptedRequest)
+    void ConnectionRequestAccepted(EstablishConnectionRequest request)
     {
         //update notifications bar
         this.notifications.Add(new Notification()
         {
-            MessageText = $"{acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname} accepted your connection!",
+            MessageText = $"{request.RecipientGivenName} {request.RecipientSurname} accepted your connection!",
             //DateTimeReceived = acceptedRequest.
         });
         
-        string message = $"TODO: add domain ({acceptedRequest.RecipientGivenName} {acceptedRequest.RecipientSurname}) accepted your request!";
+        string message = $"{request.SenderDotYouId} ({request.RecipientGivenName} {request.RecipientSurname}) accepted your request!";
         _toastService.ShowInfo(message, "You are Connected!");
         
         StateHasChanged();

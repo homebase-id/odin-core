@@ -1,14 +1,14 @@
 using System;
 using System.Linq;
-using DotYou.Types;
-using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
+using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
+using NUnit.Framework;
 using Refit;
 
-namespace DotYou.TenantHost.WebAPI.Tests
+namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {
     public class AdminAuthenticationTests
     {
@@ -29,7 +29,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         }
 
         [Test]
-        public async Task FrodoCanAuthenticateOnHisDigitalIdentityHost()
+        public async Task FrodoCanLogInAndOutOfHisDigitalIdentityHost()
         {
             DotYouIdentity user = scaffold.Frodo;
             using var client = scaffold.CreateHttpClient(user);
@@ -43,27 +43,12 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var validationResponse = await svc.IsValid(token);
             Assert.IsTrue(validationResponse.IsSuccessStatusCode, $"Failed to execute validation auth token for {user}.  Token value is {token}");
             Assert.IsTrue(validationResponse.Content, $"Validation response for {user} was false.  Token value is {token}");
-        }
 
-        [Test]
-        public async Task FrodoCanLogoutOfHisDigitalIdentityHost()
-        {
-            DotYouIdentity user = scaffold.Frodo;
-            using var client = scaffold.CreateHttpClient(user);
-            var svc = RestService.For<IAdminAuthenticationClient>(client);
-
-            string password = "";
-            var authenticateResponse = await svc.Authenticate(password);
-
-            Assert.IsTrue(authenticateResponse.IsSuccessStatusCode, "Failed to authenticate frodo");
-            Assert.IsTrue(authenticateResponse.Content != Guid.Empty);
-
-            Guid token = authenticateResponse.Content;
             await svc.Expire(token);
 
-            var validationResponse = await svc.IsValid(token);
-            Assert.IsTrue(validationResponse.IsSuccessStatusCode, $"Failed to execute validation for auth token for {user}.  Token value is {token}");
-            Assert.IsFalse(validationResponse.Content, $"Validation response for {user} was true when it should expired.  Token value is {token}");
+            var secondValidationResponse = await svc.IsValid(token);
+            Assert.IsTrue(secondValidationResponse.IsSuccessStatusCode, $"Failed to execute validation for auth token for {user}.  Token value is {token}");
+            Assert.IsFalse(secondValidationResponse.Content, $"Validation response for {user} was true when it should expired.  Token value is {token}");
         }
 
         // public async void FrodoCanExtendHisAuthenticationTokenLife()

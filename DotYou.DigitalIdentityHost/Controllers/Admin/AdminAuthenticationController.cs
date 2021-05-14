@@ -25,8 +25,8 @@ namespace DotYou.TenantHost.Controllers.Admin
         [HttpPost]
         public async Task<IActionResult> Authenticate(string password)
         {
-            Guid token = await _authService.Authenticate(password, 100);
-            return new JsonResult(token);
+            var result = await _authService.Authenticate(password, 100);
+            return new JsonResult(result);
         }
 
         [HttpPost("extend")]

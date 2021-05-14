@@ -7,9 +7,9 @@ namespace DotYou.Types
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
     [JsonConverter(typeof(DotYouIdentityConverter))]
-    public struct DotYouIdentity
+    public readonly struct DotYouIdentity
     {
-        private string _identifier;
+        private readonly string _identifier;
 
         public DotYouIdentity(string identifier)
         {
@@ -22,13 +22,7 @@ namespace DotYou.Types
         }
 
         [JsonIgnore]
-        public string Id
-        {
-            get
-            {
-                return _identifier;
-            }
-        }
+        public string Id => _identifier;
 
         public static bool operator ==(DotYouIdentity d1, DotYouIdentity d2)
         {
@@ -55,7 +49,7 @@ namespace DotYou.Types
 
         public override int GetHashCode()
         {
-            return _identifier.GetHashCode();
+            return _identifier?.GetHashCode() ?? 0;
         }
         public override string ToString()
         {

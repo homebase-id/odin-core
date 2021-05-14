@@ -10,7 +10,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using DotYou.Types.ApiClient;
 
-namespace DotYou.TenantHost.WebAPI.Tests
+namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {
     public class ContactServiceTests
     {

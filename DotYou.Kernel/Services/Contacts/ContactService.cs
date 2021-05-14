@@ -1,14 +1,13 @@
-﻿using DotYou.Kernel;
-using DotYou.Kernel.Services;
-using DotYou.Types;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Types;
+using Identity.Web.Services.Contacts;
+using Microsoft.Extensions.Logging;
 
-namespace Identity.Web.Services.Contacts
+namespace DotYou.Kernel.Services.Contacts
 {
     public class ContactService : DotYouServiceBase, IContactService
     {
