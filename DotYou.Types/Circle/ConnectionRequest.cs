@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using Dawn;
 using Newtonsoft.Json;
 
@@ -11,12 +8,6 @@ namespace DotYou.Types.Circle
     {
         [JsonConstructor]
         public ConnectionRequest() { }
-
-        // public ConnectionRequest(string senderPublicKey)
-        // {
-        //     this.SenderPublicKeyCertificate
-        // }
-
 
         /// <summary>
         /// Individual who sent the invite
@@ -36,7 +27,7 @@ namespace DotYou.Types.Circle
         public string SenderSurname { get; set; }
 
         /// <summary>
-        /// The date the invititation was sent from the <see cref="SenderDotYouId"/>'s server.
+        /// The date the invitation was sent from the <see cref="SenderDotYouId"/>'s server.
         /// </summary>
         public Int64 DateSent { get; set; }
         

@@ -10,7 +10,7 @@ namespace DotYou.Types.Circle
     public interface IRequireSenderCertificate
     {
         /// <summary>
-        /// Specifies the pubilc key certificate of the <see cref="DotYouIdentity"/> who sent this message
+        /// Specifies the public key certificate of the <see cref="DotYouIdentity"/> who sent this message
         /// </summary>
         string SenderPublicKeyCertificate { get; set; }
 

@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using DotYou.Types.Circle;
+using DotYou.Types.Messaging;
 
 namespace DotYou.Types.SignalR
 {
@@ -10,6 +11,8 @@ namespace DotYou.Types.SignalR
         Task ConnectionRequestReceived(ConnectionRequest request);
 
         Task ConnectionRequestAccepted(EstablishConnectionRequest request);
+
+        Task NewEmailReceived(Message message);
     }
 
 }

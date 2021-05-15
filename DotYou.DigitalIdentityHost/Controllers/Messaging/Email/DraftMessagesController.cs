@@ -10,13 +10,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace DotYou.TenantHost.Controllers.Messaging.Email
 {
 
-    [Route("api/messages/sent")]
+    [Route("api/messages/drafts")]
     [ApiController]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
-    public class SentMessagesController : ControllerBase
+    public class DraftMessagesController : ControllerBase
     {
         IMessagingService _messagingService;
-        public SentMessagesController(IMessagingService messagingService)
+        public DraftMessagesController(IMessagingService messagingService)
         {
             _messagingService = messagingService;
         }
@@ -24,14 +24,14 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
         [HttpGet]
         public async Task<PagedResult<Message>> GetList()
         {
-            var result = await _messagingService.SentItems.GetList(PageOptions.Default);
+            var result = await _messagingService.Drafts.GetList(PageOptions.Default);
             return result;
         }
 
         [HttpGet("{id}")]
         public async Task<Message> Get(Guid id)
         {
-            var message = await _messagingService.SentItems.Get(id);
+            var message = await _messagingService.Drafts.Get(id);
             return message;
         }
 
@@ -41,13 +41,13 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
         [HttpPost()]
         public void Post([FromBody] Message message)
         {
-            _messagingService.SentItems.Save(message);
+            _messagingService.Drafts.Save(message);
         }
         
         [HttpDelete("{id}")]
         public async void Delete(Guid id)
         {
-            await _messagingService.SentItems.Delete(id);
+            await _messagingService.Drafts.Delete(id);
         }
     }
 }

@@ -12,6 +12,7 @@ using DotYou.Types;
 using DotYou.Types.ApiClient;
 using DotYou.Types.Circle;
 using DotYou.Types.Identity;
+using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http.Connections;
@@ -114,6 +115,11 @@ namespace DotYou.AdminClient
             // {
             //     notificationEvents.BroadcastCircleInviteReceived(invite);
             // });
+
+            _connection.On<Message>(nameof(INotificationHub.NewEmailReceived), (message) =>
+            {
+                _notificationEventHandler.BroadcastNewEmailReceived(message);
+            });
 
             _connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
             {

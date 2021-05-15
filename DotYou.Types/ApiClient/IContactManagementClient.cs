@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using DotYou.Types.Messaging;
 using Refit;
 
 namespace DotYou.Types.ApiClient

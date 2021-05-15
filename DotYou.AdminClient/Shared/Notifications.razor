@@ -19,12 +19,12 @@
     </NavBarDropDown>*@
 
 <NavBarDropDown>
-    <NavBarBadge Color="Color.Info" Icon="far fa-bell">@(notifications.Count()>0 ? notifications.Count() : "")</NavBarBadge>
+    <NavBarBadge Color="Color.Info" Icon="far fa-bell">@(_notifications.Count()>0 ? _notifications.Count() : "")</NavBarBadge>
     <NavBarDropDownMenu>
-        <DropdownHeader>@notifications.Count() Notifications</DropdownHeader>
+        <DropdownHeader>@_notifications.Count() Notifications</DropdownHeader>
         <DropdownDivider></DropdownDivider>
 
-        @foreach (var n in notifications)
+        @foreach (var n in _notifications)
         {
             <NotificationMessage DateTime="DateTimeOffset.FromUnixTimeSeconds(n.DateTimeReceived).DateTime" Icon="fas fa-envelope mr-2">
                 <Message>@n.MessageText</Message>
@@ -44,7 +44,7 @@
         public string MessageText;
     }
 
-    private List<Notification> notifications = new List<Notification>();
+    private List<Notification> _notifications = new List<Notification>();
 
     private void SeeAllMessages(Tuple<IDropdownFooter, MouseEventArgs> args)
     {
@@ -59,8 +59,23 @@
     protected override async Task OnInitializedAsync()
     {
         _notificationEvents.ConnectionRequestReceived += ConnectionRequestReceived;
-        //notificationEvents.CircleInviteReceieved += CircleInviteReceieved;
+        //notificationEvents.CircleInviteReceived += CircleInviteReceived;
+        _notificationEvents.NewEmailReceived += NewEmailReceived;
         _notificationEvents.ConnectionRequestAccepted += ConnectionRequestAccepted;
+    }
+
+    private void NewEmailReceived(Message msg)
+    {
+        this._notifications.Add(new Notification()
+        {
+            MessageText = $"{msg.SenderDotYouId} sent you an email",
+            DateTimeReceived = msg.Received
+        });
+
+        string message = $"{msg.Topic}";
+        _toastService.ShowInfo(message, "New Email");
+
+        StateHasChanged();
     }
 
 
@@ -82,9 +97,9 @@
 
     void ConnectionRequestReceived(ConnectionRequest request)
     {
-        Console.WriteLine("requst event came in");
+        
         //update notifications bar
-        this.notifications.Add(new Notification()
+        this._notifications.Add(new Notification()
         {
             MessageText = $"{request.SenderDotYouId} invited you to connect",
             DateTimeReceived = request.DateSent
@@ -99,7 +114,7 @@
     void ConnectionRequestAccepted(EstablishConnectionRequest request)
     {
         //update notifications bar
-        this.notifications.Add(new Notification()
+        this._notifications.Add(new Notification()
         {
             MessageText = $"{request.RecipientGivenName} {request.RecipientSurname} accepted your connection!",
             //DateTimeReceived = acceptedRequest.

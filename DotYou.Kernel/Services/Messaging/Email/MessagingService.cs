@@ -1,43 +1,32 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
 using DotYou.Types.Messaging;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Messaging.Email
 {
     public class MessagingService : DotYouServiceBase, IMessagingService
     {
-        const string MESSAGE_COLLECTION = "messages";
+        private IMessageFolderService _inbox;
+        private IMessageFolderService _drafts;
+        private IMessageFolderService _sentItems;
 
-        public MessagingService(DotYouContext context, ILogger<MessagingService> logger) : base(context, logger, null) { }
-        
-        public Task SaveMessage(Message message)
+        public MessagingService(DotYouContext context, ILogger<SimpleMessageFolderService> logger) : base(context, logger, null)
         {
-            WithTenantStorage<Message>(MESSAGE_COLLECTION, storage => storage.Save(message));
-
-            return Task.CompletedTask;
+            _inbox = new SimpleMessageFolderService(context, "Inbox", logger);
+            _sentItems = new SimpleMessageFolderService(context, "SentItems", logger);
+            _drafts = new SimpleMessageFolderService(context, "Drafts", logger);
         }
 
-        public async Task<Message> Get(Guid id)
-        {
-            return await WithTenantStorageReturnSingle<Message>(MESSAGE_COLLECTION, storage => storage.Get(id));
-        }
+        public IMessageFolderService Inbox => _inbox;
 
-        public Task<PagedResult<Message>> GetList(PageOptions page)
-        {
-            return WithTenantStorageReturnList<Message>(MESSAGE_COLLECTION, storage => storage.GetList(page));
-        }
+        public IMessageFolderService Drafts => _drafts;
 
-        public Task Delete(Guid id)
-        {
-            WithTenantStorage<Message>(MESSAGE_COLLECTION, s => s.Delete(id));
-            return Task.CompletedTask;
-        }
+        public IMessageFolderService SentItems => _sentItems;
 
         public Task SendMessage(Message message)
         {
@@ -55,9 +44,16 @@ namespace DotYou.Kernel.Services.Messaging.Email
                 // know why, perhaps it's something to do with the json formatting)
                 client.PostAsJsonAsync<Message>(b.Uri, (Message)message);
             }
-
+            
             return Task.CompletedTask;
         }
 
+        public void RouteIncomingMessage(Message message)
+        {
+            //later route these to the appropriate/categoriezed folder
+            this.Inbox.Save(message);
+
+            this.Notify.NewEmailReceived(message);
+        }
     }
 }

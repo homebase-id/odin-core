@@ -20,7 +20,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
         {
             //TODO: Move this to a generic interface that sets it for all other incoming classes
             message.Received = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            _messagingService.SaveMessage(message);
+            _messagingService.RouteIncomingMessage(message);
         }
     }
 }

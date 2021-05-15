@@ -13,7 +13,7 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
     /// Retrieves messages for the Inbox.  Also acts to accept messages 
     /// being sent to the tenant
     /// </summary>
-    [Route("api/messages")]
+    [Route("api/messages/inbox")]
     [ApiController]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class InboxController : ControllerBase
@@ -27,21 +27,21 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
         [HttpGet]
         public async Task<PagedResult<Message>> GetList()
         {
-            var result = await _messagingService.GetList(PageOptions.Default);
+            var result = await _messagingService.Inbox.GetList(PageOptions.Default);
             return result;
         }
 
         [HttpGet("{id}")]
         public async Task<Message> Get(Guid id)
         {
-            var message = await _messagingService.Get(id);
+            var message = await _messagingService.Inbox.Get(id);
             return message;
         }
 
         /// <summary>
         /// POSTing to the Inbox saves the message for the current tenant
         /// </summary>
-        [HttpPost("inbox")]
+        [HttpPost()]
         public void Post([FromBody] Message message)
         {
             /// POST TO /api/messages/inbox
@@ -49,13 +49,13 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
             // perhaps the rules of the messaging service will be sufficient as it
             // has to scan many items.
             message.Received = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            _messagingService.SaveMessage(message);
+            _messagingService.Inbox.Save(message);
         }
         
         [HttpDelete("{id}")]
         public async void Delete(Guid id)
         {
-            await _messagingService.Delete(id);
+            await _messagingService.Inbox.Delete(id);
         }
     }
 }
