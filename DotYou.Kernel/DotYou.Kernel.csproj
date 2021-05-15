@@ -15,4 +15,8 @@
     <ProjectReference Include="..\DotYou.CertificateRegistry\DotYou.CertificateRegistry.csproj" />
     <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\Messaging\Chat" />
+  </ItemGroup>
 </Project>

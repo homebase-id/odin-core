@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.Types;
 
-namespace Identity.Web.Services.Contacts
+namespace DotYou.Kernel.Services.Contacts
 {
     /// <summary>
     /// Services for managing, importing, and connecting with contacts.

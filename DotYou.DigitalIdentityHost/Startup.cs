@@ -1,23 +1,15 @@
-using DotYou.Kernel;
-using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
-using DotYou.Types.Circle;
-using Identity.Web.Services.Contacts;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.IO;
-using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -27,6 +19,7 @@ using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
@@ -59,18 +52,15 @@ namespace DotYou.TenantHost
             services.AddHttpContextAccessor();
 
             services.AddAuthentication()
-                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op =>
-                {
-                    op.LoginUri = "/login";
-                })
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op => { op.LoginUri = "/login"; })
                 .AddCertificate(DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = true;
-                
+
                     //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                     //options.RevocationMode = X509RevocationMode.NoCheck
-                
+
                     options.Events = new CertificateAuthenticationEvents()
                     {
                         OnCertificateValidated = this.CertificateValidated,
@@ -90,10 +80,7 @@ namespace DotYou.TenantHost
             services.AddAuthorization(options => new PolicyConfig().AddPolicies(options));
 
             services.AddMemoryCache();
-            services.AddSignalR(options =>
-            {
-                options.EnableDetailedErrors = true;
-            });
+            services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
@@ -105,15 +92,13 @@ namespace DotYou.TenantHost
                 return new AdminAdminIdentityAttributeService(context, logger);
             });
 
-            services
-                .AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
-                    svc =>
-                    {
-                        var context = ResolveContext(svc);
-                        var logger =
-                            svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
-                        return new AdminClientPrototrialSimplePasswordAuthenticationService(context, logger);
-                    });
+            services.AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
+                svc =>
+                {
+                    var context = ResolveContext(svc);
+                    var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+                    return new AdminClientPrototrialSimplePasswordAuthenticationService(context, logger);
+                });
 
             services.AddScoped<IContactService, ContactService>(svc =>
             {
@@ -130,6 +115,13 @@ namespace DotYou.TenantHost
 
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 return new CircleNetworkService(context, contactSvc, logger, hub);
+            });
+            
+            services.AddScoped<IMessagingService, MessagingService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<MessagingService>>();
+                return new MessagingService(context, logger);
             });
         }
 

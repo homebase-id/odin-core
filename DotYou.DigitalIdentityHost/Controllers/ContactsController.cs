@@ -3,8 +3,8 @@ using System.Linq.Expressions;
 using System.Net;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
-using Identity.Web.Services.Contacts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

@@ -4,7 +4,6 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
-using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Contacts

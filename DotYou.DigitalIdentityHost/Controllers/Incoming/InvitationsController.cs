@@ -25,12 +25,10 @@ namespace DotYou.TenantHost.Controllers.Incoming
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly IHubContext<NotificationHub, INotificationHub> _hub;
 
-        public InvitationsController(ICircleNetworkService circleNetwork, IHubContext<NotificationHub, INotificationHub> hub)
+        public InvitationsController(ICircleNetworkService circleNetwork)
         {
             _circleNetwork = circleNetwork;
-            this._hub = hub;
         }
 
         [HttpPost("connect")]

@@ -1,11 +1,11 @@
 ﻿using DotYou.Types;
 using DotYou.Types.Circle;
-using Identity.Web.Services.Contacts;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;

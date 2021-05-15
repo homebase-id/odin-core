@@ -27,7 +27,8 @@ namespace DotYou.AdminClient
         private readonly IAdminIdentityAttributeClient _client;
         private readonly NavigationManager _nav;
         private readonly IClientNotificationEvents _notificationEventHandler;
-
+        private HubConnection _connection;
+        
         public AppState(AuthState authState, IAdminIdentityAttributeClient client, NavigationManager nav, IClientNotificationEvents notificationEventHandler)
         {
             _authState = authState;
@@ -70,7 +71,7 @@ namespace DotYou.AdminClient
                     if (nameResponse.Content != null)
                     {
                         var name = nameResponse.Content;
-                        _user.Identity = _authState.AuthResult.DotYouId;
+                        _user.DotYouId = _authState.AuthResult.DotYouId;
                         _user.Surname = name.Surname;
                         _user.GivenName = name.Personal;
                     }
@@ -89,14 +90,12 @@ namespace DotYou.AdminClient
             }
         }
         
-        private HubConnection connection;
-    
         private async Task InitializeNotifications()
         {
             UriBuilder b = new UriBuilder(_nav.BaseUri);
             b.Path = "live/notifications";
 
-            connection = new HubConnectionBuilder()
+            _connection = new HubConnectionBuilder()
                 .WithUrl(b.Uri.AbsoluteUri, options =>
                 {
                     //TODO: SkipNegotiation disabled for prototrial so we can use the auth token
@@ -116,17 +115,17 @@ namespace DotYou.AdminClient
             //     notificationEvents.BroadcastCircleInviteReceived(invite);
             // });
 
-            connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
+            _connection.On<ConnectionRequest>(nameof(INotificationHub.ConnectionRequestReceived), (request) =>
             {
                 _notificationEventHandler.BroadcastConnectionRequestReceived(request);
             });
 
-            connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
+            _connection.On<EstablishConnectionRequest>(nameof(INotificationHub.ConnectionRequestAccepted), (acceptedRequest) =>
             {
                 _notificationEventHandler.BroadcastConnectionRequestAccepted(acceptedRequest);
             });
 
-            await connection.StartAsync();
+            await _connection.StartAsync();
         }
     }
 }

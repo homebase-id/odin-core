@@ -1,0 +1,65 @@
+﻿@page "/private/messaging/email"
+@inject HttpClient _http
+@inject NavigationManager _nav
+<ContentHeader>
+    <Header>
+        <PageTitle Title="Email" />
+    </Header>
+</ContentHeader>
+<ContentMain>
+    <Row>
+        <Column Classes="col.sm._2">
+            <div class="list-group">
+                <a class="list-group-item list-group-item-action" @onclick="@(()=>SetView(View.Compose))" @onclick:preventDefault>Compose</a>
+                <a class="list-group-item list-group-item-action" @onclick="@(()=>SetView(View.Inbox))" @onclick:preventDefault>Inbox</a>
+                <a class="list-group-item list-group-item-action" @onclick="@(()=>SetView(View.Drafts))" @onclick:preventDefault>Drafts</a>
+                <a class="list-group-item list-group-item-action" @onclick="@(()=>SetView(View.SentItems))" @onclick:preventDefault>Sent</a>
+            </div>
+        </Column>
+        <Column Classes="col.sm._10">
+            @switch (_currentView)
+            {
+                case View.Overview:
+                    <Identity.Client.Private.Messaging.Email.Views.Overview />
+                    break;
+
+                case View.Compose:
+                    <Identity.Client.Private.Messaging.Email.Views.ComposeMessage />
+                    break;
+
+                case View.Inbox:
+                    <Identity.Client.Private.Messaging.Email.Views.Inbox />
+                    break;
+
+                case View.Drafts:
+                    <Identity.Client.Private.Messaging.Email.Views.Drafts />
+                    break;
+
+                case View.SentItems:
+                    <Identity.Client.Private.Messaging.Email.Views.SentItems />
+                    break;
+            }
+        </Column>
+    </Row>
+
+</ContentMain>
+
+@code {
+
+    public enum View
+    {
+        Overview = 0,
+        Compose = 1,
+        Inbox = 2,
+        Drafts = 3,
+        SentItems = 4
+    }
+
+    private View _currentView = View.Inbox;
+    private void SetView(View view)
+    {
+        this._currentView = view;
+        StateHasChanged();
+    }
+
+}

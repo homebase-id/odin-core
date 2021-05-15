@@ -1,0 +1,147 @@
+﻿@* @using DotYou.Types *@
+@* @inject HttpClient _http *@
+@* @inject NavigationManager _nav *@
+@* @inject AppState _state *@
+@* *@
+@* <H4>New Message</H4> *@
+@* <EditForm Model="@sendMessageModel"> *@
+@*     <FormGroup> *@
+@*         <label>To</label> *@
+@*         <BlazoredTypeahead SearchMethod="FindRecipient" *@
+@*                            @bind-Values="recipientsList" *@
+@*                            EnableDropDown="false" *@
+@*                            MinimumLength="2" *@
+@*                            placeholder="Search by name or identifier..."> *@
+@*             <SelectedTemplate Context="contact"> *@
+@*                 @contact.DotYouId (@contact.GivenName @contact.Surname) *@
+@*             </SelectedTemplate> *@
+@*             <HelpTemplate> *@
+@*                 Please enter a minimum of 2 characters to perform a search. *@
+@*             </HelpTemplate> *@
+@*             <NotFoundTemplate Context="searchText"> *@
+@*                 Add "@searchText" as a recipient<br /> *@
+@*             </NotFoundTemplate> *@
+@*             <ResultTemplate Context="contact"> *@
+@*                 @contact.DotYouId *@
+@*             </ResultTemplate> *@
+@*         </BlazoredTypeahead> *@
+@*     </FormGroup> *@
+@*     <FormGroup> *@
+@*         <Input @bind-Value="topic" /> *@
+@*     </FormGroup> *@
+@*     <FormGroup> *@
+@* *@
+@*         <BlazoredTextEditor @ref="messageBody"> *@
+@*             <ToolbarContent> *@
+@*                 <select class="ql-header"> *@
+@*                     <option selected=""></option> *@
+@*                     <option value="1"></option> *@
+@*                     <option value="2"></option> *@
+@*                     <option value="3"></option> *@
+@*                     <option value="4"></option> *@
+@*                     <option value="5"></option> *@
+@*                 </select> *@
+@*                 <span class="ql-formats"> *@
+@*                     <button class="ql-bold"></button> *@
+@*                     <button class="ql-italic"></button> *@
+@*                     <button class="ql-underline"></button> *@
+@*                     <button class="ql-strike"></button> *@
+@*                 </span> *@
+@*                 <span class="ql-formats"> *@
+@*                     <select class="ql-color"></select> *@
+@*                     <select class="ql-background"></select> *@
+@*                 </span> *@
+@*                 <span class="ql-formats"> *@
+@*                     <button class="ql-list" value="ordered"></button> *@
+@*                     <button class="ql-list" value="bullet"></button> *@
+@*                 </span> *@
+@*                 <span class="ql-formats"> *@
+@*                     <button class="ql-link"></button> *@
+@*                 </span> *@
+@*             </ToolbarContent> *@
+@*             <EditorContent> *@
+@* *@
+@*             </EditorContent> *@
+@*         </BlazoredTextEditor> *@
+@*     </FormGroup> *@
+@* *@
+@*     <div style="max-width:100px"> *@
+@*         <Button Size="ButtonSize.Normal" @onclick="@SendMessage">Send</Button> *@
+@*     </div> *@
+@* </EditForm> *@
+@* *@
+@* @code { *@
+@*      *@
+@*     private class SendMessageFormModel *@
+@*     { *@
+@*         public string Recipients { get; set; } *@
+@*         public string Topic { get; set; } *@
+@*         public string Body { get; set; } *@
+@*     } *@
+@*      *@
+@*     private bool showToast = false; *@
+@*     private InputState topic = new InputState() *@
+@*     { *@
+@*         Identifier = "topic", *@
+@*         Label = "Topic", *@
+@*         Placeholder = "What is this message about?", *@
+@*     }; *@
+@* *@
+@*     private BlazoredTextEditor messageBody; *@
+@*     private SendMessageFormModel sendMessageModel { get; set; } = new SendMessageFormModel(); *@
+@* *@
+@*     private IList<Contact> recipientsList = new List<Contact>(); *@
+@* *@
+@*     protected override void OnInitialized() *@
+@*     { *@
+@*     } *@
+@* *@
+@* *@
+@*     private async Task<IEnumerable<Contact>> FindRecipient(string text) *@
+@*     { *@
+@*         string uri = $"api/contacts/find?text={Uri.EscapeDataString(text)}"; *@
+@*         var page = await _http.GetFromJsonAsync<PagedResult<Contact>>(uri); *@
+@*         return page.Results; *@
+@*     } *@
+@* *@
+@*     private Task<Contact> NewRecipientAdded(string searchText) *@
+@*     { *@
+@*         var contact = new Contact() *@
+@*         { *@
+@*             DotYouId = (DotYouIdentity)searchText *@
+@*         }; *@
+@* *@
+@*         recipientsList.Add(contact); *@
+@*         return Task.FromResult(contact); *@
+@*     } *@
+@* *@
+@*     private async void ClearForm() *@
+@*     { *@
+@*         recipientsList.Clear(); *@
+@*         topic.Value = ""; *@
+@*         await messageBody.LoadHTMLContent(""); *@
+@*     } *@
+@* *@
+@*     private async void SendMessage() *@
+@*     { *@
+@* *@
+@*         string body = await messageBody.GetHTML(); *@
+@*         var sender = ""; *@
+@* *@
+@*         var message = new Message() *@
+@*         { *@
+@*             Id = Guid.NewGuid(), *@
+@*             Sender = sender, *@
+@*             Recipients = recipientsList.Select(r => (DotYouIdentity)r.DotYouId), *@
+@*             Topic = topic.Value, *@
+@*             Body = body *@
+@*         }; *@
+@* *@
+@*         //post to my sent messages and let my server take it from there *@
+@*         await _http.PostAsJsonAsync("/api/messages/sent", message); *@
+@*         showToast = true; *@
+@*         ClearForm(); *@
+@*         StateHasChanged(); *@
+@*     } *@
+@* *@
+@* } *@

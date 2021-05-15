@@ -1,0 +1,49 @@
+﻿@* @inject HttpClient _http *@
+@* *@
+@* <div Items="messages" ListGroupType="ListGroupType.Link" Context="message" Class="list-group mt-3"> *@
+@*     @foreach (var message in _messages) *@
+@*     { *@
+@*         <a href="#" class="list-group-item list-group-item-action"> *@
+@*             <div class="d-flex w-100 justify-content-between"> *@
+@*                 <h6 class="mb-1">@message.Topic</h6> *@
+@*                 <small>@message.Received.ToRelative()</small> *@
+@*             </div> *@
+@*             <div> *@
+@*                 <small>From: @message.Sender</small> *@
+@*             </div> *@
+@*             <p class="mt-2 mb-1">@((MarkupString)FormatBody(message))</p> *@
+@*         </a> *@
+@*     } *@
+@* </div> *@
+@* *@
+@* *@
+@* @code { *@
+@*     enum View *@
+@*     { *@
+@*         Inbox = 0, *@
+@*         Circles = 1, *@
+@*         Groups = 2, *@
+@*         Verified = 3, *@
+@*         External = 4 *@
+@*     } *@
+@* *@
+@*     private IList<Message> _messages = new List<Message>(); *@
+@*     private View _currentView = View.Inbox; *@
+@* *@
+@*     private string FormatBody(Message message) *@
+@*     { *@
+@*         var body = message.Body.Length > 250 ? $"{message.Body.Substring(0, 300)}..." : message.Body; *@
+@*         return body; *@
+@*     } *@
+@* *@
+@*     protected override async Task OnAfterRenderAsync(bool firstRender) *@
+@*     { *@
+@*         if (firstRender) *@
+@*         { *@
+@*             var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages"); *@
+@*             _messages = page.Results.OrderByDescending(m => m.Received).ToList(); *@
+@*             StateHasChanged(); *@
+@*         } *@
+@*         //return base.OnAfterRenderAsync(firstRender); *@
+@*     } *@
+@* } *@

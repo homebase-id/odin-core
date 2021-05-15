@@ -1,0 +1,32 @@
+﻿<a href="#" class="list-group-item list-group-item-action border-0" @onclick="HandleClick">
+    @if (NotificationCount.HasValue)
+    {
+        <div class="badge badge-success float-right">@NotificationCount.GetValueOrDefault()</div>
+    }
+
+    <div class="media">
+        <img src="/api/avatar/@Contact.DotYouId" class="rounded mr-1" alt="@Contact.ToString()" width="40" height="40">
+        <div class="media-body ml-3">
+            @Contact.ToString()
+            <div class="small"><span class="fas fa-circle chat-online"></span> Online</div>
+        </div>
+    </div>
+</a>
+
+@code {
+
+    [Parameter]
+    public Contact Contact { get; set; }
+
+    [Parameter]
+    public int? NotificationCount { get; set; }
+
+    [Parameter]
+    public EventCallback<Contact> OnClick { get; set; }
+
+    private void HandleClick()
+    {
+        OnClick.InvokeAsync(this.Contact);
+    }
+
+}

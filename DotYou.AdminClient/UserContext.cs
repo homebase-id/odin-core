@@ -11,7 +11,7 @@ namespace DotYou.AdminClient
         /// <summary>
         /// The identity of the actor (i.e. frodobaggins.me, odin.vahalla.com)
         /// </summary>
-        public string Identity { get; set; }
+        public string DotYouId { get; set; }
 
         public AvatarUri AvatarUri { get; set; }
 
