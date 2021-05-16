@@ -8,7 +8,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
     /// <summary>
     /// Methods for managing a message folder (Sent items, drafts, inbox, etc)
     /// </summary>
-    public interface IMessageFolderService
+    public interface IMailboxService
     {
         /// <summary>
         /// Returns a message by its Id
@@ -17,7 +17,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
         /// <returns></returns>
         Task<Message> Get(Guid id);
 
-        Task<PagedResult<Message>> GetList(PageOptions page);
+        Task<PagedResult<Message>> GetList(MessageFolder folder, PageOptions page);
 
         Task Delete(Guid id);
 

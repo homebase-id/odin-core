@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
-using DotYou.Types.ApiClient;
+using DotYou.Kernel.HttpClient;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 
@@ -18,17 +18,16 @@ namespace DotYou.Kernel.Services
     public abstract class DotYouServiceBase
     {
         ILogger _logger;
-        private readonly IDotYouHttpClientProxy _httpProxy;
+        private readonly HttpClientFactory _httpClientFactory;
         private readonly DotYouContext _context;
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
         
-        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub)
+        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, HttpClientFactory fac)
         {
             _logger = logger;
             _notificationHub = notificationHub;
             _context = context;
-            var proxy = new DotYouHttpClientProxy(context);
-            _httpProxy = proxy;
+            _httpClientFactory = fac;
         }
 
         /// <summary>
@@ -50,9 +49,9 @@ namespace DotYou.Kernel.Services
         /// <summary>
         /// Proxy which makes calls to other <see cref="DotYouIdentity"/> servers using a pre-configured HttpClient.
         /// </summary>
-        protected IDotYouHttpClientProxy HttpProxy
+        protected IOutgoingHttpClient CreateOutgoingHttpClient(DotYouIdentity dotYouId)
         {
-            get => _httpProxy;
+            return _httpClientFactory.CreateClient(dotYouId);
         }
 
         protected INotificationHub Notify

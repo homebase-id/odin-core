@@ -12,12 +12,16 @@ namespace DotYou.Types.Messaging
         
         public IEnumerable<DotYouIdentity> Recipients { get; set; }
 
+        public MessageFolder Folder { get; set; }
+
         public IEnumerable<string> Tags { get; set; }
 
         public Int64 Received { get; set; }
 
         public string Body { get; set; }
+        
         public string SenderPublicKeyCertificate { get; set; }
+        
         public DotYouIdentity SenderDotYouId { get; set; }
     }
 }

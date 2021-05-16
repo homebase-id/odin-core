@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Types.SignalR;
@@ -13,7 +14,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace DotYou.Kernel.Services.Circle
 {
 
-    //Need to consider using the recpient public key instead of the dotyouid
+    //Need to consider using the recipient public key instead of the dotyouid
     //meaning i can go to frodo site, click connect and the public ke cert has all i need to
     //make the connect-request as well as encrypt the request.
 
@@ -28,7 +29,7 @@ namespace DotYou.Kernel.Services.Circle
 
         private readonly IContactService _contactService;
         
-        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub) : base(context, logger, hub)
+        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, HttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _contactService = contactService;
         }
@@ -65,7 +66,7 @@ namespace DotYou.Kernel.Services.Circle
             request.SenderSurname = this.Context.TenantCertificate.OwnerName.Surname;
 
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
-            await base.HttpProxy.PostJson<ConnectionRequest>(request.Recipient, "/api/incoming/invitations/connect", request);
+            await base.CreateOutgoingHttpClient(request.Recipient).SendConnectionRequest(request);
 
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
             
@@ -176,9 +177,9 @@ namespace DotYou.Kernel.Services.Circle
                 RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
             };
 
-            var response = await this.HttpProxy.PostJson(request.SenderDotYouId, "api/incoming/invitations/establishconnection", acceptedReq);
+            var response = await this.CreateOutgoingHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
             
-            if(!response)
+            if(!response.Content)
             {
                 //TODO: add more info
                 throw new Exception("Failed to establish connection request");

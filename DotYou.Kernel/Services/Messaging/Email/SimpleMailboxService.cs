@@ -10,11 +10,11 @@ namespace DotYou.Kernel.Services.Messaging.Email
     /// <summary>
     /// Stores messages in the given folder name using LiteDb.
     /// </summary>
-    public class SimpleMessageFolderService : DotYouServiceBase, IMessageFolderService
+    public class SimpleMailboxService : DotYouServiceBase, IMailboxService
     {
         private readonly string _folderName;
 
-        public SimpleMessageFolderService(DotYouContext context, string folderName, ILogger<SimpleMessageFolderService> logger) : base(context, null, null)
+        public SimpleMailboxService(DotYouContext context, string folderName, ILogger<SimpleMailboxService> logger) : base(context, null, null, null)
         {
             _folderName = folderName;
         }
@@ -31,7 +31,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
             return await WithTenantStorageReturnSingle<Message>(FolderName, storage => storage.Get(id));
         }
 
-        public Task<PagedResult<Message>> GetList(PageOptions page)
+        public Task<PagedResult<Message>> GetList(MessageFolder folder, PageOptions page)
         {
             return WithTenantStorageReturnList<Message>(FolderName, storage => storage.GetList(page));
         }

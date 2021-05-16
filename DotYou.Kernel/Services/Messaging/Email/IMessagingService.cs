@@ -5,12 +5,8 @@ namespace DotYou.Kernel.Services.Messaging.Email
 {
     public interface IMessagingService
     {
-        IMessageFolderService Inbox { get; }
-        
-        IMessageFolderService Drafts { get; }
-        
-        IMessageFolderService SentItems { get; }
-        
+        IMailboxService Mailbox { get; }
+
         /// <summary>
         /// Sends the specified message to all recipients
         /// </summary>

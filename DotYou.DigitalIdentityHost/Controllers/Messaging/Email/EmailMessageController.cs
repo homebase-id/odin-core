@@ -9,45 +9,48 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.TenantHost.Controllers.Messaging.Email
 {
-
-    [Route("api/messages/sent")]
+    /// <summary>
+    /// Retrieves messages for the Inbox.  Also acts to accept messages 
+    /// being sent to the tenant
+    /// </summary>
+    [Route("api/messages")]
     [ApiController]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
-    public class SentMessagesController : ControllerBase
+    public class EmailMessageController : ControllerBase
     {
-        IMessagingService _messagingService;
-        public SentMessagesController(IMessagingService messagingService)
+        readonly IMessagingService _messagingService;
+        public EmailMessageController(IMessagingService messagingService)
         {
             _messagingService = messagingService;
         }
 
         [HttpGet]
-        public async Task<PagedResult<Message>> GetList()
+        public async Task<PagedResult<Message>> GetList(MessageFolder folder)
         {
-            var result = await _messagingService.SentItems.GetList(PageOptions.Default);
+            var result = await _messagingService.Mailbox.GetList(folder, PageOptions.Default);
             return result;
         }
 
         [HttpGet("{id}")]
         public async Task<Message> Get(Guid id)
         {
-            var message = await _messagingService.SentItems.Get(id);
+            var message = await _messagingService.Mailbox.Get(id);
             return message;
         }
 
         /// <summary>
-        /// POSTing to the Inbox saves the message for the current tenant
+        /// Sends an outgoing message to the <see cref="Message.Recipient"/>
         /// </summary>
-        [HttpPost()]
+        [HttpPost("send")]
         public void Post([FromBody] Message message)
         {
-            _messagingService.SentItems.Save(message);
+            _messagingService.SendMessage(message);
         }
         
         [HttpDelete("{id}")]
         public async void Delete(Guid id)
         {
-            await _messagingService.SentItems.Delete(id);
+            await _messagingService.Mailbox.Delete(id);
         }
     }
 }
