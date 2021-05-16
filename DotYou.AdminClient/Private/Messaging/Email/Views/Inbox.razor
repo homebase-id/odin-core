@@ -7,7 +7,7 @@
         <a href="#" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
                 <h6 class="mb-1">@message.Topic</h6>
-                <small>@message.Received.ToDateTimeOffset().ToRelative()</small>
+                <small>@message.ReceivedTimestamp.ToDateTimeOffset().ToRelative()</small>
             </div>
             <div>
                 <small>From: @message.SenderDotYouId</small>
@@ -42,7 +42,7 @@
         if (firstRender)
         {
             var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages");
-            _messages = page.Results.OrderByDescending(m => m.Received).ToList();
+            _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
             StateHasChanged();
         }
         //return base.OnAfterRenderAsync(firstRender);

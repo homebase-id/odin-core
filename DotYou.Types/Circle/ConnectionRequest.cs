@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace DotYou.Types.Circle
 {
-    public class ConnectionRequest: ConnectionRequestHeader, IRequireSenderCertificate
+    public class ConnectionRequest: ConnectionRequestHeader, IIncomingCertificateMetaData
     {
         [JsonConstructor]
         public ConnectionRequest() { }
@@ -26,11 +26,7 @@ namespace DotYou.Types.Circle
         /// </summary>
         public string SenderSurname { get; set; }
 
-        /// <summary>
-        /// The date the invitation was sent from the <see cref="SenderDotYouId"/>'s server.
-        /// </summary>
-        public Int64 DateSent { get; set; }
-        
+        public Int64 ReceivedTimestamp { get; set; }
 
         public string GetSenderDisplayName()
         {

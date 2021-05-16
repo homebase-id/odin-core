@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Claims;
 using DotYou.Kernel.Services.Identity;
@@ -8,9 +9,10 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace DotYou.TenantHost.Controllers.Incoming
 {
     /// <summary>
-    /// Sets the sender's public key token using the claims provided by client certificate authentication.
+    /// Applies meta data describing the incoming payload (message, invitation, etc.) such as
+    /// the client certificate and timestamp received.
     /// </summary>
-    public class ApplySenderPublicKeyCertificateActionFilter:IActionFilter
+    public class ApplyIncomingMetaData : IActionFilter
     {
         public void OnActionExecuting(ActionExecutingContext context)
         {
@@ -18,26 +20,27 @@ namespace DotYou.TenantHost.Controllers.Incoming
             {
                 return;
             }
-            
-            var instances = context.ActionArguments.Values.Where(o =>(o.GetType().IsClass) && o is IRequireSenderCertificate).ToList();
+
+            var instances = context.ActionArguments.Values.Where(o => (o.GetType().IsClass) && o is IIncomingCertificateMetaData).ToList();
             if (instances.Any())
             {
                 var cert = context.HttpContext.User.FindFirstValue(DotYouClaimTypes.PublicKeyCertificate);
-                
+
                 foreach (var rc in instances)
                 {
-                    var rsc = (IRequireSenderCertificate) rc; 
+                    var rsc = (IIncomingCertificateMetaData) rc;
                     rsc.SenderPublicKeyCertificate = cert;
-                    
+
                     //No null check here because the identity must be set at authentication.
-                    rsc.SenderDotYouId = (DotYouIdentity)context.HttpContext.User.Identity.Name;
+                    rsc.SenderDotYouId = (DotYouIdentity) context.HttpContext.User.Identity.Name;
+
+                    rsc.ReceivedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 }
             }
         }
 
         public void OnActionExecuted(ActionExecutedContext context)
         {
-
         }
     }
 }

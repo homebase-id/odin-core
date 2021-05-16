@@ -41,7 +41,7 @@ namespace DotYou.TenantHost
         {
             services.AddControllers(config =>
                 {
-                    config.Filters.Add(new ApplySenderPublicKeyCertificateActionFilter());
+                    config.Filters.Add(new ApplyIncomingMetaData());
                     config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             );
@@ -84,8 +84,11 @@ namespace DotYou.TenantHost
             services.AddMemoryCache();
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
-            services.AddScoped<HttpClientFactory>();
-
+            services.AddScoped<DotYouHttpClientFactory>(svc =>
+            {
+                var context = ResolveContext(svc);
+                return new DotYouHttpClientFactory(context);
+            });
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
@@ -117,7 +120,7 @@ namespace DotYou.TenantHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
                 var contactSvc = svc.GetRequiredService<IContactService>();
-                var fac = svc.GetRequiredService<HttpClientFactory>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 return new CircleNetworkService(context, contactSvc, logger, hub, fac);
             });
@@ -126,7 +129,7 @@ namespace DotYou.TenantHost
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<SimpleMailboxService>>();
-                var fac = svc.GetRequiredService<HttpClientFactory>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
 
                 return new MessagingService(context, logger, fac);
             });

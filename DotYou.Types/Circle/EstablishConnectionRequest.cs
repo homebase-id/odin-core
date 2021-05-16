@@ -7,7 +7,8 @@ namespace DotYou.Types.Circle
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 
     /// to establish a connection
     /// </summary>
-    public class EstablishConnectionRequest: IRequireSenderCertificate
+    
+    public class EstablishConnectionRequest: IIncomingCertificateMetaData
     {
         /// <summary>
         /// The Id of the original connection request
@@ -21,7 +22,9 @@ namespace DotYou.Types.Circle
         public string SenderPublicKeyCertificate { get; set; }
         
         public DotYouIdentity SenderDotYouId { get; set; }
-
+        
+        public long ReceivedTimestamp { get; set; }
+        
         public void Validate()
         {
             Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);

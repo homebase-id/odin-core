@@ -5,9 +5,9 @@ using System.Linq;
 namespace DotYou.Types.Circle
 {
     /// <summary>
-    /// Indicates implementing class needs the sender's public key certificate
+    /// Metadata describing a message or payload from an external source (i.e another digital identity server or similar)
     /// </summary>
-    public interface IRequireSenderCertificate
+    public interface IIncomingCertificateMetaData
     {
         /// <summary>
         /// Specifies the public key certificate of the <see cref="DotYouIdentity"/> who sent this message
@@ -18,5 +18,10 @@ namespace DotYou.Types.Circle
         /// The sender's <see cref="DotYouIdentity"/>.
         /// </summary>
         DotYouIdentity SenderDotYouId { get; set; }
+
+        /// <summary>
+        /// Epoc timestamp when the message was received
+        /// </summary>
+        Int64 ReceivedTimestamp { get; set; }
     }
 }

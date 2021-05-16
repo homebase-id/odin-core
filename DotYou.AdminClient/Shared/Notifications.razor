@@ -69,7 +69,7 @@
         this._notifications.Add(new Notification()
         {
             MessageText = $"{msg.SenderDotYouId} sent you an email",
-            DateTimeReceived = msg.Received
+            DateTimeReceived = msg.ReceivedTimestamp
         });
 
         string message = $"{msg.Topic}";
@@ -79,7 +79,7 @@
     }
 
 
-    // void CircleInviteReceieved(CircleInvite invite)
+    // void CircleInviteReceived(CircleInvite invite)
     // {
     //     string message = $"{invite.Sender} has invited you to join {invite.CircleName}";
     //     //update
@@ -102,7 +102,7 @@
         this._notifications.Add(new Notification()
         {
             MessageText = $"{request.SenderDotYouId} invited you to connect",
-            DateTimeReceived = request.DateSent
+            DateTimeReceived = request.ReceivedTimestamp
         });
 
         string message = $"{request.SenderDotYouId} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";

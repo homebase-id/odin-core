@@ -61,7 +61,7 @@
         if (firstRender)
         {
             var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages");
-            _messages = page.Results.OrderByDescending(m => m.Received).ToList();
+            _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
             StateHasChanged();
         }
         //return base.OnAfterRenderAsync(firstRender);

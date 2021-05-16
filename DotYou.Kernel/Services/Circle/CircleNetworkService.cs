@@ -29,7 +29,7 @@ namespace DotYou.Kernel.Services.Circle
 
         private readonly IContactService _contactService;
         
-        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, HttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _contactService = contactService;
         }
@@ -59,7 +59,7 @@ namespace DotYou.Kernel.Services.Circle
             request.Message = header.Message;
             
             request.SenderDotYouId = this.Context.DotYouId;
-            request.DateSent = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            request.ReceivedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
             //TODO: these need to pull from the identity attribute server using the public profile attributes
             request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;

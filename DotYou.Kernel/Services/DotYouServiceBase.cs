@@ -18,16 +18,16 @@ namespace DotYou.Kernel.Services
     public abstract class DotYouServiceBase
     {
         ILogger _logger;
-        private readonly HttpClientFactory _httpClientFactory;
+        private readonly DotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly DotYouContext _context;
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
         
-        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, HttpClientFactory fac)
+        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
         {
             _logger = logger;
             _notificationHub = notificationHub;
             _context = context;
-            _httpClientFactory = fac;
+            _dotYouHttpClientFactory = fac;
         }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace DotYou.Kernel.Services
         /// </summary>
         protected IOutgoingHttpClient CreateOutgoingHttpClient(DotYouIdentity dotYouId)
         {
-            return _httpClientFactory.CreateClient(dotYouId);
+            return _dotYouHttpClientFactory.CreateClient(dotYouId);
         }
 
         protected INotificationHub Notify

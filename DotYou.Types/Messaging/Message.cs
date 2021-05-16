@@ -4,7 +4,7 @@ using DotYou.Types.Circle;
 
 namespace DotYou.Types.Messaging
 {
-    public class Message : IRequireSenderCertificate
+    public class Message : IIncomingCertificateMetaData
     {
         public Guid Id { get; set; }
 
@@ -16,7 +16,7 @@ namespace DotYou.Types.Messaging
 
         public IEnumerable<string> Tags { get; set; }
 
-        public Int64 Received { get; set; }
+        public Int64 ReceivedTimestamp { get; set; }
 
         public string Body { get; set; }
         

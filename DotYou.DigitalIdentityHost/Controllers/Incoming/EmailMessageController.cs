@@ -20,10 +20,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
         [HttpPost("email")]
         public async Task<IActionResult> ReceiveIncomingEmailMessage([FromBody] Message message)
         {
-            //TODO: Move this to a generic interface that sets it for all other incoming classes
-            message.Received = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             _messagingService.RouteIncomingMessage(message);
-
             return new JsonResult(new NoResultResponse(true));
         }
     }

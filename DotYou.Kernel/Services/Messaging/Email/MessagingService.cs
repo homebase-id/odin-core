@@ -11,7 +11,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
     {
         private IMailboxService _mailbox;
 
-        public MessagingService(DotYouContext context, ILogger<SimpleMailboxService> logger, HttpClientFactory fac) : base(context, logger, null, fac)
+        public MessagingService(DotYouContext context, ILogger<SimpleMailboxService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
             _mailbox = new SimpleMailboxService(context, "Messages", logger);
         }
