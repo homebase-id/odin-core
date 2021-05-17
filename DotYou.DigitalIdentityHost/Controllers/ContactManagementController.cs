@@ -14,11 +14,11 @@ namespace DotYou.TenantHost.Controllers
     [ApiController]
     [Route("api/contacts")]
 //    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
-    public class ContactsController : ControllerBase
+    public class ContactManagementController : ControllerBase
     {
         IContactService _contactService;
 
-        public ContactsController(IContactService contactService)
+        public ContactManagementController(IContactService contactService)
         {
             _contactService = contactService;
         }
@@ -47,14 +47,10 @@ namespace DotYou.TenantHost.Controllers
             }
             */
 
-            // predicate = c =>
-            //                 c.GivenName.ToLower().Contains(q) ||
-            //                 c.Surname.ToLower().Contains(q) ||
-            //                 c.DotYouId.Value.Id.Contains(q);
-            
             predicate = c =>
-                c.GivenName.ToLower().Contains(q) ||
-                c.Surname.ToLower().Contains(q);
+                            c.GivenName.ToLower().Contains(q) ||
+                            c.Surname.ToLower().Contains(q) ||
+                            c.DotYouId.Value.Id.Contains(q);
 
             var results = await _contactService.FindContacts(predicate, new PageOptions(pageNumber, pageSize));
 

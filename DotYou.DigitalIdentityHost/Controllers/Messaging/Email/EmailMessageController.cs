@@ -24,25 +24,23 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
             _messagingService = messagingService;
         }
 
-        [HttpGet]
-        public async Task<PagedResult<Message>> GetList(MessageFolder folder)
+        [HttpGet("folder/{folder}")]
+        public async Task<PagedResult<Message>> GetList(string folder, int pageNumber, int pageSize)
         {
-            var result = await _messagingService.Mailbox.GetList(folder, PageOptions.Default);
+            var f = Enum.Parse<MessageFolder>(folder);
+            var result = await _messagingService.Mailbox.GetList(f, new PageOptions(pageNumber, pageSize));
             return result;
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("/{id}")]
         public async Task<Message> Get(Guid id)
         {
             var message = await _messagingService.Mailbox.Get(id);
             return message;
         }
 
-        /// <summary>
-        /// Sends an outgoing message to the <see cref="Message.Recipient"/>
-        /// </summary>
         [HttpPost("send")]
-        public void Post([FromBody] Message message)
+        public void Send([FromBody] Message message)
         {
             _messagingService.SendMessage(message);
         }
@@ -52,5 +50,12 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
         {
             await _messagingService.Mailbox.Delete(id);
         }
+        
+        [HttpPost]
+        public void Save([FromBody] Message message)
+        {
+            _messagingService.Mailbox.Save(message);
+        }
+        
     }
 }

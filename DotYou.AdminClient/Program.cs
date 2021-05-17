@@ -45,10 +45,15 @@ namespace DotYou.AdminClient
                 .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
+            builder.Services.AddRefitClient<IEmailMessageClient>()
+                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .AddHttpMessageHandler<AuthTokenMessageHandler>();
+
             builder.Services.AddRefitClient<IDemoDataClient>()
                 .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
+                
             builder.Services.AddSingleton<AppState>(svc =>
             {
                 var auth = svc.GetRequiredService<AuthState>();

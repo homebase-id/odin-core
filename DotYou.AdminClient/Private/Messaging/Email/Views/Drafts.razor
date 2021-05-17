@@ -1,5 +1,5 @@
 ﻿@* @using BlazorStrap.Extensions.BSDataTable *@
-@inject HttpClient _http
+@inject IEmailMessageClient _email
 
 @*<BSDataListGroup Items="messages" ListGroupType="ListGroupType.Link" Context="message" Class="mt-3">
     <NoDataTemplate>
@@ -42,7 +42,8 @@
     {
         if (firstRender)
         {
-            var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages");
+            var response = await _email.GetMessageList(MessageFolder.Drafts, PageOptions.Default);
+            var page = response.Content;
             _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
             StateHasChanged();
         }

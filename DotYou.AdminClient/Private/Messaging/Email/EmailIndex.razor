@@ -1,6 +1,8 @@
-﻿@page "/private/messaging/email"
+﻿@using DotYou.AdminClient.Private.Messaging.Email.Views
+@page "/private/messaging/email"
 @inject HttpClient _http
 @inject NavigationManager _nav
+
 <ContentHeader>
     <Header>
         <PageTitle Title="Email" />
@@ -20,23 +22,23 @@
             @switch (_currentView)
             {
                 case View.Overview:
-                    <Identity.Client.Private.Messaging.Email.Views.Overview />
+                    <Overview />
                     break;
 
                 case View.Compose:
-                    <Identity.Client.Private.Messaging.Email.Views.ComposeMessage />
+                    <ComposeMessage />
                     break;
 
                 case View.Inbox:
-                    <Identity.Client.Private.Messaging.Email.Views.Inbox />
+                    <Inbox />
                     break;
 
                 case View.Drafts:
-                    <Identity.Client.Private.Messaging.Email.Views.Drafts />
+                    <Drafts />
                     break;
 
                 case View.SentItems:
-                    <Identity.Client.Private.Messaging.Email.Views.SentItems />
+                    <SentItems />
                     break;
             }
         </Column>

@@ -1,5 +1,5 @@
 ﻿@* @using BlazorStrap.Extensions.BSDataTable *@
-@inject HttpClient _http
+@inject IEmailMessageClient _email
 
 @*<BSNav IsList="true" IsPills="true" IsFill="true">
     <BSNavItem>
@@ -60,10 +60,11 @@
     {
         if (firstRender)
         {
-            var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages");
+            var response = await _email.GetMessageList(MessageFolder.Sent, PageOptions.Default);
+            var page = response.Content;
             _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
             StateHasChanged();
         }
-        //return base.OnAfterRenderAsync(firstRender);
+
     }
 }

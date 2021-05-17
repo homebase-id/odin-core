@@ -132,7 +132,7 @@ namespace DotYou.TenantHost
             services.AddScoped<IMessagingService, MessagingService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<SimpleMailboxService>>();
+                var logger = svc.GetRequiredService<ILogger<MessagingService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
 
                 return new MessagingService(context, logger, fac);

@@ -14,11 +14,11 @@ namespace DotYou.Kernel.Services.Messaging.Email
     {
         private readonly string _folderName;
 
-        public SimpleMailboxService(DotYouContext context, string folderName, ILogger<SimpleMailboxService> logger) : base(context, null, null, null)
+        public SimpleMailboxService(DotYouContext context, string folderName, ILogger logger) : base(context, logger, null, null)
         {
             _folderName = folderName;
         }
-        
+
         public Task Save(Message message)
         {
             WithTenantStorage<Message>(FolderName, storage => storage.Save(message));
@@ -49,11 +49,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
 
         public string FolderName
         {
-            get
-            {
-                return _folderName;
-            }
+            get { return _folderName; }
         }
-
     }
 }

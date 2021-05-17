@@ -22,7 +22,7 @@ namespace DotYou.Types.ApiClient
         [Post(root_path)]
         Task<ApiResponse<NoResultResponse>> SaveContact([Body]Contact contact);
 
-        [Get(root_path)]
+        [Get(root_path + "/find")]
         Task<ApiResponse<PagedResult<Contact>>> Find(string text, [Query]PageOptions pageRequest);
 
         [Delete(root_path + "/{id}")]

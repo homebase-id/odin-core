@@ -5,7 +5,7 @@ namespace DotYou.Kernel.Services.Identity
     /// <summary>
     /// List of the Claim types used by YouFoundation
     /// </summary>
-    public class DotYouClaimTypes
+    public static class DotYouClaimTypes
     {
         /// <summary>
         /// Indicates the current <see cref="ClaimsPrincipal"/> owns this identity website

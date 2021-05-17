@@ -1,5 +1,5 @@
 ﻿@using DotYou.AdminClient.Extensions
-@inject HttpClient _http
+@inject IEmailMessageClient _email
 
 <div Items="messages" ListGroupType="ListGroupType.Link" Context="message" Class="list-group mt-3">
     @foreach (var message in _messages)
@@ -41,7 +41,8 @@
     {
         if (firstRender)
         {
-            var page = await _http.GetFromJsonAsync<PagedResult<Message>>("api/messages");
+            var response = await _email.GetMessageList(MessageFolder.Inbox, PageOptions.Default);
+            var page = response.Content;
             _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
             StateHasChanged();
         }

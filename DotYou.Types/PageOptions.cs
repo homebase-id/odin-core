@@ -1,4 +1,5 @@
 ﻿using System;
+using Newtonsoft.Json;
 
 namespace DotYou.Types
 {
@@ -57,6 +58,7 @@ namespace DotYou.Types
         /// <summary>
         /// Returns the page index (0 based)
         /// </summary>
+        [JsonIgnore]
         public int PageIndex
         {
             get { return PageNumber - 1; }
