@@ -47,13 +47,17 @@ namespace DotYou.TenantHost
             );
 
             services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
-            //services.AddSignalR();
 
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
 
-            services.AddAuthentication()
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate;
+                    options.DefaultChallengeScheme = DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate;
+                    
+                })
                 .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op => { op.LoginUri = "/login"; })
                 .AddCertificate(DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate, options =>
                 {

@@ -13,11 +13,6 @@ namespace DotYou.Types
 
         public DotYouIdentity(string identifier)
         {
-            if (string.IsNullOrEmpty(identifier) || string.IsNullOrWhiteSpace(identifier))
-            {
-                throw new ArgumentNullException(nameof(identifier));
-            }
-            
             _identifier = identifier;
         }
 

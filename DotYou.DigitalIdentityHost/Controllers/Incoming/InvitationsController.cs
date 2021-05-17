@@ -3,15 +3,8 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Security.Claims;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Identity;
-using DotYou.Types.SignalR;
-using Microsoft.AspNetCore.SignalR;
 
 namespace DotYou.TenantHost.Controllers.Incoming
 {
@@ -35,7 +28,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
             await _circleNetwork.ReceiveConnectionRequest(request);
-            return Ok();
+            return new JsonResult(new NoResultResponse(true));
         }
 
 
@@ -43,7 +36,7 @@ namespace DotYou.TenantHost.Controllers.Incoming
         public async Task<IActionResult> EstablishConnection([FromBody] EstablishConnectionRequest request)
         {
             await _circleNetwork.EstablishConnection(request);
-            return Ok();
+            return new JsonResult(new NoResultResponse(true));
         }
     }
 }

@@ -108,14 +108,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var token = EnsureAuthToken(identity);
 
-            // var samContext = this.Registry.ResolveContext(identity);
-            // var samCert = samContext.TenantCertificate.LoadCertificateWithPrivateKey();
-
-            //HttpClientHandler handler = new();
-            // handler.ClientCertificates.Add(samCert);
-            // handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-            //HttpClient client = new(handler);
-
             HttpClient client = new();
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
             client.BaseAddress = new Uri($"https://{identity}");

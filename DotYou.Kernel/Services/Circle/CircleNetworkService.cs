@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DotYou.Kernel.Services.Circle
 {
-
     //Need to consider using the recipient public key instead of the dotyouid
     //meaning i can go to frodo site, click connect and the public ke cert has all i need to
     //make the connect-request as well as encrypt the request.
@@ -28,7 +27,7 @@ namespace DotYou.Kernel.Services.Circle
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
         private readonly IContactService _contactService;
-        
+
         public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _contactService = contactService;
@@ -57,19 +56,25 @@ namespace DotYou.Kernel.Services.Circle
             request.Id = header.Id;
             request.Recipient = header.Recipient;
             request.Message = header.Message;
-            
+
             request.SenderDotYouId = this.Context.DotYouId;
             request.ReceivedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            
+
             //TODO: these need to pull from the identity attribute server using the public profile attributes
             request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;
             request.SenderSurname = this.Context.TenantCertificate.OwnerName.Surname;
 
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
-            await base.CreateOutgoingHttpClient(request.Recipient).SendConnectionRequest(request);
 
-            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
+            var response = await base.CreateOutgoingHttpClient(request.Recipient).SendConnectionRequest(request);
+
+            if (!response.Content.Success)
+            {
+                //TODO: add more info
+                throw new Exception("Failed to establish connection request");
+            }
             
+            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -78,7 +83,7 @@ namespace DotYou.Kernel.Services.Circle
             request.Validate();
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
-             
+
             this.Notify.ConnectionRequestReceived(request).Wait();
 
             return Task.CompletedTask;
@@ -86,7 +91,6 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(Guid id)
         {
-
             var result = await WithTenantStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Get(id));
             return result;
         }
@@ -108,7 +112,7 @@ namespace DotYou.Kernel.Services.Circle
             var originalRequest = await this.GetSentRequest(request.ConnectionRequestId);
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
-            if(null == originalRequest)
+            if (null == originalRequest)
             {
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
@@ -122,7 +126,7 @@ namespace DotYou.Kernel.Services.Circle
             {
                 GivenName = request.RecipientGivenName,
                 Surname = request.RecipientSurname,
-                DotYouId = (DotYouIdentity)cert.DotYouId,
+                DotYouId = (DotYouIdentity) cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
                 PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
@@ -138,7 +142,6 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task AcceptConnectionRequest(Guid id)
         {
-
             var request = await GetPendingRequest(id);
             if (null == request)
             {
@@ -159,7 +162,7 @@ namespace DotYou.Kernel.Services.Circle
             {
                 GivenName = request.SenderGivenName,
                 Surname = request.SenderSurname,
-                DotYouId = (DotYouIdentity)cert.DotYouId,
+                DotYouId = (DotYouIdentity) cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
                 PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
                 PublicKeyCertificate = request.SenderPublicKeyCertificate,
@@ -178,8 +181,8 @@ namespace DotYou.Kernel.Services.Circle
             };
 
             var response = await this.CreateOutgoingHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
-            
-            if(!response.Content)
+
+            if (!response.Content.Success)
             {
                 //TODO: add more info
                 throw new Exception("Failed to establish connection request");

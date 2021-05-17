@@ -16,20 +16,20 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
     public class CircleNetworkServiceTests
     {
-        private TestScaffold scaffold;
+        private TestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            scaffold = new TestScaffold(folder);
-            scaffold.RunBeforeAnyTests();
+            _scaffold = new TestScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            scaffold.RunAfterAnyTests();
+            _scaffold.RunAfterAnyTests();
         }
         
         [SetUp]
@@ -43,7 +43,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             
 
             //Check if Frodo received the request?
-            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
                 var response = await svc.GetPendingRequest(requestId);
@@ -60,15 +60,15 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         {
             var requestId = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
                 var deleteResponse = await svc.DeletePendingRequest(requestId);
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                var getReponse = await svc.GetPendingRequest(requestId);
-                Assert.IsTrue(getReponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {requestId} still exists");
+                var getResponse = await svc.GetPendingRequest(requestId);
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {requestId} still exists");
             }
         }
 
@@ -77,7 +77,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         {
             var requestId = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
@@ -97,7 +97,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             var requestId = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
@@ -119,7 +119,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             var requestId = await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
@@ -137,7 +137,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
             var requestId = await CreateConnectionRequestSamToFrodo();
 
-            using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
@@ -148,33 +148,33 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 //
                 // The pending request should be removed
                 //
-                var getReponse = await svc.GetPendingRequest(requestId);
-                Assert.IsTrue(getReponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {requestId} still exists");
+                var getResponse = await svc.GetPendingRequest(requestId);
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with Id {requestId} still exists");
 
                 //
                 // Sam should be in scaffold.Frodo's contacts network.
                 //
                 var frodoContactSvc = RestService.For<IContactManagementClient>(client);
-                var response = await frodoContactSvc.GetContactByDomain(scaffold.Samwise);
+                var response = await frodoContactSvc.GetContactByDomain(_scaffold.Samwise);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {scaffold.Samwise}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No contact with domain {scaffold.Samwise} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {_scaffold.Samwise}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {_scaffold.Samwise} found");
                 Assert.IsTrue(response.Content.GivenName == "Samwise");
                 Assert.IsTrue(response.Content.Surname == "Gamgee");
 
             }
 
-            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 //
                 // Frodo should be in sam's contacts network
                 //
                 var contactSvc = RestService.For<IContactManagementClient>(client);
 
-                var response = await contactSvc.GetContactByDomain(scaffold.Frodo);
+                var response = await contactSvc.GetContactByDomain(_scaffold.Frodo);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {scaffold.Frodo}");
-                Assert.IsNotNull(response.Content, $"No contact with domain {scaffold.Frodo} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {_scaffold.Frodo}");
+                Assert.IsNotNull(response.Content, $"No contact with domain {_scaffold.Frodo} found");
                 Assert.IsTrue(response.Content.GivenName == "Frodo");
                 Assert.IsTrue(response.Content.Surname == "Baggins");
             }
@@ -183,7 +183,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
         private async Task<Guid> CreateConnectionRequestSamToFrodo()
         {
-            using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkClient>(client);
 
@@ -191,11 +191,12 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 var requestHeader = new ConnectionRequestHeader()
                 {
                     Id = id,
-                    Recipient = scaffold.Frodo,
+                    Recipient = _scaffold.Frodo,
                     Message = "Please add me"
                 };
                 
                 var response = await svc.SendConnectionRequest(requestHeader);
+                
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
                 Assert.IsTrue(response.Content.Success, "Failed sending the request");

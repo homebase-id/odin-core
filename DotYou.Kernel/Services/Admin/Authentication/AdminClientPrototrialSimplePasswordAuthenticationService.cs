@@ -54,7 +54,7 @@ namespace DotYou.Kernel.Services.Authentication
         public async Task<bool> IsValidToken(Guid token)
         {
             var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
-            return IsTokenValid(entry);
+            return IsAuthTokenEntryValid(entry);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
@@ -85,7 +85,7 @@ namespace DotYou.Kernel.Services.Authentication
             //throw exception if no valid password
         }
 
-        private bool IsTokenValid(AuthTokenEntry entry)
+        private bool IsAuthTokenEntryValid(AuthTokenEntry entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var valid = 
@@ -98,7 +98,7 @@ namespace DotYou.Kernel.Services.Authentication
         
         private void AssertTokenIsValid(AuthTokenEntry entry)
         {
-            if(IsTokenValid(entry) ==false)
+            if(IsAuthTokenEntryValid(entry) ==false)
             {
                 throw new AuthenticationException();
             }

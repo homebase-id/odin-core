@@ -58,6 +58,7 @@ namespace DotYou.Kernel.Services
         {
             get => _notificationHub.Clients.User(this.Context.DotYouId);
         }
+        
         protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;

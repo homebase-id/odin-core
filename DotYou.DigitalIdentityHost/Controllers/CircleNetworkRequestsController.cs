@@ -69,14 +69,14 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpPost("sent")]
-        public async Task<IActionResult> Send([FromBody] ConnectionRequestHeader requestHeader)
+        public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
             await _circleNetwork.SendConnectionRequest(requestHeader);
             return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpPost("pending/accept/{id}")]
-        public async Task<IActionResult> AcceptPending(Guid id)
+        public async Task<IActionResult> AcceptConnectionRequest(Guid id)
         {
             await _circleNetwork.AcceptConnectionRequest(id);
             return new JsonResult(new NoResultResponse(true));

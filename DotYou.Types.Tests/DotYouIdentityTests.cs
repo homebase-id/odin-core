@@ -44,12 +44,5 @@ namespace DotYou.Types.Tests
         {
             Assert.IsTrue(sam != frodo);
         }
-
-        [Test(Description = "Constructor should fail")]
-        public void ConstructorShouldFail()
-        {
-            Assert.Throws<ArgumentNullException>(() => new DotYouIdentity(null));
-            Assert.Throws<ArgumentNullException>(() => new DotYouIdentity(string.Empty));
-        }
     }
 }

@@ -18,20 +18,24 @@ namespace DotYou.Kernel.Services.Messaging.Email
 
         public IMailboxService Mailbox => _mailbox;
 
-        public Task SendMessage(Message message)
+        public async Task SendMessage(Message message)
         {
             //TODO: you have to divide the recipients into those wth YF identities and those without.
 
             foreach (var recipient in message.Recipients)
             {
                 //TODO: this creates a lot of httpclients.  need to see how they are disposedı
-                var client = base.CreateOutgoingHttpClient(recipient);
-                client.SendEmail(message);
+                var response = await base.CreateOutgoingHttpClient(recipient).SendEmail(message);
+                if (!response.Content.Success)
+                {
+                    //TODO: add more info
+                    throw new Exception("Failed to establish connection request");
+                }
             }
 
             message.Folder = MessageFolder.Sent;
-            Mailbox.Save(message);
-            return Task.CompletedTask;
+            await Mailbox.Save(message);
+
         }
 
         public void RouteIncomingMessage(Message message)
