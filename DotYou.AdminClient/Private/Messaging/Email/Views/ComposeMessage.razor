@@ -11,7 +11,7 @@
         <ContactTypeAhead @ref="recipientsList"></ContactTypeAhead>
     </FormGroup>
     <FormGroup>
-        <Input @bind-Value="topic" />
+        <Input @bind-Value="topic"/>
     </FormGroup>
     <FormGroup>
 
@@ -64,6 +64,7 @@
     }
 
     private bool showToast = false;
+
     private InputState topic = new InputState()
     {
         Identifier = "topic",
@@ -75,7 +76,7 @@
     private SendMessageFormModel sendMessageModel { get; set; } = new SendMessageFormModel();
 
     private ContactTypeAhead recipientsList;
-//    private IList<Contact> recipientsList = new List<Contact>();
+    //    private IList<Contact> recipientsList = new List<Contact>();
 
     protected override void OnInitialized()
     {
@@ -92,17 +93,17 @@
     {
         string body = await messageBody.GetHTML();
         var recipients = recipientsList.ContactList.Select(c => c.DotYouId.ToString()).ToList();
-        
+
         var message = new Message()
         {
             Id = Guid.NewGuid(),
-            Recipients = recipients.Select(r => (DotYouIdentity)r),
+            Recipients = recipients.Select(r => (DotYouIdentity) r),
             Topic = topic.Value,
             Body = body
         };
 
-        _email.SendMessage(message);
-        
+        var response = await _email.SendMessage(message);
+
         ClearForm();
         StateHasChanged();
     }

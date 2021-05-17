@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Types;
+using DotYou.Types.Circle;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,11 +25,10 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
             _messagingService = messagingService;
         }
 
-        [HttpGet("folder/{folder}")]
-        public async Task<PagedResult<Message>> GetList(string folder, int pageNumber, int pageSize)
+        [HttpGet("folder")]
+        public async Task<PagedResult<Message>> GetList([FromQuery]string folder, int pageNumber, int pageSize)
         {
-            var f = Enum.Parse<MessageFolder>(folder);
-            var result = await _messagingService.Mailbox.GetList(f, new PageOptions(pageNumber, pageSize));
+            var result = await _messagingService.Mailbox.GetList(folder, new PageOptions(pageNumber, pageSize));
             return result;
         }
 
@@ -40,21 +40,24 @@ namespace DotYou.TenantHost.Controllers.Messaging.Email
         }
 
         [HttpPost("send")]
-        public void Send([FromBody] Message message)
+        public async Task<IActionResult> Send([FromBody] Message message)
         {
-            _messagingService.SendMessage(message);
+            await _messagingService.SendMessage(message);
+            return new JsonResult(new NoResultResponse(true));
         }
         
         [HttpDelete("{id}")]
-        public async void Delete(Guid id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             await _messagingService.Mailbox.Delete(id);
+            return new JsonResult(new NoResultResponse(true));
         }
         
         [HttpPost]
-        public void Save([FromBody] Message message)
+        public async Task<IActionResult> Save([FromBody] Message message)
         {
-            _messagingService.Mailbox.Save(message);
+            await _messagingService.Mailbox.Save(message);
+            return new JsonResult(new NoResultResponse(true));
         }
         
     }

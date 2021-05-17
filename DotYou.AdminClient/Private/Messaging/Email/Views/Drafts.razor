@@ -1,36 +1,26 @@
-﻿@* @using BlazorStrap.Extensions.BSDataTable *@
+﻿@using DotYou.AdminClient.Extensions
 @inject IEmailMessageClient _email
 
-@*<BSDataListGroup Items="messages" ListGroupType="ListGroupType.Link" Context="message" Class="mt-3">
-    <NoDataTemplate>
-        <h4>It's lonely in here...</h4>
-    </NoDataTemplate>
-    <ItemTemplate>
-        <BSListGroupItem ListGroupType="ListGroupType.Link" Href="#">
-            <BSListGroupItemHeading>
-                <h5 class="mb-1">@message.Topic</h5>
-                <small>@message.Received.ToRelative()</small>
-            </BSListGroupItemHeading>
-            <BlazorStrap.BSListGroupItemText>
-                <small>From: @message.Sender</small>
-            </BlazorStrap.BSListGroupItemText>
-            <p class="mb-1">@((MarkupString)FormatBody(message))</p>
-        </BSListGroupItem>
-    </ItemTemplate>
-</BSDataListGroup>*@
+<div Items="messages" ListGroupType="ListGroupType.Link" Context="message" Class="list-group mt-3">
+    @foreach (var message in _messages)
+    {
+        <a href="#" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">@message.Topic</h6>
+                <small>@message.ReceivedTimestamp.ToDateTimeOffset().ToRelative()</small>
+            </div>
+            <div>
+                <small>From: @message.SenderDotYouId</small>
+            </div>
+            <p class="mt-2 mb-1">@((MarkupString)FormatBody(message))</p>
+        </a>
+    }
+</div>
+
 
 @code {
-    enum View
-    {
-        Inbox = 0,
-        Circles = 1,
-        Groups = 2,
-        Verified = 3,
-        External = 4
-    }
 
     private IList<Message> _messages = new List<Message>();
-    private View _currentView = View.Inbox;
 
     private string FormatBody(Message message)
     {
@@ -42,11 +32,11 @@
     {
         if (firstRender)
         {
-            var response = await _email.GetMessageList(MessageFolder.Drafts, PageOptions.Default);
+            var response = await _email.GetMessageList(RootMessageFolder.Drafts, PageOptions.Default);
             var page = response.Content;
-            _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
+            _messages = page?.Results.OrderByDescending(m => m.ReceivedTimestamp)?.ToList();
             StateHasChanged();
         }
-        //return base.OnAfterRenderAsync(firstRender);
+    //return base.OnAfterRenderAsync(firstRender);
     }
 }

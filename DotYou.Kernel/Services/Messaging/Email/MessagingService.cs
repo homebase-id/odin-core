@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Types.Messaging;
+using DotYou.Types.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Messaging.Email
@@ -10,8 +12,8 @@ namespace DotYou.Kernel.Services.Messaging.Email
     public class MessagingService : DotYouServiceBase, IMessagingService
     {
         private IMailboxService _mailbox;
-
-        public MessagingService(DotYouContext context, ILogger<MessagingService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        
+        public MessagingService(DotYouContext context, ILogger<MessagingService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _mailbox = new SimpleMailboxService(context, "Messages", logger);
         }
@@ -24,7 +26,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
 
             foreach (var recipient in message.Recipients)
             {
-                //TODO: this creates a lot of httpclients.  need to see how they are disposedı
+                //TODO: this creates a lot of httpclients.  need to see how they are disposed
                 var response = await base.CreateOutgoingHttpClient(recipient).SendEmail(message);
                 if (!response.Content.Success)
                 {
@@ -33,7 +35,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
                 }
             }
 
-            message.Folder = MessageFolder.Sent;
+            message.Folder = RootMessageFolder.Sent;
             await Mailbox.Save(message);
 
         }
@@ -41,7 +43,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
         public void RouteIncomingMessage(Message message)
         {
             //TODO: later route these to the appropriate/categoriezed folder
-            message.Folder = MessageFolder.Inbox;
+            message.Folder = RootMessageFolder.Inbox;
             this.Mailbox.Save(message);
 
             this.Notify.NewEmailReceived(message);

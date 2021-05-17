@@ -12,9 +12,9 @@ namespace DotYou.Types.Messaging
         
         public IEnumerable<DotYouIdentity> Recipients { get; set; }
 
-        public MessageFolder Folder { get; set; }
+        public string Folder { get; set; }
 
-        public IEnumerable<string> Tags { get; set; }
+//        public IEnumerable<string> Tags { get; set; }
 
         public Int64 ReceivedTimestamp { get; set; }
 

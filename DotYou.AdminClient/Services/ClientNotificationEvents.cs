@@ -9,6 +9,7 @@ namespace DotYou.AdminClient.Services
         //public event Action<CircleInvite> CircleInviteReceived;
 
         public event Action<Message> NewEmailReceived;
+        
         public event Action<ConnectionRequest> ConnectionRequestReceived;
 
         public event Action<EstablishConnectionRequest> ConnectionRequestAccepted;

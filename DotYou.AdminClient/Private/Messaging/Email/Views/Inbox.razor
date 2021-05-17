@@ -19,17 +19,8 @@
 
 
 @code {
-    enum View
-    {
-        Inbox = 0,
-        Circles = 1,
-        Groups = 2,
-        Verified = 3,
-        External = 4
-    }
 
     private IList<Message> _messages = new List<Message>();
-    private View _currentView = View.Inbox;
 
     private string FormatBody(Message message)
     {
@@ -41,9 +32,9 @@
     {
         if (firstRender)
         {
-            var response = await _email.GetMessageList(MessageFolder.Inbox, PageOptions.Default);
+            var response = await _email.GetMessageList(RootMessageFolder.Inbox, PageOptions.Default);
             var page = response.Content;
-            _messages = page.Results.OrderByDescending(m => m.ReceivedTimestamp).ToList();
+            _messages = page?.Results.OrderByDescending(m => m.ReceivedTimestamp)?.ToList();
             StateHasChanged();
         }
         //return base.OnAfterRenderAsync(firstRender);

@@ -22,7 +22,6 @@ namespace DotYou.Kernel.Services.Messaging.Email
         public Task Save(Message message)
         {
             WithTenantStorage<Message>(FolderName, storage => storage.Save(message));
-
             return Task.CompletedTask;
         }
 
@@ -31,9 +30,11 @@ namespace DotYou.Kernel.Services.Messaging.Email
             return await WithTenantStorageReturnSingle<Message>(FolderName, storage => storage.Get(id));
         }
 
-        public Task<PagedResult<Message>> GetList(MessageFolder folder, PageOptions page)
+        public Task<PagedResult<Message>> GetList(string folderPath, PageOptions page)
         {
-            return WithTenantStorageReturnList<Message>(FolderName, storage => storage.GetList(page));
+            
+            var result = WithTenantStorageReturnList<Message>(FolderName, storage => storage.Find(msg=>msg.Folder.StartsWith(folderPath, StringComparison.InvariantCultureIgnoreCase), page));
+            return result;
         }
 
         public Task Delete(Guid id)

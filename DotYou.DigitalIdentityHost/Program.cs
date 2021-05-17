@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using DotYou.DigitalIdentityHost;
 using DotYou.IdentityRegistry;
 using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;

@@ -1,18 +1,7 @@
-using DotYou.Kernel.Services.Identity;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Types;
-using LiteDB;
-using Microsoft.AspNetCore.Authentication.Certificate;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
@@ -20,18 +9,31 @@ using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Messaging.Email;
+using DotYou.TenantHost;
 using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
+using DotYou.Types;
+using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
+using LiteDB;
+using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.SignalR;
-using Refit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Converters;
 
-namespace DotYou.TenantHost
+namespace DotYou.DigitalIdentityHost
 {
     public class Startup
     {
@@ -44,9 +46,12 @@ namespace DotYou.TenantHost
                     config.Filters.Add(new ApplyIncomingMetaData());
                     config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
-            );
+            ).AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
-            services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
+            //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
 
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
@@ -134,8 +139,9 @@ namespace DotYou.TenantHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<MessagingService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
 
-                return new MessagingService(context, logger, fac);
+                return new MessagingService(context, logger, hub, fac);
             });
         }
 
@@ -146,6 +152,7 @@ namespace DotYou.TenantHost
 
             if (env.IsDevelopment())
             {
+                app.UseWebAssemblyDebugging();
                 app.UseDeveloperExceptionPage();
             }
 
@@ -239,11 +246,24 @@ namespace DotYou.TenantHost
 
         private void ConfigureLiteDBSerialization()
         {
+            var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
+            var deserialize = new Func<BsonValue, DotYouIdentity>(bson => new DotYouIdentity(bson.AsString));
+                
             //see: Register our custom type @ https://www.litedb.org/docs/object-mapping/   
             BsonMapper.Global.RegisterType<DotYouIdentity>(
-                serialize: (identity) => identity.ToString(),
-                deserialize: (bson) => new DotYouIdentity(bson.AsString)
+                serialize: serialize,
+                deserialize: deserialize
             );
+
+            BsonMapper.Global.ResolveMember = (type, memberInfo, memberMapper) =>
+            {
+                if (memberMapper.DataType == typeof(DotYouIdentity))
+                {
+                    //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
+                    memberMapper.Deserialize = (value, mapper) => deserialize(value);
+                }
+            };
         }
     }
 }

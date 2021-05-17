@@ -20,8 +20,11 @@ namespace DotYou.AdminClient
             builder.RootComponents.Add<App>("#app");
             builder.Services.AddBlazoredLocalStorage();
 
+            Uri baseUri = new Uri(builder.HostEnvironment.BaseAddress);
+            //Uri baseUri = new Uri("https://frodobaggins.me");
+
             builder.Services.AddRefitClient<IAdminAuthenticationClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); });
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; });
 
             builder.Services.AddSingleton<AuthState>(svc =>
             {
@@ -34,23 +37,23 @@ namespace DotYou.AdminClient
             builder.Services.AddTransient<AuthTokenMessageHandler>();
 
             builder.Services.AddRefitClient<IAdminIdentityAttributeClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
                 
             builder.Services.AddRefitClient<ICircleNetworkClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
             builder.Services.AddRefitClient<IContactManagementClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
             builder.Services.AddRefitClient<IEmailMessageClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
 
             builder.Services.AddRefitClient<IDemoDataClient>()
-                .ConfigureHttpClient(client => { client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress); })
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
             
                 

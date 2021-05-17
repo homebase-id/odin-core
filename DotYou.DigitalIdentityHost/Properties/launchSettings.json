@@ -1,13 +1,10 @@
 ﻿{
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true
-  },
   "profiles": {
-    "DotYou.TenantHost": {
+    "DotYou.DigitalIdentityHost": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": true,
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
       "applicationUrl": "https://frodobaggins.me",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",

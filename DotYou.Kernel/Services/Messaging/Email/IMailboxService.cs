@@ -17,7 +17,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
         /// <returns></returns>
         Task<Message> Get(Guid id);
 
-        Task<PagedResult<Message>> GetList(MessageFolder folder, PageOptions page);
+        Task<PagedResult<Message>> GetList(string folder, PageOptions page);
 
         Task Delete(Guid id);
 

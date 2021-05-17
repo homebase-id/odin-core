@@ -77,7 +77,8 @@ namespace DotYou.Kernel.Storage
             var skip = req.GetSkipCount();
             var limit = req.PageSize;
             var totalCount = col.Count(predicate);
-            var data = col.Find(predicate, skip, limit).ToList();
+            var rdata = col.Find(predicate, skip, limit);
+            var data = rdata.ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(totalCount), data);
 
             return Task.FromResult(result);
