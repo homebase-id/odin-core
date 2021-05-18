@@ -49,6 +49,6 @@ namespace DotYou.Kernel.Services.Contacts
         /// </summary>
         /// <param name="domainName"></param>
         /// <returns></returns>
-        Task<Contact> GetByDomainName(string domainName);
+        Task<Contact> GetByDotYouId(string domainName);
     }
 }

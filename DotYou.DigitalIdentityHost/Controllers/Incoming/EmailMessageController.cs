@@ -1,11 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Types;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Incoming
 {
     [ApiController]
     [Route("api/incoming")]

@@ -1,12 +1,12 @@
-﻿using DotYou.Kernel.Services.Circle;
+﻿using System.Threading.Tasks;
+using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
 
-namespace DotYou.TenantHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Incoming
 {
     /// <summary>
     /// Controller which accepts various invitations.  This controller 

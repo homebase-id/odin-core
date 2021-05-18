@@ -45,7 +45,7 @@ namespace DotYou.Kernel.Services.Contacts
             return Task.CompletedTask;
         }
 
-        public async Task<Contact> GetByDomainName(string domainName)
+        public async Task<Contact> GetByDotYouId(string domainName)
         {
             //TODO: need to add support for unique keys in the storage
             var page = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(c => c.DotYouId == domainName, PageOptions.Default));

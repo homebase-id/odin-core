@@ -21,5 +21,8 @@ namespace DotYou.Kernel.HttpClient
         
         [Post(RootPath + "/invitations/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body]EstablishConnectionRequest request);
+
+        [Post(RootPath + "/chat")]
+        Task<ApiResponse<NoResultResponse>> SendChatMessage(ChatMessageEnvelope message);
     }
 }

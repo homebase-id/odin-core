@@ -6,7 +6,7 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace DotYou.TenantHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Incoming
 {
     /// <summary>
     /// Applies meta data describing the incoming payload (message, invitation, etc.) such as

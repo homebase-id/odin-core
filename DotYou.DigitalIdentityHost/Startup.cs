@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using DotYou.DigitalIdentityHost.Controllers.Incoming;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
@@ -12,9 +13,9 @@ using DotYou.Kernel.Services.Authentication;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.TenantHost;
-using DotYou.TenantHost.Controllers.Incoming;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
@@ -142,6 +143,16 @@ namespace DotYou.DigitalIdentityHost
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
 
                 return new MessagingService(context, logger, hub, fac);
+            });
+
+            services.AddScoped<IChatService, ChatService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ChatService>>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                var cs = svc.GetRequiredService<IContactService>();
+                return new ChatService(context, logger, hub, fac, cs);
             });
         }
 

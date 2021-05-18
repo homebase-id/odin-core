@@ -1,4 +1,5 @@
-﻿@page "/private/messaging/chat"
+﻿@using DotYou.AdminClient.Private.Components
+@page "/private/messaging/chat"
 
 @inject HttpClient _http
 @inject NavigationManager _nav
@@ -14,8 +15,8 @@
             </div>
 
             <div class="position-relative bg-white">
-                <div @ref="chatWindow" class="chat-window p-4">
-                    @foreach (var message in _currentSession?.Messages ?? new List<ChatMessagePayload>())
+                <div @ref="_chatWindow" class="chat-window p-4">
+                    @foreach (var message in _currentSession?.Messages ?? new List<ChatMessageEnvelope>())
                     {
                         <ChatMessage Message="@message" />
                     }
@@ -24,7 +25,7 @@
 
             <div class="flex-grow-0 py-3 px-4 border-top bg-white">
                 <div class="input-group">
-                    <input type="text" class="form-control" @bind-value="messageToSend" placeholder="Type your message">
+                    <input type="text" class="form-control" @bind-value="_messageToSend" placeholder="Type your message">
                     <div class="input-group-append">
                         <button class="btn btn-primary" @onclick="@SendMessage">Send</button>
                     </div>
@@ -40,10 +41,7 @@
                 </div>
             </div>
 
-            @foreach (var contact in this._availableContacts)
-            {
-                <ContactCardMicro Contact="@contact" />
-            }
+            <OnlineContacts OnClick="HandleContactClicked" />
 
             <hr class="d-block d-lg-none mt-1 mb-0">
         </Column>
@@ -52,49 +50,45 @@
 
 @code {
 
-    private ElementReference chatWindow;
-    private string messageToSend;
+    private ElementReference _chatWindow;
+    private string _messageToSend;
 
     private class ChatSession
     {
         public Contact Contact { get; set; }
-        public List<ChatMessagePayload> Messages { get; set; } = new List<ChatMessagePayload>();
+        public List<ChatMessageEnvelope> Messages { get; set; } = new List<ChatMessageEnvelope>();
     }
 
     private ChatSession _currentSession = new ChatSession();
     private List<ChatSession> Sessions = new List<ChatSession>();
-
-    private List<Contact> _availableContacts = new List<Contact>();
-
-    private void HandleIdentityClicked(string id)
+    
+    private void HandleContactClicked(Contact c)
     {
-        Console.WriteLine($"clicked: {id}");
+        Console.WriteLine($"contact clicked: {c.DotYouId}");
     }
 
     private void HandleMessageReceived()
     {
-        ChatInterop.AnchorScrollAtBottom(_jsRuntime, chatWindow);
+        ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
         //base.OnAfterRender(firstRender);
-        ChatInterop.AnchorScrollAtBottom(_jsRuntime, chatWindow);
+        ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
 
     }
 
     private void SendMessage()
     {
 
-        var cm = new ChatMessagePayload()
-        {
-            Id = Guid.NewGuid(),
-            Sent = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            Sender = new Contact() { DotYouId = (DotYouIdentity)"frodo", GivenName = "Charlie", Surname = "Daniels" },
-            Recipient = new Contact() { DotYouId = (DotYouIdentity)"sam" },
-            Body = messageToSend
-        };
-        this._currentSession.Messages.Add(cm);
+        // var cm = new ChatMessageEnvelope()
+        // {
+        //     Id = Guid.NewGuid(),
+        //     Recipient = new Contact() { DotYouId = (DotYouIdentity)"sam" },
+        //     Body = messageToSend
+        // };
+        // this._currentSession.Messages.Add(cm);
 
         StateHasChanged();
     }

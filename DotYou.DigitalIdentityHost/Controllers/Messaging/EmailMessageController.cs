@@ -3,12 +3,11 @@ using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Types;
-using DotYou.Types.Circle;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Messaging.Email
+namespace DotYou.DigitalIdentityHost.Controllers.Messaging
 {
     /// <summary>
     /// Retrieves messages for the Inbox.  Also acts to accept messages 

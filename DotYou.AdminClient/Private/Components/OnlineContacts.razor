@@ -1,0 +1,41 @@
+@inject IChatClient _chatClient
+
+@foreach (var contact in this._availableContacts)
+{
+    <ContactCardMicro Contact="@contact" OnClick="HandleClick"/>
+}
+
+@code {
+
+    private readonly List<Contact> _availableContacts = new List<Contact>();
+    
+    [Parameter] 
+    public EventCallback<Contact> OnClick { get; set; }
+    
+    private void HandleClick(Contact c)
+    {
+        OnClick.InvokeAsync(c);
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshContacts();
+    }
+
+    private async Task RefreshContacts()
+    {
+        var response = await _chatClient.GetAvailableContacts();
+
+        if (response.IsSuccessStatusCode)
+        {
+            //TODO: this just handles the first page but really we need to get multiple
+            var page = response.Content;
+            var ordered = page.Results.OrderBy(c => c.GivenName);
+
+            _availableContacts.Clear();
+            _availableContacts.AddRange(ordered);
+        }
+        
+        StateHasChanged();
+    }
+}

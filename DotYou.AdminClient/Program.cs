@@ -55,7 +55,10 @@ namespace DotYou.AdminClient
             builder.Services.AddRefitClient<IDemoDataClient>()
                 .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
                 .AddHttpMessageHandler<AuthTokenMessageHandler>();
-            
+
+            builder.Services.AddRefitClient<IChatClient>()
+                .ConfigureHttpClient(client => { client.BaseAddress = baseUri; })
+                .AddHttpMessageHandler<AuthTokenMessageHandler>();
                 
             builder.Services.AddSingleton<AppState>(svc =>
             {

@@ -14,7 +14,7 @@ namespace DotYou.Types.Messaging
 
         public string Folder { get; set; }
 
-//        public IEnumerable<string> Tags { get; set; }
+        public IEnumerable<string> Tags { get; set; }
 
         public Int64 ReceivedTimestamp { get; set; }
 

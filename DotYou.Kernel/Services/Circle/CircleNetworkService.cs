@@ -119,7 +119,7 @@ namespace DotYou.Kernel.Services.Circle
 
             //TODO: this is a strange way 
             DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _contactService.GetByDomainName(cert.DotYouId);
+            var ec = await _contactService.GetByDotYouId(cert.DotYouId);
 
             //TODO: address how this contact merge should really happen
             var contact = new Contact()
@@ -153,7 +153,7 @@ namespace DotYou.Kernel.Services.Circle
             this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
             var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _contactService.GetByDomainName(cert.DotYouId);
+            var ec = await _contactService.GetByDotYouId(cert.DotYouId);
 
             //TODO: add relationshipId for future analysis
 

@@ -75,7 +75,7 @@ namespace DotYou.TenantHost.Controllers
         [HttpGet("{domainName}")]
         public async Task<IActionResult> GetContactByDomainName(string domainName)
         {
-            var result = await _contactService.GetByDomainName(domainName);
+            var result = await _contactService.GetByDotYouId(domainName);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
