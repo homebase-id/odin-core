@@ -37,7 +37,7 @@ namespace DotYou.Kernel.Services.Contacts
         /// <param name="req"></param>
         /// <param name="connectedContactsOnly">If true, only returns connects with which I am connected.</param>
         /// <returns></returns>
-        Task<PagedResult<Contact>> GetContacts(PageOptions req);
+        Task<PagedResult<Contact>> GetContacts(PageOptions req, bool connectedContactsOnly);
 
         /// <summary>
         /// Finds contacts matching the given predicate.

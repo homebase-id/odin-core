@@ -17,7 +17,7 @@ namespace DotYou.Types.ApiClient
         Task<ApiResponse<Contact>> GetContactByDomain(string domainName);
 
         [Get(root_path)]
-        Task<ApiResponse<PagedResult<Contact>>> GetContactsList(PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<Contact>>> GetContactsList(PageOptions pageRequest, bool connectedContactsOnly);
 
         [Post(root_path)]
         Task<ApiResponse<NoResultResponse>> SaveContact([Body]Contact contact);

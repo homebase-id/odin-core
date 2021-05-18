@@ -23,7 +23,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         public async Task<PagedResult<Contact>> GetAvailableContacts()
         {
-            var page = await _contactService.GetContacts(PageOptions.Default);
+            var page = await _contactService.GetContacts(PageOptions.Default, true);
             
             //TODO: filter to those only with a DotYouId (this should be in the get contacts function)
             //TODO: ping the contacts DI servers to see if they are online (also need to ache this ping for some time)

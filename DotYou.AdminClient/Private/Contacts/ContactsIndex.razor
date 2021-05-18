@@ -152,7 +152,7 @@
         PagedResult<Contact> pagedResult = null;
         if (appliedTag == null)
         {
-            var response = await _contactManagementClient.GetContactsList(PageOptions.Default);
+            var response = await _contactManagementClient.GetContactsList(PageOptions.Default, false);
             pagedResult = response.Content;
         }
     // else

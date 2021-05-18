@@ -12,7 +12,9 @@ namespace DotYou.Kernel.Services.Contacts
     {
         const string CONTACT_COLLECTION = "contacts";
 
-        public ContactService(DotYouContext context, ILogger<ContactService> logger) : base(context, logger, null, null) { }
+        public ContactService(DotYouContext context, ILogger<ContactService> logger) : base(context, logger, null, null)
+        {
+        }
 
         public Task<Contact> Get(Guid id)
         {
@@ -26,9 +28,18 @@ namespace DotYou.Kernel.Services.Contacts
             return Task.CompletedTask;
         }
 
-        public async Task<PagedResult<Contact>> GetContacts(PageOptions req)
+        public async Task<PagedResult<Contact>> GetContacts(PageOptions req, bool connectedContactsOnly)
         {
-            var results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, storage => storage.GetList(req));
+            PagedResult<Contact> results;
+            if (connectedContactsOnly)
+            {
+                results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(c => c.SystemCircle == SystemCircle.Connected, req));
+            }
+            else
+            {
+                results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, storage => storage.GetList(req));
+            }
+
             return results;
         }
 

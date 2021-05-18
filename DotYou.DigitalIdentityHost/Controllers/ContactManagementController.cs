@@ -88,9 +88,9 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet]
-        public async Task<PagedResult<Contact>> GetContactsList(int pageNumber, int pageSize)
+        public async Task<PagedResult<Contact>> GetContactsList(bool connectedContactsOnly, int pageNumber, int pageSize)
         {
-            var result = await _contactService.GetContacts(new PageOptions(pageNumber, pageSize));
+            var result = await _contactService.GetContacts(new PageOptions(pageNumber, pageSize), connectedContactsOnly);
             return result;
 
         }

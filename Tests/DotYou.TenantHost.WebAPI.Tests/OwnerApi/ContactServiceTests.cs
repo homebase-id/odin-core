@@ -57,7 +57,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
                 var svc = RestService.For<IContactManagementClient>(client);
 
-                var response = await svc.GetContactsList(PageOptions.Default);
+                var response = await svc.GetContactsList(PageOptions.Default, false);
 
                 await scaffold.OutputRequestInfo(response);
                 
