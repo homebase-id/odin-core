@@ -60,11 +60,23 @@
     }
 
     private ChatSession _currentSession = new ChatSession();
-    private List<ChatSession> Sessions = new List<ChatSession>();
+    private Dictionary<string, ChatSession> _sessions = new Dictionary<string, ChatSession>(StringComparer.InvariantCultureIgnoreCase);
     
     private void HandleContactClicked(Contact c)
     {
-        Console.WriteLine($"contact clicked: {c.DotYouId}");
+        ChatSession session;
+        if (!_sessions.ContainsKey(c.DotYouId))
+        {
+            session = new ChatSession()
+            {
+                Contact = c,
+            };
+            
+            _sessions.Add(c.DotYouId, session);
+        }
+
+        _currentSession = _sessions[c.DotYouId];
+        StateHasChanged();
     }
 
     private void HandleMessageReceived()
