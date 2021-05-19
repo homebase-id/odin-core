@@ -45,7 +45,7 @@ namespace DotYou.TenantHost.Security.Authentication
             Guid token;
             if (GetToken(out token))
             {
-                var authService = Context.RequestServices.GetRequiredService<IAdminClientAuthenticationService>();
+                var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
 
                 if (await authService.IsValidToken(token))
                 {
@@ -91,7 +91,7 @@ namespace DotYou.TenantHost.Security.Authentication
             Guid token;
             if (GetToken(out token))
             {
-                var authService = Context.RequestServices.GetRequiredService<IAdminClientAuthenticationService>();
+                var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
                 authService.ExpireToken(token);
             }
 

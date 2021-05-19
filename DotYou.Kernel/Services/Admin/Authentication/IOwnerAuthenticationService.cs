@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.Cryptography;
 using DotYou.Types;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
@@ -7,7 +8,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity
     /// </summary>
-    public interface IAdminClientAuthenticationService
+    public interface IOwnerAuthenticationService
     {
         /// <summary>
         /// Authenticates a user for this <see cref="DotYouIdentity"/>.  Returns a token which can be later used
@@ -20,6 +21,14 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<AuthenticationResult> Authenticate(string password, int ttlSeconds);
+
+        /// <summary>
+        /// Authenticates the owner based on the <see cref="NonceReplyPackage"/> specified.
+        /// </summary>
+        /// <param name="replyPackage"></param>
+        /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
+        /// <returns></returns>
+        Task<AuthenticationResult> Authenticate(NonceReplyPackage replyPackage);
         
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  
@@ -41,5 +50,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <param name="token"></param>
         /// <returns></returns>
         void ExpireToken(Guid token);
+        
+        /// <summary>
+        /// Generates a one time value to used when authenticating a user
+        /// </summary>
+        /// <returns></returns>
+        public Task<NoncePackage> GenerateNonce();
     }
 }

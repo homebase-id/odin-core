@@ -14,6 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\DotYou.DigitalIdentityHost\DotYou.DigitalIdentityHost.csproj" />
       <ProjectReference Include="..\..\DotYou.Kernel\DotYou.Kernel.csproj" />
     </ItemGroup>
 

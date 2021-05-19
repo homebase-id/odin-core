@@ -12,10 +12,10 @@ namespace DotYou.AdminClient
         private const string AUTH_RESULT_STORAGE_KEY = "ARSK";
         private AuthenticationResult _authResult;
         private bool _isAuthenticated;
-        private IAdminAuthenticationClient _client;
+        private IOwnerAuthenticationClient _client;
         private ILocalStorageService _localStorage;
 
-        public AuthState(IAdminAuthenticationClient client, ILocalStorageService localStorage)
+        public AuthState(IOwnerAuthenticationClient client, ILocalStorageService localStorage)
         {
             _client = client;
             _localStorage = localStorage;
@@ -34,15 +34,16 @@ namespace DotYou.AdminClient
         public async Task<bool> Login(string password)
         {
             await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
-            var response = await _client.Authenticate(password);
-
-            if (response.IsSuccessStatusCode)
-            {
-                _authResult = response.Content;
-                await this.InitializeContext();
-
-                return true;
-            }
+            throw new Exception("TODO: integrate Nonce auth");
+            // var response = await _client.Authenticate(null);
+            //
+            // if (response.IsSuccessStatusCode)
+            // {
+            //     _authResult = response.Content;
+            //     await this.InitializeContext();
+            //
+            //     return true;
+            // }
 
             return false;
         }

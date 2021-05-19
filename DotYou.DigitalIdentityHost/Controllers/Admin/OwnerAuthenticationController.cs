@@ -1,31 +1,26 @@
 ﻿using System;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.TenantHost.Security;
-using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Admin
+namespace DotYou.DigitalIdentityHost.Controllers.Admin
 {
     [ApiController]
     [Route("/api/admin/authentication")]
-    public class AdminAuthenticationController : Controller
+    public class OwnerAuthenticationController : Controller
     {
-        private readonly IAdminClientAuthenticationService _authService;
+        private readonly IOwnerAuthenticationService _authService;
 
-        public AdminAuthenticationController(IAdminClientAuthenticationService authService)
+        public OwnerAuthenticationController(IOwnerAuthenticationService authService)
         {
             _authService = authService;
         }
         
         [HttpPost]
-        public async Task<IActionResult> Authenticate(string password)
+        public async Task<IActionResult> Authenticate([FromBody]NonceReplyPackage package)
         {
-            var result = await _authService.Authenticate(password, 100);
+            var result = await _authService.Authenticate(package);
             return new JsonResult(result);
         }
 
@@ -48,6 +43,21 @@ namespace DotYou.TenantHost.Controllers.Admin
         {
             var isValid = await _authService.IsValidToken(token);
             return isValid;
+        }
+
+        
+        [HttpGet("nonce")]
+        public async Task<IActionResult> GenerateNonce()
+        {
+           var result = await _authService.GenerateNonce();
+
+           var cn = new ClientNoncePackage()
+           {
+               Nonce64 = result.Nonce64,
+               SaltKek64 = result.SaltKek64,
+               SaltPassword64 = result.SaltPassword64
+           };
+           return new JsonResult(cn);
         }
         
     }

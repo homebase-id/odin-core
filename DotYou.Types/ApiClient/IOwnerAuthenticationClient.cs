@@ -4,12 +4,12 @@ using Refit;
 
 namespace DotYou.Types.ApiClient
 {
-    public interface IAdminAuthenticationClient
+    public interface IOwnerAuthenticationClient
     {
         private const string RootPath = "/api/admin/authentication";
 
         [Post(RootPath)]
-        Task<ApiResponse<AuthenticationResult>> Authenticate(string password);
+        Task<ApiResponse<AuthenticationResult>> Authenticate([Body]NonceReplyPackage package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);
@@ -19,5 +19,8 @@ namespace DotYou.Types.ApiClient
 
         [Get(RootPath)]
         Task<ApiResponse<bool>> IsValid(Guid token);
+
+        [Get(RootPath + "/nonce")]
+        Task<ApiResponse<ClientNoncePackage>> GenerateNonce();
     }
 }

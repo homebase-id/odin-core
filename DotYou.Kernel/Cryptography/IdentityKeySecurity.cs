@@ -1,40 +1,10 @@
-﻿using System;
+using System;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Newtonsoft.Json;
 
-/// <summary>
-/// Goals here are that:
-///   * the password never leaves the clients.
-///   * the password hash changes with every login request, making playback impossible
-///   * the private encryption key on the server is encrypted with a KEK
-///   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
-///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
-/// </summary>
 namespace DotYou.Kernel.Cryptography
 {
-    public class SessionPayload
-    {
-        string SaltPassword64;
-        string SaltKek64;
-        string Nonce64;
-
-        SessionPayload(byte[] SaltPassword, byte[] SaltKek)
-        {
-            Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(IdentityKeySecurity.SALT_SIZE));
-            SaltPassword64 = Convert.ToBase64String(SaltPassword);
-            SaltKek64 = Convert.ToBase64String(SaltKek);
-        }
-
-        public string GetIt()
-        {
-            return SaltPassword64 + "$" + SaltKek64 + "$" + Nonce64;
-        }
-    }
-
-    /// <summary>
-    /// Summary description for Class1
-    /// </summary>
     public class IdentityKeySecurity 
     {
         public const int SALT_SIZE = 16; // size in bytes
@@ -66,16 +36,16 @@ namespace DotYou.Kernel.Cryptography
         /// calculations and send the hashed key and kek back to the server (possibly public key encrypted).
         /// Will also create public private keys and all salts and hash values needed
         /// </summary>
-        /// <param name="Password"></param>
-        public void SetRawPassword(string Password)
+        /// <param name="password"></param>
+        public void SetRawPassword(string password)
         {
             // Client receives the two salt values from the server
             SaltPassword = YFByteArray.GetRndByteArray(SALT_SIZE);
             SaltKek = YFByteArray.GetRndByteArray(SALT_SIZE);
 
             // Client hashes the user password and salts and calculates the KEK
-            HashPassword = KeyDerivation.Pbkdf2(Password, SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2(Password, SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
 
             // When Server receives the proper values it generates a key pair
             // Generate new public / private keys
@@ -98,11 +68,11 @@ namespace DotYou.Kernel.Cryptography
         /// <summary>
         /// Validate if the password on the client has been entered correctly. 
         /// </summary>
-        /// <param name="Parameter">Base64NonceHashedPassword$Base64KEK""</param>
+        /// <param name="parameter">Base64NonceHashedPassword$Base64KEK""</param>
         /// <returns>KEK byte[]</returns>
-        public byte[] ValidatePassword(string Parameter)
+        public byte[] ValidatePassword(string parameter)
         {
-            string[] ss = Parameter.Split("$");
+            string[] ss = parameter.Split("$");
 
             if (ss.Length != 2)
                 throw new ArgumentException("Expects one string with two base64 $ delimited values");
@@ -154,11 +124,11 @@ namespace DotYou.Kernel.Cryptography
         }
 
         // Code to run on the client
-        public string ClientNewPassword(string SaltPassword64, string SaltKek64, string Nonce64, string newPassword)
+        public string ClientNewPassword(string saltPassword64, string saltKek64, string nonce64, string newPassword)
         {
-            var _SaltPassword = Convert.FromBase64String(SaltPassword64);
-            var _SaltKek = Convert.FromBase64String(SaltKek64);
-            var _Nonce = Convert.FromBase64String(Nonce64);
+            var _SaltPassword = Convert.FromBase64String(saltPassword64);
+            var _SaltKek = Convert.FromBase64String(saltKek64);
+            var _Nonce = Convert.FromBase64String(nonce64);
 
             // Hash the user password + user salt
             var HashedPassword = KeyDerivation.Pbkdf2(newPassword, _SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
@@ -173,16 +143,16 @@ namespace DotYou.Kernel.Cryptography
 
 
         // Code to run on the client
-        public string ClientPasswordVerify(string SaltPassword64, string SaltKek64, string Nonce64, string Password)
+        public string ClientPasswordVerify(string saltPassword64, string saltKek64, string nonce64, string password)
         {
-            var _SaltPassword = Convert.FromBase64String(SaltPassword64);
-            var _SaltKek = Convert.FromBase64String(SaltKek64);
-            var _Nonce = Convert.FromBase64String(Nonce64);
+            var _SaltPassword = Convert.FromBase64String(saltPassword64);
+            var _SaltKek = Convert.FromBase64String(saltKek64);
+            var _Nonce = Convert.FromBase64String(nonce64);
 
             // Hash the user password + user salt
-            var HashedPassword = KeyDerivation.Pbkdf2(Password, _SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var HashedPassword = KeyDerivation.Pbkdf2(password, _SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
             var HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashedPassword), _Nonce, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2(Password, _SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, _SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
 
             return Convert.ToBase64String(HashedNonceHashedPassword) + "$" + Convert.ToBase64String(KeyEncryptionKey);
         }

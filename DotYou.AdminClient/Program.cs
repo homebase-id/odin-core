@@ -23,12 +23,12 @@ namespace DotYou.AdminClient
             Uri baseUri = new Uri(builder.HostEnvironment.BaseAddress);
             //Uri baseUri = new Uri("https://frodobaggins.me");
 
-            builder.Services.AddRefitClient<IAdminAuthenticationClient>()
+            builder.Services.AddRefitClient<IOwnerAuthenticationClient>()
                 .ConfigureHttpClient(client => { client.BaseAddress = baseUri; });
 
             builder.Services.AddSingleton<AuthState>(svc =>
             {
-                var client = svc.GetRequiredService<IAdminAuthenticationClient>();
+                var client = svc.GetRequiredService<IOwnerAuthenticationClient>();
                 var storage = svc.GetRequiredService<ILocalStorageService>();
                 var state = new AuthState(client, storage);
                 return state;
