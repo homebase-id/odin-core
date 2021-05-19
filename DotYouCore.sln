@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.AdminClient", "DotYo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.CertificateRegistry", "DotYou.CertificateRegistry\DotYou.CertificateRegistry.csproj", "{A393614A-3708-45BE-8D5F-855B48EC505C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotYou.Kernel.CryptographyTests", "Tests\DotYou.Kernel.CryptographyTests\DotYou.Kernel.CryptographyTests.csproj", "{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +61,10 @@ Global
 		{A393614A-3708-45BE-8D5F-855B48EC505C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A393614A-3708-45BE-8D5F-855B48EC505C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A393614A-3708-45BE-8D5F-855B48EC505C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,6 +73,7 @@ Global
 		{3A017EDD-9D0D-4B08-A0E6-0AE410340B00} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{CD961B92-658E-4EEC-B430-85665BAC1830} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

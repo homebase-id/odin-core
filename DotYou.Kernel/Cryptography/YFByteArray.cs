@@ -1,0 +1,77 @@
+using System;
+using System.Security.Cryptography;
+
+namespace DotYou.Kernel.Cryptography
+{
+    public static class YFByteArray
+    {
+        // Oh memset() oh memset().... I love memset()... Why write fancy for loops when
+        // you can brutally use memset... I know the answer. But I still love memset(). 
+        public static void WipeByteArray(byte[] b)
+        {
+            for (int i = 0; i < b.Length; i++)
+                b[i] = 0;
+        }
+
+        /// <summary>
+        /// Generates a cryptographically safe (?) array of random bytes. To be used for XORing private keys
+        /// </summary>
+        /// <param name="nCount">Number of bytes (should be as long as data to XOR</param>
+        /// <returns>Array of random bytes of the specified length</returns>
+        public static byte[] GetRndByteArray(int nCount)
+        {
+            RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+
+            byte[] byteArray = new byte[nCount];
+            rng.GetBytes(byteArray);
+
+            return byteArray;
+        }
+
+        /// <summary>
+        /// Check if two byte arrays of equal length are identical. Tempting to use memcmp() ;)
+        /// </summary>
+        /// <param name="ba1"></param>
+        /// <param name="ba2"></param>
+        /// <returns>True if identical, false otherwise</returns>
+        public static bool EquiByteArrayCompare(byte[] ba1, byte[] ba2)
+        {
+            if (ba1.Length != ba2.Length)
+                throw new ArgumentException("Byte arrays are not the same length");
+
+            int i = 0;        
+            while (i < ba1.Length)
+            {
+                if (ba1[i] != ba2[i])
+                    return false;
+                i++;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// XOR the two byte arrays with each other. Requires the same length.
+        /// </summary>
+        /// <param name="ba1"></param>
+        /// <param name="ba2"></param>
+        /// <returns>The XOR'ed byte array</returns>
+        public static byte[] EquiByteArrayXor(byte[] ba1, byte[] ba2)
+        {
+            if (ba1.Length != ba2.Length)
+                throw new ArgumentException("Byte arrays are not the same length");
+
+            byte[] ra = new byte[ba1.Length];
+            int i = 0;
+            while (i < ba1.Length)
+            {
+                ra[i] = (byte) (ba1[i] ^ ba2[i]);
+                i++;
+            }
+
+            return ra;
+        }
+    }
+}
+
+
