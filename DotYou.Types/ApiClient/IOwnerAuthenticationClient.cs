@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using DotYou.Types.Cryptography;
 using Refit;
 
 namespace DotYou.Types.ApiClient
@@ -9,7 +10,7 @@ namespace DotYou.Types.ApiClient
         private const string RootPath = "/api/admin/authentication";
 
         [Post(RootPath)]
-        Task<ApiResponse<AuthenticationResult>> Authenticate([Body]NonceReplyPackage package);
+        Task<ApiResponse<AuthenticationResult>> Authenticate([Body]AuthenticationNonceReply package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);

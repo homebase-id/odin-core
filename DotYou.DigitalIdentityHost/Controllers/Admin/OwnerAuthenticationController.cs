@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
+using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Admin
@@ -18,7 +19,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         }
         
         [HttpPost]
-        public async Task<IActionResult> Authenticate([FromBody]NonceReplyPackage package)
+        public async Task<IActionResult> Authenticate([FromBody]AuthenticationNonceReply package)
         {
             var result = await _authService.Authenticate(package);
             return new JsonResult(result);

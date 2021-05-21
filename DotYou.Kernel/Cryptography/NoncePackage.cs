@@ -1,31 +1,48 @@
 ﻿using System;
 using DotYou.Types;
+using DotYou.Types.Cryptography;
 
-/// <summary>
-/// Goals here are that:
-///   * the password never leaves the clients.
-///   * the password hash changes with every login request, making playback impossible
-///   * the private encryption key on the server is encrypted with a KEK
-///   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
-///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
-/// </summary>
+
 namespace DotYou.Kernel.Cryptography
 {
+    /// <summary>
+    /// Holds salts used during a delicate process wherein you need to hash
+    /// and salt passwords yet hold a copy of the Nonce serverside to ensure
+    /// </summary>
     public sealed class NoncePackage
     {
-        public string SaltPassword64 { get; }
-        public string SaltKek64 { get; }
-
-        public string Nonce64 { get; }
-
-        public NoncePackage(byte[] saltPassword, byte[] saltKek)
+        public static NoncePackage NewRandomNonce()
         {
-            // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
-            // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
-
-            Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(IdentityKeySecurity.SALT_SIZE));
-            SaltPassword64 = Convert.ToBase64String(saltPassword);
-            SaltKek64 = Convert.ToBase64String(saltKek);
+            return new NoncePackage()
+            {
+                Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
+                SaltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
+                SaltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE))
+            };
         }
+
+        public NoncePackage()
+        {
+        }
+
+        /// <summary>
+        /// Creates a new NoncePackage using specified salts and generates a random <see cref="Nonce64"/> value
+        /// </summary>
+        /// <param name="saltPassword64"></param>
+        /// <param name="saltKek64"></param>
+        public NoncePackage(string saltPassword64,string saltKek64)
+        {
+             // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
+             // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
+
+            Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
+            SaltPassword64 = saltPassword64;
+            SaltKek64 = saltKek64;
+        }
+
+        public string SaltPassword64 { get; set; }
+        public string SaltKek64 { get; set; }
+
+        public string Nonce64 { get; set; }
     }
 }

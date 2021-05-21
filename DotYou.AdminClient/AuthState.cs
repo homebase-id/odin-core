@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
 using DotYou.Types.ApiClient;
+using DotYou.Types.Cryptography;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Newtonsoft.Json;
 
 namespace DotYou.AdminClient
@@ -34,16 +36,29 @@ namespace DotYou.AdminClient
         public async Task<bool> Login(string password)
         {
             await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
-            throw new Exception("TODO: integrate Nonce auth");
-            // var response = await _client.Authenticate(null);
-            //
-            // if (response.IsSuccessStatusCode)
-            // {
-            //     _authResult = response.Content;
-            //     await this.InitializeContext();
-            //
-            //     return true;
-            // }
+
+            var nonceResponse = await _client.GenerateNonce();
+            var noncePackage = nonceResponse.Content;
+
+            var hashPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(noncePackage.SaltPassword64), KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var noncePassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(hashPassword), Convert.FromBase64String(noncePackage.Nonce64), KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var keyEncryptionKey = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(noncePackage.SaltKek64), KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            
+            AuthenticationNonceReply clientReply = new AuthenticationNonceReply()
+            {
+                Nonce64 = noncePackage.Nonce64,
+                KeK64 = Convert.ToBase64String(keyEncryptionKey),
+                NonceHashedPassword64 = Convert.ToBase64String(noncePassword)
+            };
+
+            var authResponse = await _client.Authenticate(clientReply);
+
+            if (authResponse.IsSuccessStatusCode)
+            {
+                _authResult = authResponse.Content;
+                await this.InitializeContext();
+                return true;
+            }
 
             return false;
         }
@@ -63,7 +78,7 @@ namespace DotYou.AdminClient
 
                 var response = await _client.IsValid(cachedResult.Token);
                 await response.EnsureSuccessStatusCodeAsync();
-                
+
                 var isValid = response.Content;
                 if (isValid)
                 {
@@ -72,7 +87,6 @@ namespace DotYou.AdminClient
             }
 
             return null;
-            
         }
 
         public async Task InitializeContext()

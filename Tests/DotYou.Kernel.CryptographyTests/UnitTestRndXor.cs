@@ -2,6 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using DotYou.Kernel.Cryptography;
+using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using NUnit.Framework;
 
@@ -101,8 +102,8 @@ namespace DotYou.Kernel.CryptographyTests
             k.SetRawPassword("a");
 
             // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("a", k.SaltPassword, KeyDerivationPrf.HMACSHA512, IdentityKeySecurity.ITERATIONS, IdentityKeySecurity.HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2("a", k.SaltKek, KeyDerivationPrf.HMACSHA512, IdentityKeySecurity.ITERATIONS, IdentityKeySecurity.HASH_SIZE);
+            var HashPassword = KeyDerivation.Pbkdf2("a", k.SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2("a", k.SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // Decrypt the bytes to a string.
             var data = Convert.FromBase64String(k.EncryptedPrivateKey);
