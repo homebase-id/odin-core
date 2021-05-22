@@ -1,41 +1,59 @@
+@using System.Timers
+@using DotYou.Types.Admin
 @inject IChatClient _chatClient
 
-@foreach (var contact in this._availableContacts)
+@foreach (var av in this._availableContacts)
 {
-    <ContactCardMicro Contact="@contact" OnClick="HandleClick"/>
+    <ContactCardMicro Contact="@av.Contact" IsOnline="@av.IsChatAvailable" OnClick="HandleClick"/>
 }
 
 @code {
 
-    private readonly List<Contact> _availableContacts = new List<Contact>();
-    
-    [Parameter] 
+    private readonly List<AvailabilityStatus> _availableContacts = new List<AvailabilityStatus>();
+    private Timer _timer;
+
+    [Parameter]
     public EventCallback<Contact> OnClick { get; set; }
-    
+
     private void HandleClick(Contact c)
     {
         OnClick.InvokeAsync(c);
     }
-    
+
     protected override async Task OnInitializedAsync()
+    {
+        int refreshRate = 1000 * 5;
+
+        _timer = new Timer(refreshRate);
+        _timer.Elapsed += TimerElapsed;
+        _timer.AutoReset = true;
+        _timer.Enabled = true;
+        
+        _timer.Start();
+
+        await RefreshContacts();
+    }
+
+    private async void TimerElapsed(object sender, ElapsedEventArgs e)
     {
         await RefreshContacts();
     }
 
     private async Task RefreshContacts()
     {
-        var response = await _chatClient.GetAvailableContacts();
+        var response = await _chatClient.GetAvailableContacts(PageOptions.Default);
 
-        if (response.IsSuccessStatusCode)
+        if (response.IsSuccessStatusCode && response.Content != null)
         {
             //TODO: this just handles the first page but really we need to get multiple
             var page = response.Content;
-            var ordered = page.Results.OrderBy(c => c.GivenName);
+            var ordered = page.Results.OrderBy(av => av.Contact.GivenName);
 
             _availableContacts.Clear();
             _availableContacts.AddRange(ordered);
         }
-        
+
         StateHasChanged();
     }
+
 }

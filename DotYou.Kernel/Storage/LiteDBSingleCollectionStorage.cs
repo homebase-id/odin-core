@@ -104,6 +104,13 @@ namespace DotYou.Kernel.Storage
             col.Delete(id);
             return Task.CompletedTask;
         }
+        
+        public Task<int> DeleteAll()
+        {
+            var col = GetCollection();
+            int count = col.DeleteAll();
+            return Task.FromResult(count);
+        }
 
         private ILiteCollection<T> GetCollection()
         {

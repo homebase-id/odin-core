@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
+using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
@@ -21,15 +24,39 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             _contactService = contactService;
         }
 
-        public async Task<PagedResult<Contact>> GetAvailableContacts()
+        public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
         {
-            var page = await _contactService.GetContacts(PageOptions.Default, true);
-            
-            //TODO: filter to those only with a DotYouId (this should be in the get contacts function)
-            //TODO: ping the contacts DI servers to see if they are online (also need to ache this ping for some time)
-            
-            return page;
+            //TODO: this needs to hold a cache of the availability status
+            // when checking updates, it needs to examine the Updated timestamp
+            // of each status to see if should re-query the DI
+
+            var contactsPage = await _contactService.GetContacts(options, true);
+
+            var bag = new ConcurrentBag<AvailabilityStatus>();
+
+            var tasks = contactsPage.Results.Select(async contact =>
+            {
+                var client = base.CreatePerimeterHttpClient(contact.DotYouId.GetValueOrDefault());
+                var response = await client.GetAvailability();
+
+                var canChat = response.IsSuccessStatusCode && response.Content == true;
+
+                var av = new AvailabilityStatus
+                {
+                    IsChatAvailable = canChat,
+                    Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    Contact = contact
+                };
+
+                bag.Add(av);
+            });
+
+            await Task.WhenAll(tasks);
+
+            var availabilityPage = new PagedResult<AvailabilityStatus>(options, contactsPage.TotalPages, bag.ToList());
+            return availabilityPage;
         }
+
 
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
@@ -43,7 +70,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             message.Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body);
 
-            var client = this.CreateOutgoingHttpClient(message.Recipient);
+            var client = this.CreatePerimeterHttpClient(message.Recipient);
 
             var response = await client.SendChatMessage(message);
 
@@ -52,8 +79,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message)
         {
-        
-            WithTenantStorage<ChatMessageEnvelope>(CHAT_MESSAGE_STORAGE, s=>s.Save(message));
+            WithTenantStorage<ChatMessageEnvelope>(CHAT_MESSAGE_STORAGE, s => s.Save(message));
 
             await this.Notify.NewChatMessageReceived(message);
 

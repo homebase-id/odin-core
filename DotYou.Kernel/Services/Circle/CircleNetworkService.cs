@@ -66,7 +66,7 @@ namespace DotYou.Kernel.Services.Circle
 
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
 
-            var response = await base.CreateOutgoingHttpClient(request.Recipient).SendConnectionRequest(request);
+            var response = await base.CreatePerimeterHttpClient(request.Recipient).SendConnectionRequest(request);
 
             if (!response.Content.Success)
             {
@@ -180,7 +180,7 @@ namespace DotYou.Kernel.Services.Circle
                 RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
             };
 
-            var response = await this.CreateOutgoingHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
+            var response = await this.CreatePerimeterHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
 
             if (!response.Content.Success)
             {

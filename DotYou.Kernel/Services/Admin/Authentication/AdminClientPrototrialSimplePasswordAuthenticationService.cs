@@ -1,10 +1,12 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Types;
+using DotYou.Types.Admin;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Authentication
@@ -42,6 +44,9 @@ namespace DotYou.Kernel.Services.Authentication
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
             
+            //remove old tokens
+            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.DeleteAll());
+            
             WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.Save(entry));
 
             return Task.FromResult(new AuthenticationResult()
@@ -69,6 +74,16 @@ namespace DotYou.Kernel.Services.Authentication
         public void ExpireToken(Guid token)
         {
             WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s=>s.Delete(token));
+        }
+
+        public async Task<bool> IsLoggedIn()
+        {
+            //check if an active token exists
+            var authTokens = await WithTenantStorageReturnList<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
+            
+            var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
+
+            return activeToken != null;
         }
 
         private async Task<AuthTokenEntry> GetValidatedEntry(Guid token)

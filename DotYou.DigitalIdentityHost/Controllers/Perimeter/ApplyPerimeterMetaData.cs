@@ -6,17 +6,17 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {
     /// <summary>
     /// Applies meta data describing the incoming payload (message, invitation, etc.) such as
     /// the client certificate and timestamp received.
     /// </summary>
-    public class ApplyIncomingMetaData : IActionFilter
+    public class ApplyPerimeterMetaData : IActionFilter
     {
         public void OnActionExecuting(ActionExecutingContext context)
         {
-            if (!context.HttpContext.Request.Path.StartsWithSegments("/api/incoming"))
+            if (!context.HttpContext.Request.Path.StartsWithSegments("/api/perimeter"))
             {
                 return;
             }

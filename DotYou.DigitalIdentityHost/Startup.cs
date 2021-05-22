@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using DotYou.DigitalIdentityHost.Controllers.Incoming;
+using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
@@ -44,7 +44,7 @@ namespace DotYou.DigitalIdentityHost
         {
             services.AddControllers(config =>
                 {
-                    config.Filters.Add(new ApplyIncomingMetaData());
+                    config.Filters.Add(new ApplyPerimeterMetaData());
                     config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options =>

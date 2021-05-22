@@ -6,14 +6,14 @@ using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {
     /// <summary>
     /// Controller which accepts various invitations.  This controller 
     /// must only add invitations and make no other changes.
     /// </summary>
     [ApiController]
-    [Route("api/incoming/invitations")]
+    [Route("api/perimeter/invitations")]
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class InvitationsController : ControllerBase
     {

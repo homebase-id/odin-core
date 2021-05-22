@@ -8,7 +8,10 @@
         <img src="/api/images/avatar/@Contact.DotYouId" class="rounded mr-1" alt="@Contact.ToString()" width="40" height="40">
         <div class="media-body ml-3">
             @Contact.ToString()
-            <div class="small"><span class="fas fa-circle chat-online"></span> Online</div>
+            @if (IsOnline)
+            {
+                <div class="small"><span style="color:mediumspringgreen" class="fas fa-circle chat-online"></span> Online</div>
+            }
         </div>
     </div>
 </a>
@@ -17,6 +20,9 @@
 
     [Parameter]
     public Contact Contact { get; set; }
+
+    [Parameter]
+    public bool IsOnline { get; set; }
 
     [Parameter]
     public int? NotificationCount { get; set; }
