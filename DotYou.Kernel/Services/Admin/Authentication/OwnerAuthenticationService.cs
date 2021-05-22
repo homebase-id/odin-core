@@ -35,7 +35,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             _secretService = secretService;
         }
 
-        public async Task<NoncePackage> GenerateNonce()
+        public async Task<NoncePackage> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
             var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64);
@@ -58,17 +58,17 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
             //TODO: audit login some where
 
-            const int ttlSeconds = 100;
+            const int ttlSeconds = 60 * 10;
             
             var kekBytes = Convert.FromBase64String(reply.KeK64);
-            byte[] serverKek = YFByteArray.GetRndByteArray(16);
-            var clientHalf = YFByteArray.EquiByteArrayXor(kekBytes, serverKek);
+            byte[] serverHalf = YFByteArray.GetRndByteArray(16);
+            byte[] clientHalf = YFByteArray.EquiByteArrayXor(kekBytes, serverHalf);
 
-            var token = Guid.NewGuid();
+            var token = YFByteArray.GetRandomCryptoGuid();
             var entry = new AuthTokenEntry()
             {
                 Id = token,
-                ServerKek = new Guid(serverKek),
+                KekKey = new Guid(serverHalf),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
@@ -77,7 +77,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             return new AuthenticationResult()
             {
                 Token = token,
-                ClientKek = new Guid(clientHalf),
+                Token2 = new Guid(clientHalf),
                 DotYouId = this.Context.DotYouId
             };
         }

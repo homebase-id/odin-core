@@ -4,7 +4,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 {
     public class PasswordKey
     {
-        public static Guid Key => Guid.Parse("11111111-1111-1111-1111-11111111111");
+                                
+        public static Guid Key => Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         /// <summary>
         /// There should only be one password key stored

@@ -11,9 +11,9 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        Task<NoncePackage> GenerateNewNonce();
+        Task<NoncePackage> GenerateNewSalts();
 
-        Task SetNewPassword(NewPasswordReply reply);
+        Task SetNewPassword(PasswordReply reply);
 
         /// <summary>
         /// Returns the stored salts for the tenant

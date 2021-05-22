@@ -11,6 +11,6 @@ namespace DotYou.Types
         /// <summary>
         /// The Client's 1/2 of the KeK
         /// </summary>
-        public Guid ClientKek { get; set; }
+        public Guid Token2 { get; set; }
     }
 }

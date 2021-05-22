@@ -8,6 +8,7 @@ using DotYou.TenantHost.Security;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
 using Newtonsoft.Json;
 
 namespace DotYou.TenantHost.Controllers.Demo
@@ -23,7 +24,6 @@ namespace DotYou.TenantHost.Controllers.Demo
         {
             _contactService = contactService;
         }
-
 
         [HttpGet("contacts")]
         public async Task<IActionResult> AddContacts()

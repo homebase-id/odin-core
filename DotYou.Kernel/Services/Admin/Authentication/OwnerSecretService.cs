@@ -23,18 +23,18 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        public Task<NoncePackage> GenerateNewNonce()
+        public Task<NoncePackage> GenerateNewSalts()
         {
             var nonce = NoncePackage.NewRandomNonce();
             WithTenantStorage<NoncePackage>(STORAGE, s => s.Save(nonce));
             return Task.FromResult(nonce);
         }
 
-        public async Task SetNewPassword(NewPasswordReply reply)
+        public async Task SetNewPassword(PasswordReply reply)
         {
-            Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
+            Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
 
-            var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(key));
+            var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             var b1 = Convert.FromBase64String(reply.NonceHashedPassword64);
             var b2 = KeyDerivation.Pbkdf2(
@@ -68,6 +68,9 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             // YFByteArray.WipeByteArray(KeyEncryptionKey);
 
             WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
+            
+            //delete the temporary salts
+            WithTenantStorage<NoncePackage>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
         public async Task<SaltsPackage> GetStoredSalts()

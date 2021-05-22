@@ -14,6 +14,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <summary>
         /// The Server's 1/2 of the KeK
         /// </summary>
-        public Guid ServerKek { get; set; }
+        public Guid KekKey { get; set; }
     }
 }

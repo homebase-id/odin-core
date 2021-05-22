@@ -44,6 +44,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates a one time value to used when authenticating a user
         /// </summary>
         /// <returns></returns>
-        public Task<NoncePackage> GenerateNonce();
+        public Task<NoncePackage> GenerateAuthenticationNonce();
     }
 }

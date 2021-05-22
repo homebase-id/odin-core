@@ -14,6 +14,15 @@ namespace DotYou.Kernel.Cryptography
         }
 
         /// <summary>
+        /// Returns a cryptographically strong random Guid
+        /// </summary>
+        /// <returns></returns>
+        public static Guid GetRandomCryptoGuid()
+        {
+            return new Guid(GetRndByteArray(16));
+        }
+        
+        /// <summary>
         /// Generates a cryptographically safe (?) array of random bytes. To be used for XORing private keys
         /// </summary>
         /// <param name="nCount">Number of bytes (should be as long as data to XOR</param>

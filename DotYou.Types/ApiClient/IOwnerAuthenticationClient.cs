@@ -10,7 +10,7 @@ namespace DotYou.Types.ApiClient
         private const string RootPath = "/api/admin/authentication";
 
         [Post(RootPath)]
-        Task<ApiResponse<AuthenticationResult>> Authenticate([Body]AuthenticationNonceReply package);
+        Task<ApiResponse<AuthenticationResult>> Authenticate([Body]IPasswordReply package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);
@@ -23,5 +23,14 @@ namespace DotYou.Types.ApiClient
 
         [Get(RootPath + "/nonce")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNonce();
+        
+        //TODO: move these to a secrets/provisioning controller
+        
+        [Get(RootPath + "/todo_move_this")]
+        Task<ApiResponse<ClientNoncePackage>> SetNewPassword([Body]PasswordReply reply);
+        
+        [Get(RootPath + "/getsalts")]
+        Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
+
     }
 }
