@@ -4,10 +4,10 @@ using DotYou.Types;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Incoming
+namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {
     [ApiController]
-    [Route("api/incoming")]
+    [Route("api/perimeter")]
     public class ChatMessageController : ControllerBase
     {
         private IChatService _chatService;

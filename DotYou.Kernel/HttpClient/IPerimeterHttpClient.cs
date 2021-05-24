@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using DotYou.Types;
+using DotYou.Types.Admin;
 using DotYou.Types.Circle;
 using DotYou.Types.Messaging;
 using Refit;
@@ -9,9 +10,9 @@ namespace DotYou.Kernel.HttpClient
     /// <summary>
     /// Sends outgoing invitations, email messages, and chat messages to other Digital Identities
     /// </summary>
-    public interface IOutgoingHttpClient
+    public interface IPerimeterHttpClient
     {
-        private const string RootPath = "/api/incoming";
+        private const string RootPath = "/api/perimeter";
 
         [Post(RootPath + "/email")]
         Task<ApiResponse<NoResultResponse>> SendEmail(Message message);
@@ -24,5 +25,8 @@ namespace DotYou.Kernel.HttpClient
 
         [Post(RootPath + "/chat")]
         Task<ApiResponse<NoResultResponse>> SendChatMessage(ChatMessageEnvelope message);
+        
+        [Post(RootPath + "/status/chat")]
+        Task<ApiResponse<bool>> GetAvailability();
     }
 }

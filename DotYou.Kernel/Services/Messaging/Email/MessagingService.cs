@@ -27,7 +27,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
             foreach (var recipient in message.Recipients)
             {
                 //TODO: this creates a lot of httpclients.  need to see how they are disposed
-                var response = await base.CreateOutgoingHttpClient(recipient).SendEmail(message);
+                var response = await base.CreatePerimeterHttpClient(recipient).SendEmail(message);
                 if (!response.Content.Success)
                 {
                     //TODO: add more info

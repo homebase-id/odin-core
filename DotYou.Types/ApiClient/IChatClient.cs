@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
 using Refit;
 
@@ -12,6 +13,7 @@ namespace DotYou.Types.ApiClient
         public Task<ApiResponse<NoResultResponse>> SendMessage([Body]Message message);
 
         [Get(root_path + "/availablecontacts")]
-        public Task<ApiResponse<PagedResult<Contact>>> GetAvailableContacts();
+        public Task<ApiResponse<PagedResult<AvailabilityStatus>>> GetAvailableContacts([Query] PageOptions pageRequest);
+        
     }
 }

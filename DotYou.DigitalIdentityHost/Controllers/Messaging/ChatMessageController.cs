@@ -29,9 +29,9 @@ namespace DotYou.DigitalIdentityHost.Controllers.Messaging
         }
 
         [HttpGet("availablecontacts")]
-        public async Task<IActionResult> GetAvailableContacts()
+        public async Task<IActionResult> GetAvailableContacts(int pageNumber, int pageSize)
         {
-            var contacts = await _chatService.GetAvailableContacts();
+            var contacts = await _chatService.GetAvailableContacts(new PageOptions(pageNumber, pageSize));
             return new JsonResult(contacts);
         }
         

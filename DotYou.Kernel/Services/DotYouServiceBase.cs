@@ -49,7 +49,7 @@ namespace DotYou.Kernel.Services
         /// <summary>
         /// Proxy which makes calls to other <see cref="DotYouIdentity"/> servers using a pre-configured HttpClient.
         /// </summary>
-        protected IOutgoingHttpClient CreateOutgoingHttpClient(DotYouIdentity dotYouId)
+        protected IPerimeterHttpClient CreatePerimeterHttpClient(DotYouIdentity dotYouId)
         {
             return _dotYouHttpClientFactory.CreateClient(dotYouId);
         }

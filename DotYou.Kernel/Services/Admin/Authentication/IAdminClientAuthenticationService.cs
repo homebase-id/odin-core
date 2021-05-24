@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using DotYou.Types;
+using DotYou.Types.Admin;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {
@@ -41,5 +42,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <param name="token"></param>
         /// <returns></returns>
         void ExpireToken(Guid token);
+
+        /// <summary>
+        /// Returns true if there is an active session for the owner the DI.
+        /// </summary>
+        /// <returns></returns>
+        Task<bool> IsLoggedIn();
     }
 }
