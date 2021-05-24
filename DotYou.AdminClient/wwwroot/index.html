@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>dotYou</title>
     <base href="/" />
-
+    
     <!-- Quill stylesheet -->
     <link href="//cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link href="//cdn.quilljs.com/1.3.6/quill.bubble.css" rel="stylesheet">
@@ -25,6 +25,10 @@
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/chat.css" />
+
+    <link href="manifest.json" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+
 </head>
 
 <body class="hold-transition sidebar-mini sidebar-collapse">
@@ -36,13 +40,13 @@
         <a class="dismiss">🗙</a>
     </div>
     
+    <script src="_framework/blazor.webassembly.js"></script>
+    
     <!-- AdminLTE App -->
     <script src="_content/Blazorized.AdminLte.Content/plugins/jquery/jquery.min.js"></script>
     <script src="_content/Blazorized.AdminLte.Content/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="_content/Blazorized.AdminLte.Content/dist/js/adminlte.min.js"></script>
     <script src="_content/Blazorized.AdminLte/js/interop.js"></script>
-
-    <script src="_framework/blazor.webassembly.js"></script>
 
     <!-- AdminLTE App -->
     <!--<script>navigator.serviceWorker.register('service-worker.js');</script>-->
@@ -57,7 +61,8 @@
     <script src="_content/Blazored.Typeahead/blazored-typeahead.js"></script>
 
     <script src="assets/chat.js"></script>
-     
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+
 </body>
 
 </html>
