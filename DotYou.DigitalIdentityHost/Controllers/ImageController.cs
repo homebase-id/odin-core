@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Contacts;
 using Microsoft.AspNetCore.Authorization;
@@ -26,11 +27,12 @@ namespace DotYou.DigitalIdentityHost.Controllers
             //return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
             
             string root = $"wwwroot";
-            string file = $"{root}\\samples\\{identifier}.jpg";
+            string file = Path.Combine(root,"samples", $"{identifier}.jpg");
             string type = "image/jpeg";
             if (!System.IO.File.Exists(file))
             {
-                file = $"{root}\\assets\\unknown.png";
+                //file = $"{root}{Path.PathSeparator}assets{Path.PathSeparator}unknown.png";
+                file = Path.Combine(root, "assets","unknown.png");
                 type = "image/png";
             }
 

@@ -13,7 +13,7 @@
         <Column Classes="col.sm._9">
 
             <div class="py-2 px-4 border-bottom d-none d-lg-block bg-white">
-                
+
                 @if (this._currentSession != null)
                 {
                     <div class="media align-items-center py-1">
@@ -31,7 +31,7 @@
                         </div>
                     </div>
                 }
-                
+
             </div>
 
             <div class="position-relative bg-white">
@@ -78,31 +78,44 @@
     {
         public DotYouIdentity DotYouId { get; set; }
         public List<ChatMessageEnvelope> Messages { get; set; } = new List<ChatMessageEnvelope>();
+
+        public DateRangeOffset GetMessageDateRange()
+        {
+            var result = new DateRangeOffset()
+            {
+                StartDateTimeOffsetSeconds = Messages.Min(msg => msg.ReceivedTimestamp),
+                EndDateTimeOffsetSeconds = Messages.Max(msg => msg.ReceivedTimestamp)
+            };
+            
+            return result;
+        }
     }
 
     private ChatSession _currentSession;
     private Dictionary<string, ChatSession> _sessions = new Dictionary<string, ChatSession>(StringComparer.InvariantCultureIgnoreCase);
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         _notificationEvents.NewChatMessageReceived += NewChatMessageReceived;
         _notificationEvents.NewChatMessageSent += NewChatMessageSent;
+
+        return Task.CompletedTask;
     }
 
-    private void NewChatMessageSent(ChatMessageEnvelope msg)
+    private async void NewChatMessageSent(ChatMessageEnvelope msg)
     {
         Console.WriteLine($"You send a message to {msg.Recipient}");
-        var session = EnsureGetSession(msg.Recipient);
+        var session = await EnsureGetSession(msg.Recipient);
         session.Messages.Add(msg);
-        
+
         HandleMessageReceived();
         StateHasChanged();
     }
 
-    private void NewChatMessageReceived(ChatMessageEnvelope msg)
+    private async void NewChatMessageReceived(ChatMessageEnvelope msg)
     {
         Console.WriteLine($"{msg.SenderDotYouId} sent you a message");
-        var session = EnsureGetSession(msg.SenderDotYouId);
+        var session = await EnsureGetSession(msg.SenderDotYouId);
         session.Messages.Add(msg);
         if (_currentSession?.DotYouId != session.DotYouId)
         {
@@ -115,24 +128,35 @@
         StateHasChanged();
     }
 
-    private void HandleContactClicked(Contact c)
+    private async void HandleContactClicked(Contact contact)
     {
-        DotYouIdentity dotYouId = c.DotYouId.GetValueOrDefault();
-        _currentSession = EnsureGetSession(dotYouId);
+        DotYouIdentity dotYouId = contact.DotYouId.GetValueOrDefault();
+        _currentSession = await EnsureGetSession(dotYouId);
         _contacts.SetNotificationCount(dotYouId, 0);
-        ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
+        await ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
         StateHasChanged();
     }
 
-    private ChatSession EnsureGetSession(DotYouIdentity dotYou)
+    private async Task<ChatSession> EnsureGetSession(DotYouIdentity dotYou)
     {
         ChatSession session;
         if (!_sessions.ContainsKey(dotYou))
         {
+        
             session = new ChatSession()
             {
                 DotYouId = dotYou,
             };
+            
+            //load the day of chat
+            var startSeconds = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(24)).ToUnixTimeSeconds();
+            var endSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var historyResponse = await _chat.GetHistory(dotYou, startSeconds, endSeconds, 1, 300);
+            if (historyResponse.IsSuccessStatusCode && historyResponse.Content != null)
+            {
+                var messages = historyResponse.Content.Results.ToList();
+                session.Messages = messages;
+            }
 
             _sessions.Add(dotYou, session);
         }
@@ -142,7 +166,7 @@
 
     private void HandleMessageReceived()
     {
-        //TODO: detect if the user has manually scrolled up.  in this case, don't auto scroll but rather show a little message 
+    //TODO: detect if the user has manually scrolled up.  in this case, don't auto scroll but rather show a little message 
         ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
     }
 
@@ -167,9 +191,9 @@
 
         var response = await _chat.SendMessage(msg);
 
-        if (response.IsSuccessStatusCode ==false || response.Content.Success ==false)
+        if (response.IsSuccessStatusCode == false || response.Content.Success == false)
         {
-            Console.WriteLine("Failed to send message");  //TODO: need to bake in proper error handling
+            Console.WriteLine("Failed to send message"); //TODO: need to bake in proper error handling
         }
 
         _messageToSend = "";

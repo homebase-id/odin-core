@@ -37,17 +37,4 @@
 
 @code
 {
-    
-    protected override async Task OnInitializedAsync()
-    {
-       
-    }
-
-    protected override void OnAfterRender(bool isFirstRender)
-    {
-        _layoutManager.IsFooterFixed = true;
-        _layoutManager.IsNavBarFixed = true;
-        _layoutManager.IsSideBarFixed = true;
-        base.OnAfterRender(isFirstRender);
-    }
 }

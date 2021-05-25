@@ -3,14 +3,13 @@
 @using DotYou.Types
 @using DotYou.Types.Circle
 
-@inject HttpClient Http
-@inject NavigationManager nav
-@inject AppState state
-@inject NavBarLeftInjectableMenu menu
+@inject NavigationManager _nav
+@inject AppState _state
+@inject NavBarLeftInjectableMenu _menu
 @inject IContactManagementClient _contactManagementClient
 @inject ICircleNetworkClient _circleNetworkClient
 
-@menu.SetContent(@<ContactsTopNavContextMenu/>, false);
+@_menu.SetContent(@<ContactsTopNavContextMenu/>, false);
 
 <ContentHeader>
     <Header>
@@ -155,10 +154,6 @@
             var response = await _contactManagementClient.GetContactsList(PageOptions.Default, false);
             pagedResult = response.Content;
         }
-    // else
-    // {
-    //     pagedResult = await Http.GetFromJsonAsync<PagedResult<Contact>>($"/api/contacts/filterbytag?tag={appliedTag}&{page.ToQueryStringParams()}");
-    // }
 
         if (null != pagedResult)
         {

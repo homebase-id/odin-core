@@ -14,7 +14,7 @@ namespace DotYou.Types.ApiClient
         public Task<ApiResponse<NoResultResponse>> SendMessage([Body]ChatMessageEnvelope message);
 
         [Get(root_path + "/history")]
-        public Task<ApiResponse<DateRangePagedResult<ChatMessageEnvelope>>> GetHistory([Query] DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, int pageNumber, int pageSize);
+        public Task<ApiResponse<DateRangePagedResult<ChatMessageEnvelope>>> GetHistory([Query] string dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, int pageNumber, int pageSize);
         
         [Get(root_path + "/availablecontacts")]
         public Task<ApiResponse<PagedResult<AvailabilityStatus>>> GetAvailableContacts([Query] PageOptions pageRequest);

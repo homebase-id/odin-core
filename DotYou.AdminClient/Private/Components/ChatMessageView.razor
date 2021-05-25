@@ -20,7 +20,7 @@
 
     protected override void OnParametersSet()
     {
-        Console.WriteLine(this.Message.Recipient);
+        Console.WriteLine($"{this.Message.Recipient}->{Message.Body.Substring(0, 13)} -> state:{_state.User.DotYouId}");
         bool isMe = string.Equals(this.Message.Recipient, _state.User.DotYouId, StringComparison.InvariantCultureIgnoreCase);
         this._leftOrRight = isMe ? "chat-message-right" : "chat-message-left";
 

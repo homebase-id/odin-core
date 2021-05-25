@@ -4,6 +4,13 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+  
   <ItemGroup>
     <ProjectReference Include="..\DotYou.AdminClient\DotYou.AdminClient.csproj" />
     <ProjectReference Include="..\DotYou.Kernel\DotYou.Kernel.csproj" />

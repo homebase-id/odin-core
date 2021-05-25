@@ -62,7 +62,9 @@ namespace DotYou.AdminClient
             {
                 if (_authState.IsAuthenticated)
                 {
-                    
+                    //TODO: I think this needs to be set based on the app host insteadof being read from the api
+                    _user.DotYouId = _authState.AuthResult.DotYouId;
+
                     var nameResponse = await _client.GetPrimaryName();
                     await nameResponse.EnsureSuccessStatusCodeAsync();
                     
@@ -72,7 +74,6 @@ namespace DotYou.AdminClient
                     if (nameResponse.Content != null)
                     {
                         var name = nameResponse.Content;
-                        _user.DotYouId = _authState.AuthResult.DotYouId;
                         _user.Surname = name.Surname;
                         _user.GivenName = name.Personal;
                     }

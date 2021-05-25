@@ -47,6 +47,11 @@ namespace DotYou.AdminClient
             return false;
         }
 
+        /// <summary>
+        /// Gets an <see cref="AuthenticationResult"/> from local storage.  If it exists, it will
+        /// validate with the DI host
+        /// </summary>
+        /// <returns></returns>
         private async Task<AuthenticationResult> GetValidatedResultFromStorage()
         {
             var exists = await _localStorage.ContainKeyAsync(AUTH_RESULT_STORAGE_KEY);
@@ -78,13 +83,17 @@ namespace DotYou.AdminClient
         {
             try
             {
-                var r = _authResult ?? await GetValidatedResultFromStorage();
-                if (r != null)
+                if (_authResult == null)
                 {
-                    _authResult = r;
+                    //load from storage
+                    _authResult = await GetValidatedResultFromStorage();
+                }
+                else
+                {
                     _isAuthenticated = true;
                     await _localStorage.SetItemAsync(AUTH_RESULT_STORAGE_KEY, JsonConvert.SerializeObject(_authResult));
                 }
+                
             }
             catch (Exception ex)
             {
