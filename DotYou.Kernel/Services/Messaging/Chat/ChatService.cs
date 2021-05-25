@@ -66,6 +66,9 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
+
+            //HACK: setting this here so the client knows it sent the message.  this indicates a need to build two different classes - one for outgoing and one for incoming messages
+            message.SenderDotYouId = this.Context.DotYouId;
             
             var encryptedMessage = new ChatMessageEnvelope()
             {
@@ -84,6 +87,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
+                
+                await this.Notify.NewChatMessageSent(message);
             }
 
             return response.IsSuccessStatusCode;

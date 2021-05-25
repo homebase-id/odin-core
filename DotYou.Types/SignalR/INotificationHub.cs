@@ -15,6 +15,8 @@ namespace DotYou.Types.SignalR
         Task NewEmailReceived(Message message);
         
         Task NewChatMessageReceived(ChatMessageEnvelope message);
+
+        Task NewChatMessageSent(ChatMessageEnvelope message);
     }
 
 }

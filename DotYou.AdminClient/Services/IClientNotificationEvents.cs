@@ -16,6 +16,8 @@ namespace DotYou.AdminClient.Services
 
         event Action<ChatMessageEnvelope> NewChatMessageReceived;
 
+        event Action<ChatMessageEnvelope> NewChatMessageSent;
+
         event Action<ConnectionRequest> ConnectionRequestReceived;
 
         event Action<EstablishConnectionRequest> ConnectionRequestAccepted;
@@ -23,6 +25,8 @@ namespace DotYou.AdminClient.Services
         void BroadcastNewEmailReceived(Message message);
 
         void BroadcastNewChatMessageReceived(ChatMessageEnvelope message);
+
+        void BroadcastNewChatMessageSent(ChatMessageEnvelope message);
         
         void BroadcastConnectionRequestReceived(ConnectionRequest request);
 

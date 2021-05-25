@@ -119,8 +119,13 @@ namespace DotYou.AdminClient
             _connection.On<ChatMessageEnvelope>(nameof(INotificationHub.NewChatMessageReceived), (message) =>
             {
                 _notificationEventHandler.BroadcastNewChatMessageReceived(message);
-
             });
+            
+            _connection.On<ChatMessageEnvelope>(nameof(INotificationHub.NewChatMessageSent), (message) =>
+            {
+                _notificationEventHandler.BroadcastNewChatMessageSent(message);
+            });
+            
 
             _connection.On<Message>(nameof(INotificationHub.NewEmailReceived), (message) =>
             {

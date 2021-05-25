@@ -86,6 +86,17 @@
     protected override async Task OnInitializedAsync()
     {
         _notificationEvents.NewChatMessageReceived += NewChatMessageReceived;
+        _notificationEvents.NewChatMessageSent += NewChatMessageSent;
+    }
+
+    private void NewChatMessageSent(ChatMessageEnvelope msg)
+    {
+        Console.WriteLine($"You send a message to {msg.Recipient}");
+        var session = EnsureGetSession(msg.Recipient);
+        session.Messages.Add(msg);
+        
+        HandleMessageReceived();
+        StateHasChanged();
     }
 
     private void NewChatMessageReceived(ChatMessageEnvelope msg)
@@ -106,8 +117,9 @@
 
     private void HandleContactClicked(Contact c)
     {
-        DotYouIdentity dotYou = c.DotYouId.GetValueOrDefault();
-        _currentSession = EnsureGetSession(dotYou);
+        DotYouIdentity dotYouId = c.DotYouId.GetValueOrDefault();
+        _currentSession = EnsureGetSession(dotYouId);
+        _contacts.SetNotificationCount(dotYouId, 0);
         ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
         StateHasChanged();
     }
@@ -136,7 +148,6 @@
 
     protected override void OnAfterRender(bool firstRender)
     {
-    //base.OnAfterRender(firstRender);
         ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
     }
 
@@ -156,16 +167,12 @@
 
         var response = await _chat.SendMessage(msg);
 
-        if (response.IsSuccessStatusCode && response.Content.Success)
+        if (response.IsSuccessStatusCode ==false || response.Content.Success ==false)
         {
-            this._currentSession.Messages.Add(msg);
-        }
-        else
-        {
-    //TODO: need to bake in proper error handling
-            Console.WriteLine("Failed to send message");
+            Console.WriteLine("Failed to send message");  //TODO: need to bake in proper error handling
         }
 
+        _messageToSend = "";
         StateHasChanged();
     }
 
