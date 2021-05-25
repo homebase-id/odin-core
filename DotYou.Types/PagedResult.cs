@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace DotYou.Types
 {
-
     public class PagedResult<T>
     {
         public PagedResult()

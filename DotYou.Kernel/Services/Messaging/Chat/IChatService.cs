@@ -1,6 +1,5 @@
-using System.Net.Security;
+using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
@@ -34,5 +33,15 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         /// <param name="message"></param>
         /// <returns></returns>
         public Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message);
+
+        /// <summary>
+        /// Returns the chat history for a given <see cref="DotYouIdentity"/> based on the date range specified
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <param name="startDateTimeOffsetSeconds"></param>
+        /// <param name="endDateTimeOffsetSeconds"></param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions);
     }
 }

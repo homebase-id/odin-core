@@ -69,7 +69,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             //HACK: setting this here so the client knows it sent the message.  this indicates a need to build two different classes - one for outgoing and one for incoming messages
             message.SenderDotYouId = this.Context.DotYouId;
-            
+
             var encryptedMessage = new ChatMessageEnvelope()
             {
                 Id = message.Id,
@@ -79,7 +79,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
                 Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body)
             };
-            
+
             var client = this.CreatePerimeterHttpClient(message.Recipient);
             var response = await client.DeliverChatMessage(encryptedMessage);
 
@@ -87,7 +87,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
-                
+
                 await this.Notify.NewChatMessageSent(message);
             }
 
@@ -102,6 +102,23 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             await this.Notify.NewChatMessageReceived(message);
 
             return true;
+        }
+
+        public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)
+        {
+            string collection = GetChatStoragePath(dotYouId);
+            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s => s.Find(p => p.ReceivedTimestamp >= startDateTimeOffsetSeconds && p.ReceivedTimestamp <= endDateTimeOffsetSeconds, pageOptions));
+
+            var finalResult = new DateRangePagedResult<ChatMessageEnvelope>()
+            {
+                StartDateTimeOffsetSeconds = startDateTimeOffsetSeconds,
+                EndDateTimeOffsetSeconds = endDateTimeOffsetSeconds,
+                Request = page.Request,
+                Results = page.Results,
+                TotalPages = page.TotalPages
+            };
+
+            return finalResult;
         }
 
         private string GetChatStoragePath(DotYouIdentity dotYouId)

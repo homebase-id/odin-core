@@ -76,7 +76,7 @@ namespace DotYou.Kernel.Services
                 return func(storage);
             }
         }
-
+        
         protected Task<T> WithTenantStorageReturnSingle<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<T>> func)
         {
             var cfg = _context.StorageConfig;
