@@ -17,7 +17,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
         }
 
         [HttpPost("chat")]
-        public async Task<IActionResult> ReceiveIncomingEmailMessage([FromBody] ChatMessageEnvelope message)
+        public async Task<IActionResult> ReceiveIncomingChatMessage([FromBody] ChatMessageEnvelope message)
         {
             await _chatService.ReceiveIncomingMessage(message);
             return new JsonResult(new NoResultResponse(true));

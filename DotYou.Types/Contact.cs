@@ -5,6 +5,13 @@ namespace DotYou.Types
 {
     public class Contact
     {
+        public Contact()
+        {
+            Id = Guid.NewGuid();
+        }
+        
+        public Guid Id { get; set; }
+
         public DotYouIdentity? DotYouId { get; set; }
 
         public string GivenName { get; set; }

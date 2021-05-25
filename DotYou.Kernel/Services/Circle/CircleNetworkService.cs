@@ -45,7 +45,6 @@ namespace DotYou.Kernel.Services.Circle
             return results;
         }
 
-        //public async Task SendConnectionRequest(ConnectionRequest request)
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
             Guard.Argument(header, nameof(header)).NotNull();
@@ -66,14 +65,14 @@ namespace DotYou.Kernel.Services.Circle
 
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
 
-            var response = await base.CreatePerimeterHttpClient(request.Recipient).SendConnectionRequest(request);
+            var response = await base.CreatePerimeterHttpClient(request.Recipient).DeliverConnectionRequest(request);
 
             if (!response.Content.Success)
             {
                 //TODO: add more info
                 throw new Exception("Failed to establish connection request");
             }
-            
+
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
@@ -117,20 +116,23 @@ namespace DotYou.Kernel.Services.Circle
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            //TODO: this is a strange way 
             DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
             var ec = await _contactService.GetByDotYouId(cert.DotYouId);
 
             //TODO: address how this contact merge should really happen
+            //TODO: add relationship id to unify the connection; perhaps use ConnectionRequestId
+
+            //create a new contact
             var contact = new Contact()
             {
+                Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.RecipientGivenName,
                 Surname = request.RecipientSurname,
-                DotYouId = (DotYouIdentity) cert.DotYouId,
+                DotYouId = cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
-                PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
+                PrimaryEmail = ec == null ? "" : ec.PrimaryEmail,
                 PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
-                Tag = null == ec ? "" : ec.Tag
+                Tag = ec == null ? "" : ec.Tag
             };
 
             await _contactService.Save(contact);
@@ -158,18 +160,19 @@ namespace DotYou.Kernel.Services.Circle
             //TODO: add relationshipId for future analysis
 
             //TODO: address how this contact merge should really happen
+
             var contact = new Contact()
             {
+                Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.SenderGivenName,
                 Surname = request.SenderSurname,
-                DotYouId = (DotYouIdentity) cert.DotYouId,
+                DotYouId = cert.DotYouId,
                 SystemCircle = SystemCircle.Connected,
-                PrimaryEmail = null == ec ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.SenderPublicKeyCertificate,
-                Tag = null == ec ? "" : ec.Tag
+                PrimaryEmail = ec == null ? "" : ec.PrimaryEmail,
+                PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
+                Tag = ec == null ? "" : ec.Tag
             };
 
-            //Upsert
             await _contactService.Save(contact);
 
             //call to request.Sender's agent to establish connection.

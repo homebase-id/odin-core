@@ -62,6 +62,14 @@
         //notificationEvents.CircleInviteReceived += CircleInviteReceived;
         _notificationEvents.NewEmailReceived += NewEmailReceived;
         _notificationEvents.ConnectionRequestAccepted += ConnectionRequestAccepted;
+
+        //_notificationEvents.NewChatMessageReceived += NewChatMessageReceived;
+    }
+    
+    private void NewChatMessageReceived(ChatMessageEnvelope msg)
+    {
+        
+        
     }
 
     private void NewEmailReceived(Message msg)

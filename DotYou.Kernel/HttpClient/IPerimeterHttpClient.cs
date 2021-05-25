@@ -15,16 +15,16 @@ namespace DotYou.Kernel.HttpClient
         private const string RootPath = "/api/perimeter";
 
         [Post(RootPath + "/email")]
-        Task<ApiResponse<NoResultResponse>> SendEmail(Message message);
+        Task<ApiResponse<NoResultResponse>> DeliverEmail(Message message);
 
         [Post(RootPath + "/invitations/connect")]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body]ConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body]ConnectionRequest request);
         
         [Post(RootPath + "/invitations/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body]EstablishConnectionRequest request);
 
         [Post(RootPath + "/chat")]
-        Task<ApiResponse<NoResultResponse>> SendChatMessage(ChatMessageEnvelope message);
+        Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope message);
         
         [Post(RootPath + "/status/chat")]
         Task<ApiResponse<bool>> GetAvailability();

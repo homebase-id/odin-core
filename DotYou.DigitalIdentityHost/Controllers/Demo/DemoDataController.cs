@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.Demo;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
@@ -18,10 +19,12 @@ namespace DotYou.TenantHost.Controllers.Demo
     public class DemoDataController : ControllerBase
     {
         IContactService _contactService;
+        private IPrototrialDemoDataService _prototrial;
 
-        public DemoDataController(IContactService contactService)
+        public DemoDataController(IContactService contactService, IPrototrialDemoDataService prototrial)
         {
             _contactService = contactService;
+            _prototrial = prototrial;
         }
 
 
@@ -29,6 +32,7 @@ namespace DotYou.TenantHost.Controllers.Demo
         public async Task<IActionResult> AddContacts()
         {
             string path = Path.Combine(Environment.CurrentDirectory, "sampledata","contacts.json");
+            
             string json = System.IO.File.ReadAllText(path);
             var contacts = JsonConvert.DeserializeObject<ImportedContact[]>(json).ToList();
 
@@ -44,14 +48,9 @@ namespace DotYou.TenantHost.Controllers.Demo
 
                 await _contactService.Save(contact);
             }
-
-            await _contactService.Save(new Contact() { DotYouId = (DotYouIdentity)"frodobaggins.me", GivenName = "Frodo", Surname = "Baggins", Tag="Fellowship", PrimaryEmail="mail@frodobaggins.me" });
-            await _contactService.Save(new Contact() { DotYouId = (DotYouIdentity)"samwisegamgee.me", GivenName = "Samwise", Surname = "Gamgee", Tag = "Fellowship", PrimaryEmail = "mail@samwisegamgee.me" });
-            await _contactService.Save(new Contact() { DotYouId = (DotYouIdentity)"gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life" });
-            await _contactService.Save(new Contact() { DotYouId = (DotYouIdentity)"arwen.youfoundation.id", GivenName = "Awren", Surname = "Undomiel", Tag = "Fellowship", PrimaryEmail = "mail@arwen.youfoundation.id" });
-            await _contactService.Save(new Contact() { DotYouId = (DotYouIdentity)"odin.valhalla.com", GivenName = "Odin", Surname = "", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me" });
-
-            return new JsonResult(true);
+            
+            var result = await _prototrial.AddDigitalIdentities();
+            return new JsonResult(result);
         }
     }
 }

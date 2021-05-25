@@ -2,9 +2,9 @@ namespace DotYou.Types
 {
     public static class ValidationUtil
     {
-        public static bool HasNonWhitespaceValue(string value)
+        public static bool IsNullEmptyOrWhitespace(string value)
         {
-            return string.IsNullOrEmpty(value) == false && string.IsNullOrWhiteSpace(value) == false;
+            return string.IsNullOrEmpty(value) || string.IsNullOrWhiteSpace(value);
         }
     }
 }

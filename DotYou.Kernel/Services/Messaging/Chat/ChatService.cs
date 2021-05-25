@@ -16,7 +16,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 {
     public class ChatService : DotYouServiceBase, IChatService
     {
-        private const string CHAT_MESSAGE_STORAGE = "ChatMessages";
+        private const string CHAT_MESSAGE_STORAGE = "chat";
         private readonly IContactService _contactService;
 
         public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IContactService contactService) : base(context, logger, hub, fac)
@@ -57,33 +57,51 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             return availabilityPage;
         }
 
-
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
             //look up recipient's public key from contacts
             var contact = await _contactService.GetByDotYouId(message.Recipient);
 
-            if (null == contact || ValidationUtil.HasNonWhitespaceValue(contact.PublicKeyCertificate))
+            if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.PublicKeyCertificate))
             {
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
-
-            message.Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body);
-
+            
+            var encryptedMessage = new ChatMessageEnvelope()
+            {
+                Id = message.Id,
+                Recipient = message.Recipient,
+                ReceivedTimestamp = message.ReceivedTimestamp,
+                SenderDotYouId = message.SenderDotYouId,
+                SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
+                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body)
+            };
+            
             var client = this.CreatePerimeterHttpClient(message.Recipient);
+            var response = await client.DeliverChatMessage(encryptedMessage);
 
-            var response = await client.SendChatMessage(message);
+            if (response.IsSuccessStatusCode)
+            {
+                //upon successful delivery of the message, save our message
+                WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
+            }
 
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message)
         {
-            WithTenantStorage<ChatMessageEnvelope>(CHAT_MESSAGE_STORAGE, s => s.Save(message));
+            string collection = GetChatStoragePath(message.SenderDotYouId);
+            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
 
             await this.Notify.NewChatMessageReceived(message);
 
             return true;
+        }
+
+        private string GetChatStoragePath(DotYouIdentity dotYouId)
+        {
+            return $"{CHAT_MESSAGE_STORAGE}_{dotYouId.Id.Replace(".", "_")}";
         }
     }
 }

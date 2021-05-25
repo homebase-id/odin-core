@@ -12,6 +12,7 @@ using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authentication;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.Demo;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
@@ -153,6 +154,16 @@ namespace DotYou.DigitalIdentityHost
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 var cs = svc.GetRequiredService<IContactService>();
                 return new ChatService(context, logger, hub, fac, cs);
+            });
+
+
+            services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ChatService>>();
+                var cs = svc.GetRequiredService<IContactService>();
+
+                return new PrototrialDemoDataService(context, logger, cs);
             });
         }
 

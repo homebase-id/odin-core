@@ -4,17 +4,43 @@
 
 @foreach (var av in this._availableContacts)
 {
-    <ContactCardMicro Contact="@av.Contact" IsOnline="@av.IsChatAvailable" OnClick="HandleClick"/>
+    <ContactCardMicro Contact="@av.Contact" NotificationCount="@GetNotificationCount(av.Contact.DotYouId.GetValueOrDefault())" IsOnline="@av.IsChatAvailable" OnClick="HandleClick"/>
 }
 
 @code {
 
+    //hack: really neeed just one object here managing the list of contacts but i claim #prototrial
+    private readonly Dictionary<DotYouIdentity, int> notificationCounts = new Dictionary<DotYouIdentity, int>();
     private readonly List<AvailabilityStatus> _availableContacts = new List<AvailabilityStatus>();
     private Timer _timer;
 
     [Parameter]
     public EventCallback<Contact> OnClick { get; set; }
 
+    public void SetNotificationCount(DotYouIdentity dotYouId, int nc)
+    {
+        if (notificationCounts.ContainsKey(dotYouId))
+        {
+            notificationCounts[dotYouId] = nc;
+        }
+        else
+        {
+            notificationCounts.Add(dotYouId, nc);
+        }
+        
+        StateHasChanged();
+    }
+    
+    public int GetNotificationCount(DotYouIdentity dotYouId)
+    {
+        if (notificationCounts.TryGetValue(dotYouId, out var nc))
+        {
+            return nc;
+        }
+
+        return 0;
+    }
+    
     private void HandleClick(Contact c)
     {
         OnClick.InvokeAsync(c);
@@ -33,7 +59,7 @@
 
         await RefreshContacts();
     }
-
+    
     private async void TimerElapsed(object sender, ElapsedEventArgs e)
     {
         await RefreshContacts();

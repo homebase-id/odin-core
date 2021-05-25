@@ -1,20 +1,19 @@
 ﻿@inject AppState _state
 
-<h1>asfsf</h1>
-<div class="@leftOrRight pb-4">
+<div class="@_leftOrRight pb-4">
     <div>
-        <img src="/api/avatar/@Message.SenderDotYouId" class="rounded-circle mr-1" alt="@Message.SenderDotYouId" width="40" height="40">
-        <div class="text-muted small text-nowrap mt-2">@Message.ReceivedTimestamp)</div>
+        <img src="/api/images/avatar/@Message.SenderDotYouId" class="rounded mr-1" alt="" width="40" height="40">
+        @* <div class="text-muted small text-nowrap mt-2">@Message.ReceivedTimestamp</div> *@
     </div>
     <div class="flex-shrink-1 bg-light rounded py-2 px-3 mr-3">
-        <div class="font-weight-bold mb-1">SENDER NAME</div>
+        @* <div class="font-weight-bold mb-1">SENDER NAME</div> *@
         @Message.Body
     </div>
 </div>
 
 @code {
 
-    private string leftOrRight;
+    private string _leftOrRight;
 
     [Parameter]
     public ChatMessageEnvelope Message { get; set; }
@@ -22,7 +21,7 @@
     protected override void OnParametersSet()
     {
         bool isMe = string.Equals(this.Message.Recipient, _state.User.DotYouId, StringComparison.InvariantCultureIgnoreCase);
-        this.leftOrRight = isMe ? "chat-message-right" : "chat-message-left";
+        this._leftOrRight = isMe ? "chat-message-right" : "chat-message-left";
 
         base.OnParametersSet();
     }

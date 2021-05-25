@@ -9,7 +9,8 @@ namespace DotYou.AdminClient.Services
         //public event Action<CircleInvite> CircleInviteReceived;
 
         public event Action<Message> NewEmailReceived;
-        
+        public event Action<ChatMessageEnvelope> NewChatMessageReceived;
+
         public event Action<ConnectionRequest> ConnectionRequestReceived;
 
         public event Action<EstablishConnectionRequest> ConnectionRequestAccepted;
@@ -28,6 +29,11 @@ namespace DotYou.AdminClient.Services
         public void BroadcastNewEmailReceived(Message message)
         {
             NewEmailReceived?.Invoke(message);
+        }
+
+        public void BroadcastNewChatMessageReceived(ChatMessageEnvelope message)
+        {
+            NewChatMessageReceived?.Invoke(message);
         }
 
         public void BroadcastConnectionRequestReceived(ConnectionRequest request)

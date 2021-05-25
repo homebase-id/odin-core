@@ -14,11 +14,15 @@ namespace DotYou.AdminClient.Services
 
         event Action<Message> NewEmailReceived;
 
+        event Action<ChatMessageEnvelope> NewChatMessageReceived;
+
         event Action<ConnectionRequest> ConnectionRequestReceived;
 
         event Action<EstablishConnectionRequest> ConnectionRequestAccepted;
 
         void BroadcastNewEmailReceived(Message message);
+
+        void BroadcastNewChatMessageReceived(ChatMessageEnvelope message);
         
         void BroadcastConnectionRequestReceived(ConnectionRequest request);
 
