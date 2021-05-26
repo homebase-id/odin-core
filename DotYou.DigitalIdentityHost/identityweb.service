@@ -1,0 +1,43 @@
+﻿[Unit]
+Description=YF Identity Web API
+
+[Service]
+# will set the Current Working Directory (CWD)
+WorkingDirectory=/srv/identityweb
+# systemd will run this executable to start the service
+ExecStart=/usr/share/dotnet/dotnet /srv/identityweb/DotYou.DigitalIdentityHost.dll
+# to query logs using journalctl, set a logical name here  
+SyslogIdentifier=YFIdentityWeb
+
+# Use your username to keep things simple, for production scenario's I recommend a dedicated user/group.
+# If you pick a different user, make sure dotnet and all permissions are set correctly to run the app.
+# To update permissions, use 'chown yourusername -R /srv/AspNetSite' to take ownership of the folder and files,
+#       Use 'chmod +x /srv/AspNetSite/AspNetSite' to allow execution of the executable file.
+User=ankler	
+
+# ensure the service restarts after crashing
+Restart=always
+# amount of time to wait before restarting the service              
+RestartSec=5
+
+# copied from dotnet documentation at
+# https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/linux-nginx?view=aspnetcore-3.1#code-try-7
+KillSignal=SIGINT
+Environment="ASPNETCORE_ENVIRONMENT=Production"
+Environment="DOTNET_PRINT_TELEMETRY_MESSAGE=false"
+Environment="CERTIFICATE_DB_PATH=/srv/data/certifcates"
+Environment="DATA_ROOT_PATH=/srv/data/tenants"
+
+# This environment variable is necessary when dotnet isn't loaded for the specified user.
+# To figure out this value, run 'env | grep DOTNET_ROOT' when dotnet has been loaded into your shell.
+Environment=DOTNET_ROOT=/usr/share/dotnet
+
+# When using the out of the box ASP.NET Tempates, this environment variable will allow you to override
+# which IP & ports the Kestrel Web Server will listen to
+Environment=ASPNETCORE_URLS=http://*:80;https://*:443
+
+# give the executed process the CAP_NET_BIND_SERVICE capability. This capability allows the process to bind to well known ports.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
