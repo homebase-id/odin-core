@@ -66,15 +66,17 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
-
-            //HACK: setting this here so the client knows it sent the message.  this indicates a need to build two different classes - one for outgoing and one for incoming messages
+            
             message.SenderDotYouId = this.Context.DotYouId;
+            message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            //message.SentTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             var encryptedMessage = new ChatMessageEnvelope()
             {
                 Id = message.Id,
                 Recipient = message.Recipient,
-                ReceivedTimestamp = message.ReceivedTimestamp,
+                ReceivedTimestampMilliseconds = message.ReceivedTimestampMilliseconds,
+                //SentTimestampMilliseconds = message.SentTimestampMilliseconds,
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
                 Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body)
@@ -107,7 +109,9 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)
         {
             string collection = GetChatStoragePath(dotYouId);
-            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s => s.Find(p => p.ReceivedTimestamp >= startDateTimeOffsetSeconds && p.ReceivedTimestamp <= endDateTimeOffsetSeconds, pageOptions));
+            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s => 
+                s.Find(p => p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds && 
+                            p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds, pageOptions));
 
             var finalResult = new DateRangePagedResult<ChatMessageEnvelope>()
             {

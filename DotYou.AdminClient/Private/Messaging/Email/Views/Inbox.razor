@@ -7,7 +7,7 @@
         <a href="#" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
                 <h6 class="mb-1">@message.Topic</h6>
-                <small>@message.ReceivedTimestamp.ToDateTimeOffset().ToRelative()</small>
+                <small>@message.ReceivedTimestampMilliseconds.ToDateTimeOffset().ToRelative()</small>
             </div>
             <div>
                 <small>From: @message.SenderDotYouId</small>
@@ -34,7 +34,7 @@
         {
             var response = await _email.GetMessageList(RootMessageFolder.Inbox, PageOptions.Default);
             var page = response.Content;
-            _messages = page?.Results.OrderByDescending(m => m.ReceivedTimestamp)?.ToList();
+            _messages = page?.Results.OrderByDescending(m => m.ReceivedTimestampMilliseconds)?.ToList();
             StateHasChanged();
         }
         //return base.OnAfterRenderAsync(firstRender);

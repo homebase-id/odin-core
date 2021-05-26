@@ -57,7 +57,7 @@ namespace DotYou.Kernel.Services.Circle
             request.Message = header.Message;
 
             request.SenderDotYouId = this.Context.DotYouId;
-            request.ReceivedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            request.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             //TODO: these need to pull from the identity attribute server using the public profile attributes
             request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;

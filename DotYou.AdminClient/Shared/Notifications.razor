@@ -79,7 +79,7 @@
         this._notifications.Add(new Notification()
         {
             MessageText = $"{msg.SenderDotYouId} sent you an email",
-            DateTimeReceived = msg.ReceivedTimestamp
+            DateTimeReceived = msg.ReceivedTimestampMilliseconds
         });
 
         string message = $"{msg.Topic}";
@@ -112,7 +112,7 @@
         this._notifications.Add(new Notification()
         {
             MessageText = $"{request.SenderDotYouId} invited you to connect",
-            DateTimeReceived = request.ReceivedTimestamp
+            DateTimeReceived = request.ReceivedTimestampMilliseconds
         });
 
         string message = $"{request.SenderDotYouId} ({request.SenderGivenName} {request.SenderSurname}) has invited you to connect";

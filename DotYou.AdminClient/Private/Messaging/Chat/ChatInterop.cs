@@ -8,8 +8,12 @@ namespace DotYou.AdminClient.Private.Messaging.Chat
     {
         internal static ValueTask<object> AnchorScrollAtBottom(IJSRuntime jsRuntime, ElementReference element)
         {
-
             return jsRuntime.InvokeAsync<object>("YFChatFunctions.anchorScrollAtBottom", element);
+        }
+
+        internal static ValueTask Focus(IJSRuntime jsRuntime, ElementReference element)
+        {
+            return jsRuntime.InvokeVoidAsync("YFChatFunctions.focusElement", element);
         }
     }
 }

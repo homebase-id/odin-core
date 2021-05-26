@@ -22,6 +22,6 @@ namespace DotYou.Types.Circle
         /// <summary>
         /// Epoc timestamp when the message was received
         /// </summary>
-        Int64 ReceivedTimestamp { get; set; }
+        Int64 ReceivedTimestampMilliseconds { get; set; }
     }
 }

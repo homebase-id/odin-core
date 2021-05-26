@@ -39,7 +39,7 @@ namespace DotYou.Kernel.Storage
             }
 
             string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
-            logger.LogInformation($"Database path is [{finalPath}]");
+            logger.LogDebug($"Database path is [{finalPath}]");
 
             //var cs = new ConnectionString()
             //{
@@ -122,7 +122,7 @@ namespace DotYou.Kernel.Storage
         {
             if (_db != null)
             {
-                _logger.LogInformation($"Disposing of {_collectionName} litedb instance");
+                _logger.LogDebug($"Disposing of {_collectionName} litedb instance");
                 _db.Dispose();
             }
         }

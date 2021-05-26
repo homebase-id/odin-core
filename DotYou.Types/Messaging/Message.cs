@@ -16,7 +16,7 @@ namespace DotYou.Types.Messaging
 
         public IEnumerable<string> Tags { get; set; }
 
-        public Int64 ReceivedTimestamp { get; set; }
+        public Int64 ReceivedTimestampMilliseconds { get; set; }
 
         public string Body { get; set; }
         

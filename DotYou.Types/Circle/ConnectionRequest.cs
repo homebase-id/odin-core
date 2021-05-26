@@ -26,7 +26,7 @@ namespace DotYou.Types.Circle
         /// </summary>
         public string SenderSurname { get; set; }
 
-        public Int64 ReceivedTimestamp { get; set; }
+        public Int64 ReceivedTimestampMilliseconds { get; set; }
 
         public string GetSenderDisplayName()
         {

@@ -1,5 +1,6 @@
 ﻿@using DotYou.AdminClient.Private.Components
 @using DotYou.AdminClient.Services
+@using System.Transactions
 @page "/private/messaging/chat"
 
 @inject IChatClient _chat
@@ -45,7 +46,7 @@
 
             <div class="flex-grow-0 py-3 px-4 border-top bg-white">
                 <div class="input-group">
-                    <input type="text" class="form-control" @bind-value="_messageToSend" placeholder="Type your message">
+                    <input @ref="_messageText" type="text" class="form-control" @bind-value="_messageToSend" placeholder="Type your message" @onkeydown="Enter" oninput="(this.dispatchEvent(new CustomEvent('change', { bubbles: true })))">
                     <div class="input-group-append">
                         <button class="btn btn-primary" @onclick="@SendMessage">Send</button>
                     </div>
@@ -70,6 +71,7 @@
 
 @code {
 
+    private ElementReference _messageText;
     private ElementReference _chatWindow;
     private OnlineContacts _contacts;
     private string _messageToSend;
@@ -79,12 +81,27 @@
         public DotYouIdentity DotYouId { get; set; }
         public List<ChatMessageEnvelope> Messages { get; set; } = new List<ChatMessageEnvelope>();
 
-        public DateRangeOffset GetMessageDateRange()
+        public DateRangeOffset GetSessionDateRange()
         {
+            // var minRcvd = Messages.Min(msg => msg.ReceivedTimestampMilliseconds);
+            // var minSent = Messages.Min(msg => msg.SentTimestampMilliseconds);
+            //
+            // var maxRcvd = Messages.Max(msg => msg.ReceivedTimestampMilliseconds);
+            // var maxSent = Messages.Max(msg => msg.SentTimestampMilliseconds);
+            //
+            // var result = new DateRangeOffset()
+            // {
+            //     StartDateTimeOffsetSeconds = Math.Min(minRcvd, minSent),
+            //     EndDateTimeOffsetSeconds = Math.Max(maxRcvd, maxSent)
+            // };
+            
+            var minRcvd = Messages.Min(msg => msg.ReceivedTimestampMilliseconds);
+            var maxRcvd = Messages.Max(msg => msg.ReceivedTimestampMilliseconds);
+            
             var result = new DateRangeOffset()
             {
-                StartDateTimeOffsetSeconds = Messages.Min(msg => msg.ReceivedTimestamp),
-                EndDateTimeOffsetSeconds = Messages.Max(msg => msg.ReceivedTimestamp)
+                StartDateTimeOffsetSeconds = minRcvd,
+                EndDateTimeOffsetSeconds = maxRcvd
             };
             
             return result;
@@ -98,8 +115,18 @@
     {
         _notificationEvents.NewChatMessageReceived += NewChatMessageReceived;
         _notificationEvents.NewChatMessageSent += NewChatMessageSent;
-
+        
         return Task.CompletedTask;
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ChatInterop.Focus(_jsRuntime, _messageText);
+        }
+
+        return base.OnAfterRenderAsync(firstRender);
     }
 
     private async void NewChatMessageSent(ChatMessageEnvelope msg)
@@ -134,6 +161,7 @@
         _currentSession = await EnsureGetSession(dotYouId);
         _contacts.SetNotificationCount(dotYouId, 0);
         await ChatInterop.AnchorScrollAtBottom(_jsRuntime, _chatWindow);
+        await ChatInterop.Focus(_jsRuntime, _messageText);
         StateHasChanged();
     }
 
@@ -149,8 +177,8 @@
             };
             
             //load the day of chat
-            var startSeconds = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(24)).ToUnixTimeSeconds();
-            var endSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var startSeconds = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromHours(24)).ToUnixTimeMilliseconds();
+            var endSeconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var historyResponse = await _chat.GetHistory(dotYou, startSeconds, endSeconds, 1, 300);
             if (historyResponse.IsSuccessStatusCode && historyResponse.Content != null)
             {
@@ -200,6 +228,14 @@
         StateHasChanged();
     }
 
-    public bool IsTypingMessage { get; set; }
+    private bool IsTypingMessage { get; set; }
+
+    private void Enter(KeyboardEventArgs e)
+    {
+        if (e.Code is "Enter" or "NumpadEnter")
+        {
+            SendMessage();
+        }
+    }
 
 }

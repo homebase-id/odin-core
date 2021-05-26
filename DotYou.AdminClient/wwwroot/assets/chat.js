@@ -5,5 +5,9 @@
             element.scrollTop = element.scrollHeight;
         },
 
+        focusElement: function (element) {
+            element.focus();
+        }
     };
+
 })();

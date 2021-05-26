@@ -3,7 +3,7 @@
 <div class="@_leftOrRight pb-4">
     <div>
         <img src="/api/images/avatar/@Message.SenderDotYouId" class="rounded mr-1" alt="" width="40" height="40">
-        @* <div class="text-muted small text-nowrap mt-2">@Message.ReceivedTimestamp</div> *@
+        @* <div class="text-muted small text-nowrap mt-2">@_timestamp</div> *@
     </div>
     <div class="flex-shrink-1 bg-light rounded py-2 px-3 mr-3">
         @* <div class="font-weight-bold mb-1">SENDER NAME</div> *@
@@ -14,15 +14,27 @@
 @code {
 
     private string _leftOrRight;
+    private Int64 _timestamp;
 
     [Parameter]
     public ChatMessageEnvelope Message { get; set; }
 
     protected override void OnParametersSet()
     {
-        Console.WriteLine($"{this.Message.Recipient}->{Message.Body.Substring(0, 13)} -> state:{_state.User.DotYouId}");
         bool isMe = string.Equals(this.Message.Recipient, _state.User.DotYouId, StringComparison.InvariantCultureIgnoreCase);
-        this._leftOrRight = isMe ? "chat-message-right" : "chat-message-left";
+
+        if (isMe)
+        {
+            _leftOrRight = "chat-message-right";
+            //_timestamp = Message.SentTimestampMilliseconds;
+        }
+        else
+        {
+            _leftOrRight = "chat-message-left";
+            //_timestamp = Message.ReceivedTimestampMilliseconds;
+        }
+        _timestamp = Message.ReceivedTimestampMilliseconds;
+
 
         base.OnParametersSet();
     }

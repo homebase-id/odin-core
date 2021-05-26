@@ -34,7 +34,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
                     //No null check here because the identity must be set at authentication.
                     rsc.SenderDotYouId = (DotYouIdentity) context.HttpContext.User.Identity.Name;
 
-                    rsc.ReceivedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    rsc.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 }
             }
         }

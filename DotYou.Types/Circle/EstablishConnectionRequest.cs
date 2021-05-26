@@ -23,7 +23,7 @@ namespace DotYou.Types.Circle
         
         public DotYouIdentity SenderDotYouId { get; set; }
         
-        public long ReceivedTimestamp { get; set; }
+        public long ReceivedTimestampMilliseconds { get; set; }
         
         public void Validate()
         {
