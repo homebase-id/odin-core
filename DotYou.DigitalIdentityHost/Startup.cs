@@ -110,12 +110,21 @@ namespace DotYou.DigitalIdentityHost
                 return new AdminAdminIdentityAttributeService(context, logger);
             });
 
+            services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<OwnerSecretService>>();
+                return new OwnerSecretService(context, logger);
+            });
+            
             services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
                 svc =>
                 {
                     var context = ResolveContext(svc);
                     var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-                    return new OwnerAuthenticationService(context, logger);
+                    var ss = svc.GetRequiredService<IOwnerSecretService>();
+                    
+                    return new OwnerAuthenticationService(context, logger, ss);
                 });
 
             services.AddScoped<IContactService, ContactService>(svc =>

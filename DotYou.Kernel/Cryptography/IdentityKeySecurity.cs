@@ -1,16 +1,14 @@
 using System;
 using System.Security.Cryptography;
+using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Newtonsoft.Json;
 
 namespace DotYou.Kernel.Cryptography
 {
+    [Obsolete("Waiting on Michael to just let it go")]
     public class IdentityKeySecurity 
     {
-        public const int SALT_SIZE = 16; // size in bytes
-        public const int HASH_SIZE = 16; // size in bytes
-        public const int ITERATIONS = 100000; // number of pbkdf2 iterations
-        public const int NONCE_SIZE = 16; // size in bytes
 
         // To be stored in the DB
         //
@@ -40,12 +38,12 @@ namespace DotYou.Kernel.Cryptography
         public void SetRawPassword(string password)
         {
             // Client receives the two salt values from the server
-            SaltPassword = YFByteArray.GetRndByteArray(SALT_SIZE);
-            SaltKek = YFByteArray.GetRndByteArray(SALT_SIZE);
+            SaltPassword = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
+            SaltKek = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
 
             // Client hashes the user password and salts and calculates the KEK
-            HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS,CryptographyConstants.HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // When Server receives the proper values it generates a key pair
             // Generate new public / private keys
@@ -78,7 +76,7 @@ namespace DotYou.Kernel.Cryptography
                 throw new ArgumentException("Expects one string with two base64 $ delimited values");
 
             // Get the nonce sent to the client somewhere from this server
-            byte[] nonce = YFByteArray.GetRndByteArray(SALT_SIZE);
+            byte[] nonce = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
 
             byte[] HashedNonceHashedPassword = Convert.FromBase64String(ss[0]);
 
@@ -90,7 +88,7 @@ namespace DotYou.Kernel.Cryptography
             if (KeyEncryptionKey.Length != 16)
                 throw new ArgumentException("KEK is not 16 bytes");
 
-            var ServerHashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var ServerHashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             if (HashedNonceHashedPassword != ServerHashedNonceHashedPassword)
                 throw new ArgumentException("Incorrect password");
@@ -106,15 +104,15 @@ namespace DotYou.Kernel.Cryptography
 
         public void PrepareNewPassword()
         {
-            SaltPassword = YFByteArray.GetRndByteArray(SALT_SIZE);
-            SaltKek = YFByteArray.GetRndByteArray(SALT_SIZE);
+            SaltPassword = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
+            SaltKek = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
         }
 
         public void SendToClient()
         {
             byte[] nonce;
 
-            nonce = YFByteArray.GetRndByteArray(SALT_SIZE);
+            nonce = YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE);
             // Send the:
             // SaltPassword
             // SaltKek
@@ -131,9 +129,9 @@ namespace DotYou.Kernel.Cryptography
             var _Nonce = Convert.FromBase64String(nonce64);
 
             // Hash the user password + user salt
-            var HashedPassword = KeyDerivation.Pbkdf2(newPassword, _SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashedPassword), _Nonce, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2(newPassword, _SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var HashedPassword = KeyDerivation.Pbkdf2(newPassword, _SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashedPassword), _Nonce, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2(newPassword, _SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // Server is to discard the KeyEncryptionKey as soon as it has created a key-set and encrypted the private key
             // The KEK is delivered to the server on password creation and should not again be calculated by the client
@@ -150,9 +148,9 @@ namespace DotYou.Kernel.Cryptography
             var _Nonce = Convert.FromBase64String(nonce64);
 
             // Hash the user password + user salt
-            var HashedPassword = KeyDerivation.Pbkdf2(password, _SaltPassword, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashedPassword), _Nonce, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, _SaltKek, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var HashedPassword = KeyDerivation.Pbkdf2(password, _SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashedPassword), _Nonce, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var KeyEncryptionKey = KeyDerivation.Pbkdf2(password, _SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             return Convert.ToBase64String(HashedNonceHashedPassword) + "$" + Convert.ToBase64String(KeyEncryptionKey);
         }
@@ -182,22 +180,22 @@ namespace DotYou.Kernel.Cryptography
         //
         public static byte[] CreateKeyDerivationKey(byte[] salt, string password, int nBytes)
         {
-            var ra = KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA512, ITERATIONS, nBytes);
+            var ra = KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, nBytes);
             return ra;
         }
 
         public static string PasswordFlow(string userPassword, byte[] userSalt)
         {
             // Hash the user password + user salt
-            var hpwd = KeyDerivation.Pbkdf2(userPassword, userSalt, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var hpwd = KeyDerivation.Pbkdf2(userPassword, userSalt, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // Generate an 8 byte nonce using RNGCryptoServiceProvider
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
-            byte[] nonce = new byte[NONCE_SIZE];
+            byte[] nonce = new byte[CryptographyConstants.NONCE_SIZE];
             rng.GetBytes(nonce);
 
             // Hash the hpwd byte[] converted to Base64 with the nonce byte array as salt
-            var final = KeyDerivation.Pbkdf2(Convert.ToBase64String(hpwd), nonce, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var final = KeyDerivation.Pbkdf2(Convert.ToBase64String(hpwd), nonce, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             return Convert.ToBase64String(nonce) + "$" + Convert.ToBase64String(final);
         }
@@ -231,12 +229,12 @@ namespace DotYou.Kernel.Cryptography
             // Generate a 16 byte userSalt using RNGCryptoServiceProvider
             // We store this userSalt value in the DB
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
-            byte[] userSalt = new byte[HASH_SIZE];
+            byte[] userSalt = new byte[CryptographyConstants.HASH_SIZE];
             rng.GetBytes(userSalt);
 
             // Hash the new password + user salt
             // We store this value in the DB
-            var hashPassword = KeyDerivation.Pbkdf2(newPassword, userSalt, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var hashPassword = KeyDerivation.Pbkdf2(newPassword, userSalt, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
 
             // We generate a new 2048 bit public / private key to encrypt the user's data
@@ -245,11 +243,11 @@ namespace DotYou.Kernel.Cryptography
 
             // We generate a KEK salt
             // We store this in the DB
-            byte[] KekSalt = new byte[HASH_SIZE];
+            byte[] KekSalt = new byte[CryptographyConstants.HASH_SIZE];
             rng.GetBytes(KekSalt);
 
             // We generate a 16-byte KEK for encrypting the private key
-            var keyEncryptionKey = KeyDerivation.Pbkdf2(newPassword, KekSalt, KeyDerivationPrf.HMACSHA512, ITERATIONS, HASH_SIZE);
+            var keyEncryptionKey = KeyDerivation.Pbkdf2(newPassword, KekSalt, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // Using the KEK, we encrypt the private key (AES)
             //

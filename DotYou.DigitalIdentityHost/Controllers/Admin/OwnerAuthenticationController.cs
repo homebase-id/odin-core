@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
+using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Admin
@@ -11,14 +12,16 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
     public class OwnerAuthenticationController : Controller
     {
         private readonly IOwnerAuthenticationService _authService;
+        private readonly IOwnerSecretService _ss;
 
-        public OwnerAuthenticationController(IOwnerAuthenticationService authService)
+        public OwnerAuthenticationController(IOwnerAuthenticationService authService, IOwnerSecretService ss)
         {
             _authService = authService;
+            _ss = ss;
         }
         
         [HttpPost]
-        public async Task<IActionResult> Authenticate([FromBody]NonceReplyPackage package)
+        public async Task<IActionResult> Authenticate([FromBody]AuthenticationNonceReply package)
         {
             var result = await _authService.Authenticate(package);
             return new JsonResult(result);
@@ -49,7 +52,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         [HttpGet("nonce")]
         public async Task<IActionResult> GenerateNonce()
         {
-           var result = await _authService.GenerateNonce();
+           var result = await _authService.GenerateAuthenticationNonce();
 
            var cn = new ClientNoncePackage()
            {
@@ -59,6 +62,28 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
            };
            return new JsonResult(cn);
         }
+
+        [HttpGet("todo_move_this")]
+        public async Task<IActionResult> SetNewPassword([FromBody]PasswordReply reply)
+        {
+            await _ss.SetNewPassword(reply);
+            return new JsonResult(new NoResultResponse(true));
+        }
         
+        [HttpGet("getsalts")]
+        public async Task<IActionResult> GenerateSalts()
+        {
+            //TODO: Need to drop this client nonce package convert nonsense
+            var salts = await _ss.GenerateNewSalts();
+            
+            var cn = new ClientNoncePackage()
+            {
+                Nonce64 = salts.Nonce64,
+                SaltKek64 = salts.SaltKek64,
+                SaltPassword64 = salts.SaltPassword64
+            };
+            
+            return new JsonResult(cn);
+        }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using DotYou.Kernel.Cryptography;
 using DotYou.Types;
+using DotYou.Types.Cryptography;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {
@@ -11,24 +12,12 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     public interface IOwnerAuthenticationService
     {
         /// <summary>
-        /// Authenticates a user for this <see cref="DotYouIdentity"/>.  Returns a token which can be later used
-        /// to determine if the user is still authenticated.
-        /// 
-        /// Note: for #prototrial, we are only using a password yet need to find a stronger methdod, such as certificate or otherwise.
+        /// Authenticates the owner based on the <see cref="AuthenticationNonceReply"/> specified.
         /// </summary>
-        /// <param name="password"></param>
-        /// <param name="ttlSeconds"></param>
+        /// <param name="reply"></param>
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<AuthenticationResult> Authenticate(string password, int ttlSeconds);
-
-        /// <summary>
-        /// Authenticates the owner based on the <see cref="NonceReplyPackage"/> specified.
-        /// </summary>
-        /// <param name="replyPackage"></param>
-        /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
-        /// <returns></returns>
-        Task<AuthenticationResult> Authenticate(NonceReplyPackage replyPackage);
+        Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply);
         
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  
@@ -55,6 +44,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates a one time value to used when authenticating a user
         /// </summary>
         /// <returns></returns>
-        public Task<NoncePackage> GenerateNonce();
+        public Task<NoncePackage> GenerateAuthenticationNonce();
     }
 }

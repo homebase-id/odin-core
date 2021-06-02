@@ -1,10 +1,10 @@
 using System;
-using System.Text;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
 using DotYou.Types.ApiClient;
 using Microsoft.JSInterop;
+using DotYou.Types.Cryptography;
 using Newtonsoft.Json;
 
 namespace DotYou.AdminClient
@@ -35,11 +35,8 @@ namespace DotYou.AdminClient
             get => _authResult;
         }
 
-        public async Task<bool> Login(string password)
+        public static async Task<IPasswordReply> PreparePassword<T>(string password, ClientNoncePackage serverNonce, IJSRuntime _js) where T :IPasswordReply, new()
         {
-            await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
-
-            var serverNonce = (await _client.GenerateNonce()).Content;
 
             var passwordBytes = Convert.FromBase64String(password);
             var saltPasswordBytes = Convert.FromBase64String(serverNonce.SaltPassword64);
@@ -48,24 +45,37 @@ namespace DotYou.AdminClient
 
             var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
             var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
-            var hashedNonce64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
-          
+            var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
+
             var hashedKek64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltKekBytes, 100000, 16);
-            
-            NonceReplyPackage clientReply = new NonceReplyPackage()
+
+            AuthenticationNonceReply clientReply = new()
             {
                 Nonce64 = serverNonce.Nonce64,
                 KeK64 = hashedKek64,
-                NonceHashedPassword = hashedNonce64
+                HashedPassword64 = hashedPassword64,
+                NonceHashedPassword64 = hashNoncePassword64
             };
 
-            var response = await _client.Authenticate(clientReply);
-
-            if (response.IsSuccessStatusCode)
-            {
-                _authResult = response.Content;
-                await this.InitializeContext();
+            return clientReply;
             
+        }
+
+        public async Task<bool> Login(string password)
+        {
+            await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
+
+            var nonceResponse = await _client.GenerateNonce();
+            var noncePackage = nonceResponse.Content;
+
+            var clientReply = await PreparePassword<AuthenticationNonceReply>(password, noncePackage,_js);
+
+            var authResponse = await _client.Authenticate(clientReply);
+
+            if (authResponse.IsSuccessStatusCode)
+            {
+                _authResult = authResponse.Content;
+                await this.InitializeContext();
                 return true;
             }
 

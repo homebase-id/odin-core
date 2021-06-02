@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
+using DotYou.Types.Cryptography;
 using NUnit.Framework;
 using Refit;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {
-    public class AdminAuthenticationTests
+    public class OwnerAuthenticationTests
     {
         private TestScaffold scaffold;
 
@@ -69,11 +70,11 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             //TODO encrypt password usign clientNonce
             string password = "p";
 
-            NonceReplyPackage clientReply = new NonceReplyPackage()
+            AuthenticationNonceReply clientReply = new AuthenticationNonceReply()
             {
                 Nonce64 = clientNonce.Nonce64,
                 KeK64 = "todo",
-                NonceHashedPassword = "should be hashed "
+                NonceHashedPassword64 = "should be hashed "
             };
                 
             var authResponse = await svc.Authenticate(clientReply);
