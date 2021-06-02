@@ -1,8 +1,10 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Blazored.LocalStorage;
 using DotYou.Types;
 using DotYou.Types.ApiClient;
+using Microsoft.JSInterop;
 using Newtonsoft.Json;
 
 namespace DotYou.AdminClient
@@ -14,11 +16,13 @@ namespace DotYou.AdminClient
         private bool _isAuthenticated;
         private IOwnerAuthenticationClient _client;
         private ILocalStorageService _localStorage;
+        private readonly IJSRuntime _js;
 
-        public AuthState(IOwnerAuthenticationClient client, ILocalStorageService localStorage)
+        public AuthState(IOwnerAuthenticationClient client, ILocalStorageService localStorage, IJSRuntime js)
         {
             _client = client;
             _localStorage = localStorage;
+            _js = js;
         }
 
         public bool IsAuthenticated
@@ -34,16 +38,36 @@ namespace DotYou.AdminClient
         public async Task<bool> Login(string password)
         {
             await _localStorage.RemoveItemAsync(AUTH_RESULT_STORAGE_KEY);
-            throw new Exception("TODO: integrate Nonce auth");
-            // var response = await _client.Authenticate(null);
-            //
-            // if (response.IsSuccessStatusCode)
-            // {
-            //     _authResult = response.Content;
-            //     await this.InitializeContext();
-            //
-            //     return true;
-            // }
+
+            var serverNonce = (await _client.GenerateNonce()).Content;
+
+            var passwordBytes = Convert.FromBase64String(password);
+            var saltPasswordBytes = Convert.FromBase64String(serverNonce.SaltPassword64);
+            var saltKekBytes = Convert.FromBase64String(serverNonce.SaltKek64);
+            var saltNonceBytes = Convert.FromBase64String(serverNonce.Nonce64);
+
+            var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
+            var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
+            var hashedNonce64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
+          
+            var hashedKek64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltKekBytes, 100000, 16);
+            
+            NonceReplyPackage clientReply = new NonceReplyPackage()
+            {
+                Nonce64 = serverNonce.Nonce64,
+                KeK64 = hashedKek64,
+                NonceHashedPassword = hashedNonce64
+            };
+
+            var response = await _client.Authenticate(clientReply);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _authResult = response.Content;
+                await this.InitializeContext();
+            
+                return true;
+            }
 
             return false;
         }
@@ -63,7 +87,7 @@ namespace DotYou.AdminClient
 
                 var response = await _client.IsValid(cachedResult.Token);
                 await response.EnsureSuccessStatusCodeAsync();
-                
+
                 var isValid = response.Content;
                 if (isValid)
                 {
@@ -72,7 +96,6 @@ namespace DotYou.AdminClient
             }
 
             return null;
-            
         }
 
         public async Task InitializeContext()

@@ -8,6 +8,7 @@ using DotYou.Types.ApiClient;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using Refit;
 
 namespace DotYou.AdminClient
@@ -30,7 +31,8 @@ namespace DotYou.AdminClient
             {
                 var client = svc.GetRequiredService<IOwnerAuthenticationClient>();
                 var storage = svc.GetRequiredService<ILocalStorageService>();
-                var state = new AuthState(client, storage);
+                var js = svc.GetRequiredService<IJSRuntime>();
+                var state = new AuthState(client, storage, js);
                 return state;
             });
 
