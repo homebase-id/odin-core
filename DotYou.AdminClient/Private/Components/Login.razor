@@ -2,6 +2,7 @@
 @using DotYou.Types
 @using BlazorState
 @using DotYou.Types.Cryptography
+@using System.IO.Pipelines
 @inject IOwnerAuthenticationClient _authClient
 @inject NavigationManager nav
 @inject AppState appState
@@ -61,8 +62,16 @@
         var salts = response.Content;
 
         var reply = await AuthState.PreparePassword<PasswordReply>(password.Value, salts, js);
+
+        var pw = new PasswordReply()
+        {
+            Nonce64 = reply.Nonce64,
+            HashedPassword64 = reply.HashedPassword64,
+            KeK64 = reply.KeK64,
+            NonceHashedPassword64 = reply.NonceHashedPassword64
+        };
         
-        await _authClient.SetNewPassword((PasswordReply)reply);
+        await _authClient.SetNewPassword(pw);
     }
 
 }

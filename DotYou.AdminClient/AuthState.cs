@@ -37,8 +37,7 @@ namespace DotYou.AdminClient
 
         public static async Task<IPasswordReply> PreparePassword<T>(string password, ClientNoncePackage serverNonce, IJSRuntime _js) where T :IPasswordReply, new()
         {
-
-            var passwordBytes = Convert.FromBase64String(password);
+            var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
             var saltPasswordBytes = Convert.FromBase64String(serverNonce.SaltPassword64);
             var saltKekBytes = Convert.FromBase64String(serverNonce.SaltKek64);
             var saltNonceBytes = Convert.FromBase64String(serverNonce.Nonce64);
@@ -48,8 +47,13 @@ namespace DotYou.AdminClient
             var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
 
             var hashedKek64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltKekBytes, 100000, 16);
+            
+            Console.WriteLine($"hashedPassword64: {hashedPassword64}");
+            Console.WriteLine($"hashedKek64: {hashedKek64}");
+            Console.WriteLine($"hashNoncePassword64: {hashNoncePassword64}");
+            Console.WriteLine($"Nonce64: {serverNonce.Nonce64}");
 
-            AuthenticationNonceReply clientReply = new()
+            T clientReply = new()
             {
                 Nonce64 = serverNonce.Nonce64,
                 KeK64 = hashedKek64,

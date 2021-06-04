@@ -40,10 +40,16 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             var b2 = KeyDerivation.Pbkdf2(
                 reply.HashedPassword64,
                 Convert.FromBase64String(reply.Nonce64),
-                KeyDerivationPrf.HMACSHA512,
+                KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE);
 
+            // var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
+
+            
+            // var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
+            // var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
+            
             if (YFByteArray.EquiByteArrayCompare(b1, b2) == false)
             {
                 throw new InvalidDataException("Invalid payload");

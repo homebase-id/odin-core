@@ -26,7 +26,7 @@ namespace DotYou.Types.ApiClient
         
         //TODO: move these to a secrets/provisioning controller
         
-        [Get(RootPath + "/todo_move_this")]
+        [Post(RootPath + "/todo_move_this")]
         Task<ApiResponse<ClientNoncePackage>> SetNewPassword([Body]PasswordReply reply);
         
         [Get(RootPath + "/getsalts")]

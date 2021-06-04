@@ -63,7 +63,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
            return new JsonResult(cn);
         }
 
-        [HttpGet("todo_move_this")]
+        [HttpPost("todo_move_this")]
         public async Task<IActionResult> SetNewPassword([FromBody]PasswordReply reply)
         {
             await _ss.SetNewPassword(reply);
