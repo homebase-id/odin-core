@@ -103,7 +103,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             var nonceHashedPassword = KeyDerivation.Pbkdf2(
                 Convert.ToBase64String(pk.HashPassword),
                 Convert.FromBase64String(nonce64),
-                KeyDerivationPrf.HMACSHA512,
+                KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE);
 
