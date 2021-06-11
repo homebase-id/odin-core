@@ -5,11 +5,11 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Admin.IdentityManagement;
-using DotYou.Kernel.Services.Authentication;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
@@ -106,17 +106,26 @@ namespace DotYou.DigitalIdentityHost
             services.AddScoped<IAdminIdentityAttributeService, AdminAdminIdentityAttributeService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
+                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
 
                 return new AdminAdminIdentityAttributeService(context, logger);
             });
 
-            services.AddScoped<IAdminClientAuthenticationService, AdminClientPrototrialSimplePasswordAuthenticationService>(
+            services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<OwnerSecretService>>();
+                return new OwnerSecretService(context, logger);
+            });
+            
+            services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
                 svc =>
                 {
                     var context = ResolveContext(svc);
-                    var logger = svc.GetRequiredService<ILogger<AdminClientPrototrialSimplePasswordAuthenticationService>>();
-                    return new AdminClientPrototrialSimplePasswordAuthenticationService(context, logger);
+                    var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
+                    var ss = svc.GetRequiredService<IOwnerSecretService>();
+                    
+                    return new OwnerAuthenticationService(context, logger, ss);
                 });
 
             services.AddScoped<IContactService, ContactService>(svc =>
@@ -286,6 +295,9 @@ namespace DotYou.DigitalIdentityHost
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
+
+            // BsonMapper.Global.Entity<NoncePackage>()
+            //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }
     }
 }

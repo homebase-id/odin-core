@@ -13,9 +13,9 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class StatusController : ControllerBase
     {
-        private readonly IAdminClientAuthenticationService _authService;
+        private readonly IOwnerAuthenticationService _authService;
         
-        public StatusController(IAdminClientAuthenticationService authService)
+        public StatusController(IOwnerAuthenticationService authService)
         {
             _authService = authService;
         }

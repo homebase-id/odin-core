@@ -38,10 +38,8 @@ namespace DotYou.IdentityRegistry
                 new NameInfo() {GivenName = "You Foundation", Surname = "System User"},
                 new CertificateLocation()
                 {
-                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id",
-                        "certificate.cer"),
-                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id",
-                        "private.key")
+                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
+                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
                 });
 
         /// <summary>

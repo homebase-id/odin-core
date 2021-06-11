@@ -89,20 +89,22 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             using HttpClient authClient = new();
             authClient.BaseAddress = new Uri($"https://{identity}");
-            var svc = RestService.For<IAdminAuthenticationClient>(authClient);
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             string password = "";
-            var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
-
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
-            var result = response.Content;
-            Assert.NotNull(result, "No authentication result returned");
-            var newToken = result.Token;
-            Assert.IsTrue(newToken != Guid.Empty);
-
-            tokens.Add(identity, newToken);
-            return newToken;
-        }
+            throw new Exception("TODO: integrate Nonce auth");
+            //
+            // var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
+            //
+            // Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+            // var result = response.Content;
+            // Assert.NotNull(result, "No authentication result returned");
+            // var newToken = result.Token;
+            // Assert.IsTrue(newToken != Guid.Empty);
+            //
+            // tokens.Add(identity, newToken);
+            // return newToken;
+            }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
