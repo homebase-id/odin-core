@@ -115,8 +115,7 @@ namespace DotYou.TenantHost
                             });
                         })
                         .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                        .UseUrls("http://*:80",
-                            "https://*:443") //you need to configure netsh on windows to allow 80 and 443
+                        .UseUrls("https://*:443") //you need to configure netsh on windows to allow 443
                         .UseStartup<Startup>();
                 });
         }

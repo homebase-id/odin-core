@@ -34,7 +34,7 @@ Environment=DOTNET_ROOT=/usr/share/dotnet
 
 # When using the out of the box ASP.NET Tempates, this environment variable will allow you to override
 # which IP & ports the Kestrel Web Server will listen to
-Environment=ASPNETCORE_URLS=http://*:80;https://*:443
+Environment=ASPNETCORE_URLS=https://*:443
 
 # give the executed process the CAP_NET_BIND_SERVICE capability. This capability allows the process to bind to well known ports.
 AmbientCapabilities=CAP_NET_BIND_SERVICE

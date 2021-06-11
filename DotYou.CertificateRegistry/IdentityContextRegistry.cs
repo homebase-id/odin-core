@@ -69,20 +69,16 @@ namespace DotYou.IdentityRegistry
                 new(Guid.NewGuid(), "samwisegamgee.me", new NameInfo() {GivenName = "Samwise", Surname = "Gamgee"},
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me",
-                            "certificate.crt"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me",
-                            "private.key")
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "certificate.cer"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "private.key")
                     });
 
             IdentityCertificate frodo =
                 new(Guid.NewGuid(), "frodobaggins.me", new NameInfo() {GivenName = "Frodo", Surname = "Baggins"},
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me",
-                            "certificate.crt"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me",
-                            "private.key")
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.cer"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key")
                     });
 
             _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
