@@ -1,0 +1,157 @@
+﻿Documentation for Basic Encryption
+==================================
+
+Password (volatile)
+   The owner's clear text password (will never leave the client).
+   Password only exists briefly in memory on the client when entered into the password dialogue
+
+RsaPublic (owner property)
+   Is the owner's 2048 bit public key, stored in the database. Available as
+   .PublicKey
+
+RsaPrivate (volatile)
+   Is the owner's 2048 bit private key (in-memory value only).
+
+EncryptedRsaPrivate (owner property)
+   Is the owner's 2048 bit private key, encrypted using AES with the KeK.
+   Stored in the owner's database. Available as
+
+   .EncryptedRsaPrivate = YFRijndaelWrap.EncryptStringToBytes(PrivateKey, KeyEncryptionKey, SaltPassword);
+
+EncryptedDataKey [to-be-added] (owner property)
+    Is the owner's 16-byte AES encryption key used for all data encryption.
+    To be decrypted with the KeK when data needs to be decrypted
+    (isn't XORing the KEK good enough?)
+    Stored in owner's database.
+    Rather than use the KeK with AES, the KeK decrypts this key. This allows for an easy password change.
+
+saltPassword (owner property)
+   A 16 byte random salt stored in owner's DB. Used to salt the password.
+
+hashPassword (owner property)
+    HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,CryptographyConstants.HASH_SIZE);
+    hashPassword is the 16 byte result of hashing the clear text password with the saltPassword.
+    The value is stored in the owner's DB.
+    When checking if the user entered the correct password, this value, hashed with the 
+    nonce will have to match the nonce-hash sent by the client.
+
+saltKek (owner property)
+   A 16 byte random salt stored in owner's DB. Used to salt the KeK.
+
+KeK / KeyEncryptionKey (volatile)
+   The KeK is a 16 byte key used to en/decrypt the 16-byte AES encryption key and the RSA private key.
+   KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+
+Nonce (owner lookup, timeout)
+   Is a temporary 16 byte key used to prevent playback when logging in via the client.
+   HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+
+   When the owner enters his password on the client, the password hashed with the saltPassword, then hashed with the nonce
+   is the value sent back to the server. On the server, the nonce is used to hash the hashPassword stored in the database.
+   If they match, the password has been entered correctly and the user can login.
+
+---
+Password verify
+   Owner enters password on client.
+   Client requests Nonce package from server.
+   Client receives, saltPassword, saltKek, Nonce.
+   Client calculates hashNonce (Hash(Hash(password, saltPassword), Nonce) and hashKek 
+   Client sends hashNonce, hashKek to the server.
+   Server looks up Nonce, checks for timeout.
+   Server checks if the owner property for Hash(hashPassword, Nonce) equals the same value from the client.
+   If a match, server takes the KeK. Generates random 16-byte array. XORs the KeK with the random bytes,
+   stores the XOR'ed KEK in the DB with the random bytes as key. Sets the client cookie("name?") to the
+   16 random bytes.
+
+   Thus, even without further encryption, the password never leaves client. Playback impossible due to Nonce.
+   Kek only exists briefly on the wire and never lives on the server. Server is thus unable to decrypt data
+   encrypted with the EncryptedDataKey.
+
+   [The above transmission from the client to the server will be RSA public key encrypted]
+
+
+Password change
+   Enter current & new password
+   Verify old password is correct.
+   Use current password to decrypt EncryptedRSAPrivate and EncryptedDataKey.
+   Calculate new KeK and associated values, store them. 
+   Re-encrypt EncryptedRSAPrivate and EncryptedDataKey with the new KeK.
+   Invalidate all client keys in DB (each client will need to login again)
+
+Salt update
+   Can happen when the password is entered.
+   First verify password is correct.
+   Then update Salt values, recalculate derived values
+   Re-encrypt EncryptedRSAPrivate and EncryptedDataKey with the new KeK.
+---
+Note that the KeK split in half on client and server
+
+   The KeK is calculated when the password is entered and is sent to the server.
+   On the server a 16 byte random value is generated. The value stored on the
+   client as a cookie("mynameis?"). The KeK is xor'ed with the cookie value and
+   stored in the database. 
+
+   On subsequent web requests, the random 16 byte cookie value XOR'ed with the 
+   stored XOR'ed KeK value will result in the KeK. 
+---
+High level protocol encryption Identity to Identity
+
+sendPacket(body : byte[], recipient : ?) // Unencrypted
+sendPacketEncrypted(body : byte[], recipient : ?) // Encrypted
+
+   A. 4-byte CRC of the recipient's public key
+   B. 4-byte CRC of the sender's public key
+   C. Create a header which is the recipient's public key encrypted:
+         16-byte random guid used for encrypting the data.
+         [Maybe: Sender's data signature]
+
+   D. Create encrypted data:
+        AES encrypted version of the data using the above 16-byte random value as key.
+
+Once sent, only the recipient can access the message by means of their private key which
+allows access to the 16-byte key which in turns allows AES decryption of the data.
+The decrypted data should verify against the sender's signature.
+The CRC is used to make sure it's the right public / private key pair used.
+---
+EXAMPLE
+
+Sam wants to send the message "Let's go to Mordor tomorrow." to Frodo.
+
+Sam is online, Frodo is offline:
+
+   - Sam gets Frodo's RSA public key from his host (or locally cached version)
+        Calculate a 4 byte CRC for the public key (or get the cached CRC).
+   - Sam generates a random 16 byte message-secret
+   - Sam encrypts the message with AES using the message-secret. Result saved in "B"
+   - Sam signs the message with his private key (available via his KeK only).
+   - Sam encrypts the 16 byte message-secret and the signature with Frodo's public key into "A"
+   - Sam sends Frodo's host a message {CRC-Frodo, CRC-Sam, A, B}
+      * Add 4 byte CRC for Sam's public key as well.
+        
+
+sendPacket(body : byte[])
+
+sendPacketEncrypted(header : byte[], body : byte[], CRC-sender : int32, CRC-receiver : int32)
+
+   - o O o - 
+
+   - The message is now arrivng at Frodo's host.
+   - If Frodo's current public key CRC doesn't match CRC-Frodo, reject the message.
+
+   - Frodo should be sure to have Sam's public key matching CRC-Sam. If not, get it and store it.
+   - Frodo's host is unable to decrypt the message, stores it "as is".
+   - A notification can be sent to Frodo's phone saying there is a message from Sam.
+
+   - Frodo comes online, the client ½ and host ½ of the KeK join
+
+   - Frodo's host can now decrypt A using's Frodo's private key (decrypted with the KeK)
+   - The host can optionally verify Sam's signature using Sam's public key   
+   - The host can decrypt B using the message-secret obtained in A
+   - Message can optionally be re-encrypted to use Frodo's KeK so we don't need to decrypt it
+     in the future.
+
+   - The clear text message could be sent to Frodo's client device.
+     More likely the client device should hold an encryption key, the host 
+     should encrypt the message with this key, and send the data to the client.
+
+
