@@ -1,4 +1,10 @@
-﻿Documentation for Basic Encryption
+﻿// https://www.nuget.org/packages/Crc32C.NET/  <-- Skimming code I like this one best
+// https://github.com/robertvazan/crc32c.net
+//--
+// https://www.nuget.org/packages/Crc32.NET/
+//--
+
+Documentation for Basic Encryption
 ==================================
 
 Password (volatile)
