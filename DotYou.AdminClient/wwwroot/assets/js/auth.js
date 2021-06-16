@@ -8,7 +8,7 @@
 async function pbkdf2(strPassword, salt, hash, iterations, len) {
     var password = new TextEncoder().encode(strPassword);
 
-    var ik = await window.crypto.subtle.importKey("raw", password, { name: "PBKDF2" }, false, ["deriveBits"]);
+    var ik = await window.crypto.subtle.importKey("raw", password, {name: "PBKDF2"}, false, ["deriveBits"]);
     var dk = await window.crypto.subtle.deriveBits(
         {
             name: "PBKDF2",
@@ -22,20 +22,20 @@ async function pbkdf2(strPassword, salt, hash, iterations, len) {
     return new Uint8Array(dk);
 }
 
-function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len)
-{
+function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
     var u8salt = Uint8Array.from(atob(saltArray64), c => c.charCodeAt(0));
 
-    var hashed = pbkdf2(password, u8salt, "SHA-256", iterations, len);
+    return pbkdf2(password, u8salt, "SHA-256", iterations, len).then(hashed => {
 
-    var base64 = btoa(String.fromCharCode.apply(null, hashed));
+            //console.log(hashed);
 
-    //console.log(hashed);
-    //console.log(base64);
+            var base64 = btoa(String.fromCharCode.apply(null, hashed));
 
-    return base64;
+            //console.log(base64);
+            return base64;
+        }
+    );
 }
-
 
 
 // Validate that the implementation returns the same as in C# / .net core
