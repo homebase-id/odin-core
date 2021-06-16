@@ -3,6 +3,17 @@
 //--
 // https://www.nuget.org/packages/Crc32.NET/
 //--
+// JavaScript libraries 
+//
+// PBKDF2: asmCrypto https://github.com/stampery/asmcrypto  (already implemented and tested)
+//
+// AES: asmCrypto a possibility to test
+// AES : https://cryptojs.gitbook.io/docs/
+//
+// RSA: https://www.codeproject.com/Articles/22073/Object-Oriented-JavaScript-Class-Library-in-C-NET
+// RSA: https://github.com/travist/jsencrypt
+// (no RSA for asmCrypto)
+//
 
 Documentation for Basic Encryption
 ==================================
