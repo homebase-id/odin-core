@@ -96,6 +96,32 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
         [Test]
+        public void AesGcmPass()
+        {
+            MyAes.Test();
+
+            //Display the original data and the decrypted data.
+            // Console.WriteLine("Original:   {0}", original);
+            Console.WriteLine("MyAes");
+
+            Assert.Pass();
+        }
+
+        [Test]
+        public void AesCbcPass()
+        {
+            AesCbc.Test();
+
+            //Display the original data and the decrypted data.
+            // Console.WriteLine("Original:   {0}", original);
+            Console.WriteLine("MyAes");
+
+            Assert.Pass();
+        }
+
+
+
+        [Test]
         public void SetRawTestPass()
         {
             IdentityKeySecurity k = new IdentityKeySecurity();
