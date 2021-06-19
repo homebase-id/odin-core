@@ -108,15 +108,27 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
         [Test]
+        public void AesCbcTextPass()
+        {
+            var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+            string testData = "The quick red fox";
+
+            var (IV, cipher) = AesCbc.EncryptStringToBytes_Aes(testData, key);
+            var roundtrip = AesCbc.DecryptStringFromBytes_Aes(cipher, key, IV);
+
+            if (roundtrip == testData)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+        [Test]
         public void AesCbcPass()
         {
-            AesCbc.Test();
-
-            //Display the original data and the decrypted data.
-            // Console.WriteLine("Original:   {0}", original);
-            Console.WriteLine("MyAes");
-
-            Assert.Pass();
+            if (AesCbc.TestPrivate())
+                Assert.Pass();
+            else
+                Assert.Fail();
         }
 
 

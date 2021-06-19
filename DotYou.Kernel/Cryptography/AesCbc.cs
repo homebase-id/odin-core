@@ -11,27 +11,28 @@ namespace DotYou.Kernel.Cryptography
     /// </summary>
     public static class AesCbc
     {
-        public static void Test()
+        public static bool TestPrivate()
         {
             try
             {
-                var key      = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-                // var testData = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };
-                string testData = "The quick red fox";
+                var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                var iv = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                var testData = new byte[] { 162, 146, 244, 255, 127, 128, 0, 42, 7, 0 };
 
-                // var (IV, cipher) = EncryptStringToBytes_Aes(testData, key);
-                var (IV, cipher) = EncryptStringToBytes_Aes(testData, key);
+                var (tIV, cipher) = EncryptBytesToBytes_Aes(testData, key, iv);
+                var roundtrip = DecryptBytesFromBytes_Aes(cipher, key, iv);
 
-                // Decrypt the bytes to a string. 
-                var roundtrip = DecryptStringFromBytes_Aes(cipher, key, IV);
-
-                //Display the original data and the decrypted data.
-                Console.WriteLine("Round Trip: {0}", roundtrip);
+                if (YFByteArray.EquiByteArrayCompare(roundtrip, testData))
+                    return true;
+                else
+                    return false;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Error: {0}", e.Message);
             }
+
+            return false;
         }
 
         private static byte[] PerformCryptography(byte[] data, ICryptoTransform cryptoTransform)
@@ -46,9 +47,26 @@ namespace DotYou.Kernel.Cryptography
             }
         }
 
+        // Only used for test purposes to cross validate JS & .NET with IV as parameter
+        private static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] key, byte[] iv)
+        {
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = key;
+
+                aesAlg.IV = iv;
+
+                aesAlg.Mode = CipherMode.CBC;
+
+                using (var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV))
+                {
+                    return (iv, PerformCryptography(data, encryptor));
+                }
+            }
+        }
+
         public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] Key)
         {
-            byte[] encrypted;
             byte[] IV;
 
             using (Aes aesAlg = Aes.Create())
