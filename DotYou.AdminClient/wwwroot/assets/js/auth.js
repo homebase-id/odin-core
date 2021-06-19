@@ -26,12 +26,7 @@ function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
     var u8salt = Uint8Array.from(atob(saltArray64), c => c.charCodeAt(0));
 
     return pbkdf2(password, u8salt, "SHA-256", iterations, len).then(hashed => {
-
-            //console.log(hashed);
-
             var base64 = btoa(String.fromCharCode.apply(null, hashed));
-
-            //console.log(base64);
             return base64;
         }
     );
@@ -39,7 +34,7 @@ function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
 
 
 // Validate that the implementation returns the same as in C# / .net core
-async function test_pbkdf2() {
+function test_pbkdf2() {
     const areEqual = (first, second) =>
         first.length === second.length && first.every((value, index) => value === second[index]);
 
@@ -47,28 +42,92 @@ async function test_pbkdf2() {
     var expected = new Uint8Array([162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204]);
     const iterations = 100000;
 
-    var qq = await pbkdf2("EnSøienØ", salt, "SHA-256", iterations, 16);
-    console.log("Result:   " + qq);
-    console.log("Expected: " + expected);
-    console.log("Pass test = " + areEqual(qq, expected));
-    return qq;
+    return wrapPbkdf2HmacSha256("EnSøienØ", btoa(String.fromCharCode.apply(null, salt)), iterations, 16).then(hashed64 => {
+
+        var baHash = Uint8Array.from(atob(hashed64), c => c.charCodeAt(0));
+
+        console.log("Hashed64 " + baHash + " ?= " + expected);
+
+        return areEqual(expected, baHash);
+    }
+    );
 }
 
 
-// OBSOLETE
-function OBSOLETEwrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
+// ==========================================
+// AES-CBC
+// ==========================================
 
-    //var u8pwd = Uint8Array.from(atob(password), c => c.charCodeAt(0));
-    var u8salt = Uint8Array.from(atob(saltArray64), c => c.charCodeAt(0));
-    var passwordArray = new TextEncoder().encode(password);
+async function AesCbc_Encrypt(u8aData, u8aKey)
+{
+    let key = await crypto.subtle.importKey(
+        "raw",
+        u8aKey,
+        {   //this is the algorithm options
+            name: "AES-CBC",
+        },
+        false, //whether the key is extractable (i.e. can be used in exportKey)
+        ["encrypt", "decrypt"] //can be "encrypt", "decrypt", "wrapKey", or "unwrapKey"
+    );
 
-    var hashed = asmCrypto.Pbkdf2HmacSha256(passwordArray, u8salt, iterations, len);
+    let iv = window.crypto.getRandomValues(new Uint8Array(16));
+    console.log("IV = " + iv);
 
-    var base64 = btoa(String.fromCharCode.apply(null, hashed));
+    let cipher = await crypto.subtle.encrypt(
+        {
+            name: "AES-CBC",
+            iv: iv,
+        },
+        key, //from generateKey or importKey above
+        u8aData //ArrayBuffer of data you want to encrypt
+    );
 
-    //console.log(hashed);
-    //console.log(base64);
-
-    return base64;
+    return { cipher: (new Uint8Array(cipher)), iv: iv };
 }
 
+async function AesCbc_Decrypt(u8aCipher, u8aKey, iv) {
+    console.log("Decrypt IV = " + iv);
+    let key = await crypto.subtle.importKey(
+        "raw",
+        u8aKey,
+        {   //this is the algorithm options
+            name: "AES-CBC",
+        },
+        false, //whether the key is extractable (i.e. can be used in exportKey)
+        ["encrypt", "decrypt"] //can be "encrypt", "decrypt", "wrapKey", or "unwrapKey"
+    );
+
+    let decrypted = await crypto.subtle.decrypt(
+        {
+            name: "AES-CBC",
+            iv: iv, //The initialization vector you used to encrypt
+        },
+        key, //from generateKey or importKey above
+        u8aCipher //ArrayBuffer of the data
+    );
+
+    return new Uint8Array(decrypted);
+}
+
+// Validate that the implementation returns the same as in C# / .net core
+function test_AesCbc() {
+    const areEqual = (first, second) =>
+        first.length === second.length && first.every((value, index) => value === second[index]);
+
+
+    // First do a round-trip encrypt / decrypt
+    //
+    //
+    var key = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    var testData = new Uint8Array([162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204]);
+
+    AesCbc_Encrypt(testData, key).then(myobj =>
+    {
+
+        AesCbc_Decrypt(myobj.cipher, key, myobj.iv).then(u8aDecrypted => {
+            console.log("Original " + testData + " ?= " + u8aDecrypted);
+
+            return areEqual(testData, u8aDecrypted);
+        });
+    });
+}

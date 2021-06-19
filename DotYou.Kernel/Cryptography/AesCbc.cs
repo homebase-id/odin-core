@@ -15,30 +15,18 @@ namespace DotYou.Kernel.Cryptography
         {
             try
             {
+                var key      = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                // var testData = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };
+                string testData = "The quick red fox";
 
-                string original = "Here is some data to encrypt!";
+                // var (IV, cipher) = EncryptStringToBytes_Aes(testData, key);
+                var (IV, cipher) = EncryptStringToBytes_Aes(testData, key);
 
-                // Create a new instance of the Aes 
-                // class.  This generates a new key and initialization  
-                // vector (IV). 
-                using (var random = new RNGCryptoServiceProvider())
-                {
-                    var key = new byte[16];
-                    random.GetBytes(key);
+                // Decrypt the bytes to a string. 
+                var roundtrip = DecryptStringFromBytes_Aes(cipher, key, IV);
 
-                    // Encrypt the string to an array of bytes. 
-
-                    var (IV, encrypted)= EncryptStringToBytes_Aes(original, key);
-
-                    // Decrypt the bytes to a string. 
-                    string roundtrip = DecryptStringFromBytes_Aes(encrypted, key, IV);
-
-                    //Display the original data and the decrypted data.
-                    Console.WriteLine("Original:   {0}", original);
-                    Console.WriteLine("Encrypted (b64-encode): {0}", Convert.ToBase64String(encrypted));
-                    Console.WriteLine("Round Trip: {0}", roundtrip);
-                }
-
+                //Display the original data and the decrypted data.
+                Console.WriteLine("Round Trip: {0}", roundtrip);
             }
             catch (Exception e)
             {
@@ -46,7 +34,19 @@ namespace DotYou.Kernel.Cryptography
             }
         }
 
-        static (byte[] IV, byte[] ciphertext) EncryptStringToBytes_Aes(string plainText, byte[] Key)
+        private static byte[] PerformCryptography(byte[] data, ICryptoTransform cryptoTransform)
+        {
+            using (var ms = new MemoryStream())
+            using (var cryptoStream = new CryptoStream(ms, cryptoTransform, CryptoStreamMode.Write))
+            {
+                cryptoStream.Write(data, 0, data.Length);
+                cryptoStream.FlushFinalBlock();
+
+                return ms.ToArray();
+            }
+        }
+
+        public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] Key)
         {
             byte[] encrypted;
             byte[] IV;
@@ -60,35 +60,20 @@ namespace DotYou.Kernel.Cryptography
 
                 aesAlg.Mode = CipherMode.CBC;
 
-                var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
-
-                // Create the streams used for encryption. 
-                using (var msEncrypt = new MemoryStream())
+                using (var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV))
                 {
-                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (var swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            //Write all data to the stream.
-                            swEncrypt.Write(plainText);
-                        }
-                        encrypted = msEncrypt.ToArray();
-                    }
+                    return (IV, PerformCryptography(data, encryptor));
                 }
             }
-
-            // Return the encrypted bytes from the memory stream. 
-            return (IV, encrypted);
-
         }
 
-        static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte [] IV)
+        public static (byte[] IV, byte[] ciphertext) EncryptStringToBytes_Aes(string plainText, byte[] Key)
         {
+            return EncryptBytesToBytes_Aes(Encoding.UTF8.GetBytes(plainText), Key);
+        }
 
-            // Declare the string used to hold 
-            // the decrypted text. 
-            string plaintext = null;
-
+        public static byte[] DecryptBytesFromBytes_Aes(byte[] cipherText, byte[] Key, byte [] IV)
+        {
             // Create an Aes object 
             // with the specified key and IV. 
             using (Aes aesAlg = Aes.Create())
@@ -97,28 +82,16 @@ namespace DotYou.Kernel.Cryptography
                 aesAlg.IV = IV;
                 aesAlg.Mode = CipherMode.CBC;
 
-                // Create a decrytor to perform the stream transform.
-                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
-
-                // Create the streams used for decryption. 
-                using (var msDecrypt = new MemoryStream(cipherText))
+                using (var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV))
                 {
-                    using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-                    {
-                        using (var srDecrypt = new StreamReader(csDecrypt))
-                        {
-
-                            // Read the decrypted bytes from the decrypting stream
-                            // and place them in a string.
-                            plaintext = srDecrypt.ReadToEnd();
-                        }
-                    }
+                    return PerformCryptography(cipherText, decryptor);
                 }
-
             }
+        }
 
-            return plaintext;
-
+        public static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)
+        {
+            return Encoding.UTF8.GetString(DecryptBytesFromBytes_Aes(cipherText, Key, IV));
         }
     }
 }

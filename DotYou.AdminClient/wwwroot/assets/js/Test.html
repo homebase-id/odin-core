@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="auth.js"></script>
+</head>
+
+<body>
+    <p>Run this as a file in your browser to test Web Crypto API functions are compatible with C# counterparts.</p>
+    <p>Open the console</p>
+    <p>pbkdf2  result: <div id="test1">calculating</div></p><br />
+    <p>aes-cbc result: <div id="test2">calculating</div></p><br />
+</body>
+</html>
+
+<script>
+    // PBKDF2
+    console.log("Running pbkdf2 test");
+    var bOk = test_pbkdf2();
+    var e = document.getElementById("test1");
+    e.innerText = bOk;
+    console.log("Finished pbkdf2 test");
+
+    console.log("Running AES-CBC test");
+    test_AesCbc();
+    var e = document.getElementById("test2");
+    e.innerText = "yo";
+    console.log("Finished AES-CBC test");
+
+    // AES-CBC
+
+</script>
