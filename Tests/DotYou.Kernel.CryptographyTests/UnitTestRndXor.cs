@@ -96,18 +96,6 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
         [Test]
-        public void AesGcmPass()
-        {
-            MyAes.Test();
-
-            //Display the original data and the decrypted data.
-            // Console.WriteLine("Original:   {0}", original);
-            Console.WriteLine("MyAes");
-
-            Assert.Pass();
-        }
-
-        [Test]
         public void AesCbcTextPass()
         {
             var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
@@ -146,7 +134,8 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Decrypt the bytes to a string.
             var data = Convert.FromBase64String(k.EncryptedPrivateKey);
-            string roundtrip = YFRijndaelWrap.DecryptStringFromBytes(data, KeyEncryptionKey, k.SaltPassword);
+            // Needs to be rewritten.
+            string roundtrip = AesCbc.DecryptStringFromBytes_Aes(data, KeyEncryptionKey, k.SaltPassword);
 
             //Display the original data and the decrypted data.
             // Console.WriteLine("Original:   {0}", original);

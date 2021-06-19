@@ -52,8 +52,9 @@ namespace DotYou.Kernel.Cryptography
             EncryptedPrivateKey = rsaGenKeys.ToXmlString(true);
 
             // Server Encrypts the private key with the KEK and throws the KEK away.
-            byte[] encrypted = YFRijndaelWrap.EncryptStringToBytes(EncryptedPrivateKey, KeyEncryptionKey, SaltPassword);
+            var (encrypted, iv) = AesCbc.EncryptStringToBytes_Aes(EncryptedPrivateKey, KeyEncryptionKey);
             EncryptedPrivateKey = Convert.ToBase64String(encrypted);
+            // Don't forget to store the IV + EncryptedPrivateKey
             YFByteArray.WipeByteArray(KeyEncryptionKey);
         }
 

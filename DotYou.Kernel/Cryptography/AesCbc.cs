@@ -20,6 +20,9 @@ namespace DotYou.Kernel.Cryptography
                 var testData = new byte[] { 162, 146, 244, 255, 127, 128, 0, 42, 7, 0 };
 
                 var (tIV, cipher) = EncryptBytesToBytes_Aes(testData, key, iv);
+
+                var s = YFByteArray.PrintByteArray(cipher);
+                Console.WriteLine("Cipher: " + s);
                 var roundtrip = DecryptBytesFromBytes_Aes(cipher, key, iv);
 
                 if (YFByteArray.EquiByteArrayCompare(roundtrip, testData))
