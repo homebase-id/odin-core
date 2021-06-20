@@ -5,11 +5,6 @@
 //--
 // JavaScript libraries 
 //
-// PBKDF2: asmCrypto https://github.com/stampery/asmcrypto  (already implemented and tested)
-//
-// AES: asmCrypto a possibility to test
-// AES : https://cryptojs.gitbook.io/docs/
-//
 // RSA: https://www.codeproject.com/Articles/22073/Object-Oriented-JavaScript-Class-Library-in-C-NET
 // RSA: https://github.com/travist/jsencrypt
 // (no RSA for asmCrypto)
@@ -33,16 +28,18 @@ EncryptedRsaPrivate (owner property)
    Is the owner's 2048 bit private key, encrypted using AES with the KeK.
    Stored in the owner's database. Available as:
 
-   .EncryptedRsaPrivate = YFRijndaelWrap.EncryptStringToBytes(PrivateKey, KeyEncryptionKey, SaltPassword);
+   (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
 
-DataKey [to-be-added] (volatile)
+   Note that the IV (128 bit vector) needs to be stored for decryption purposes.
+                                
+DataEncryptionKey (DeK) [to-be-added] (volatile)
     Is the owner's random 16-byte AES random key used for all data encryption.
-    The DataKey is necessary so that the owner can change password without
+    The DataEncryptionKey is necessary so that the owner can change password without
     reencrypting all data.
     
-EncryptedDataKey [to-be-added] (owner property)
-    The encrypted DataKey. 
-    (isn't XORing DataKey and the KEK good enough?)
+EncryptedDeK [to-be-added] (owner property)
+    The encrypted DeK. 
+    (isn't XORing DeK and the KEK good enough?)
     Stored in owner's database.
 
 saltPassword (owner property)
@@ -58,12 +55,12 @@ hashPassword (owner property)
 saltKek (owner property)
    A 16 byte random salt stored in owner's DB. Used to salt the KeK (done by client)
 
-KeK / KeyEncryptionKey (volatile)
+KeyEncryptionKey / KeK (volatile)
    The KeK is a 16 byte key calculated as follows:
    KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-   The KeK is used for en- / de- cryption of the DataKey (XOR) and the RsaPrivate key (AES).
+   The KeK is used for en- / de- cryption of the DeK (XOR) and the RsaPrivate key (AES).
 
-Nonce (owner lookup, timeout)
+Nonce (owner DB lookup, timeout)
    Is a temporary 16 byte key used to prevent playback when logging in via the client.
    HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
