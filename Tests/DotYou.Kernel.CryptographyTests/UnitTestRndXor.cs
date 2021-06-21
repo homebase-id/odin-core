@@ -16,16 +16,9 @@ namespace DotYou.Kernel.CryptographyTests
         {
         }
 
-        [Test]
-        public void GenerateRndPass()
-        {
-            byte[] ba = YFByteArray.GetRndByteArray(40);
-
-            if (ba.Length == 40)
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
+        //
+        // ===== A FEW BYTE ARRAY TESTS =====
+        //
 
         [Test]
         public void CompareTwoRndFail()
@@ -75,25 +68,9 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
-        [Test]
-        public void CreateKeyDerivationPass()
-        {
-            // var asalt = YFByteArray.GetRndByteArray(10);
-            // var ba1 = YFByteArray.CreateKeyDerivationKey(asalt, "mypassword", 32);
-
-            Assert.Fail();
-        }
-
-        [Test]
-        public void PasswordTestPass()
-        {
-            string s;
-
-            //var asalt = YFByteArray.GetRndByteArray(8);
-            //s = YFByteArray.PasswordFlow("Mit password", asalt);
-
-            Assert.Fail();
-        }
+        //
+        // ===== AES CBC TESTS =====
+        //
 
         [Test]
         public void AesCbcTextPass()
@@ -119,32 +96,9 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
-
-
-        [Test]
-        public void SetRawTestPass()
-        {
-            IdentityKeySecurity k = new IdentityKeySecurity();
-
-            k.SetRawPassword("a");
-
-            // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("a", k.SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2("a", k.SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-
-            // Decrypt the bytes to a string.
-            var data = Convert.FromBase64String(k.EncryptedPrivateKey);
-            // Needs to be rewritten.
-            string roundtrip = AesCbc.DecryptStringFromBytes_Aes(data, KeyEncryptionKey, k.SaltPassword);
-
-            //Display the original data and the decrypted data.
-            // Console.WriteLine("Original:   {0}", original);
-            Console.WriteLine("Round Trip: {0}", roundtrip);
-
-            Assert.Pass();
-        }
-
-
+        //
+        // ===== RSA TESTS =====
+        //
 
         [Test]
         public void RSABasicTest()
@@ -224,6 +178,10 @@ namespace DotYou.Kernel.CryptographyTests
             else
                 Assert.Fail();
         }
+
+        //
+        // ===== PBKDF2 TESTS =====
+        //
 
         [Test]
         public void Pbkdf2TestPass()

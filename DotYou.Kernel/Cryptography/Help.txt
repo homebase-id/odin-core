@@ -17,16 +17,17 @@ Password (volatile)
    The owner's clear text password (will never leave the client).
    Password only exists briefly in memory on the client when entered into the password dialogue
 
-RsaPublic (owner property)
-   Is the owner's 2048 bit public key, stored in the database. Available as:
+RsaPublic (owner property) [DB] [to-be-added]
+   Is the owner's 2048 bit public key, stored in the database. Used for
+   encryption of secrets. Available as:
    .RsaPublic
 
 RsaPrivate (volatile)
-   Is the owner's 2048 bit private key (in-memory value only).
+   Is the owner's 2048 bit private key (in-memory value only). Used for encryption of secrets.
 
-EncryptedRsaPrivate (owner property)
+EncryptedRsaPrivate (owner property) [DB] [to-be-added]
    Is the owner's 2048 bit private key, encrypted using AES with the KeK.
-   Stored in the owner's database. Available as:
+   Stored in the owner's database. Available as the pair:
 
    (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
 
@@ -37,30 +38,30 @@ DataEncryptionKey (DeK) [to-be-added] (volatile)
     The DataEncryptionKey is necessary so that the owner can change password without
     reencrypting all data.
     
-EncryptedDeK [to-be-added] (owner property)
+EncryptedDeK [to-be-added] [DB] (owner property)
     The encrypted DeK. 
     (isn't XORing DeK and the KEK good enough?)
     Stored in owner's database.
 
-saltPassword (owner property)
+saltPassword (owner property) [DB]
    A 16 byte random salt stored in owner's DB. Used to salt the password.
 
-hashPassword (owner property)
+hashPassword (owner property) [DB]
     HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,CryptographyConstants.HASH_SIZE);
     hashPassword is the 16 byte result of hashing the clear text password with the saltPassword.
     The value is stored in the owner's DB.
     When checking if the user entered the correct password, this value, hashed with the 
     nonce will have to match the nonce-hash sent by the client.
 
-saltKek (owner property)
+saltKek (owner property) [DB]
    A 16 byte random salt stored in owner's DB. Used to salt the KeK (done by client)
 
-KeyEncryptionKey / KeK (volatile)
+KeyEncryptionKey / KeK (volatile) 
    The KeK is a 16 byte key calculated as follows:
    KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
    The KeK is used for en- / de- cryption of the DeK (XOR) and the RsaPrivate key (AES).
 
-Nonce (owner DB lookup, timeout)
+Nonce (owner DB lookup [DB], timeout)
    Is a temporary 16 byte key used to prevent playback when logging in via the client.
    HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
