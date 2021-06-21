@@ -31,7 +31,7 @@ EncryptedRsaPrivate (owner property)
    (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
 
    Note that the IV (128 bit vector) needs to be stored for decryption purposes.
-                                
+
 DataEncryptionKey (DeK) [to-be-added] (volatile)
     Is the owner's random 16-byte AES random key used for all data encryption.
     The DataEncryptionKey is necessary so that the owner can change password without
