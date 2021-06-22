@@ -83,6 +83,7 @@ namespace DotYou.Kernel.Cryptography
                 decryptionKey[i] = decryptedHeader[i];
                 iv[i] = decryptedHeader[i+16];
             }
+            YFByteArray.WipeByteArray(h);
 
             //System.Diagnostics.Debug.WriteLine($"Decrypting data:");
             //System.Diagnostics.Debug.WriteLine($"AES Encryption Key {string.Join(", ", decryptionKey)}");
@@ -90,6 +91,7 @@ namespace DotYou.Kernel.Cryptography
             //System.Diagnostics.Debug.WriteLine($"encrypted data {string.Join(", ", encryptedData)}");
 
             var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedData, decryptionKey, iv);
+            YFByteArray.WipeByteArray(decryptionKey);
 
             return data;
         }
