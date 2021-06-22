@@ -97,6 +97,33 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
         //
+        // ===== PACKET TESTS =====
+        //
+        [Test]
+        public void HostToHostPacketPass()
+        {
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
+
+            // Data to encrypt
+            string mySecret = "hello world";
+            byte[] toEncryptData = Encoding.ASCII.GetBytes(mySecret);
+
+            var (encryptedHeader, encryptedData) = HostToHost.EncryptPacket(toEncryptData, publicXml);
+            var data = HostToHost.DecryptPacket(encryptedHeader, encryptedData, privateXml);
+
+            string originalResult = Encoding.Default.GetString(data);
+
+            if (originalResult == mySecret)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+
+        //
         // ===== RSA TESTS =====
         //
 
@@ -123,7 +150,6 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void RSAPublicEnrcryptDecryptTest()
         {
-
             RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider();
             string privateXml = rsaGenKeys.ToXmlString(true);
             string publicXml = rsaGenKeys.ToXmlString(false);

@@ -133,6 +133,9 @@ Note that the KeK split in half on client and server
    On subsequent web requests, the random 16 byte cookie value XOR'ed with the 
    stored XOR'ed KeK value will result in the KeK. 
 
+---
+
+
 ======================
 
 High level protocol encryption Identity to Identity
@@ -140,17 +143,22 @@ High level protocol encryption Identity to Identity
 sendPacket(body : byte[], recipient : ?) // Unencrypted
 sendPacketEncrypted(body : byte[], recipient : ?) // Encrypted
 
-   A. 4-byte CRC of the recipient's public key (stored in the DB)
-   B. 4-byte CRC of the sender's public key (stored in the DB)
-   C. Create a header which is encrypted with the recipient's public key:
-         16-byte random guid used for encrypting the data.
-         [possibly: Calculate Sender's signature on the data in D or at least a CRC32]
-   D. Create encrypted data:
+Create a header:
+   A. Unencrypted 4-byte CRC of the recipient's public encryption key used to encrypt (stored in the DB)
+
+   This part of the header is encrypted with the recipient's public key:
+   B. 16-byte random guid used for encrypting the data.
+   C. 16-byte iv for the encrypted message (this means we dont need a CRC)
+   E. Optional. Sender's signature of the message. This way we know for sure it's from Sender.
+   F. Optional. 4-byte CRC of the sender's public signature key (stored in the DB)
+
+Create the payload:
+   Q. Create encrypted data:
         AES encrypted version of the data using the above 16-byte random value as key.
 
 Once sent, only the recipient can access the message by means of their rsaPrivateKey which
 allows access to the 16-byte random key which in turns allows AES decryption of the data.
-The decrypted data should verify against the sender's signature or CRC32.
+The decrypted data should verify against the header embedded CRC32.
 The two CRC values is used to make sure it's the right public / private key pair used
 (we need to support switching public/private keys if they were compromised).
 ---
@@ -180,11 +188,12 @@ Sam is online, Frodo is offline:
    - Frodo's host is currently unable to decrypt the message, stores it "as is" in a queue.
    - A notification can be sent to Frodo's phone saying there is 'something' from Sam.
 
-   - Frodo comes online, the client ½ and host ½ of the KeK join at the server
+   - Frodo comes online, the client ½ and host ½ of the KeK join at the server, the DeK is
+     retrieved
 
    - Frodo's host should now process all waiting packages in the queue:
    - Frodo's host can now decrypt C using's Frodo's private key (decrypted with the KeK)
-   - The host can decrypt D using the message-secret obtained in C
+   - The host can then decrypt D using the message-secret obtained in C
    - The host can optionally verify Sam's signature using Sam's public key or the CRC32
 
    - Message is now either stored in clear text or optionally be re-encrypted with AES(DataKey, Message)
