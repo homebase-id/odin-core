@@ -12,6 +12,13 @@
 
 Documentation for Basic Encryption
 ==================================
+TODO: Consider using this scheme for client->(own) host communication too.
+      Client Authnetication keys (cookies).
+      See below
+
+Client Cookie("")
+   The client cookie when set, is both a HTTPS secure cookie, meaning it only transmits over https.
+   Also, it is HTTP only, meaning it is not possible to access the cookie via JavaScript.
 
 Password (volatile)
    The owner's clear text password (will never leave the client).
@@ -150,7 +157,7 @@ Create a header:
    B. 16-byte random guid used for encrypting the data.
    C. 16-byte iv for the encrypted message (this means we dont need a CRC)
    E. Optional. Sender's signature of the message. This way we know for sure it's from Sender.
-   F. Optional. 4-byte CRC of the sender's public signature key (stored in the DB)
+   F. Optional. 4-byte CRC of the sender's public signature key (stored in the DB) needed for verify signature
 
 Create the payload:
    Q. Create encrypted data:
@@ -170,12 +177,12 @@ Sam is online, Frodo is offline:
 
    - Sam gets Frodo's RSA public key from his host (or locally cached version)
         Sam calculates a CRC32 for the public key 'A' (or gets the cached CRC).
-   - Sam generates a random 16 byte message-secret
-   - Sam encrypts the data message with AES using the message-secret. Result saved in "D"
-   - Sam signs the message with his private key (available via his KeK only).
-   - Sam encrypts the 16 byte message-secret and the signature with Frodo's public key into "C"
-   - Sam sends Frodo's host a message {A, B, C, D}
-      * B = 4 byte CRC for Sam's public key.
+   - Sam generates a random 16 byte message-secret 'B'
+   - Sam encrypts the data message with AES using the message-secret and gets the iv 'C'. 
+     Encrypted result saved in "Q"
+   - // Optional. Sam signs the message with his private key (available via his KeK only). 'E,F'
+   - Sam encrypts 'B' & 'C' with Frodo's public key into 'G'. 
+   - Sam sends Frodo's host a message {(A+G), Q}
         
    - o O o - 
 
@@ -184,19 +191,20 @@ Sam is online, Frodo is offline:
    - If Frodo's current public key CRC doesn't match CRC-Frodo, reject the message with 
      appropriate error message.
 
-   - Frodo should be sure to have Sam's public key matching CRC-Sam. If not, get it and store it.
+   - // Frodo should be sure to have Sam's public key matching CRC-Sam. If not, get it and store it.
    - Frodo's host is currently unable to decrypt the message, stores it "as is" in a queue.
    - A notification can be sent to Frodo's phone saying there is 'something' from Sam.
 
    - Frodo comes online, the client ½ and host ½ of the KeK join at the server, the DeK is
-     retrieved
+     retrieved for the request.
 
    - Frodo's host should now process all waiting packages in the queue:
-   - Frodo's host can now decrypt C using's Frodo's private key (decrypted with the KeK)
-   - The host can then decrypt D using the message-secret obtained in C
+   - Frodo can now chec the CRC of 'A' matches his public key.
+   - Frodo's host can now decrypt G using's Frodo's private key (decrypted with the KeK)
+   - The host can then decrypt Q using the message-secret and iv obtained in G
    - The host can optionally verify Sam's signature using Sam's public key or the CRC32
 
-   - Message is now either stored in clear text or optionally be re-encrypted with AES(DataKey, Message)
+   - Message is now either stored in clear text or optionally be re-encrypted with AES(DeK, Message)
      and the queue package can be discarded.
 
      ===
@@ -206,5 +214,36 @@ Sam is online, Frodo is offline:
      should encrypt the message with this key, and send the data to the client.
 
      Should the client's encryption key simply be the DataKey? 
+
+============================================
+TODO
+
+If we are to use this same scheme for client -> (own) host then all we need to do is to
+implement the RSA OAEP Web Crypto API on the client (JS), and then build the same header
+as we are in C# in HostToHost.cs.
+
+Authentication tokens:
+   Client: 
+     ID
+
+   Server:
+     ID
+     Rights
+
+Management client.  ½ DeK needed.
+Chat/mail client.  ½ DeK needed.
+Social. Simple ID needed
+BestBuy. Simple ID needed
+--
+Data stored at host:
+Name, clear
+Credit Card, DeK encrypted.
+--
+Best buy requests your info. When interactively logged in, they'll need to do a browser redirect
+to get e.g. your credit card data. Or run a Https GET from your own browser. Only then will your 
+DeK be available.
+
+
+--
 
 

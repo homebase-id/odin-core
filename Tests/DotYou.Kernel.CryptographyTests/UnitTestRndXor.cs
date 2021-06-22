@@ -107,13 +107,13 @@ namespace DotYou.Kernel.CryptographyTests
             string publicXml = rsaGenKeys.ToXmlString(false);
 
             // Data to encrypt
-            string mySecret = "hello world";
-            byte[] toEncryptData = Encoding.ASCII.GetBytes(mySecret);
+            string mySecret = "hello wørld";
+            byte[] toEncryptData = Encoding.UTF8.GetBytes(mySecret);
 
             var (encryptedHeader, encryptedData) = HostToHost.EncryptPacket(toEncryptData, publicXml);
             var data = HostToHost.DecryptPacket(encryptedHeader, encryptedData, privateXml);
 
-            string originalResult = Encoding.Default.GetString(data);
+            string originalResult = Encoding.UTF8.GetString(data);
 
             if (originalResult == mySecret)
                 Assert.Pass();
