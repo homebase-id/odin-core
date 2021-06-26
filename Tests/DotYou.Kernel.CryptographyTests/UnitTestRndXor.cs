@@ -103,6 +103,7 @@ namespace DotYou.Kernel.CryptographyTests
         public void HostToHostPacketPass()
         {
             RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
             string privateXml = rsaGenKeys.ToXmlString(true);
             string publicXml = rsaGenKeys.ToXmlString(false);
 
