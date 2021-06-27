@@ -261,26 +261,28 @@ a host to host package for each recipient. Including the sender.
 However, when wanting to read 
 
 - o O o -
-
-Expeceted field security:
+Suggested field security (the owner can override the default
+security level if e.g. they want their address hidden away):
 
 Lite-Encryption (DB only):
     Name, address, phone, email, connected identities, ....
     These properties are only encrypted at the database level.
-    A user can e.g. choose if the address is lite or encrypted.
+
+    Field that cannot meaningfully get a higher level encryption:
+        Connected identities
     
-    Only lite fields can be accessed by others than the user.
+    Only lite fields can be accessed by others than the owner.
     If you make all your fields Encrypted, then nobody can see
     anything about you, e.g. name, profile picture, unless you're
     giving it to them online. And that's rather inconvenient. :)
 
-Encrypted:
-    Credit-Card, ....
-    These properties are KeK encrypted.
+Key Encrypted:
+    Credit-Card, Contacts (?), ....
+    These properties are DeK encrypted.
 
-Doubly Encrypted:
+Doubly Key Encrypted:
     Diary, ...
-    These properties require an additional password to access (KeK-TWO).
+    These properties require an additional password to access (DeK-TWO).
 
 Fields might have a symbol next to them illustrating their encryption level.
 Or there might be an overview showing you which is which, e.g. first listing
@@ -288,14 +290,14 @@ all lite fields, etc.
 
 - o O o -
 
-Main app security levels:
+App security levels:
 
 Lite-encryption apps:
     Can e.g. query the host for lite encrypted data fields.
     Cannot query for encrypted information such as credit-card.
     CC information can only be passed interactively with the user's consent.
 
-    E.g. BestBuy, Contact Manager (? or is it secure), Blog, Social
+    E.g. BestBuy, Circle Manager, Blog, Social
 
 Secure Apps:
    These apps may need for the host to be able to decrypt queued packages
@@ -304,7 +306,8 @@ Secure Apps:
    to access the RSA private key necessary for decrypting
    the queued packages.
 
-   E.g. Chat, Email, Collaboration, Management, Drive, Signing.
+   E.g. Chat, Email, Collaboration, Management, Drive, Signing, 
+   Contact Manager (or a Lite app).
 
 Double Secure Apps:
     These apps hold ½ KeK and ½ Kek-TWO and can access the doubly 
@@ -321,9 +324,10 @@ I'm wondering:
     with my customer record and they don't hold the decryption key. No harm
     done if it leaks.
 
-    Buy my identity exposes a host to host API, so that if Best Buy's host
+    My identity host exposes a host to host API, so that if Best Buy's host
     sends over this base64 encrypted data, then it is decrypted for the Best Buy host.
     They can then use it for their transaction and immediately discard the decrypted 
-    data.
+    data. My host would know if it is Best Buy requesting the data because of the SSL
+    cert valdation DNSSEC.
 
     Wonder if anyone would use that.
