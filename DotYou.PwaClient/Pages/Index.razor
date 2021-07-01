@@ -1,0 +1,21 @@
+﻿@page "/"
+
+
+@if (_isAuthenticated)
+{
+    <Dashboard/>
+}
+else
+{
+    <Login />
+}
+
+@code
+{
+    private bool _isAuthenticated = true;
+    
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+}

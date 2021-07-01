@@ -1,0 +1,81 @@
+﻿@using System.Timers
+@inject AppUIState _appUiState
+
+<div class="listview-title mt-2">&nbsp;</div>
+<ul class="listview image-listview media">
+    <li>
+        <div class="item" @onclick='(e) => HandleListItemClick(e, "bird")' @onmousedown='() => HandleMouseDown("bird")' @onmouseup="HandleMouseUp">
+            <div class="imageWrapper">
+                <img src="assets/img/sample/photo/2.jpg" alt="image" class="imaged w64">
+            </div>
+            <div class="in">
+                <div>
+                    Street Photos
+                    <div class="text-muted">15 photos</div>
+                </div>
+            </div>
+        </div>
+    </li>
+</ul>
+
+@code {
+
+    private static Timer _timer = new Timer();
+    private bool _mouseIsDown = false;
+    private bool _cancelClick = false;
+
+    [Parameter]
+    public EventCallback<string> OnChatPress { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnLongPress { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _appUiState.BottomTabsVisible = true;
+        this.StateHasChanged();
+        base.OnInitialized();
+    }
+
+    private async void HandleListItemClick(MouseEventArgs mouseEventArgs, string item)
+    {
+        if (_cancelClick)
+        {
+            _cancelClick = false;
+            Console.WriteLine("click was canceled");
+
+            return;
+        }
+
+        Console.WriteLine("mouse click");
+        await OnChatPress.InvokeAsync(item);
+    }
+
+    private void HandleMouseDown(string item)
+    {
+        _timer.Interval = 555;
+        _timer.Elapsed += (sender, args) =>
+        {
+            _timer.Stop();
+            if (_mouseIsDown)
+            {
+                _cancelClick = true;
+                Console.WriteLine("long press invoked");
+                OnLongPress.InvokeAsync(item);
+            }
+        };
+
+        _timer.Enabled = true;
+
+        _timer.Stop();
+        _mouseIsDown = true;
+        Console.WriteLine("starting timer");
+        _timer.Start();
+    }
+
+    private void HandleMouseUp()
+    {
+        _mouseIsDown = false;
+    }
+
+}

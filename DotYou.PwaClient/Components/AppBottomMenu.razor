@@ -1,0 +1,66 @@
+﻿@inject NavigationManager nav
+@inject AppUIState _appUiState;
+
+@if (_appUiState.BottomTabsVisible)
+{
+    <div class="appBottomMenu">
+        <a href="/" class="item @_indexActive">
+            <div class="col">
+                <ion-icon name="home-outline"></ion-icon>
+            </div>
+        </a>
+        <a href="/chat" class="item @_chatActive">
+            <div class="col">
+                <ion-icon name="people-circle-outline"></ion-icon>
+                <span class="badge badge-danger">5</span>
+            </div>
+        </a>
+        <a href="/settings" class="item @_settingsActive">
+            <div class="col">
+                <ion-icon name="settings-outline"></ion-icon>
+            </div>
+        </a>
+    </div>
+}
+
+@code {
+
+    private string _settingsActive = "";
+    private string _indexActive = "active";
+    private string _chatActive = "";
+
+    protected override void OnInitialized()
+    {
+
+        _appUiState.OnChange += this.StateHasChanged;
+        
+        nav.LocationChanged += (sender, args) =>
+        {
+            var uri = new Uri(nav.Uri);
+
+            if (uri.PathAndQuery.StartsWith("/chat", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _chatActive = "active";
+                _settingsActive = "";
+                _indexActive = "";
+            }
+            else if (uri.PathAndQuery.StartsWith("/settings", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _chatActive = "";
+                _settingsActive = "active";
+                _indexActive = "";
+            }
+            else
+            {
+                _chatActive = "";
+                _settingsActive = "";
+                _indexActive = "active";
+            }
+            
+            this.StateHasChanged();
+        };
+
+        base.OnInitialized();
+    }
+
+}

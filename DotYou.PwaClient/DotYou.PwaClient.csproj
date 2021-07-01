@@ -1,0 +1,158 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.5" PrivateAssets="all" />
+    <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\css\app.css" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\bootstrap\bootstrap.min.css" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\bootstrap\bootstrap.min.css.map" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\FONT-LICENSE" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\css\open-iconic-bootstrap.min.css" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\fonts\open-iconic.eot" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\fonts\open-iconic.otf" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\fonts\open-iconic.svg" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\fonts\open-iconic.ttf" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\font\fonts\open-iconic.woff" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\ICON-LICENSE" />
+    <_ContentIncludedByDefault Remove="wwwroot\css\open-iconic\README.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\assets\css\inc\bootstrap\bootstrap.min.css" />
+    <None Include="wwwroot\assets\css\inc\splide\splide.min.css" />
+    <None Include="wwwroot\assets\css\style.css" />
+    <None Include="wwwroot\assets\img\favicon.png" />
+    <None Include="wwwroot\assets\img\icon\128x128.png" />
+    <None Include="wwwroot\assets\img\icon\144x144.png" />
+    <None Include="wwwroot\assets\img\icon\152x152.png" />
+    <None Include="wwwroot\assets\img\icon\192x192.png" />
+    <None Include="wwwroot\assets\img\icon\384x384.png" />
+    <None Include="wwwroot\assets\img\icon\512x512.png" />
+    <None Include="wwwroot\assets\img\icon\72x72.png" />
+    <None Include="wwwroot\assets\img\icon\96x96.png" />
+    <None Include="wwwroot\assets\img\logo.png" />
+    <None Include="wwwroot\assets\img\sample\ads\300x250.jpg" />
+    <None Include="wwwroot\assets\img\sample\ads\300x50.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar1.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar10.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar2.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar3.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar4.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar5.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar6.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar7.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar8.jpg" />
+    <None Include="wwwroot\assets\img\sample\avatar\avatar9.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\1.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\2.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\3.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\4.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\5.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\6.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d1.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d2.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d3.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d4.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d5.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\d6.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\product1.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\product2.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\product3.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\product4.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\vector1.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vector2.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vector3.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vector4.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vector5.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vector6.png" />
+    <None Include="wwwroot\assets\img\sample\photo\vertical1.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\vertical2.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\vertical3.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\vertical4.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\vertical5.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide1.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide2.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide3.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide4.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide5.jpg" />
+    <None Include="wwwroot\assets\img\sample\photo\wide6.jpg" />
+    <None Include="wwwroot\assets\js\base.js" />
+    <None Include="wwwroot\assets\js\lib\bootstrap.min.js" />
+    <None Include="wwwroot\assets\js\plugins\progressbar-js\progressbar.min.js" />
+    <None Include="wwwroot\assets\js\plugins\splide\splide.min.js" />
+    <None Include="wwwroot\assets\sass\framework\_accordion.scss" />
+    <None Include="wwwroot\assets\sass\framework\_actionsheet.scss" />
+    <None Include="wwwroot\assets\sass\framework\_adbox.scss" />
+    <None Include="wwwroot\assets\sass\framework\_add-to-home.scss" />
+    <None Include="wwwroot\assets\sass\framework\_alert.scss" />
+    <None Include="wwwroot\assets\sass\framework\_badge.scss" />
+    <None Include="wwwroot\assets\sass\framework\_blog.scss" />
+    <None Include="wwwroot\assets\sass\framework\_button.scss" />
+    <None Include="wwwroot\assets\sass\framework\_card.scss" />
+    <None Include="wwwroot\assets\sass\framework\_carousel.scss" />
+    <None Include="wwwroot\assets\sass\framework\_checkbox-radio-toggle.scss" />
+    <None Include="wwwroot\assets\sass\framework\_chips.scss" />
+    <None Include="wwwroot\assets\sass\framework\_color-class.scss" />
+    <None Include="wwwroot\assets\sass\framework\_comment.scss" />
+    <None Include="wwwroot\assets\sass\framework\_dialog.scss" />
+    <None Include="wwwroot\assets\sass\framework\_divider.scss" />
+    <None Include="wwwroot\assets\sass\framework\_dropdown.scss" />
+    <None Include="wwwroot\assets\sass\framework\_e-commerce.scss" />
+    <None Include="wwwroot\assets\sass\framework\_error-page.scss" />
+    <None Include="wwwroot\assets\sass\framework\_fab-button.scss" />
+    <None Include="wwwroot\assets\sass\framework\_form-validation.scss" />
+    <None Include="wwwroot\assets\sass\framework\_form-wizard.scss" />
+    <None Include="wwwroot\assets\sass\framework\_go-to-top.scss" />
+    <None Include="wwwroot\assets\sass\framework\_grid.scss" />
+    <None Include="wwwroot\assets\sass\framework\_icon.scss" />
+    <None Include="wwwroot\assets\sass\framework\_image.scss" />
+    <None Include="wwwroot\assets\sass\framework\_inputs.scss" />
+    <None Include="wwwroot\assets\sass\framework\_invoice.scss" />
+    <None Include="wwwroot\assets\sass\framework\_listview.scss" />
+    <None Include="wwwroot\assets\sass\framework\_loader.scss" />
+    <None Include="wwwroot\assets\sass\framework\_login.scss" />
+    <None Include="wwwroot\assets\sass\framework\_messages.scss" />
+    <None Include="wwwroot\assets\sass\framework\_modal.scss" />
+    <None Include="wwwroot\assets\sass\framework\_notification.scss" />
+    <None Include="wwwroot\assets\sass\framework\_online-detection.scss" />
+    <None Include="wwwroot\assets\sass\framework\_os-detection.scss" />
+    <None Include="wwwroot\assets\sass\framework\_pagination.scss" />
+    <None Include="wwwroot\assets\sass\framework\_panel.scss" />
+    <None Include="wwwroot\assets\sass\framework\_preloader.scss" />
+    <None Include="wwwroot\assets\sass\framework\_profile.scss" />
+    <None Include="wwwroot\assets\sass\framework\_progressbar.scss" />
+    <None Include="wwwroot\assets\sass\framework\_search.scss" />
+    <None Include="wwwroot\assets\sass\framework\_stepper.scss" />
+    <None Include="wwwroot\assets\sass\framework\_stories.scss" />
+    <None Include="wwwroot\assets\sass\framework\_table.scss" />
+    <None Include="wwwroot\assets\sass\framework\_tabs.scss" />
+    <None Include="wwwroot\assets\sass\framework\_timeline.scss" />
+    <None Include="wwwroot\assets\sass\framework\_toast.scss" />
+    <None Include="wwwroot\assets\sass\framework\_tooltip.scss" />
+    <None Include="wwwroot\assets\sass\framework\_typography.scss" />
+    <None Include="wwwroot\assets\sass\section\_bottomMenu.scss" />
+    <None Include="wwwroot\assets\sass\section\_content.scss" />
+    <None Include="wwwroot\assets\sass\section\_footer.scss" />
+    <None Include="wwwroot\assets\sass\section\_header.scss" />
+    <None Include="wwwroot\assets\sass\section\_sidebar.scss" />
+    <None Include="wwwroot\assets\sass\style.scss" />
+    <None Include="wwwroot\assets\sass\_body.scss" />
+    <None Include="wwwroot\assets\sass\_darkmode.scss" />
+    <None Include="wwwroot\assets\sass\_theme-settings.scss" />
+    <None Include="wwwroot\assets\sass\_ui-framework.scss" />
+  </ItemGroup>
+
+</Project>
