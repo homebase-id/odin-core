@@ -38,9 +38,9 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
         public async Task<NoncePackage> GenerateAuthenticationNonce()
         {
-            var salts = await _secretService.GetStoredSalts();
-            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64);
-            WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+            //HACK - i created this branch so i could continue
+            //working on the rn client before integrating web crypto stuff
+            var nonce = new NoncePackage("salts.SaltPassword64", "salts.SaltKek64");
             return nonce;
         }
         
