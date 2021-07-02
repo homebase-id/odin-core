@@ -49,9 +49,6 @@ namespace DotYou.TenantHost.Security.Authentication
 
                 if (await authService.IsValidToken(token))
                 {
-                    //add more life since a request was made
-                    await authService.ExtendTokenLife(token, 60 * 20);
-
                     //TODO: this needs to be pulled from context rather than the domain
 
                     string domain = this.Context.Request.Host.Host;

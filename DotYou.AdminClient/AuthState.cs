@@ -37,28 +37,28 @@ namespace DotYou.AdminClient
 
         public static async Task<IPasswordReply> PreparePassword<T>(string password, ClientNoncePackage serverNonce, IJSRuntime _js) where T :IPasswordReply, new()
         {
-            var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
-            var saltPasswordBytes = Convert.FromBase64String(serverNonce.SaltPassword64);
-            var saltKekBytes = Convert.FromBase64String(serverNonce.SaltKek64);
-            var saltNonceBytes = Convert.FromBase64String(serverNonce.Nonce64);
-
-            var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
-            var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
-            var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
-
-            var hashedKek64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltKekBytes, 100000, 16);
-            
-            Console.WriteLine($"hashedPassword64: {hashedPassword64}");
-            Console.WriteLine($"hashedKek64: {hashedKek64}");
-            Console.WriteLine($"hashNoncePassword64: {hashNoncePassword64}");
-            Console.WriteLine($"Nonce64: {serverNonce.Nonce64}");
+            // var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
+            // var saltPasswordBytes = Convert.FromBase64String(serverNonce.SaltPassword64);
+            // var saltKekBytes = Convert.FromBase64String(serverNonce.SaltKek64);
+            // var saltNonceBytes = Convert.FromBase64String(serverNonce.Nonce64);
+            //
+            // var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
+            // var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
+            // var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
+            //
+            // var hashedKek64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltKekBytes, 100000, 16);
+            //
+            // Console.WriteLine($"hashedPassword64: {hashedPassword64}");
+            // Console.WriteLine($"hashedKek64: {hashedKek64}");
+            // Console.WriteLine($"hashNoncePassword64: {hashNoncePassword64}");
+            // Console.WriteLine($"Nonce64: {serverNonce.Nonce64}");
 
             T clientReply = new()
             {
-                Nonce64 = serverNonce.Nonce64,
-                KeK64 = hashedKek64,
-                HashedPassword64 = hashedPassword64,
-                NonceHashedPassword64 = hashNoncePassword64
+                Nonce64= serverNonce.Nonce64,
+                KeK64= "hashedKek64",
+                NonceHashedPassword64="hashNoncePassword64",
+                HashedPassword64 = "hashedPassword64",
             };
 
             return clientReply;
@@ -74,6 +74,7 @@ namespace DotYou.AdminClient
 
             var clientReply = await PreparePassword<AuthenticationNonceReply>(password, noncePackage,_js);
 
+            clientReply.Nonce64 = "9cc5adc2-4f8a-419a-b340-8d69cba6c462";
             var authResponse = await _client.Authenticate(clientReply);
 
             if (authResponse.IsSuccessStatusCode)
