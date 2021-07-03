@@ -8,19 +8,11 @@ namespace DotYou.Types.Messaging
     /// </summary>
     public class RecentChatMessageHeader
     {
-        public RecentChatMessageHeader() { }
         
         /// <summary>
-        /// Creates a new instance by cloning corresponding values from <see cref="ChatMessageEnvelope"/>.
+        /// This is the Id of the other individual or group.  This is not the dotYoudId owner of this instance
         /// </summary>
-        public RecentChatMessageHeader(ChatMessageEnvelope envelope)
-        {
-            this.Recipient = envelope.Recipient;
-            this.Body = envelope.Body;
-            this.Timestamp = envelope.ReceivedTimestampMilliseconds;
-        }
-        
-        public DotYouIdentity Recipient { get; set; }
+        public DotYouIdentity DotYouId { get; set; }
 
         public string Body { get; set; }
         

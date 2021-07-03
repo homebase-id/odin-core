@@ -91,8 +91,16 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
-                WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(new RecentChatMessageHeader(message)));
+                
+                var recent = new RecentChatMessageHeader()
+                {
+                    DotYouId = message.Recipient,
+                    Body = message.Body,
+                    Timestamp = message.ReceivedTimestampMilliseconds
+                };
 
+                WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
+                
                 await this.Notify.NewChatMessageSent(message);
             }
 
@@ -103,8 +111,15 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         {
             string collection = GetChatStoragePath(message.SenderDotYouId);
             WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
+           
+            var recent = new RecentChatMessageHeader()
+            {
+                DotYouId = message.SenderDotYouId,
+                Body = message.Body,
+                Timestamp = message.ReceivedTimestampMilliseconds
+            };
 
-            WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(new RecentChatMessageHeader(message)));
+            WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
 
             await this.Notify.NewChatMessageReceived(message);
 

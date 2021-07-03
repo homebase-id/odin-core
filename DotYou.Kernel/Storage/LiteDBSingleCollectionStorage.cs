@@ -119,7 +119,8 @@ namespace DotYou.Kernel.Storage
             var id = col.Upsert(item);
             return Task.CompletedTask;
         }
-
+        
+        
         public Task Delete(Guid id)
         {
             var col = GetCollection();
