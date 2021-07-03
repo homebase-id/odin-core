@@ -28,6 +28,13 @@ namespace DotYou.DigitalIdentityHost.Controllers.Messaging
             return new JsonResult(new NoResultResponse(true));
         }
 
+        [HttpGet("recent")]
+        public async Task<IActionResult> GetRecentMessages(int pageNumber, int pageSize)
+        {
+            var history = await _chatService.GetRecentMessages(new PageOptions(pageNumber, pageSize));
+            return new JsonResult(history);
+        }
+        
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery]string dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, int pageNumber, int pageSize)
         {

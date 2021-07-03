@@ -35,6 +35,13 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message);
 
         /// <summary>
+        /// Returns a list of recent messages across all connected contacts
+        /// </summary>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        public Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions);
+
+        /// <summary>
         /// Returns the chat history for a given <see cref="DotYouIdentity"/> based on the date range specified
         /// </summary>
         /// <param name="dotYouId"></param>

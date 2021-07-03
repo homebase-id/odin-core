@@ -3,10 +3,12 @@ using LiteDB;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using DotYou.Types.Messaging;
 
 namespace DotYou.Kernel.Storage
 {
@@ -57,8 +59,28 @@ namespace DotYou.Kernel.Storage
             var col = GetCollection();
             var q = col.Query();
             var total = q.LongCount();
-            //q.OrderByDescending()
 
+            var data = q.Limit(req.PageSize).Offset(req.PageIndex).ToList();
+            var result = new PagedResult<T>(req, req.GetTotalPages(total), data);
+            return Task.FromResult(result);
+        }
+
+        /// <summary>
+        /// Retrieves a sorted list
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="sortDirection"></param>
+        /// <param name="keySelector"></param>
+        /// <typeparam name="TK"></typeparam>
+        /// <returns></returns>
+        public Task<PagedResult<T>> GetList<TK>(PageOptions req, ListSortDirection sortDirection, Expression<Func<T, TK>> keySelector)
+        {
+            var col = GetCollection();
+            var q = col.Query();
+            var total = q.LongCount();
+
+            q = (sortDirection == ListSortDirection.Ascending) ? q.OrderBy(keySelector) : q.OrderByDescending(keySelector);
+            
             var data = q.Limit(req.PageSize).Offset(req.PageIndex).ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(total), data);
             return Task.FromResult(result);

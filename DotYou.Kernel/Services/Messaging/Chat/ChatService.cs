@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
@@ -17,6 +18,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     public class ChatService : DotYouServiceBase, IChatService
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
+        private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
         private readonly IContactService _contactService;
 
         public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IContactService contactService) : base(context, logger, hub, fac)
@@ -66,7 +68,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
-            
+
             message.SenderDotYouId = this.Context.DotYouId;
             message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             //message.SentTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -89,6 +91,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
+                WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(new RecentChatMessageHeader(message)));
 
                 await this.Notify.NewChatMessageSent(message);
             }
@@ -101,16 +104,24 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             string collection = GetChatStoragePath(message.SenderDotYouId);
             WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
 
+            WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(new RecentChatMessageHeader(message)));
+
             await this.Notify.NewChatMessageReceived(message);
 
             return true;
         }
 
+        public async Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions)
+        {
+            var page = await WithTenantStorageReturnList<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
+            return page;
+        }
+
         public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)
         {
             string collection = GetChatStoragePath(dotYouId);
-            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s => 
-                s.Find(p => p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds && 
+            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s =>
+                s.Find(p => p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds &&
                             p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds, pageOptions));
 
             var finalResult = new DateRangePagedResult<ChatMessageEnvelope>()

@@ -13,7 +13,7 @@ namespace DotYou.TenantHost.Controllers
 {
     [ApiController]
     [Route("api/contacts")]
-//    [Authorize(Policy = DotYouPolicyNames.MustOwnThisIdentity)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class ContactManagementController : ControllerBase
     {
         IContactService _contactService;
@@ -25,9 +25,8 @@ namespace DotYou.TenantHost.Controllers
 
 
         [HttpGet("find")]
-        public async Task<PagedResult<Contact>> Find(string text,int pageNumber, int pageSize)
+        public async Task<PagedResult<Contact>> Find(string text, int pageNumber, int pageSize)
         {
-
             string q = text.ToLower();
             Expression<Func<Contact, bool>> predicate;
             /*
@@ -48,9 +47,9 @@ namespace DotYou.TenantHost.Controllers
             */
 
             predicate = c =>
-                            c.GivenName.ToLower().Contains(q) ||
-                            c.Surname.ToLower().Contains(q) ||
-                            c.DotYouId.Value.Id.Contains(q);
+                c.GivenName.ToLower().Contains(q) ||
+                c.Surname.ToLower().Contains(q) ||
+                c.DotYouId.Value.Id.Contains(q);
 
             var results = await _contactService.FindContacts(predicate, new PageOptions(pageNumber, pageSize));
 
@@ -65,7 +64,7 @@ namespace DotYou.TenantHost.Controllers
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int)HttpStatusCode.NotFound
+                    StatusCode = (int) HttpStatusCode.NotFound
                 };
             }
 
@@ -80,7 +79,7 @@ namespace DotYou.TenantHost.Controllers
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int)HttpStatusCode.NotFound
+                    StatusCode = (int) HttpStatusCode.NotFound
                 };
             }
 
@@ -92,7 +91,6 @@ namespace DotYou.TenantHost.Controllers
         {
             var result = await _contactService.GetContacts(new PageOptions(pageNumber, pageSize), connectedContactsOnly);
             return result;
-
         }
 
         [HttpPost]
@@ -107,7 +105,6 @@ namespace DotYou.TenantHost.Controllers
         {
             await _contactService.Delete(id);
             return new JsonResult(new NoResultResponse(true));
-
         }
     }
 }
