@@ -24,9 +24,17 @@ namespace DotYou.TenantHost
             string path = Environment.GetEnvironmentVariable(dataRootPath);
             string logPath = Environment.GetEnvironmentVariable(logPathEnvName);
 
+            // Console.WriteLine("Start Paths");
+            // Console.WriteLine($"DATA_ROOT_PATH={path}");
+            // Console.WriteLine($"DOTYOU_LOGPATH={logPath}");
+            // Console.WriteLine("End Paths");
+
+            path ??= "\\srv\\data\\tenants";
+            logPath ??= "\\srv\\data\\logs";
+            
             //HACK: need a centralized method to handle paths by operating system
-            path = path.Replace('\\', Path.DirectorySeparatorChar);
-            logPath = logPath.Replace('\\', Path.DirectorySeparatorChar);
+            path = (path ?? "").Replace('\\', Path.DirectorySeparatorChar);
+            logPath = (logPath ?? "").Replace('\\', Path.DirectorySeparatorChar);
 
             if (!Directory.Exists(path))
             {
@@ -106,6 +114,7 @@ namespace DotYou.TenantHost
                             {
                                 opts.ServerCertificateSelector = (connectionContext, hostName) =>
                                 {
+                                    Console.WriteLine($"Resolving certificate for host [{hostName}]");
                                     var context = _registry.ResolveContext(hostName);
                                     var cert = context.TenantCertificate.LoadCertificateWithPrivateKey();
                                     return cert;

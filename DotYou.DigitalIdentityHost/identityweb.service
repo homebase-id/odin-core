@@ -27,6 +27,8 @@ Environment="ASPNETCORE_ENVIRONMENT=Production"
 Environment="DOTNET_PRINT_TELEMETRY_MESSAGE=false"
 Environment="CERTIFICATE_DB_PATH=/srv/data/certifcates"
 Environment="DATA_ROOT_PATH=/srv/data/tenants"
+Environment="DOTYOU_LOGPATH=/srv/data/logs"
+
 
 # This environment variable is necessary when dotnet isn't loaded for the specified user.
 # To figure out this value, run 'env | grep DOTNET_ROOT' when dotnet has been loaded into your shell.
