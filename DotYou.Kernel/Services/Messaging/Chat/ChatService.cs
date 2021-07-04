@@ -91,7 +91,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
-                
+
                 var recent = new RecentChatMessageHeader()
                 {
                     DotYouId = message.Recipient,
@@ -100,7 +100,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 };
 
                 WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
-                
+
                 await this.Notify.NewChatMessageSent(message);
             }
 
@@ -111,7 +111,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         {
             string collection = GetChatStoragePath(message.SenderDotYouId);
             WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
-           
+
             var recent = new RecentChatMessageHeader()
             {
                 DotYouId = message.SenderDotYouId,
@@ -129,7 +129,22 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public async Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions)
         {
             var page = await WithTenantStorageReturnList<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
-            return page;
+
+            //HACK:  need to redesign the storage of chat and/or recent messages
+            var grouping = page.Results.GroupBy(h => h.DotYouId, StringComparer.InvariantCultureIgnoreCase);
+            var list = grouping.Select(g =>
+            {
+                var mostRecentMessage = g.OrderByDescending(m => m.Timestamp).First();
+                var header = new RecentChatMessageHeader();
+                header.DotYouId = (DotYouIdentity)g.Key;
+                header.Body = mostRecentMessage.Body;
+                header.Timestamp = mostRecentMessage.Timestamp;
+
+                return header;
+                
+            }).ToList();
+
+            return new PagedResult<RecentChatMessageHeader>(page.Request, 1, list);
         }
 
         public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)

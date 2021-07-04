@@ -185,10 +185,10 @@ namespace DotYou.Kernel.Services.Circle
 
             var response = await this.CreatePerimeterHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
 
-            if (!response.Content.Success)
+            if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
             {
-                //TODO: add more info
-                throw new Exception("Failed to establish connection request");
+                //TODO: add more info and clarify
+                throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
             await this.DeletePendingRequest(request.Id);

@@ -78,10 +78,19 @@ namespace DotYou.IdentityRegistry
                         CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.cer"),
                         PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key")
                     });
+            
+            IdentityCertificate gandalf = 
+                new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
+                    new CertificateLocation()
+                    {
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+                    });
 
             _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
             _certificates.Add(samwise.Key, samwise);
             _certificates.Add(frodo.Key, frodo);
+            _certificates.Add(gandalf.Key, gandalf);
 
             foreach (var c in _certificates.Values)
             {
