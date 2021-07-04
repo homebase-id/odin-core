@@ -66,7 +66,7 @@ saltKek (owner property) [DB]
 KeyEncryptionKey / KeK (volatile) 
    The KeK is a 16 byte key calculated as follows:
    KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-   The KeK is used for en- / de- cryption of the DeK (XOR) and the RsaPrivate key (AES).
+   The KeK is used for en- / de- cryption of the DeK (XOR?) and the RsaPrivate key (AES).
 
 Nonce (owner DB lookup [DB], timeout)
    Is a temporary 16 byte key used to prevent playback when logging in via the client.
@@ -86,7 +86,7 @@ Password initialization
    Server looks up Nonce, checks for timeout.
 
    Server generates the dataKey as a random 16-byte array, and encrypts it with the KeK (XOR).
-   Server generates the RsaPublic & RsaPrivate. Encrypts RsaPrivate using AES() with the KeK
+   Server generates the RsaPublic & RsaPrivate. Encrypts RsaPrivate using AES() with the KeK.
 
    Stores these two encrypted values.
 
@@ -146,6 +146,27 @@ Note that the KeK split in half on client and server
 ======================
 
 High level protocol encryption Identity to Identity (H2H-encryption)
+
+** POSSIBLE ENHANCEMENT: Don't decrypt and re-encrypt on the receiving server.
+** Instead do this: Unpack the RSA header, leave the payload. Then store the tuple:
+** {IV, AES-CBC(DeK, IV, random-encrypt-key), encrypted-data-payload}.
+** Possibly add some protocol info to the RSA header or decrypt the first block
+** of data in the payload to get to the protocol info.
+** Then when sending to a client, the host can simply decrypt the
+** random-encrypt-key and re-encrypt that same key with the IV and a 
+** secret key used by the client.  
+**
+** Benefit: Now we no longer have to decrypt and reencrypt on the host
+** when receiving data. Processing the queue will be very snappy. 
+** Additionally, when sending data to a client app, we only need to 
+** re-encrypt the secret-encryption-key with a client secret.
+**
+** Transform Host to Host data like this:
+** {RSA-header, encrypted-data} -> {IV, AES-CBC(DeK, IV, random-encrypt-key), encrypted-data}
+** 
+** Transfer to client like this:
+** {IV, AES-Encrypt(Client-DeK, IV, AES-CBC-Decrypt(DeK, IV, random-encrypt-key)), encrypted-data}
+**
 
 Create a header:
    A. Unencrypted 4-byte CRC of the recipient's public encryption key used to encrypt (stored in the DB)
@@ -261,6 +282,7 @@ a host to host package for each recipient. Including the sender.
 However, when wanting to read 
 
 - o O o -
+
 Suggested field security (the owner can override the default
 security level if e.g. they want their address hidden away):
 
@@ -271,10 +293,13 @@ Lite-Encryption (DB only):
     Field that cannot meaningfully get a higher level encryption:
         Connected identities
     
-    Only lite fields can be accessed by others than the owner.
+    When someone is visiting your page or trying to access data
+    they will only be abke to retrieve lite fields (because the
+    other fields are irreversibly encrypted and therefore inaccessible
+    unless the owner is involved for e.g. credit card data transfer).
     If you make all your fields Encrypted, then nobody can see
     anything about you, e.g. name, profile picture, unless you're
-    giving it to them online. And that's rather inconvenient. :)
+    interactively giving it to them online. And that's rather inconvenient. :)
 
 Key Encrypted:
     Credit-Card, Contacts (?), ....
@@ -283,14 +308,44 @@ Key Encrypted:
 Doubly Key Encrypted:
     Diary, ...
     These properties require an additional password to access (DeK-TWO).
+    * DeK-TWO is the password-two salted with the DeK.
 
 Fields might have a symbol next to them illustrating their encryption level.
 Or there might be an overview showing you which is which, e.g. first listing
 all lite fields, etc.
 
 - o O o -
+** Also remain a bit undecided if we should use AES-CBC or GCM. **
+** C# example for streaming AES-GCM !? **
+https://crypto.stackexchange.com/questions/86557/encrypt-a-big-file-in-blocks-with-aes-gcm-how-many-nonce-do-we-need
+** .net doesn't support streaming of GCM. We could maybe can write our own. **
+** GCM allows random access, CBC doesn't. GCM is slightly faster. **
+** GCM allows max 256GB file size or security will be compromised **
 
-App security levels:
+
+** Undecided if the app should en/de-crypt with the same DeK as on the server  **
+** If we choose a different DeK for the clients, then all data from the server **
+** to the client needs to be re-encrypted before being sent to the client.     **
+
+[AuthenticationToken]
+    An App receives an authentication token (with the help of the owner). The App 
+    must store the authentication token and present it in all requests to the Host.
+    The Host has stored which access rights are associated with the access token.
+
+[AuthenticationTokenHalfKeKDek]
+    Furthermore, Apps that need the host to be able to process queued data or
+    decrypt encrypted data will need ½ KeK to present to the host.
+
+    Presuming the App encrypts data locally with the same DeK as on the server 
+    the App will also hold ½ DeK. The host will provide the other ½ DeK to the
+    App such that the App can generate and use the DeK in memory without storing it.
+
+    This should only be granted to Hosts not to 3rd parties such as BestBuy
+    (unless they use a host e.g. id.bestbuy.com). 
+
+    The 
+
+
 
 Lite-encryption apps:
     Can e.g. query the host for lite encrypted data fields.
@@ -304,10 +359,11 @@ Secure Apps:
    or access Encrypted properties.
    Therefore they need the ½ KeK because the KeK is needed
    to access the RSA private key necessary for decrypting
-   the queued packages.
+   the queued packages or access the DeK for decrypting
+   encrypted fields.
 
    E.g. Chat, Email, Collaboration, Management, Drive, Signing, 
-   Contact Manager (or a Lite app).
+   Contact Manager (or is that a Lite app?).
 
 Double Secure Apps:
     These apps hold ½ KeK and ½ Kek-TWO and can access the doubly 
@@ -331,3 +387,14 @@ I'm wondering:
     cert valdation DNSSEC.
 
     Wonder if anyone would use that.
+
+---
+More App security thoughts:
+    If I want to be able to read and write chat-messages while connected online only,
+    then 
+
+
+---
+Note to self: We should have a fallback profile-picture. So that if no profile-picture is accessible
+for the current viewer, the fallback picture is shown. I might e.g. want my fallback picture to be 
+the Valhalla logo, or a hat. And my profile picture as a picture of myself.

@@ -122,6 +122,34 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
+        [Test]
+        public void HostToHostPacketHeaderTransformPass()
+        {
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
+
+            // Data to encrypt
+            string mySecret = "hello wørld";
+            byte[] toEncryptData = Encoding.UTF8.GetBytes(mySecret);
+
+            var (encryptedHeader, encryptedData) = HostToHost.EncryptPacket(toEncryptData, publicXml);
+
+            var newDeK = YFByteArray.GetRndByteArray(16);
+            var (iv, keyEncrypted) = HostToHost.TransformRSAtoAES(encryptedHeader, privateXml, newDeK);
+
+            var key = AesCbc.DecryptBytesFromBytes_Aes(keyEncrypted, newDeK, iv);
+            var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedData, key, iv);
+
+            string originalResult = Encoding.UTF8.GetString(data);
+
+            if (originalResult == mySecret)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
 
 
         //

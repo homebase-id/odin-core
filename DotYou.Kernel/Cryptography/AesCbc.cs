@@ -19,7 +19,7 @@ namespace DotYou.Kernel.Cryptography
                 var iv = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
                 var testData = new byte[] { 162, 146, 244, 255, 127, 128, 0, 42, 7, 0 };
 
-                var (tIV, cipher) = EncryptBytesToBytes_Aes(testData, key, iv);
+                var cipher = EncryptBytesToBytes_Aes(testData, key, iv);
 
                 var s = YFByteArray.PrintByteArray(cipher);
                 Console.WriteLine("Cipher: " + s);
@@ -50,8 +50,15 @@ namespace DotYou.Kernel.Cryptography
             }
         }
 
-        // Only used for test purposes to cross validate JS & .NET with IV as parameter
-        private static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] key, byte[] iv)
+        /// <summary>
+        /// Do not use this function unless you specifically need to reencrypt with the same IV.
+        /// This is only needed when we transform the header.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="key"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static byte[] EncryptBytesToBytes_Aes(byte[] data, byte[] key, byte[] iv)
         {
             using (Aes aesAlg = Aes.Create())
             {
@@ -63,7 +70,7 @@ namespace DotYou.Kernel.Cryptography
 
                 using (var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV))
                 {
-                    return (iv, PerformCryptography(data, encryptor));
+                    return PerformCryptography(data, encryptor);
                 }
             }
         }

@@ -95,5 +95,61 @@ namespace DotYou.Kernel.Cryptography
 
             return data;
         }
+
+
+        /// <summary>
+        /// Transform the RSA encrypted header into an {iv, AES(secret key)} using the DeK as the key.
+        /// TODO: Get security validation that it's OK I reuse the IV when I encrypt the secret encryption key. 
+        /// </summary>
+        /// <param name="encryptedHeader"></param>
+        /// <param name="recipientSecretKey"></param>
+        /// <param name="DeK"></param>
+        /// <returns>The iv and encrypted DeK (encrypted with iv, newDeK)</returns>
+        public static (byte[] iv, byte[] aesEncryptedKey) TransformRSAtoAES(byte[] encryptedHeader, string recipientSecretKey, byte[] DeK)
+        {
+            if (encryptedHeader.Length < 5)
+                throw new Exception();
+
+            // Get the unencrypted CRC
+            UInt32 crcRecipientPublicEncryptionKey = ((UInt32)(encryptedHeader[0]) << 24) | ((UInt32)(encryptedHeader[1]) << 16) | ((UInt32)(encryptedHeader[2]) << 8) | ((UInt32)encryptedHeader[3]);
+            if (crcRecipientPublicEncryptionKey != 0x11223344) // Replace with CRC32(publicKey)
+                throw new Exception();
+
+            //Decode with private key
+            var rsaPrivate = new RSACryptoServiceProvider(2048);
+            rsaPrivate.FromXmlString(recipientSecretKey); // BUgs me, figure out how to not create random key
+
+            var h = new byte[encryptedHeader.Length - 4];
+            int i;
+
+            for (i = 0; i < h.Length; i++)
+                h[i] = encryptedHeader[i + 4];
+
+            var decryptedHeader = rsaPrivate.Decrypt(h, true);
+
+            var decryptionKey = new byte[16];
+            var iv = new byte[16];
+
+            for (i = 0; i < 16; i++)
+            {
+                decryptionKey[i] = decryptedHeader[i];
+                iv[i] = decryptedHeader[i + 16];
+            }
+            YFByteArray.WipeByteArray(h);
+
+            //System.Diagnostics.Debug.WriteLine($"Decrypting data:");
+            //System.Diagnostics.Debug.WriteLine($"AES Encryption Key {string.Join(", ", decryptionKey)}");
+            //System.Diagnostics.Debug.WriteLine($"IV {string.Join(", ", iv)}");
+            //System.Diagnostics.Debug.WriteLine($"encrypted data {string.Join(", ", encryptedData)}");
+
+            var aesEncryptedKey = AesCbc.EncryptBytesToBytes_Aes(decryptionKey, DeK, iv);
+
+            YFByteArray.WipeByteArray(decryptionKey);
+
+            // To later retrieve the key used to encrypt the data to this:
+            // var key = AesCbc.DecryptBytesFromBytes_Aes(newHeader, DeK, iv);
+
+            return (iv, aesEncryptedKey);
+        }
     }
 }
