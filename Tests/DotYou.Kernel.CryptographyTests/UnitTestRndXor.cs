@@ -109,19 +109,26 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Data to encrypt
             string mySecret = "hello wørld";
-            byte[] toEncryptData = Encoding.UTF8.GetBytes(mySecret);
+            byte[] payload = Encoding.UTF8.GetBytes(mySecret);
 
-            var (encryptedHeader, encryptedData) = HostToHost.EncryptPacket(toEncryptData, publicXml);
-            var data = HostToHost.DecryptPacket(encryptedHeader, encryptedData, privateXml);
+            var (rsaHeader, encryptedPayload) = HostToHost.EncryptRSAPacket(payload, publicXml);
 
-            string originalResult = Encoding.UTF8.GetString(data);
+            // Now imagine we're at the recipient host:
+            var copyPayload = HostToHost.DecryptRSAPacket(rsaHeader, encryptedPayload, privateXml);
 
-            if (originalResult == mySecret)
+            string copySecret = Encoding.UTF8.GetString(copyPayload);
+
+            if (copySecret == mySecret)
                 Assert.Pass();
             else
                 Assert.Fail();
         }
 
+
+        /// <summary>
+        /// This test illustrates how to take a host to host package, with a RSA header,
+        /// and then transform the RSA header into the AES header (for local storage).
+        /// </summary>
         [Test]
         public void HostToHostPacketHeaderTransformPass()
         {
@@ -132,15 +139,19 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Data to encrypt
             string mySecret = "hello wørld";
-            byte[] toEncryptData = Encoding.UTF8.GetBytes(mySecret);
+            byte[] payload = Encoding.UTF8.GetBytes(mySecret);
 
-            var (encryptedHeader, encryptedData) = HostToHost.EncryptPacket(toEncryptData, publicXml);
+            var (rsaHeader, encryptedPayload) = HostToHost.EncryptRSAPacket(payload, publicXml);
 
-            var newDeK = YFByteArray.GetRndByteArray(16);
-            var (iv, keyEncrypted) = HostToHost.TransformRSAtoAES(encryptedHeader, privateXml, newDeK);
+            var sharedSecret = YFByteArray.GetRndByteArray(16);
+            var aesHeader = HostToHost.TransformRSAtoAES(rsaHeader, privateXml, sharedSecret);
+            // var (iv, keyEncrypted) = HostToHost.TransformRSAtoAES(rsaHeader, privateXml, sharedSecret);
 
-            var key = AesCbc.DecryptBytesFromBytes_Aes(keyEncrypted, newDeK, iv);
-            var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedData, key, iv);
+            // Now let's see if we can decode the header
+            var (randomIv2, encryptedUnlockHeader) = HostToHost.ParseAesHeader(aesHeader);
+            var unlockHeader = AesCbc.DecryptBytesFromBytes_Aes(encryptedUnlockHeader, sharedSecret, randomIv2);
+            var (key, iv) = HostToHost.ParseUnlockHeader(unlockHeader);
+            var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedPayload, key, iv);
 
             string originalResult = Encoding.UTF8.GetString(data);
 

@@ -12,9 +12,10 @@
 
 Documentation for Basic Encryption
 ==================================
-TODO: Consider using this encryption scheme for client->(own) host communication too.
-      Client Authnetication keys (cookies).
-      See below
+
+
+Fields / Properties / Values
+----------------------------
 
 Client Cookie("")
    The client cookie when set, is both a HTTPS secure cookie, meaning it only transmits over https.
@@ -76,7 +77,11 @@ Nonce (owner DB lookup [DB], timeout)
    The value is sent back to the server. On the server, the nonce is used to hash the hashPassword stored in the database.
    If they match, the password has been entered correctly and the user can login.
 
----
+
+
+Password handling:
+------------------
+
 Password initialization
    Owner enters password on client.
    Client requests Nonce package from server.
@@ -140,33 +145,49 @@ Note that the KeK split in half on client and server
    On subsequent web requests, the random 16 byte cookie value XOR'ed with the 
    stored XOR'ed KeK value will result in the KeK. 
 
+
+
+Data encryption
+---------------
+This section describes the fundamental data encryption exchange that takes place between
+hosts and also between a host and it's apps.
+
+Firstly, to send encrypted data a packet of data is to be sent from a sender to a receiver.
+The payload that is to be encrypted will be AES-CBC encrypted with a random-key and a random-iv and
+becomes the {encrypted-payload}. All payloads are encrypted in this way and stay this way.
+
+Next, a header is created containing the random-key and random-iv used to encrypt the payload.
+We call this the unlock-header. There are two options:
+
+1) If the sender and receiver share a secret, a header is created which consists of:
+       {random-iv2, aes({random-key, random-iv})}
+   The header is aes encryption is performed with the shared-secret and the random-iv2.
+
+
+2) If the sender and receiver do not a share a secret, a header is created based on the 
+   receiver's public key, the header consists of:
+       {{crc-uint32}, rsa({random-key, random-iv})}
+
+       (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, string recipientPublicKey)
+
+   The CRC is a 32 bit CRC of the public key and is unencrypted. It is used by the recipient
+   to ensure the right public key was used. The second part of the header is encrypted with the public 
+   RSA OAEP key of the receiver. 
+
+This means that an encrypted-payload stays encrypted with the same random-key and random-iv
+as it was orginally created with. Both on the receiving host but might as well stay the same on
+owner's devices or when forwarded to other hosts. To access such an encrypted-payload the header needs to be
+decrypted to provide the random-key and random-iv that has been used to encrypt the payload. 
+Thus if an encrypted packet is forwarded to another host, a new header is created which is appropriately 
+encrypted for the receiving host.
+
+A host receiving an encrypted package will queue the data. When the owner goes online, the RSA secret key
+is revealed. The host will then convert the queued package header from RSA to AES for faster / easier access. 
+
+
+[We might want to stuff more into the header from a protocol point of view - is it e.g. a chat message?]
+
 ---
-
-
-======================
-
-High level protocol encryption Identity to Identity (H2H-encryption)
-
-** POSSIBLE ENHANCEMENT: Don't decrypt and re-encrypt on the receiving server.
-** Instead do this: Unpack the RSA header, leave the payload. Then store the tuple:
-** {IV, AES-CBC(DeK, IV, random-encrypt-key), encrypted-data-payload}.
-** Possibly add some protocol info to the RSA header or decrypt the first block
-** of data in the payload to get to the protocol info.
-** Then when sending to a client, the host can simply decrypt the
-** random-encrypt-key and re-encrypt that same key with the IV and a 
-** secret key used by the client.  
-**
-** Benefit: Now we no longer have to decrypt and reencrypt on the host
-** when receiving data. Processing the queue will be very snappy. 
-** Additionally, when sending data to a client app, we only need to 
-** re-encrypt the secret-encryption-key with a client secret.
-**
-** Transform Host to Host data like this:
-** {RSA-header, encrypted-data} -> {IV, AES-CBC(DeK, IV, random-encrypt-key), encrypted-data}
-** 
-** Transfer to client like this:
-** {IV, AES-Encrypt(Client-DeK, IV, AES-CBC-Decrypt(DeK, IV, random-encrypt-key)), encrypted-data}
-**
 
 Create a header:
    A. Unencrypted 4-byte CRC of the recipient's public encryption key used to encrypt (stored in the DB)
@@ -234,19 +255,7 @@ Sam is online, Frodo is offline:
      Should the client's encryption key simply be the DataKey? 
 
 ============================================
-TODO
-
-If we are to use this same scheme for client -> (own) host then all we need to do is to
-implement the RSA OAEP Web Crypto API on the client (JS), and then build the same header
-as we are in C# in HostToHost.cs.
-
-Authentication tokens:
-   Client: 
-     ID
-
-   Server:
-     ID
-     Rights
+Work in progress
 
 Management client.  ½ DeK needed.
 Chat/mail client.  ½ DeK needed.

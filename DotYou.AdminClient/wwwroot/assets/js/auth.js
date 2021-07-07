@@ -160,3 +160,63 @@ function test_AesCbc() {
         });
     });
 }
+
+// ===============================================
+// RSA OAEP
+// ===============================================
+async function test_RsaGenerateKey(bits)
+{
+    var key = await window.crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: bits, //can be 1024, 2048, or 4096
+            publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+            hash: { name: "SHA-256" }, //can be "SHA-1", "SHA-256", "SHA-384", or "SHA-512"
+        },
+        false, //whether the key is extractable (i.e. can be used in exportKey)
+        ["encrypt", "decrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
+    );
+
+    console.log(key);
+    console.log(key.publicKey);
+    console.log(key.privateKey);
+
+    return key;
+}
+
+
+async function RsaOaepEncrypt(publicKey, data) {
+    var encrypted = await window.crypto.subtle.encrypt(
+        {
+            name: "RSA-OAEP",
+            //label: Uint8Array([...]) //optional
+        },
+        publicKey, //from generateKey or importKey above
+        data //ArrayBuffer of data you want to encrypt
+    );
+
+    var u8a = new Uint8Array(encrypted);
+    console.log(u8a);
+
+    return u8a;
+}
+
+
+
+async function RsaOaepDecrypt(privateKey, data) {
+    var decrypted = await window.crypto.subtle.encrypt(
+        {
+            name: "RSA-OAEP",
+            //label: Uint8Array([...]) //optional
+        },
+        privateKey, //from generateKey or importKey above
+        data //ArrayBuffer of the data
+    );
+
+    //returns an ArrayBuffer containing the decrypted data
+    console.log(new Uint8Array(decrypted));
+
+    var u8a = new Uint8Array(decrypted);
+
+    return u8a;
+}
