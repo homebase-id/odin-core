@@ -33,7 +33,7 @@ namespace DotYou.TenantHost
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error:\n\n{ex}\n\n");
+                _logger.LogError($"Host: {httpContext.Request.Host}\nPath:{httpContext.Request.Path}\n\nError:\n\n{ex}\n\n");
                 await HandleExceptionAsync(httpContext, ex);
             }
         }

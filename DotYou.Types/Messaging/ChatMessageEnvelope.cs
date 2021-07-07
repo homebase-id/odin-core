@@ -21,7 +21,7 @@ namespace DotYou.Types.Messaging
         /// </summary>
         public long Timestamp { get; set; }
     }
-
+    
     public class ChatMessageEnvelope : IIncomingCertificateMetaData
     {
         public Guid Id { get; set; }

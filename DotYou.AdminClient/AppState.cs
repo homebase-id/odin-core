@@ -95,7 +95,7 @@ namespace DotYou.AdminClient
         private async Task InitializeNotifications()
         {
             UriBuilder b = new UriBuilder(_nav.BaseUri);
-            b.Path = "live/notifications";
+            b.Path = "/live/notifications";
 
             _connection = new HubConnectionBuilder()
                 .WithUrl(b.Uri.AbsoluteUri, options =>

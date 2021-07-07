@@ -80,7 +80,7 @@ namespace DotYou.Kernel.Storage
             var total = q.LongCount();
 
             q = (sortDirection == ListSortDirection.Ascending) ? q.OrderBy(keySelector) : q.OrderByDescending(keySelector);
-            
+
             var data = q.Limit(req.PageSize).Offset(req.PageIndex).ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(total), data);
             return Task.FromResult(result);
@@ -106,6 +106,31 @@ namespace DotYou.Kernel.Storage
             return Task.FromResult(result);
         }
 
+        /// <summary>
+        /// Finds all records of T using the given predicate and sorting parameters.  This is passed directly to LiteDB.
+        /// </summary>
+        /// <param name="predicate"></param>
+        /// <param name="req"></param>
+        /// <param name="sortDirection"></param>
+        /// <param name="sortKeySelector"></param>
+        /// <returns></returns>
+        public Task<PagedResult<T>> Find<TK>(Expression<Func<T, bool>> predicate, ListSortDirection sortDirection, Expression<Func<T, TK>> sortKeySelector, PageOptions req)
+        {
+            var col = GetCollection();
+
+            var skip = req.GetSkipCount();
+            var limit = req.PageSize;
+            var totalCount = col.Count(predicate);
+
+            var query = sortDirection == ListSortDirection.Ascending ? col.Query().Where(predicate).OrderBy(sortKeySelector) : col.Query().Where(predicate).OrderByDescending(sortKeySelector);
+
+            var resultData = query.Skip(skip).Limit(limit).ToEnumerable();
+            var data = resultData.ToList();
+            var result = new PagedResult<T>(req, req.GetTotalPages(totalCount), data);
+
+            return Task.FromResult(result);
+        }
+
         public Task<T> Get(Guid id)
         {
             var col = GetCollection();
@@ -119,15 +144,15 @@ namespace DotYou.Kernel.Storage
             var id = col.Upsert(item);
             return Task.CompletedTask;
         }
-        
-        
+
+
         public Task Delete(Guid id)
         {
             var col = GetCollection();
             col.Delete(id);
             return Task.CompletedTask;
         }
-        
+
         public Task<int> DeleteAll()
         {
             var col = GetCollection();

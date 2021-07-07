@@ -41,7 +41,7 @@ namespace DotYou.TenantHost.Security.Authentication
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             const string YouFoundationIssuer = "YouFoundation";
-
+            
             Guid token;
             if (GetToken(out token))
             {

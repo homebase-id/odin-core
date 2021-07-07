@@ -114,7 +114,7 @@ namespace DotYou.TenantHost
                             {
                                 opts.ServerCertificateSelector = (connectionContext, hostName) =>
                                 {
-                                    Console.WriteLine($"Resolving certificate for host [{hostName}]");
+                                    //Console.WriteLine($"Resolving certificate for host [{hostName}]");
                                     var context = _registry.ResolveContext(hostName);
                                     var cert = context.TenantCertificate.LoadCertificateWithPrivateKey();
                                     return cert;

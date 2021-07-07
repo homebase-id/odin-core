@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
@@ -109,6 +110,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message)
         {
+            //TODO: add validation - like not allowing empty messages
+            
             string collection = GetChatStoragePath(message.SenderDotYouId);
             WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
 
@@ -136,12 +139,11 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 var mostRecentMessage = g.OrderByDescending(m => m.Timestamp).First();
                 var header = new RecentChatMessageHeader();
-                header.DotYouId = (DotYouIdentity)g.Key;
+                header.DotYouId = (DotYouIdentity) g.Key;
                 header.Body = mostRecentMessage.Body;
                 header.Timestamp = mostRecentMessage.Timestamp;
 
                 return header;
-                
             }).ToList();
 
             return new PagedResult<RecentChatMessageHeader>(page.Request, 1, list);
@@ -151,8 +153,14 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         {
             string collection = GetChatStoragePath(dotYouId);
             var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s =>
-                s.Find(p => p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds &&
-                            p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds, pageOptions));
+            {
+                Expression<Func<ChatMessageEnvelope, bool>> predicate = p => (p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds &&
+                                                                              p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds);
+
+                Expression<Func<ChatMessageEnvelope, long>> sortKeySelector = key => key.ReceivedTimestampMilliseconds;
+
+                return s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions);
+            });
 
             var finalResult = new DateRangePagedResult<ChatMessageEnvelope>()
             {
