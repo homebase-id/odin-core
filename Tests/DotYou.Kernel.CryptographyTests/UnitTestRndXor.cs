@@ -125,6 +125,43 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
 
+        [Test]
+        public void CrcPass()
+        {
+            // CRC
+            var crc = CRC32C.crc32c(0, Encoding.ASCII.GetBytes("bear sandwich"));
+
+            if (crc == 3711466352)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+        //
+        // ===== SPEED TESTS =====
+        //
+        [Test]
+        public void RSASpeedPass()
+        {
+            int i;
+
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
+
+            for (i=0; i < 600; i++)
+            {
+                RSACryptoServiceProvider tmpKey = new RSACryptoServiceProvider(2048);
+                tmpKey.FromXmlString(privateXml);
+            }
+
+            Assert.Pass();
+        }
+
+
+
         /// <summary>
         /// This test illustrates how to take a host to host package, with a RSA header,
         /// and then transform the RSA header into the AES header (for local storage).

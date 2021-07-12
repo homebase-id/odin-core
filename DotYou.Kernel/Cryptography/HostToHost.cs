@@ -192,6 +192,7 @@ namespace DotYou.Kernel.Cryptography
 
             //Decode with private key
             var rsaPrivate = new RSACryptoServiceProvider(2048);
+
             rsaPrivate.FromXmlString(recipientSecretKey); // BUgs me, figure out how to not create random key
 
             var unlockHeader = rsaPrivate.Decrypt(encryptedUnlockHeader, true);

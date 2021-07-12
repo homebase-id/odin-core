@@ -1,4 +1,9 @@
 ﻿// https://www.nuget.org/packages/Crc32C.NET/  <-- Skimming code I like this one best
+// Here seems to be a JS library supporting CRC32C:
+// https://www.npmjs.com/package/fast-crc32c
+//
+// ===
+
 // https://github.com/robertvazan/crc32c.net
 //--
 // https://www.nuget.org/packages/Crc32.NET/
@@ -152,21 +157,31 @@ Data encryption
 This section describes the fundamental data encryption exchange that takes place between
 hosts and also between a host and it's apps.
 
+       {protocol-header}, {key-header}, {payload}
+
+The protocol-header has information pertaining to the protocol, e.g. message type, possibly
+length of payload, possibly CRCs, wherter or not the payload is encrypted, etc.
+
+The key-header is only present if the payload is encrypted.
+
+The payload is the actual data, possibly encrypted.
+
 Firstly, to send encrypted data a packet of data is to be sent from a sender to a receiver.
 The payload that is to be encrypted will be AES-CBC encrypted with a random-key and a random-iv and
 becomes the {encrypted-payload}. All payloads are encrypted in this way and stay this way.
 
-Next, a header is created containing the random-key and random-iv used to encrypt the payload.
-We call this the unlock-header. There are two options:
+Next, a key-header is created containing the random-key and random-iv used to encrypt the payload.
+We call this the key-header. There are two options:
 
-1) If the sender and receiver share a secret, a header is created which consists of:
-       {random-iv2, aes({random-key, random-iv})}
-   The header is aes encryption is performed with the shared-secret and the random-iv2.
+1) If the sender and receiver share a secret, a key-header is created which consists of:
+       {random-iv2, aes({random-key, random-iv})}, {encrypted-payload}
+   The header is aes encrypted with the shared-secret and the random-iv2.
 
 
-2) If the sender and receiver do not a share a secret, a header is created based on the 
+2) If the sender and receiver do not a share a secret, a key-header is created based on the 
    receiver's public key, the header consists of:
-       {{crc-uint32}, rsa({random-key, random-iv})}
+       {{crc-uint32}, rsa({random-key, random-iv})}, {encrypted-payload}
+       {{crc-uint32-rsa1, crc-unit32-rsa2}, rsa1({random-key, random-iv})}, {rsa2(offline-payload)}, {rsa1(online-payload)}
 
        (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, string recipientPublicKey)
 
