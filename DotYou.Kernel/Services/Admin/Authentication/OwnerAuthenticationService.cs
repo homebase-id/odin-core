@@ -38,30 +38,48 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
         public async Task<NoncePackage> GenerateAuthenticationNonce()
         {
-            //HACK - i created this branch so i could continue
-            //working on the rn client before integrating web crypto stuff
-            var nonce = new NoncePackage("salts.SaltPassword64", "salts.SaltKek64");
+            var salts = await _secretService.GetStoredSalts();
+            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64);
+            WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
         
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
 
-            bool match = Guid.Parse(reply.Nonce64) == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+            Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
+
+            var noncePackage = await WithTenantStorageReturnSingle<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+
+            var match = await _secretService.IsPasswordKeyMatch(reply.NonceHashedPassword64, noncePackage.Nonce64);
+            
             if (match == false)
             {
                 throw new AuthenticationException();
             }
 
-            Guid token = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-            Guid clientHalf = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+            //TODO: audit login some where
+
+            const int ttlSeconds = 60 * 10;
             
-            //HACK - i created this branch so i could continue
-            //working on the rn client before integrating web crypto stuff
+            var kekBytes = Convert.FromBase64String(reply.KeK64);
+            byte[] serverHalf = YFByteArray.GetRndByteArray(16);
+            byte[] clientHalf = YFByteArray.EquiByteArrayXor(kekBytes, serverHalf);
+
+            var token = YFByteArray.GetRandomCryptoGuid();
+            var entry = new AuthTokenEntry()
+            {
+                Id = token,
+                KekKey = new Guid(serverHalf),
+                ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
+            };
+
+            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+
             return new AuthenticationResult()
             {
                 Token = token,
-                Token2 = clientHalf,
+                Token2 = new Guid(clientHalf),
                 DotYouId = this.Context.DotYouId
             };
 
@@ -69,11 +87,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         
         public async Task<bool> IsValidToken(Guid token)
         {
-            bool valid = token == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-            
-            //HACK - i created this branch so i could continue
-            //working on the rn client before integrating web crypto stuff
-            return await Task.FromResult(valid);
+            var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            return IsAuthTokenEntryValid(entry);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)

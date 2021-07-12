@@ -1,10 +1,23 @@
 using System;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace DotYou.Kernel.Cryptography
 {
     public static class YFByteArray
     {
+        public static string PrintByteArray(byte[] bytes)
+        {
+            var sb = new StringBuilder("new byte[] { ");
+            foreach (var b in bytes)
+            {
+                sb.Append(b + ", ");
+            }
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+
         // Oh memset() oh memset().... I love memset()... Why write fancy for loops when
         // you can brutally use memset... I know the answer. But I still love memset(). 
         public static void WipeByteArray(byte[] b)

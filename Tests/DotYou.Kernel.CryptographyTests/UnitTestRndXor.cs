@@ -16,16 +16,9 @@ namespace DotYou.Kernel.CryptographyTests
         {
         }
 
-        [Test]
-        public void GenerateRndPass()
-        {
-            byte[] ba = YFByteArray.GetRndByteArray(40);
-
-            if (ba.Length == 40)
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
+        //
+        // ===== A FEW BYTE ARRAY TESTS =====
+        //
 
         [Test]
         public void CompareTwoRndFail()
@@ -75,49 +68,141 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
-        [Test]
-        public void CreateKeyDerivationPass()
-        {
-            // var asalt = YFByteArray.GetRndByteArray(10);
-            // var ba1 = YFByteArray.CreateKeyDerivationKey(asalt, "mypassword", 32);
+        //
+        // ===== AES CBC TESTS =====
+        //
 
-            Assert.Fail();
+        [Test]
+        public void AesCbcTextPass()
+        {
+            var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+            string testData = "The quick red fox";
+
+            var (IV, cipher) = AesCbc.EncryptStringToBytes_Aes(testData, key);
+            var roundtrip = AesCbc.DecryptStringFromBytes_Aes(cipher, key, IV);
+
+            if (roundtrip == testData)
+                Assert.Pass();
+            else
+                Assert.Fail();
         }
 
         [Test]
-        public void PasswordTestPass()
+        public void AesCbcPass()
         {
-            string s;
-
-            //var asalt = YFByteArray.GetRndByteArray(8);
-            //s = YFByteArray.PasswordFlow("Mit password", asalt);
-
-            Assert.Fail();
+            if (AesCbc.TestPrivate())
+                Assert.Pass();
+            else
+                Assert.Fail();
         }
 
+        //
+        // ===== PACKET TESTS =====
+        //
         [Test]
-        public void SetRawTestPass()
+        public void HostToHostPacketPass()
         {
-            IdentityKeySecurity k = new IdentityKeySecurity();
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
 
-            k.SetRawPassword("a");
+            // Data to encrypt
+            string mySecret = "hello wørld";
+            byte[] payload = Encoding.UTF8.GetBytes(mySecret);
 
-            // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("a", k.SaltPassword, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-            var KeyEncryptionKey = KeyDerivation.Pbkdf2("a", k.SaltKek, KeyDerivationPrf.HMACSHA512, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var (rsaHeader, encryptedPayload) = HostToHost.EncryptRSAPacket(payload, publicXml);
 
-            // Decrypt the bytes to a string.
-            var data = Convert.FromBase64String(k.EncryptedPrivateKey);
-            string roundtrip = YFRijndaelWrap.DecryptStringFromBytes(data, KeyEncryptionKey, k.SaltPassword);
+            // Now imagine we're at the recipient host:
+            var copyPayload = HostToHost.DecryptRSAPacket(rsaHeader, encryptedPayload, privateXml);
 
-            //Display the original data and the decrypted data.
-            // Console.WriteLine("Original:   {0}", original);
-            Console.WriteLine("Round Trip: {0}", roundtrip);
+            string copySecret = Encoding.UTF8.GetString(copyPayload);
+
+            if (copySecret == mySecret)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+        [Test]
+        public void CrcPass()
+        {
+            // CRC
+            var crc = CRC32C.CalculateCRC32C(0, Encoding.ASCII.GetBytes("bear sandwich"));
+
+            if (crc == 3711466352)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+        //
+        // ===== SPEED TESTS =====
+        //
+        [Test]
+        public void RSASpeedPass()
+        {
+            int i;
+
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
+
+            for (i=0; i < 600; i++)
+            {
+                RSACryptoServiceProvider tmpKey = new RSACryptoServiceProvider(2048);
+                tmpKey.FromXmlString(privateXml);
+            }
 
             Assert.Pass();
         }
 
 
+
+        /// <summary>
+        /// This test illustrates how to take a host to host package, with a RSA header,
+        /// and then transform the RSA header into the AES header (for local storage).
+        /// </summary>
+        [Test]
+        public void HostToHostPacketHeaderTransformPass()
+        {
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
+            string privateXml = rsaGenKeys.ToXmlString(true);
+            string publicXml = rsaGenKeys.ToXmlString(false);
+
+            // Data to encrypt
+            string mySecret = "hello wørld";
+            byte[] payload = Encoding.UTF8.GetBytes(mySecret);
+
+            var (rsaHeader, encryptedPayload) = HostToHost.EncryptRSAPacket(payload, publicXml);
+
+            var sharedSecret = YFByteArray.GetRndByteArray(16);
+            var aesHeader = HostToHost.TransformRSAtoAES(rsaHeader, privateXml, sharedSecret);
+            // var (iv, keyEncrypted) = HostToHost.TransformRSAtoAES(rsaHeader, privateXml, sharedSecret);
+
+            // Now let's see if we can decode the header
+            var (randomIv2, encryptedUnlockHeader) = HostToHost.ParseAesHeader(aesHeader);
+            var unlockHeader = AesCbc.DecryptBytesFromBytes_Aes(encryptedUnlockHeader, sharedSecret, randomIv2);
+            var (key, iv) = HostToHost.ParseUnlockHeader(unlockHeader);
+            var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedPayload, key, iv);
+
+            string originalResult = Encoding.UTF8.GetString(data);
+
+            if (originalResult == mySecret)
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+
+        //
+        // ===== RSA TESTS =====
+        //
 
         [Test]
         public void RSABasicTest()
@@ -142,7 +227,6 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void RSAPublicEnrcryptDecryptTest()
         {
-
             RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider();
             string privateXml = rsaGenKeys.ToXmlString(true);
             string publicXml = rsaGenKeys.ToXmlString(false);
@@ -197,6 +281,10 @@ namespace DotYou.Kernel.CryptographyTests
             else
                 Assert.Fail();
         }
+
+        //
+        // ===== PBKDF2 TESTS =====
+        //
 
         [Test]
         public void Pbkdf2TestPass()
