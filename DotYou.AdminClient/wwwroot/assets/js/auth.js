@@ -81,7 +81,8 @@ function crc32c(str) {
 async function pbkdf2(strPassword, salt, hash, iterations, len) {
     var password = new TextEncoder().encode(strPassword);
 
-    var ik = await window.crypto.subtle.importKey("raw", password, {name: "PBKDF2"}, false, ["deriveBits"]);
+    var ik = await window.crypto.subtle.importKey("raw", password, { name: "PBKDF2" }, false, ["deriveBits"]);
+    console.log("IK = ", ik);
     var dk = await window.crypto.subtle.deriveBits(
         {
             name: "PBKDF2",

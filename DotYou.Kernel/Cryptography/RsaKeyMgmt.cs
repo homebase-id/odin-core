@@ -1,11 +1,10 @@
-﻿using System;
+﻿using DotYou.AdminClient.Extensions;
+using System;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace DotYou.Kernel.Cryptography
 {
-
-
     struct keyPair {
         public string publicKey;
         public string privateKey; // Can we allow it to be encrypted?
@@ -59,9 +58,8 @@ namespace DotYou.Kernel.Cryptography
             currentKey.privateKey = rsaGenKeys.ToXmlString(true);
             currentKey.publicKey = rsaGenKeys.ToXmlString(false);
             currentKey.crc32c = CRC32C.CalculateCRC32C(0, Encoding.ASCII.GetBytes(currentKey.publicKey));
-            currentKey.expiration = 0 + hours * 60 * 60; // Find that Unix function I made
+            currentKey.expiration = DateTimeExtensions.ToDateTimeOffsetSec((Int64) hours * 60 * 60); // Find that Unix function I made
         }
-
 
 
         // Make a function to extract the key data from the ToXmlString, that we can CRC32C on.

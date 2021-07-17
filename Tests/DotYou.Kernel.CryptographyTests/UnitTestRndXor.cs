@@ -68,6 +68,42 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
+
+        [Test]
+        public void XorMgmtPass()
+        {
+            byte[] token = YFByteArray.GetRndByteArray(40);
+            byte[] key = YFByteArray.GetRndByteArray(40);
+
+            var xorKey = XorMgmt.xorKey(token, key);
+            var copyKey = XorMgmt.xorXorKey(token, xorKey);
+
+            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+        [Test]
+        public void RefreshKeyPass()
+        {
+            byte[] oldToken = YFByteArray.GetRndByteArray(40);
+            byte[] key = YFByteArray.GetRndByteArray(40);
+
+            var xorKeyOld = XorMgmt.xorKey(oldToken, key);
+
+            byte[] newToken = YFByteArray.GetRndByteArray(40);
+
+            var xorKeyNew = XorMgmt.refreshToken(oldToken, newToken, xorKeyOld);
+
+            var copyKey = XorMgmt.xorXorKey(newToken, xorKeyNew);
+
+            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
         //
         // ===== AES CBC TESTS =====
         //
