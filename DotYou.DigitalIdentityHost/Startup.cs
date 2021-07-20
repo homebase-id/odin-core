@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
@@ -20,7 +19,6 @@ using DotYou.TenantHost;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
-using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -30,10 +28,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Converters;
 
 namespace DotYou.DigitalIdentityHost
 {
@@ -174,6 +172,10 @@ namespace DotYou.DigitalIdentityHost
 
                 return new PrototrialDemoDataService(context, logger, cs);
             });
+            
+            // In production, the React files will be served from this directory
+            services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -183,13 +185,14 @@ namespace DotYou.DigitalIdentityHost
 
             if (env.IsDevelopment())
             {
-                app.UseWebAssemblyDebugging();
+                //app.UseWebAssemblyDebugging();
                 app.UseDeveloperExceptionPage();
             }
 
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
-            app.UseBlazorFrameworkFiles();
+            app.UseSpaStaticFiles();
+            //app.UseBlazorFrameworkFiles();
 
             app.UseRouting();
             app.UseAuthentication();
@@ -198,7 +201,7 @@ namespace DotYou.DigitalIdentityHost
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapFallbackToFile("index.html");
+                //endpoints.MapFallbackToFile("index.html");
                 endpoints.MapHub<NotificationHub>("/live/notifications", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets
@@ -206,6 +209,16 @@ namespace DotYou.DigitalIdentityHost
                     //as it was causing issues with authentication.
                     o.Transports = HttpTransportType.WebSockets;
                 });
+            });
+            
+            app.UseSpa(spa =>
+            {
+                spa.Options.SourcePath = "ClientApp";
+
+                if (env.IsDevelopment())
+                {
+                    spa.UseReactDevelopmentServer(npmScript: "start");
+                }
             });
         }
 

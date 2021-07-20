@@ -12,7 +12,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\DotYou.AdminClient\DotYou.AdminClient.csproj" />
     <ProjectReference Include="..\DotYou.Kernel\DotYou.Kernel.csproj" />
   </ItemGroup>
 
@@ -20,6 +19,7 @@
     <PackageReference Include="Dawn.Guard" Version="1.12.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="5.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="5.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="5.0.8" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="5.0.1" />
     <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
   </ItemGroup>
@@ -70,6 +70,9 @@
     <None Update="identityweb.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="ClientApp\package-lock.json" />
+    <None Include="ClientApp\package.json" />
+    <None Include="ClientApp\public\manifest.json" />
   </ItemGroup>
 
   <ItemGroup>
