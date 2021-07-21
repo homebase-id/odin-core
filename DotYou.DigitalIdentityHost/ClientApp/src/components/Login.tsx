@@ -1,26 +1,25 @@
 import React, {useState} from 'react';
 import {Button, Card, FormControl, Image} from "react-bootstrap";
 import {createAuthenticationProvider} from "../provider/AuthenticationProvider";
+import {useAppStateStore} from "../provider/AppStateStore";
 
 function Login(props: any) {
 
     const [passwordText, setPasswordText] = useState<string>("");
-    const [errorText, setErrorText] = useState<string>(false);
+    const [errorText, setErrorText] = useState<string>("");
+    const {authenticate} = useAppStateStore();
 
     async function handleLoginClick() {
         if (!passwordText) {
             setErrorText("Please enter your password");
             return;
         }
-        let auth = createAuthenticationProvider();
-        let success = await auth.authenticate(passwordText);
 
-        if (success) {
-            //re-init state engine
-            return;
-        }
-
-        setErrorText("Invalid password");
+        authenticate(passwordText).then(success => {
+            if (!success) {
+                setErrorText("Invalid password");
+            }
+        });
     }
 
     async function handleForcePassword() {
@@ -52,7 +51,7 @@ function Login(props: any) {
             </form>
         </Card.Body>
     </Card>
-    
+
 }
 
 export default Login;

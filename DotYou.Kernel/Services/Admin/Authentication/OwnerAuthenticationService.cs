@@ -46,7 +46,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
-
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             var noncePackage = await WithTenantStorageReturnSingle<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
@@ -80,10 +79,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             return new AuthenticationResult()
             {
                 Token = token,
-                Token2 = new Guid(clientHalf),
-                DotYouId = this.Context.DotYouId
+                Token2 = new Guid(clientHalf)
             };
-
         }
         
         public async Task<bool> IsValidToken(Guid token)

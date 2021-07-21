@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, {Component, useEffect} from 'react';
 import {Route} from 'react-router';
 import {Layout} from './components/Layout';
 import {Home} from './components/Home';
@@ -6,27 +6,34 @@ import {Home} from './components/Home';
 import './custom.css'
 import Login from "./components/Login";
 import {Container} from "react-bootstrap";
+import {useAppStateStore} from "./provider/AppStateStore";
+import {observer} from "mobx-react-lite";
 
+function App() {
 
-export default class App extends Component {
-    static displayName = App.name;
+    const state = useAppStateStore();
+    useEffect(() => {
+        const init = async () => {
+           await state.initialize();
+        };
+        
+        init();
+        
+    }, []);
 
-
-    render() {
-        let isAuthenticated: boolean = false;
-
-        if (isAuthenticated) {
-            return (
-                <Layout>
-                    <Route exact path='/' component={Home}/>
-                </Layout>
-            );
-        }
-
+    if (state.isAuthenticated) {
         return (
-            <Container className="h-100 align-content-center text-center">
-                <Login/>
-            </Container>
+            <Layout>
+                <Route exact path='/' component={Home}/>
+            </Layout>
         );
     }
+
+    return (
+        <Container className="h-100 align-content-center text-center">
+            <Login/>
+        </Container>
+    );
 }
+
+export default observer(App);

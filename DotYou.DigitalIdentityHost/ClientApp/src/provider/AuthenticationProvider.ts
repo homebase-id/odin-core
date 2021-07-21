@@ -7,30 +7,53 @@ class AuthenticationProvider extends ProviderBase {
         super(null, false);
     }
 
-    async authenticate(password: string): Promise<AuthenticationResult | null> {
+    //checks if the authentication token (stored in a cookie) is valid
+    async hasValidToken(): Promise<boolean> {
+
+        //Note: the token is in a cookie marked http-only so making 
+        // the call to the endpoint will automatically include the 
+        // cookie.  we just need to check the success code 
+
+        let client = this.createAxiosClient();
+        return client.get("/admin/authentication/verifyToken").then(response => {
+            return response.data;
+        });
+    }
+
+    async authenticate(password: string): Promise<boolean> {
         return this.getNonce().then(noncePackage => {
-            //console.log('noncePackage', noncePackage);
-            return this.prepareAuthPassword(password, noncePackage).then(reply=>
-            {
+
+            return this.prepareAuthPassword(password, noncePackage).then(reply => {
                 let client = this.createAxiosClient();
-                
+
                 //withCredentials lets us set the cookies return from the /admin/authentication endpoint
                 return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
                     if (response.status == 200) {
                         return response.data;
                     }
 
-                    return null;
+                    return false;
                 }).catch(super.handleErrorResponse);
             })
         })
     }
 
+    async logout(): Promise<boolean> {
+
+        let client = this.createAxiosClient();
+
+        //withCredentials lets us set the cookies return from the /admin/authentication endpoint
+        return client.post("/admin/authentication/logout", {withCredentials: true}).then(response => {
+            return response.data;
+        });
+    }
+
+
     private async prepareAuthPassword(password: string, noncePackage: ClientNoncePackage, hp: boolean = false): Promise<AuthenticationReplyNonce> {
 
         const interations = 100000;
         const len = 16;
-        
+
         let hashedPassword64 = await this.wrapPbkdf2HmacSha256(password, noncePackage.saltPassword64, interations, len);
         let hashNoncePassword64 = await this.wrapPbkdf2HmacSha256(hashedPassword64, noncePackage.nonce64, interations, len);
         let hashedKek64 = await this.wrapPbkdf2HmacSha256(password, noncePackage.saltKek64, interations, len);
@@ -42,6 +65,7 @@ class AuthenticationProvider extends ProviderBase {
             hashedPassword64: hp ? hashedPassword64 : ""
         };
     }
+
 
     private async getNonce(): Promise<ClientNoncePackage> {
         let client = this.createAxiosClient();
