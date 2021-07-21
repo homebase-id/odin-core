@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Net.Http;
+using System.Security.Authentication;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Admin
@@ -23,8 +26,18 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         [HttpPost]
         public async Task<IActionResult> Authenticate([FromBody]AuthenticationNonceReply package)
         {
-            var result = await _authService.Authenticate(package);
-            return new JsonResult(result);
+            try
+            {
+                var result = await _authService.Authenticate(package);
+                var value = $"{{result.Token}}|{result.Token2}";
+                var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
+                Response.Cookies.Append("token", value, options);
+                return new JsonResult(true);
+            }
+            catch //todo: evaluate if I want to catch all exceptions here or just the authetnication exception
+            {
+                return new JsonResult(false);
+            }
         }
 
         [HttpPost("extend")]

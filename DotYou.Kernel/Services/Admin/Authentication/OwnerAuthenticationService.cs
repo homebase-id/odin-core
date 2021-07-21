@@ -55,10 +55,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             
             if (match == false)
             {
+                //TODO: login failure
                 throw new AuthenticationException();
             }
 
-            //TODO: audit login some where
+            //TODO: audit login
 
             const int ttlSeconds = 60 * 10;
             

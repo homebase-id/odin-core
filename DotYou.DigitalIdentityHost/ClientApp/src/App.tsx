@@ -24,7 +24,7 @@ export default class App extends Component {
         }
 
         return (
-            <Container className="text-center">
+            <Container className="h-100 align-content-center text-center">
                 <Login/>
             </Container>
         );

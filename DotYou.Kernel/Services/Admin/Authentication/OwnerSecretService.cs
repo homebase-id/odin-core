@@ -85,7 +85,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
             if (null == pk)
             {
-                throw new InvalidDataException("Secrets configuration invalid");
+                throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
             return new SaltsPackage()
