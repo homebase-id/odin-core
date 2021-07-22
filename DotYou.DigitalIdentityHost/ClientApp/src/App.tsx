@@ -3,13 +3,12 @@ import {Route} from 'react-router';
 import {Layout} from './components/Layout';
 import {Home} from './components/Home';
 
-import {Image, Spinner} from 'react-bootstrap';
+import {Spinner} from 'react-bootstrap';
 import './custom.css'
 import Login from "./components/Login";
 import {Container} from "react-bootstrap";
 import {useAppStateStore} from "./provider/AppStateStore";
 import {observer} from "mobx-react-lite";
-import Logout from "./components/Logout";
 
 function App() {
 

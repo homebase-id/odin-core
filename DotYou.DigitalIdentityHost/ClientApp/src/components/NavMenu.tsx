@@ -20,11 +20,10 @@ function NavMenu(props: any) {
     }
 
     const handleLogout = () => {
-        console.log('pie');
         setShowLogoutModal(true);
         logout().then(success => {
             if (success) {
-                window.location.href = "/?lo=1"
+                window.location.href = "/"
             }
         });
     }
@@ -41,7 +40,6 @@ function NavMenu(props: any) {
                             </NavItem>
                             <NavItem>
                                 <a href="#" onClick={handleLogout} className="text-dark nav-link">Logout</a>
-                                {/*<Nav.Link onSelect={handleLogout} as={Link} to="/" className="text-dark">Logout</Nav.Link>*/}
                             </NavItem>
                         </ul>
                     </Navbar.Collapse>
