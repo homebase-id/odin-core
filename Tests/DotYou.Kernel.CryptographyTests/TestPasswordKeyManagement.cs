@@ -19,24 +19,28 @@ namespace DotYou.Kernel.CryptographyTests
 
 
         [Test]
+        // Rough test, hard to build a super case with random salts :o)
         public void CreateInitialPasswordKeyPass()
         {
             var np = NoncePackage.NewRandomNonce();
-            var pr = new PasswordReply()
-            {
-                Nonce64 = np.Nonce64
-            };
 
-            pr.HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2("EnSø", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(pr.HashedPassword64, Convert.FromBase64String(np.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.KeK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2("EnSø", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            // Hash the user password + user salt
+            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
 
-            var KeK = Convert.FromBase64String(pr.KeK64);
+            var pr = PasswordKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            if (pr.HashedPassword64 != Convert.ToBase64String(SanityHashPassword))  // Sanity check
+                Assert.Fail();
+
+            var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16); // Sanity check
+            if (pr.KeK64 != Convert.ToBase64String(SanityHashKek))  // Sanity check
+                Assert.Fail();
 
             PasswordKey pk = PasswordKeyManagement.SetInitialPassword(np, pr);
 
+            if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, Convert.FromBase64String(pr.HashedPassword64)) == false)
+                Assert.Fail();
 
-
+            Assert.Pass();
         }
     }
 }

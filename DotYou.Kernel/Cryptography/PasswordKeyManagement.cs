@@ -16,17 +16,17 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static PasswordKey CreateInitialPasswordKey(byte[] passwordKeK)
+        private static PasswordKey CreateInitialPasswordKey(NoncePackage nonce, PasswordReply pr)
         {
             var passwordKey = new PasswordKey()
             {
-                SaltPassword = YFByteArray.GetRndByteArray(16),
-                SaltKek = YFByteArray.GetRndByteArray(16),
-                HashPassword = YFByteArray.GetRndByteArray(16)
+                SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
+                SaltKek      = Convert.FromBase64String(nonce.SaltKek64),
+                HashPassword = Convert.FromBase64String(pr.HashedPassword64)
             };
 
             var DeK = YFByteArray.GetRndByteArray(16); // Create the DeK
-            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, passwordKeK);
+            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, Convert.FromBase64String(pr.KeK64));
             YFByteArray.WipeByteArray(DeK);
 
             return passwordKey;
@@ -74,7 +74,7 @@ namespace DotYou.Kernel.Cryptography
                 throw new InvalidDataException("NonceHashedPassword sanity mismatch");
             }
 
-            return PasswordKeyManagement.CreateInitialPasswordKey(Convert.FromBase64String(loadedNoncePackage.SaltKek64));
+            return PasswordKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, reply);
         }
 
         /// <summary>
@@ -102,6 +102,20 @@ namespace DotYou.Kernel.Cryptography
         public static PasswordKey SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
+        }
+
+        public static PasswordReply CalculatePasswordReply(string password, NoncePackage nonce)
+        {
+            var pr = new PasswordReply();
+
+            pr.Nonce64 = nonce.Nonce64;
+
+            pr.HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            pr.KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+
+            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(pr.HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+
+            return pr;
         }
     }
 
