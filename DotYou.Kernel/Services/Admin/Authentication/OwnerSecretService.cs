@@ -33,6 +33,19 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         public async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
+            var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
+
+            var pk = PasswordKeyManagement.SetInitialPassword(originalNoncePackage, reply);
+
+            WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
+
+            //delete the temporary salts
+            WithTenantStorage<NoncePackage>(STORAGE, s => s.Delete(originalNoncePackageKey));
+        }
+
+        public async Task OriginalSetNewPassword(PasswordReply reply)
+        {
+            Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
@@ -96,6 +109,15 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         }
 
         public async Task<bool> IsPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
+        {
+            var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
+
+            return PasswordKeyManagement.IsPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+        }
+
+
+
+        public async Task<bool> OriginalIsPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
             var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
             var noncePasswordBytes = Convert.FromBase64String(nonceHashedPassword64);

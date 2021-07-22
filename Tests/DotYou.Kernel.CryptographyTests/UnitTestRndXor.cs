@@ -43,67 +43,6 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Fail();
         }
 
-        [Test]
-        public void XorPass()
-        {
-            byte[] ba1 = YFByteArray.GetRndByteArray(40);
-            byte[] ba2 = YFByteArray.GetRndByteArray(40);
-
-            if (YFByteArray.EquiByteArrayCompare(ba1, ba2))
-                Assert.Fail();
-
-            var ra = YFByteArray.EquiByteArrayXor(ba1, ba2);
-
-            if (YFByteArray.EquiByteArrayCompare(ra, ba1))
-                Assert.Fail();
-
-            if (YFByteArray.EquiByteArrayCompare(ra, ba2))
-                Assert.Fail();
-
-            var fa = YFByteArray.EquiByteArrayXor(ra, ba2);
-
-            if (YFByteArray.EquiByteArrayCompare(fa, ba1))
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-
-        [Test]
-        public void XorMgmtPass()
-        {
-            byte[] token = YFByteArray.GetRndByteArray(40);
-            byte[] key = YFByteArray.GetRndByteArray(40);
-
-            var xorKey = XorMgmt.xorKey(token, key);
-            var copyKey = XorMgmt.xorXorKey(token, xorKey);
-
-            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-        [Test]
-        public void RefreshKeyPass()
-        {
-            byte[] oldToken = YFByteArray.GetRndByteArray(40);
-            byte[] key = YFByteArray.GetRndByteArray(40);
-
-            var xorKeyOld = XorMgmt.xorKey(oldToken, key);
-
-            byte[] newToken = YFByteArray.GetRndByteArray(40);
-
-            var xorKeyNew = XorMgmt.refreshToken(oldToken, newToken, xorKeyOld);
-
-            var copyKey = XorMgmt.xorXorKey(newToken, xorKeyNew);
-
-            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
         //
         // ===== AES CBC TESTS =====
         //

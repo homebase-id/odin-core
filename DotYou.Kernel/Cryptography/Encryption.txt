@@ -1,4 +1,14 @@
-﻿// https://www.nuget.org/packages/Crc32C.NET/  <-- Skimming code I like this one best
+﻿// NOTES TO REMEMBER
+//
+// CHECK OUT INDIEAUTH
+//
+// Write scenario for chat client to get rights to update status and to check
+// contact card for other identities.
+//
+
+
+
+// https://www.nuget.org/packages/Crc32C.NET/  <-- Skimming code I like this one best
 // Here seems to be a JS library supporting CRC32C:
 // https://www.npmjs.com/package/fast-crc32c
 //

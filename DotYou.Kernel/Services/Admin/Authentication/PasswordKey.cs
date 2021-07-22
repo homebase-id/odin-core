@@ -28,8 +28,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         public byte[] HashPassword { get; set; }
 
 
-        // public string PublicKey { get; set; }            // The default at rest public key
-        //
-        // public string EncryptedPrivateKey { get; set; }  // The AES encrypted private key, encrypted with the KEK
+        public byte[] XorEncryptedDek { get; set; }
     }
 }
