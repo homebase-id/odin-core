@@ -13,12 +13,17 @@ namespace DotYou.Kernel.Cryptography
     {
         public static NoncePackage NewRandomNonce()
         {
-            return new NoncePackage()
+            var np = new NoncePackage()
             {
                 Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE))
             };
+
+            if (np.SaltPassword64 == np.SaltKek64)
+                throw new Exception("Impossibly unlikely");
+
+            return np;
         }
 
         public NoncePackage()
@@ -53,7 +58,6 @@ namespace DotYou.Kernel.Cryptography
         }
         public string SaltPassword64 { get; set; }
         public string SaltKek64 { get; set; }
-
         public string Nonce64 { get; set; }
     }
 }

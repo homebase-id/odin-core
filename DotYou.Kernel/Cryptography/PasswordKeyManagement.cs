@@ -98,6 +98,11 @@ namespace DotYou.Kernel.Cryptography
 
             return YFByteArray.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword);
         }
+
+        public static PasswordKey SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 }
