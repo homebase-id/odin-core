@@ -23,6 +23,13 @@ namespace DotYou.TenantHost.Security.Authentication
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
+            
+            //HACK: need to review if this makes sense.  maybe instead we just host all API calls on api.frodobaggins.me.
+            if (Context.Request.Path.StartsWithSegments("/api", StringComparison.InvariantCultureIgnoreCase) == false)
+            {
+                return Task.CompletedTask;
+            }
+
             string returnUri = HttpUtility.UrlDecode(Context.Request.Query["return_uri"]);
 
             var b = new UriBuilder();
@@ -33,7 +40,6 @@ namespace DotYou.TenantHost.Security.Authentication
             b.Path = this.Options.LoginUri;
 
             Context.Response.Redirect(b.ToString());
-
             return Task.CompletedTask;
         }
         
@@ -109,7 +115,7 @@ namespace DotYou.TenantHost.Security.Authentication
 
             //TODO: need to avoid the access token on the querystring after #prototrial
             //look for token on querying string as it will come from SignalR
-            if (Context.Request.Path.StartsWithSegments("/live", StringComparison.OrdinalIgnoreCase) &&
+            if (Context.Request.Path.StartsWithSegments("/api/live", StringComparison.OrdinalIgnoreCase) &&
                 Context.Request.Query.TryGetValue("access_token", out var accessToken))
             {
                 return Guid.TryParse(accessToken, out token);
@@ -117,5 +123,6 @@ namespace DotYou.TenantHost.Security.Authentication
             
             return false;
         }
+        
     }
 }

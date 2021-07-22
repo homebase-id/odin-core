@@ -192,7 +192,6 @@ namespace DotYou.DigitalIdentityHost
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
-            //app.UseBlazorFrameworkFiles();
 
             app.UseRouting();
             app.UseAuthentication();
@@ -201,8 +200,7 @@ namespace DotYou.DigitalIdentityHost
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                //endpoints.MapFallbackToFile("index.html");
-                endpoints.MapHub<NotificationHub>("/live/notifications", o =>
+                endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets
                     //only so i could disable negotiation from the client

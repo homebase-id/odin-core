@@ -43,7 +43,7 @@ class AuthenticationProvider extends ProviderBase {
         let client = this.createAxiosClient();
 
         //withCredentials lets us set the cookies return from the /admin/authentication endpoint
-        return client.post("/admin/authentication/logout", {withCredentials: true}).then(response => {
+        return client.get("/admin/authentication/logout", {withCredentials: true}).then(response => {
             return response.data;
         });
     }

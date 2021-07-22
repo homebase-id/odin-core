@@ -73,6 +73,7 @@
     <None Include="ClientApp\package-lock.json" />
     <None Include="ClientApp\package.json" />
     <None Include="ClientApp\public\manifest.json" />
+    <None Include="wwwroot\favicon.ico" />
   </ItemGroup>
 
   <ItemGroup>

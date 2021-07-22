@@ -1,8 +1,6 @@
 import React from "react";
-import {DateTime} from "luxon";
-import {AuthenticationResult} from "./AuthenticationTypes";
 import {createAuthenticationProvider} from "./AuthenticationProvider";
-import {action, computed, configure, makeObservable, observable, runInAction} from "mobx";
+import {action, configure, makeObservable, observable} from "mobx";
 
 //https://wix.github.io/react-native-navigation/docs/third-party-mobx
 configure({enforceActions: "always"});
@@ -14,9 +12,9 @@ class AppStateStore {
             {
                 isAuthenticated: observable,
                 theme: observable,
-                initialize: action,
-                authenticate: action,
-                logout: action,
+                initialize: action.bound,
+                authenticate: action.bound,
+                logout: action.bound,
                 setDarkMode: action,
                 setLightMode: action
             });
@@ -31,29 +29,28 @@ class AppStateStore {
         let tokenIsValid = await this.checkTokenStatus();
 
         if (tokenIsValid) {
-            runInAction(() => {
-                this.isAuthenticated = true;
-            });
+            this.isAuthenticated = true;
         }
 
         //TODO: need to get profile data such as given name, picture, and other 
         // settings from the DI server; update drawer contents
-
-
         this.isInitialized = true;
     }
 
     async authenticate(password: string): Promise<boolean> {
         let client = createAuthenticationProvider();
         return client.authenticate(password).then(success => {
+            this.isAuthenticated = success;
             return success;
         });
+
     }
 
-    public async logout(): Promise<void> {
+    public async logout(): Promise<boolean> {
         let client = createAuthenticationProvider();
-
-        client.logout();
+        return client.logout().then(success => {
+            return success;
+        });
     }
 
     setDarkMode() {
@@ -70,7 +67,7 @@ class AppStateStore {
 
     private async checkTokenStatus(): Promise<boolean> {
         const client = createAuthenticationProvider();
-        client.hasValidToken().then(result => {
+        return client.hasValidToken().then(result => {
             return result;
         })
     }
