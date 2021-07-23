@@ -28,7 +28,7 @@ class AuthenticationProvider extends ProviderBase {
 
                 //withCredentials lets us set the cookies return from the /admin/authentication endpoint
                 return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
-                    if (response.status == 200) {
+                    if (response.status === 200) {
                         return response.data;
                     }
 
@@ -85,7 +85,7 @@ class AuthenticationProvider extends ProviderBase {
         return this.getSalts().then(salts => {
             return this.prepareAuthPassword(newPassword, salts, true).then(reply => {
                 return this.createAxiosClient().post("/admin/authentication/todo_move_this", reply).then(response => {
-                    return response.status == 200;
+                    return response.status === 200;
                 });
             });
         });

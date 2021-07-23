@@ -1,13 +1,8 @@
-import React, {Component, useState} from 'react';
+import React, {useState} from 'react';
 import './NavMenu.css';
-import {Collapse, Container, Navbar, NavItem, Nav, Modal} from "react-bootstrap";
+import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton} from "react-bootstrap";
 import {Link} from "react-router-dom";
 import {useAppStateStore} from "../provider/AppStateStore";
-
-interface IState {
-    collapsed: boolean,
-    showLogoutModal: boolean
-}
 
 function NavMenu(props: any) {
 
@@ -34,14 +29,16 @@ function NavMenu(props: any) {
                     <Navbar.Brand href="/">DotYou</Navbar.Brand>
                     <Navbar.Toggle onClick={toggleNavbar} className="mr-2"/>
                     <Navbar.Collapse className="d-sm-inline-flex flex-sm-row-reverse" in={!collapsed}>
-                        <ul className="navbar-nav flex-grow">
-                            <NavItem>
-                                <Nav.Link as={Link} to="/" className="text-dark">Home</Nav.Link>
-                            </NavItem>
-                            <NavItem>
-                                <a href="#" onClick={handleLogout} className="text-dark nav-link">Logout</a>
-                            </NavItem>
-                        </ul>
+
+                        <DropdownButton
+                            menuAlign="left"
+                            title=""
+                            id="meMenu">
+                            <Nav.Link as={Link} to="/profile" className="text-dark nav-link">My Profile</Nav.Link>
+                            <Nav.Link as={Link} to="/privacy" className="text-dark nav-link text-nowrap">Settings and Privacy</Nav.Link>
+                            <NavDropdown.Divider/>
+                            <a href="#" onClick={handleLogout} className="text-dark nav-link">Logout</a>
+                        </DropdownButton>
                     </Navbar.Collapse>
                 </Container>
             </Navbar>
