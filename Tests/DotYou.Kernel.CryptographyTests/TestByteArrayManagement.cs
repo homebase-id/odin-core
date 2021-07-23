@@ -10,7 +10,7 @@ using NUnit.Framework;
 
 namespace DotYou.Kernel.CryptographyTests
 {
-    public class TestByteManagement
+    public class TestByteArrayManagement
     {
         [SetUp]
         public void Setup()
