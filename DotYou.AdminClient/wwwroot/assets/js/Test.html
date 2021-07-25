@@ -26,6 +26,7 @@
         var expected = new Uint8Array([162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204]);
         const iterations = 100000;
 
+        return null;
         return wrapPbkdf2HmacSha256("EnSøienØ", btoa(String.fromCharCode.apply(null, salt)), iterations, 16).then(hashed64 => {
 
             var baHash = Uint8Array.from(atob(hashed64), c => c.charCodeAt(0));
@@ -90,41 +91,32 @@
     }
 
     // Validate that the implementation returns the same as in C# / .net core
-    const test_RSA = async() => {
+    async function test_rsa()
+    {
+        console.log("========  TEST RSA IMPORT KEY ===============");
+        key64 = "-----BEGIN PUBLIC KEY-----\n" +
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoxAfe6hJ8d0qGVeUzLcpIGbu2r193rwvW33durk3Ktd24gNeSAVflkvZoSEst0deIZ9vnVycYwem5/jY7VSHWZ54IQSLeKoYj9e6WsfrUbGhFzZ6h4gMoC9q0gRTbEsbI8z7KutCC+LaChE1Tld84m7VoxC+FiSl/p+McDmi74sUP8PI7RryrEfDxyAE/8NkuimnPlgUb7v2LZ+LxjwOaN1/LvSPhikr53Sti/uUPenbqVTfIE8wmIjV7JgdERS5cBoQcpSfmN39SyMB3slpGBdddFA/54VhtSmicL4VAZUJpKBRpYELyrsZNCje0Iz6HRBbCbC365osCR16Ge4eKQIDAQAB" +
+            "\n-----END PUBLIC KEY-----";
 
-        var r = await test_RsaGenerateKey(2048);
-        console.log(r);
+        var t = RsaPemStrip(key64);
+        var key = await RsaImportKey(t);
+        console.log("Imported PEM key:", key);
 
-        return r;
+        var cipher = await RsaOaepEncrypt(key, "michael seifert");
+        console.log("========= RSA Public Key encryption Cipher:", cipher);
 
-        // First do a round-trip encrypt / decrypt
-        //
-        //
-        var key = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        var iv = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        var testData = new Uint8Array([162, 146, 244, 255, 127, 128, 0, 42, 7, 0]);
-        var expectedCipher = new Uint8Array([88, 229, 118, 198, 59, 215, 71, 157, 114, 102, 238, 38, 203, 251, 48, 157]);
-
-        AesCbc_EncryptIv(testData, key, iv).then(myobj => {
-            console.log("Cipher " + myobj.cipher);
-            console.log("Expected " + expectedCipher);
-            console.log("Cipher and .NET AreEqual? " + areEqual(expectedCipher, myobj.cipher));
-
-            AesCbc_Decrypt(myobj.cipher, key, myobj.iv).then(u8aDecrypted => {
-                console.log("Original " + testData + " ?= " + u8aDecrypted);
-
-                return areEqual(testData, u8aDecrypted);
-            });
-        });
     }
 
     // RSA
-    console.log("Running RSA test");
-    const key64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy3Xo3U13dc+xojwQYWoJLCbOQ5fOVY8LlnqcJm1W1BFtxIhOAJWohiHuIRMctv7dzx47TLlmARSKvTRjd0dF92jx/xY20Lz+DXp8YL5yUWAFgA3XkO3LSJgEOex10NB8jfkmgSb7QIudTVvbbUDfd5fwIBmCtaCwWx7NyeWWDb7A9cFxj7EjRdrDaK3ux/ToMLHFXVLqSL341TkCf4ZQoz96RFPUGPPLOfvN0x66CM1PQCkdhzjE6U5XGE964ZkkYUPPsy6Dcie4obhW4vDjgUmLzv0z7UD010RLIneUgDE2FqBfY/C+uWigNPBPkkQ+Bv/UigS6dHqTCVeD5wgyBQIDAQAB";
-    var importedkey = test_RsaImportKey(key64);
-    console.log("Running RSA test to generate key");
-    var testkey = test_RSA();
-    console.log(testkey);
+    console.log("Running import RSA test");
+    var q = test_rsa();
+
+    //console.log("Running RSA test old");
+    //const key64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy3Xo3U13dc+xojwQYWoJLCbOQ5fOVY8LlnqcJm1W1BFtxIhOAJWohiHuIRMctv7dzx47TLlmARSKvTRjd0dF92jx/xY20Lz+DXp8YL5yUWAFgA3XkO3LSJgEOex10NB8jfkmgSb7QIudTVvbbUDfd5fwIBmCtaCwWx7NyeWWDb7A9cFxj7EjRdrDaK3ux/ToMLHFXVLqSL341TkCf4ZQoz96RFPUGPPLOfvN0x66CM1PQCkdhzjE6U5XGE964ZkkYUPPsy6Dcie4obhW4vDjgUmLzv0z7UD010RLIneUgDE2FqBfY/C+uWigNPBPkkQ+Bv/UigS6dHqTCVeD5wgyBQIDAQAB";
+    //var importedkey = test_RsaImportKey(key64);
+    //console.log("Running RSA test to generate key");
+    //var testkey = test_RSA();
+    //console.log(testkey);
 
 
     var e = document.getElementById("test3");

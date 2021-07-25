@@ -25,7 +25,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <returns></returns>
         public Task<NoncePackage> GenerateNewSalts()
         {
-            var nonce = NoncePackage.NewRandomNonce();
+            var nonce = NoncePackage.NewRandomNonce("xxx");
             WithTenantStorage<NoncePackage>(STORAGE, s => s.Save(nonce));
             return Task.FromResult(nonce);
         }
@@ -35,7 +35,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
-            var pk = PasswordKeyManagement.SetInitialPassword(originalNoncePackage, reply);
+            var pk = LoginKeyManagement.SetInitialPassword(originalNoncePackage, reply, null); // XXX
 
             WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
 
@@ -64,7 +64,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         {
             var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
 
-            return PasswordKeyManagement.IsPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            return LoginKeyManagement.IsPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
     }
 }

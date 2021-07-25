@@ -39,7 +39,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         public async Task<NoncePackage> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
-            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64);
+            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64, "xxx");
             WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }

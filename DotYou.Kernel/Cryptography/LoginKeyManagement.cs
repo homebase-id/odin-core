@@ -3,10 +3,12 @@ using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DotYou.Kernel.Cryptography
 {
-    public static class PasswordKeyManagement
+    public static class LoginKeyManagement
     {
         /// <summary>
         /// Only call this on initializing an identity the first time 
@@ -16,17 +18,17 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static PasswordKey CreateInitialPasswordKey(NoncePackage nonce, PasswordReply pr)
+        private static PasswordKey CreateInitialPasswordKey(NoncePackage nonce, string HashedPassword64, string KeK64)
         {
             var passwordKey = new PasswordKey()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
                 SaltKek      = Convert.FromBase64String(nonce.SaltKek64),
-                HashPassword = Convert.FromBase64String(pr.HashedPassword64)
+                HashPassword = Convert.FromBase64String(HashedPassword64)
             };
 
             var DeK = YFByteArray.GetRndByteArray(16); // Create the DeK
-            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, Convert.FromBase64String(pr.KeK64));
+            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, Convert.FromBase64String(KeK64));
             YFByteArray.WipeByteArray(DeK);
 
             return passwordKey;
@@ -55,7 +57,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static PasswordKey SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply)
+        public static PasswordKey SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
         {
             // Perform a sanity check:
             // Make sure that the NonceHashedPassword64 calculated on the client 
@@ -74,7 +76,28 @@ namespace DotYou.Kernel.Cryptography
                 throw new InvalidDataException("NonceHashedPassword sanity mismatch");
             }
 
-            return PasswordKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, reply);
+            // The nonce matches, now let's decrypt the RSA encoded header and set the data
+            //
+            var key = RsaKeyManagement.findKey(listRsa, reply.crc);
+
+            RSACryptoServiceProvider rsa = RsaKeyManagement.findKeyPrivate(listRsa, reply.crc);
+
+            byte[] decryptedRSA = rsa.Decrypt(Convert.FromBase64String(reply.RsaEncrypted), true);
+            string originalResult = Encoding.Default.GetString(decryptedRSA);
+
+            var sl = originalResult.Split(' '); // [0] == HashedPassword64, [1] == Kek64
+
+            if (sl.Length != 2)
+                throw new Exception("rsa decrypt expected two strings");
+
+            if (sl[0] != reply.HashedPassword64)
+                throw new Exception("rsa decrypt hashPwd");
+
+            if (sl[1] != reply.KeK64)
+                throw new Exception("rsa decrypt kek");
+
+
+            return LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, sl[0], sl[1]);
         }
 
         /// <summary>
@@ -112,8 +135,12 @@ namespace DotYou.Kernel.Cryptography
 
             pr.HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
             pr.KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-
             pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(pr.HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+
+            RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
+            rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
+            pr.crc = RsaKeyManagement.KeyCRC(rsa);
+            pr.RsaEncrypted = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(pr.HashedPassword64 + " " + pr.KeK64), true));
 
             return pr;
         }

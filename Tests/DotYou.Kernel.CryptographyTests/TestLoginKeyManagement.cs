@@ -10,11 +10,48 @@ using NUnit.Framework;
 
 namespace DotYou.Kernel.CryptographyTests
 {
-    public class TestPasswordKeyManagement
+    public class TestLoginKeyManagement
     {
         [SetUp]
         public void Setup()
         {
+        }
+
+        [Test]
+        public void NewLoginTestPass()
+        {
+            // Generate Host RSA key 
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
+
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+
+            PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
+
+
+            Assert.Pass();
+        }
+
+
+        [Test]
+        public void NewLoginTest2KeysPass()
+        {
+            // Generate Host RSA key 
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
+
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            // Will not work until I add the code to traverse the list
+
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+
+            PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
+
+            Assert.Pass();
         }
 
 
@@ -22,12 +59,16 @@ namespace DotYou.Kernel.CryptographyTests
         // Rough test, hard to build a super case with random salts :o)
         public void CreateInitialPasswordKeyPass()
         {
-            var np = NoncePackage.NewRandomNonce();
+            // Generate Host RSA key 
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Hash the user password + user salt
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
 
-            var pr = PasswordKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
             if (pr.HashedPassword64 != Convert.ToBase64String(SanityHashPassword))  // Sanity check
                 Assert.Fail();
 
@@ -35,7 +76,7 @@ namespace DotYou.Kernel.CryptographyTests
             if (pr.KeK64 != Convert.ToBase64String(SanityHashKek))  // Sanity check
                 Assert.Fail();
 
-            PasswordKey pk = PasswordKeyManagement.SetInitialPassword(np, pr);
+            PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
             if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, Convert.FromBase64String(pr.HashedPassword64)) == false)
                 Assert.Fail();
@@ -48,7 +89,11 @@ namespace DotYou.Kernel.CryptographyTests
         // Rigged test with pre-computed constants
         public void CreateInitialPasswordKeyConstantPass()
         {
-            var np = NoncePackage.NewRandomNonce();
+            // Generate Host RSA key 
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
             np.SaltPassword64 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 12, 13, 14, 15, 16 });
             np.SaltKek64      = Convert.ToBase64String(new byte[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 });
@@ -56,8 +101,8 @@ namespace DotYou.Kernel.CryptographyTests
             var resultPasswordArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
             var resultKekArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
 
-            var pr = PasswordKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
-            PasswordKey pk = PasswordKeyManagement.SetInitialPassword(np, pr);
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
             if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
                 Assert.Fail();

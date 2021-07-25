@@ -96,6 +96,7 @@ async function pbkdf2(strPassword, salt, hash, iterations, len) {
     return new Uint8Array(dk);
 }
 
+/* OBSOLETE USED IN BLAZOR
 function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
     var u8salt = Uint8Array.from(atob(saltArray64), c => c.charCodeAt(0));
 
@@ -104,7 +105,7 @@ function wrapPbkdf2HmacSha256(password, saltArray64, iterations, len) {
             return base64;
         }
     );
-}
+}*/
 
 
 // ==========================================
@@ -167,7 +168,7 @@ async function AesCbc_Decrypt(u8aCipher, u8aKey, iv) {
 // RSA OAEP - WORK IN PROGRESS
 // ===============================================
 
-async function test_RsaGenerateKey(bits)
+async function RsaGenerateKey(bits)
 {
     var key = await window.crypto.subtle.generateKey(
         {
@@ -180,7 +181,7 @@ async function test_RsaGenerateKey(bits)
         ["encrypt", "decrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
     );
 
-    console.log("Generate key = ", key);
+    // console.log("Generate key = ", key);
 
     return key;
 }
@@ -195,9 +196,18 @@ function str2ab(str) {
     return buf;
 }
 
-// key is base64 encoded
-async function test_RsaImportKey(key64) {
 
+function RsaPemStrip(pem) {
+    var s = pem.replace('-----BEGIN PUBLIC KEY-----', '');
+    s = s.replace('-----END PUBLIC KEY-----', '');
+
+    return s.replace('\n', '');
+}
+
+
+// key is base64 encoded
+async function RsaImportKey(key64)
+{
     // base64 decode the string to get the binary data
     const binaryDerString = window.atob(key64);
     // convert from a binary string to an ArrayBuffer
@@ -214,13 +224,13 @@ async function test_RsaImportKey(key64) {
         ["encrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
     );
 
-    console.log("Imported key = ", key);
+    // console.log("Imported key = ", key);
 
     return key;
 }
 
 
-async function RsaOaepEncrypt(publicKey, data)
+async function RsaOaepEncrypt(publicKey, str)
 {
     var encrypted = await window.crypto.subtle.encrypt(
         {
@@ -228,11 +238,11 @@ async function RsaOaepEncrypt(publicKey, data)
             //label: Uint8Array([...]) //optional
         },
         publicKey, //from generateKey or importKey above
-        data //ArrayBuffer of data you want to encrypt
+        str2ab(str) //ArrayBuffer of data you want to encrypt
     );
 
     var u8a = new Uint8Array(encrypted);
-    console.log("RSA Encrypted = ", u8a);
+    //console.log("RSA Encrypted = ", u8a);
 
     return u8a;
 }

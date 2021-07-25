@@ -16,36 +16,9 @@ namespace DotYou.Kernel.CryptographyTests
         {
         }
 
-        //
-        // ===== AES CBC TESTS =====
-        //
-
-        [Test]
-        public void AesCbcTextPass()
-        {
-            var key = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-            string testData = "The quick red fox";
-
-            var (IV, cipher) = AesCbc.EncryptStringToBytes_Aes(testData, key);
-            var roundtrip = AesCbc.DecryptStringFromBytes_Aes(cipher, key, IV);
-
-            if (roundtrip == testData)
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-        [Test]
-        public void AesCbcPass()
-        {
-            if (AesCbc.TestPrivate())
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
 
         //
-        // ===== PACKET TESTS =====
+        // ===== HOST TO HOST PACKET TESTS -- REDO THIS CODE & HOST TO HOST =====
         //
         [Test]
         public void HostToHostPacketPass()
@@ -54,6 +27,11 @@ namespace DotYou.Kernel.CryptographyTests
             rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
             string privateXml = rsaGenKeys.ToXmlString(true);
             string publicXml = rsaGenKeys.ToXmlString(false);
+
+            string hdr = "-----BEGIN RSA PRIVATE KEY-----\n";
+            string ftr = "\n-----END RSA PRIVATE KEY-----";
+            string priv = Convert.ToBase64String(rsaGenKeys.ExportPkcs8PrivateKey());
+            string pem = hdr + priv + ftr;
 
             // Data to encrypt
             string mySecret = "hello wørld";
@@ -70,29 +48,6 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Pass();
             else
                 Assert.Fail();
-        }
-
-
-        //
-        // ===== SPEED TESTS =====
-        //
-        [Test]
-        public void RSASpeedPass()
-        {
-            int i;
-
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            rsaGenKeys.PersistKeyInCsp = false; // WHOA?! Figure out if a key is saved anywhere?!
-            string privateXml = rsaGenKeys.ToXmlString(true);
-            string publicXml = rsaGenKeys.ToXmlString(false);
-
-            for (i=0; i < 600; i++)
-            {
-                RSACryptoServiceProvider tmpKey = new RSACryptoServiceProvider(2048);
-                tmpKey.FromXmlString(privateXml);
-            }
-
-            Assert.Pass();
         }
 
 
@@ -131,127 +86,6 @@ namespace DotYou.Kernel.CryptographyTests
                 Assert.Pass();
             else
                 Assert.Fail();
-        }
-
-
-
-        //
-        // ===== RSA TESTS =====
-        //
-
-        [Test]
-        public void RSABasicTest()
-        {
-            // Generate a public/private key using RSA  
-            RSACryptoServiceProvider RSA = new RSACryptoServiceProvider(2048); // 2048 bits
-
-            // Read public and private key in a string  
-            string str = RSA.ToXmlString(true);
-            Console.WriteLine(str);
-
-            // Get key into parameters  
-            RSAParameters RSAKeyInfo = RSA.ExportParameters(true);
-            Console.WriteLine($"Modulus: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.Modulus)}");
-            Console.WriteLine($"Exponent: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.Exponent)}");
-            Console.WriteLine($"P: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.P)}");
-            Console.WriteLine($"Q: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.Q)}");
-            Console.WriteLine($"DP: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.DP)}");
-            Console.WriteLine($"DQ: {System.Text.Encoding.UTF8.GetString(RSAKeyInfo.DQ)}");
-        }
-
-        [Test]
-        public void RSAPublicEnrcryptDecryptTest()
-        {
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider();
-            string privateXml = rsaGenKeys.ToXmlString(true);
-            string publicXml = rsaGenKeys.ToXmlString(false);
-
-            // Data to encrypt
-            string mySecret = "hello world";
-            byte[] toEncryptData = Encoding.ASCII.GetBytes(mySecret);
-
-            //Encode with public key
-            RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider();
-            rsaPublic.FromXmlString(publicXml);
-            byte[] encryptedRSA = rsaPublic.Encrypt(toEncryptData, false);
-            string EncryptedResult = Encoding.Default.GetString(encryptedRSA);
-
-            //Decode with private key
-            var rsaPrivate = new RSACryptoServiceProvider();
-            rsaPrivate.FromXmlString(privateXml);
-            byte[] decryptedRSA = rsaPrivate.Decrypt(encryptedRSA, false);
-            string originalResult = Encoding.Default.GetString(decryptedRSA);
-
-            if (originalResult == mySecret)
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-
-        [Test]
-        public void RSAPublicSignTest()
-        {
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            string privateXml = rsaGenKeys.ToXmlString(true);
-            string publicXml = rsaGenKeys.ToXmlString(false);
-
-            // Data to encrypt
-            string mySecret = "hello world";
-            byte[] toEncryptData = Encoding.ASCII.GetBytes(mySecret);
-
-            //Sign with private key
-            var rsaPrivate = new RSACryptoServiceProvider();
-            rsaPrivate.FromXmlString(privateXml);
-            byte[] signedRSA = rsaPrivate.SignData(toEncryptData, CryptoConfig.MapNameToOID("SHA256"));
-            string signedResult = Encoding.Default.GetString(signedRSA);
-
-            //Verify with public key 
-            RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider();
-            rsaPublic.FromXmlString(publicXml);
-            bool SignatureOK = rsaPublic.VerifyData(toEncryptData, CryptoConfig.MapNameToOID("SHA256"), signedRSA);
-
-            if (SignatureOK)
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-        //
-        // ===== PBKDF2 TESTS =====
-        //
-
-        [Test]
-        public void Pbkdf2TestPass()
-        {
-            var saltArray = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-            var resultArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
-
-            // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, 100000, 16);
-
-            if (YFByteArray.EquiByteArrayCompare(HashPassword, resultArray))
-                Assert.Pass();
-            else
-                Assert.Fail();
-        }
-
-
-        [Test]
-        public void Pbkdf2TimerPass()
-        {
-            var saltArray = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-
-            Stopwatch sw = new Stopwatch();
-
-            sw.Start();
-            // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, 100000, 16);
-            sw.Stop();
-
-            Console.WriteLine("Elapsed={0}", sw.Elapsed);
-
-            Assert.Pass();
         }
     }
 }

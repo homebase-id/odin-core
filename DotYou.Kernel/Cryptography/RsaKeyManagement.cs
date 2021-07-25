@@ -1,5 +1,6 @@
 ﻿using DotYou.AdminClient.Extensions;
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -7,27 +8,99 @@ namespace DotYou.Kernel.Cryptography
 {
     public class RsaKey
     {
-        public string publicKey; // Can I get them as byte arrays instead?
-        public string privateKey; // Can we allow it to be encrypted?
-        public UInt32 crc32c;     // The CRC32C of the public key
-        public UInt64 expiration; // Time when this key expires
-        public Guid iv; // If encrypted, this will hold the IV
-        public bool encrypted; // If false then privateKey is the XML, otherwise it's AES-CBC base64 encrypted
+        public byte[] publicKey;
+        public byte[] privateKey;   // Can we allow it to be encrypted?
+        public UInt32 crc32c;       // The CRC32C of the public key
+        public UInt64 expiration;   // Time when this key expires
+        public UInt64 instantiated; // Time when this key was made available
+        public Guid iv;             // If encrypted, this will hold the IV
+        public bool encrypted;      // If false then privateKey is the XML, otherwise it's AES-CBC base64 encrypted
     }
 
     // This class should be stored on the identity
-    public class RsaKeyPair
+    public class RsaKeyList
     {
-        public RsaKey currentKey;
-        public RsaKey previousKey;
+        public LinkedList<RsaKey> listRSA;  // List.first is the current key, the rest are historic
+        public int maxKeys; // At least 1. 
+
+        public RsaKeyList(int max) { listRSA = new LinkedList<RsaKey>(); maxKeys = max; }
     }
 
 
     // So it's slightly messy to mix up the version with encrypted and unencrypted private key.
     // Not sure if I should break it into two almost identical classes.
-    public class RsaKeyManagement
+    public static class RsaKeyManagement
     {
-        public bool CanGenerateNewKey(RsaKeyPair pair)
+        // ==== RsaKey Helpers here
+        public static RSACryptoServiceProvider KeyPublic(RsaKey key)
+        {
+            int nBytesRead;
+
+            RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider();
+            rsaPublic.ImportRSAPublicKey(key.publicKey, out nBytesRead);
+
+            return rsaPublic;
+        }
+
+        public static RSACryptoServiceProvider KeyPrivate(RsaKey key)
+        {
+            int nBytesRead;
+
+            RSACryptoServiceProvider rsaFull = new RSACryptoServiceProvider();
+            rsaFull.ImportRSAPrivateKey(key.privateKey, out nBytesRead);
+
+            return rsaFull;
+        }
+
+        public static UInt32 KeyCRC(RsaKey key)
+        {
+            return CRC32C.CalculateCRC32C(0, KeyPublic(key).ExportRSAPublicKey());
+        }
+
+        public static UInt32 KeyCRC(RSACryptoServiceProvider rsa)
+        {
+            return CRC32C.CalculateCRC32C(0, rsa.ExportRSAPublicKey());
+        }
+
+        public static string publicPem(RsaKey key)
+        {
+            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
+            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
+            return "-----BEGIN PUBLIC KEY-----\n" + Convert.ToBase64String(KeyPublic(key).ExportSubjectPublicKeyInfo()) + "\n-----END PUBLIC KEY-----";
+        }
+
+        // privatePEM needs work in case it's encrypted
+        public static string privatePem(RsaKey key)
+        {
+            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
+            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
+            return "-----BEGIN PRIVATE KEY-----\n" + Convert.ToBase64String(KeyPrivate(key).ExportPkcs8PrivateKey()) + "\n-----END PRIVATE KEY-----";
+        }
+
+
+        // Work to do here. OAEP or for signing? Encrypted private?
+        public static RsaKey NewKey(int hours)
+        {
+            var rsa = new RsaKey();
+
+            rsa.encrypted = false;
+            rsa.iv = Guid.Empty;
+
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
+            rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
+            rsa.crc32c = KeyCRC(rsaGenKeys);
+            rsa.expiration = DateTimeExtensions.ToDateTimeOffsetSec((Int64) hours * 60 * 60);
+
+            return rsa;
+        }
+
+
+
+        // ==========================
+        // ==== RsaKeyList below ====
+
+        public static bool CanGenerateNewKey(RsaKeyList listRsa)
         {
             // Do a check here. If there are any queued packages with 
             // pair.previous then return false
@@ -37,30 +110,60 @@ namespace DotYou.Kernel.Cryptography
             return true;
         }
 
-        public UInt64 getExpiration(RsaKeyPair pair)
+        public static RsaKey GetCurrentKey(RsaKeyList listRsa)
         {
-            return pair.currentKey.expiration;
+            if (listRsa.listRSA.Count < 1)
+                throw new Exception("List is empty, no public key");
+
+            return listRsa.listRSA.First.Value;
         }
 
-        public string getPublicKey(RsaKeyPair pair, UInt32 publicKeyCrc)
+        public static RsaKey findKey(RsaKeyList listRsa, UInt32 publicKeyCrc)
         {
-            if (pair.currentKey.crc32c == publicKeyCrc)
-                return pair.currentKey.publicKey;
-            else if (pair.previousKey.crc32c == publicKeyCrc)
-                return pair.previousKey.publicKey;
+            if (listRsa.listRSA.Count < 1)
+                throw new Exception("List is empty, no public key");
+
+            if (listRsa.listRSA.First.Value.crc32c == publicKeyCrc)
+                return listRsa.listRSA.First.Value;
             else
-                return null;
+            {
+                // Search the list for older keys
+            }
+
+            return null;
         }
 
-        public string getPrivateKey(RsaKeyPair pair, UInt32 publicKeyCrc)
+        public static UInt64 getExpiration(RsaKeyList listRsa)
         {
-            if (pair.currentKey.crc32c == publicKeyCrc)
-                return pair.currentKey.privateKey;
-            else if (pair.previousKey.crc32c == publicKeyCrc)
-                return pair.previousKey.privateKey;
-            else
-                return null;
+            return GetCurrentKey(listRsa).expiration;
         }
+
+
+        public static string GetCurrentPublicKeyPem(RsaKeyList listRsa)
+        {
+            if (listRsa.listRSA.Count < 1)
+                throw new Exception("List is empty, no public key");
+
+            return publicPem(GetCurrentKey(listRsa));
+        }
+
+
+
+        public static RSACryptoServiceProvider findKeyPublic(RsaKeyList listRsa, UInt32 publicKeyCrc)
+        {
+            var key = findKey(listRsa, publicKeyCrc);
+
+            return KeyPublic(key);
+        }
+
+        public static RSACryptoServiceProvider findKeyPrivate(RsaKeyList listRsa, UInt32 publicKeyCrc)
+        {
+            var key = findKey(listRsa, publicKeyCrc);
+
+            return KeyPrivate(key);
+        }
+
+
 
         // We should have a convention that if there is less than e.g. an hour to 
         // key expiration then the requestor should request a new key.
@@ -68,47 +171,17 @@ namespace DotYou.Kernel.Cryptography
         // The precise timing depends on how quickly we want keys to expire,
         // maybe the minimum is 24 hours. Generating a new key takes a significant
         // amount of CPU.
-        public void generateNewKey(RsaKeyPair pair, UInt64 hours)
+        public static void generateNewKey(RsaKeyList listRsa, int hours)
         {
             if (hours < 24)
                 throw new Exception("RSA key must live for at least 24 hours");
 
-            if (CanGenerateNewKey(pair) == false)
+            if (CanGenerateNewKey(listRsa) == false)
                 throw new Exception("Cannot generate new RSA key because the previous is in use");
+                // Maybe extend the current key
 
-            pair.previousKey = pair.currentKey; // Make the current key the old key
-
-            pair.currentKey.encrypted = false;
-            pair.currentKey.iv = Guid.Empty;
-
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            pair.currentKey.privateKey = rsaGenKeys.ToXmlString(true);
-            pair.currentKey.publicKey = rsaGenKeys.ToXmlString(false);
-            pair.currentKey.crc32c = CRC32C.CalculateCRC32C(0, Encoding.ASCII.GetBytes(pair.currentKey.publicKey));
-            pair.currentKey.expiration = DateTimeExtensions.ToDateTimeOffsetSec((Int64) hours * 60 * 60); // Find that Unix function I made
-        }
-
-
-        public void generateNewEncryptedKey(RsaKeyPair pair, UInt64 hours, byte[] key)
-        {
-            if (hours < 24)
-                throw new Exception("RSA key must live for at least 24 hours");
-
-            pair.previousKey = pair.currentKey; // Make the current key the old key
-
-            pair.currentKey.encrypted = true;
-
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            pair.currentKey.privateKey = rsaGenKeys.ToXmlString(true);
-            var s = rsaGenKeys.ToXmlString(false);
-            var (IV, cipher) = AesCbc.EncryptStringToBytes_Aes(s, key);
-            pair.currentKey.publicKey = Convert.ToBase64String(cipher);
-            pair.currentKey.iv = new Guid(IV);
-
-            // Would be nice to clear s
-
-            pair.currentKey.crc32c = CRC32C.CalculateCRC32C(0, Encoding.ASCII.GetBytes(pair.currentKey.publicKey));
-            pair.currentKey.expiration = DateTimeExtensions.ToDateTimeOffsetSec((Int64)hours * 60 * 60); // Find that Unix function I made
+            var rsa = NewKey(hours);
+            listRsa.listRSA.AddFirst(rsa);
         }
     }
 }
