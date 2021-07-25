@@ -127,7 +127,16 @@ namespace DotYou.Kernel.Cryptography
                 return listRsa.listRSA.First.Value;
             else
             {
-                // Search the list for older keys
+                // Check if the previous key matches (but don't check further)
+                if (listRsa.listRSA.First.Next != null)
+                {
+                    if (listRsa.listRSA.First.Next.Value.crc32c == publicKeyCrc)
+                    {
+                        // XXX TODO: Add some timeout sanity check here.
+                        // E.g. don't accept it older than 1 hour expired or whatever
+                        return listRsa.listRSA.First.Next.Value;
+                    }
+                }
             }
 
             return null;
@@ -182,6 +191,8 @@ namespace DotYou.Kernel.Cryptography
 
             var rsa = NewKey(hours);
             listRsa.listRSA.AddFirst(rsa);
+            if (listRsa.listRSA.Count > listRsa.maxKeys)
+                listRsa.listRSA.RemoveLast();
         }
     }
 }

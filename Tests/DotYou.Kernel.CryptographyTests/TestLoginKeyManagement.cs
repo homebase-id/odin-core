@@ -45,7 +45,6 @@ namespace DotYou.Kernel.CryptographyTests
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
             RsaKeyManagement.generateNewKey(hostRsa, 24);
-            // Will not work until I add the code to traverse the list
 
             var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
