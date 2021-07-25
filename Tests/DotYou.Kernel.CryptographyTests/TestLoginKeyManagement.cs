@@ -30,7 +30,6 @@ namespace DotYou.Kernel.CryptographyTests
 
             PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
-
             Assert.Pass();
         }
 

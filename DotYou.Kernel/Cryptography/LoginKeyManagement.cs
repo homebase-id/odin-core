@@ -1,6 +1,7 @@
 ﻿using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -52,7 +53,7 @@ namespace DotYou.Kernel.Cryptography
         /// the PasswordKey class.
         /// Used to set the initial password.
         /// On the server when you receive a PasswordReply and you have loaded the corresponding
-        /// Nonce package, then call here to 
+        /// Nonce package, then call here to setup everything needed (HasedPassword, Kek, DeK)
         /// </summary>
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
@@ -85,20 +86,15 @@ namespace DotYou.Kernel.Cryptography
             byte[] decryptedRSA = rsa.Decrypt(Convert.FromBase64String(reply.RsaEncrypted), true);
             string originalResult = Encoding.Default.GetString(decryptedRSA);
 
-            var sl = originalResult.Split(' '); // [0] == HashedPassword64, [1] == Kek64
+            // I guess / hope if it fails it throws an exception :-))
+            //
+            var o = JsonConvert.DeserializeObject<dynamic>(originalResult);
+            string hpwd64 = o.hpwd64;
+            string kek64 = o.kek64;
 
-            if (sl.Length != 2)
-                throw new Exception("rsa decrypt expected two strings");
-
-            if (sl[0] != reply.HashedPassword64)
-                throw new Exception("rsa decrypt hashPwd");
-
-            if (sl[1] != reply.KeK64)
-                throw new Exception("rsa decrypt kek");
-
-
-            return LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, sl[0], sl[1]);
+            return LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
         }
+
 
         /// <summary>
         /// Test is the received nonceHashedPassword64 matches up with hashing the stored
@@ -140,7 +136,14 @@ namespace DotYou.Kernel.Cryptography
             RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
             rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
             pr.crc = RsaKeyManagement.KeyCRC(rsa);
-            pr.RsaEncrypted = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(pr.HashedPassword64 + " " + pr.KeK64), true));
+
+            var data = new {
+                hpwd64 = pr.HashedPassword64,
+                kek64 = pr.KeK64
+            };
+            var str = JsonConvert.SerializeObject(data);
+
+            pr.RsaEncrypted = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(str), true));
 
             return pr;
         }

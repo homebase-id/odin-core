@@ -90,8 +90,8 @@ namespace DotYou.Kernel.Cryptography
             rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
             rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
             rsa.crc32c = KeyCRC(rsaGenKeys);
-            rsa.expiration = DateTimeExtensions.ToDateTimeOffsetSec((Int64) hours * 60 * 60);
-
+            rsa.instantiated = DateTimeExtensions.ToDateTimeOffsetSec(0);
+            rsa.expiration = rsa.instantiated + (UInt64) hours * 3600;
             return rsa;
         }
 
