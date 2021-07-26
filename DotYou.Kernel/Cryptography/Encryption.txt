@@ -62,6 +62,18 @@ Nonce (owner DB lookup [DB], timeout)
 
 --
 
+HostRSA - RSA key pair on the host which is available also when the user is not logged in.
+          Typically renewed daily.
+
+EncryptionRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host. Used for sending encrypted data header to
+                the Host.
+
+SignRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host.
+--
+
+
 RsaPublic (owner property) [DB] [to-be-added]
    Is the owner's 2048 bit public key, stored in the database. Used for
    encryption of secrets. Available as:

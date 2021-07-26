@@ -1,18 +1,85 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using DotYou.AdminClient.Extensions;
+using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
+
 
 namespace DotYou.Kernel.Cryptography
 {
-    public static class HostToHost
+    public class HostToHostProtocolHeader 
     {
-        private static UInt32 CRC32(string s)
+        public enum HostMessageType
         {
-            return 0x11223344;
+            Chat, Mail
+        };
+
+        public UInt16 version;  // Version of the header
+        public HostMessageType type; // Kind of message
+        public UInt64 length; // Number of bytes in the payload
+        public UInt32 payloadCrc; // CRC32C of the payload
+    }
+
+    public class HostToHostCryptoHeader
+    {
+        // Unencrypted
+        public UInt16 version;  // Version of the crypto header
+        public UInt32 keyCrc; // CRC32C of the recipient public key
+
+        // RSA encrypted below this line:
+
+        // public UInt32 headerCrc; // CRC32C of the protocol header
+        public byte[] key;  // The key the payload is encrypted with
+        public byte[] iv;   // The iv the payload is encrypted with
+    }
+
+    public class HostToHostPayload
+    {
+        public UInt32 crc;   // CRC of payload + creation-time
+        public UInt64 creationtime;
+        public byte[] payload;
+    }
+
+    public static class HostToHostManager
+    {
+
+        // This code would run on the client. Imagine we just typed a chat message.
+        // Now we need to send it to our own host, using the HostRSA key
+        // Once received on our own host, the payload is probably stored in a binary format
+        // and the cryptoheader is immediately re-encrypted to AES-CBC with the Chat-DeK 
+        // and stored alongside the payload.
+        // Hereafter we encrypt a header and send the disk stored payload to each recipient.
+        //
+        public static HostToHostCryptoHeader LocalEncryptChatMessage(string message, byte[] publicKey)
+        {
+            var cryptoheader = new HostToHostCryptoHeader
+            {
+                version = 1,
+                key = YFByteArray.GetRndByteArray(16),
+                iv  = YFByteArray.GetRndByteArray(16),
+                keyCrc = CRC32C.CalculateCRC32C(0, publicKey)
+            };
+
+            var payload = new HostToHostPayload
+            {
+                crc = 0,
+                creationtime = DateTimeExtensions.ToDateTimeOffsetSec(0),
+                payload = Encoding.UTF8.GetBytes(message)
+            };
+
+            var protocol = new HostToHostProtocolHeader
+            {
+                version = 1,
+                type = HostToHostProtocolHeader.HostMessageType.Chat,
+                length = (UInt64) payload.payload.Length, // # bytes
+                payloadCrc = 0
+            };
+
+            // Now encrypt the payload with AES-CBC
+            // Then encrypt the cryptoheader with RSA (my own host's HostRSA or EncryptionRSA public key)
+            // Then transmit {protocol, cryptoheader, payload} to my own host
+
+            return null;
         }
 
         // ===
@@ -108,10 +175,9 @@ namespace DotYou.Kernel.Cryptography
 
         // ==== 
 
-
-        public static (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, string recipientPublicKey)
+        public static (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, byte[] recipientPublicKey)
         {
-            var crcRecipientPublicEncryptionKey = CRC32(recipientPublicKey); // A. Calculate with CRC library
+            var crcRecipientPublicEncryptionKey = CRC32C.CalculateCRC32C(0, recipientPublicKey); // A. Calculate with CRC library
             var randomKey = YFByteArray.GetRndByteArray(16); // B. Generate random encryption key
 
             // Q. Aes encrypt the data, and get the iv C.
@@ -124,7 +190,7 @@ namespace DotYou.Kernel.Cryptography
 
             // Now we got 32 bytes to encrypt with the recipient's public key
             RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider(2048);
-            rsaPublic.FromXmlString(recipientPublicKey);
+            rsaPublic.ImportRSAPublicKey(recipientPublicKey, out int n);
             // This bugs me, how can we not first create a random key pair, and then overwrite it
 
             // New generate the byte[] for the header
@@ -142,7 +208,8 @@ namespace DotYou.Kernel.Cryptography
 
         public static (byte[] header, byte[] payload) EncryptRSAPacketOrg(byte[] data, string recipientPublicKey)
         {
-            var crcRecipientPublicEncryptionKey = CRC32(recipientPublicKey); // A. Calculate with CRC library
+            // XXX
+            var crcRecipientPublicEncryptionKey = CRC32C.CalculateCRC32C(0, Convert.FromBase64String(recipientPublicKey)); // A. Calculate with CRC library
             var AesEncryptionKey = YFByteArray.GetRndByteArray(16); // B. Generate random encryption key
 
             // Q. Aes encrypt the data, and get the iv C.

@@ -18,16 +18,22 @@ namespace DotYou.Kernel.CryptographyTests
         }
 
         [Test]
+        // Use this code for guidance on how to implement setting initial password on server & client
         public void NewLoginTestPass()
         {
-            // Generate Host RSA key 
+            // Generate Host RSA key - on the server this key already pre-exists
+            // The host RSA key is not encrypted on the server and thus the secret key
+            // is accessible to the server even without a password.
             var hostRsa = new RsaKeyList(2);
             RsaKeyManagement.generateNewKey(hostRsa, 24);
 
+            // Client requests a noncePackage from the server (after password is entered)
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
-            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            // Client calculates the passwordReply based on the password and noncePackage
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np);
 
+            // Server receives the passwordReply and set's the user's initial password
             PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
             Assert.Pass();
@@ -37,7 +43,7 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void NewLoginTest2KeysPass()
         {
-            // Generate Host RSA key 
+            // Generate Host RSA key
             var hostRsa = new RsaKeyList(2);
             RsaKeyManagement.generateNewKey(hostRsa, 24);
 
@@ -63,20 +69,15 @@ namespace DotYou.Kernel.CryptographyTests
 
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
-            // Hash the user password + user salt
+            // Sanity Values
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
+            //var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16);
 
             var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np); // Sanity check
-            if (pr.HashedPassword64 != Convert.ToBase64String(SanityHashPassword))  // Sanity check
-                Assert.Fail();
-
-            var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16); // Sanity check
-            if (pr.KeK64 != Convert.ToBase64String(SanityHashKek))  // Sanity check
-                Assert.Fail();
 
             PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
-            if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, Convert.FromBase64String(pr.HashedPassword64)) == false)
+            if (YFByteArray.EquiByteArrayCompare(SanityHashPassword, pk.HashPassword) == false)
                 Assert.Fail();
 
             Assert.Pass();
@@ -103,10 +104,6 @@ namespace DotYou.Kernel.CryptographyTests
             PasswordKey pk = LoginKeyManagement.SetInitialPassword(np, pr, hostRsa);
 
             if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
-                Assert.Fail();
-
-            var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16); // Sanity check
-            if (pr.KeK64 != Convert.ToBase64String(SanityHashKek))  // Sanity check
                 Assert.Fail();
 
             Assert.Pass();

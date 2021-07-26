@@ -60,23 +60,6 @@ namespace DotYou.Kernel.Cryptography
         /// <returns>The PasswordKey to store on the Identity</returns>
         public static PasswordKey SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
         {
-            // Perform a sanity check:
-            // Make sure that the NonceHashedPassword64 calculated on the client 
-            // also has the same calculation on the server.
-
-            var b1 = Convert.FromBase64String(reply.NonceHashedPassword64);
-            var b2 = KeyDerivation.Pbkdf2(
-                reply.HashedPassword64,
-                Convert.FromBase64String(reply.Nonce64),
-                KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE);
-
-            if (YFByteArray.EquiByteArrayCompare(b1, b2) == false)
-            {
-                throw new InvalidDataException("NonceHashedPassword sanity mismatch");
-            }
-
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
             var key = RsaKeyManagement.findKey(listRsa, reply.crc);
@@ -91,6 +74,27 @@ namespace DotYou.Kernel.Cryptography
             var o = JsonConvert.DeserializeObject<dynamic>(originalResult);
             string hpwd64 = o.hpwd64;
             string kek64 = o.kek64;
+            string sharedsecret = o.sharedsecret;
+
+            // Perform NONCE sanity check (we can only do that now because we needed to decrypt the hashedpassword)
+            // Make sure that the NonceHashedPassword64 calculated on the client 
+            // also has the same calculation on the server.
+
+            var b1 = Convert.FromBase64String(reply.NonceHashedPassword64);
+            var b2 = KeyDerivation.Pbkdf2(
+                hpwd64,
+                Convert.FromBase64String(reply.Nonce64),
+                KeyDerivationPrf.HMACSHA256,
+                CryptographyConstants.ITERATIONS,
+                CryptographyConstants.HASH_SIZE);
+
+            if (YFByteArray.EquiByteArrayCompare(b1, b2) == false)
+            {
+                throw new InvalidDataException("NonceHashedPassword sanity mismatch");
+            }
+
+            // XXX we need code for adding the client HTTP ONLY, secure cookie, and stroing the sharedsecret
+            // Se we need to return the sharedsecret somehow
 
             return LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
         }
@@ -129,24 +133,29 @@ namespace DotYou.Kernel.Cryptography
 
             pr.Nonce64 = nonce.Nonce64;
 
-            pr.HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(pr.HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            string HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            string KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
 
             RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
             rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
             pr.crc = RsaKeyManagement.KeyCRC(rsa);
 
             var data = new {
-                hpwd64 = pr.HashedPassword64,
-                kek64 = pr.KeK64
+                hpwd64 = HashedPassword64,
+                kek64  = KeK64,
+                secret = YFByteArray.GetRndByteArray(16)
             };
             var str = JsonConvert.SerializeObject(data);
 
             pr.RsaEncrypted = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(str), true));
 
+            // If the login is successful then the client will get the cookie
+            // and will have to use this sharedsecret on all requests. So store securely in 
+            // local storage.
+
             return pr;
         }
     }
-
 }
+
