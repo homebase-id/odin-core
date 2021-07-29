@@ -57,7 +57,11 @@ namespace DotYou.Kernel.Cryptography
             if (sharedSecret == null)
                 token.SharedSecret = YFByteArray.GetRndByteArray(16);
             else
+            {
+                if (sharedSecret.Length != 16)
+                    throw new Exception("Shared secret expected 16 bytes");
                 token.SharedSecret = sharedSecret;
+            }
 
             return (cookie2, token);
         }
