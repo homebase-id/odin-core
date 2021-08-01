@@ -11,7 +11,7 @@ namespace DotYou.TenantHost.Controllers.Admin
 {
     [ApiController]
     [Route("/api/admin/identity")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthSchemes.DotIdentityOwner)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class AdminIdentityAttributeController : Controller
     {
         private readonly IAdminIdentityAttributeService _identService;

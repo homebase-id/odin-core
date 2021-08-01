@@ -17,7 +17,7 @@ namespace DotYou.TenantHost.Security
                 pb =>
                 {
                     pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
-                    pb.AuthenticationSchemes.Add(DotYouAuthSchemes.DotIdentityOwner);
+                    pb.AuthenticationSchemes.Add(DotYouAuthConstants.DotIdentityOwnerScheme);
                 });
 
             policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,
@@ -25,7 +25,7 @@ namespace DotYou.TenantHost.Security
                 {
                     pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
                     //pb.AuthenticationSchemes.Add((DotYouAuthSchemes.DotIdentityOwner));
-                    pb.AuthenticationSchemes.Add((DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate));
+                    pb.AuthenticationSchemes.Add((DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme));
                 });
         }
     }

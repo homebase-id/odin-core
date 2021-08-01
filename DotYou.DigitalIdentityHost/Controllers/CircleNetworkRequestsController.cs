@@ -88,6 +88,13 @@ namespace DotYou.TenantHost.Controllers
             await _circleNetwork.DeletePendingRequest(id);
             return new JsonResult(new NoResultResponse(true));
         }
+        
+        [HttpGet("profile/{dotYouId}")]
+        public async Task<IActionResult> GetPublicInfoByDotYouId(string dotYouId)
+        {
+            var result = await _circleNetwork.GetPublicInfo(dotYouId);
+            return new JsonResult(result);
+        }
 
     }
 }

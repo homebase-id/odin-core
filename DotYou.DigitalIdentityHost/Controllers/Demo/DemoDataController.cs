@@ -2,11 +2,13 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
+using DotYou.Types.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
@@ -16,16 +18,18 @@ namespace DotYou.TenantHost.Controllers.Demo
 {
     [ApiController]
     [Route("api/demodata")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes =  DotYouAuthSchemes.DotIdentityOwner)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes =  DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
-        IContactService _contactService;
+        private IContactService _contactService;
         private IPrototrialDemoDataService _prototrial;
+        private IAdminIdentityAttributeService _admin;
 
-        public DemoDataController(IContactService contactService, IPrototrialDemoDataService prototrial)
+        public DemoDataController(IContactService contactService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
         {
             _contactService = contactService;
             _prototrial = prototrial;
+            _admin = admin;
         }
 
         [HttpGet("contacts")]
@@ -51,6 +55,14 @@ namespace DotYou.TenantHost.Controllers.Demo
             
             var result = await _prototrial.AddDigitalIdentities();
             return new JsonResult(result);
+        }
+
+        [HttpGet("profiledata")]
+        public async Task<IActionResult> SetProfileData()
+        {
+            await _prototrial.SetPublicProfile();
+            var storedProfile = await _admin.GetPublicProfile();
+            return new JsonResult(storedProfile);
         }
     }
 }

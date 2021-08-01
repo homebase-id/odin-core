@@ -44,7 +44,7 @@ namespace DotYou.DigitalIdentityHost
             services.AddControllers(config =>
                 {
                     config.Filters.Add(new ApplyPerimeterMetaData());
-                    config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
+                    //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options =>
             {
@@ -59,12 +59,12 @@ namespace DotYou.DigitalIdentityHost
 
             services.AddAuthentication(options =>
                 {
-                    options.DefaultScheme = DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate;
-                    options.DefaultChallengeScheme = DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate;
+                    options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
+                    options.DefaultChallengeScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
                     
                 })
-                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthSchemes.DotIdentityOwner, op => { op.LoginUri = "/login"; })
-                .AddCertificate(DotYouAuthSchemes.ExternalDigitalIdentityClientCertificate, options =>
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthConstants.DotIdentityOwnerScheme, op => { op.LoginUri = "/login"; })
+                .AddCertificate(DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = true;
@@ -101,12 +101,12 @@ namespace DotYou.DigitalIdentityHost
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
-            services.AddScoped<IAdminIdentityAttributeService, AdminAdminIdentityAttributeService>(svc =>
+            services.AddScoped<IAdminIdentityAttributeService, AdminIdentityAttributeService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
 
-                return new AdminAdminIdentityAttributeService(context, logger);
+                return new AdminIdentityAttributeService(context, logger);
             });
 
             services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
@@ -169,8 +169,9 @@ namespace DotYou.DigitalIdentityHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var cs = svc.GetRequiredService<IContactService>();
+                var admin = svc.GetRequiredService<IAdminIdentityAttributeService>();
 
-                return new PrototrialDemoDataService(context, logger, cs);
+                return new PrototrialDemoDataService(context, logger, cs, admin);
             });
             
             // In production, the React files will be served from this directory
@@ -200,6 +201,8 @@ namespace DotYou.DigitalIdentityHost
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
+                //endpoints.MapFallbackToFile("index.html");
                 endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets
@@ -212,7 +215,6 @@ namespace DotYou.DigitalIdentityHost
             app.UseSpa(spa =>
             {
                 spa.Options.SourcePath = "ClientApp";
-
                 if (env.IsDevelopment())
                 {
                     spa.UseReactDevelopmentServer(npmScript: "start");

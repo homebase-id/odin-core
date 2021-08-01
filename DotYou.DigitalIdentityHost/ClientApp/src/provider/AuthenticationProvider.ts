@@ -3,9 +3,9 @@ import {ProviderBase} from "./ProviderBase";
 
 class AuthenticationProvider extends ProviderBase {
 
-    constructor() {
-        super(null, false);
-    }
+    // constructor() {
+    //     super(null, false);
+    // }
 
     //checks if the authentication token (stored in a cookie) is valid
     async hasValidToken(): Promise<boolean> {
@@ -65,8 +65,7 @@ class AuthenticationProvider extends ProviderBase {
             hashedPassword64: hp ? hashedPassword64 : ""
         };
     }
-
-
+    
     private async getNonce(): Promise<ClientNoncePackage> {
         let client = this.createAxiosClient();
         return client.get("/admin/authentication/nonce").then(response => {

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Http;
@@ -18,8 +19,6 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         private readonly IOwnerAuthenticationService _authService;
         private readonly IOwnerSecretService _ss;
         
-        private const string COOKIE_NAME = "token";
-
         public OwnerAuthenticationController(IOwnerAuthenticationService authService, IOwnerSecretService ss)
         {
             _authService = authService;
@@ -32,7 +31,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
             //note: this will intentionally ignore any error, including token parsing errors
             try
             {
-                var value = Request.Cookies["token"];
+                var value = Request.Cookies[DotYouAuthConstants.TokenKey];
                 var result = AuthenticationResult.Parse(value);
                 var isValid = await _authService.IsValidToken(result.Token);
                 return new JsonResult(isValid);
@@ -51,7 +50,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
                 var result = await _authService.Authenticate(package);
                 var value = $"{result.Token}|{result.Token2}";
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
-                Response.Cookies.Append(COOKIE_NAME, value, options);
+                Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
                 return new JsonResult(true);
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authetnication exception
@@ -64,11 +63,11 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         [HttpGet("logout")]
         public async Task<IActionResult> ExpireCookieBasedToken()
         {
-            var value = Request.Cookies[COOKIE_NAME];
+            var value = Request.Cookies[DotYouAuthConstants.TokenKey];
             var result = AuthenticationResult.Parse(value);
             _authService.ExpireToken(result.Token);
             
-            Response.Cookies.Delete(COOKIE_NAME);
+            Response.Cookies.Delete(DotYouAuthConstants.TokenKey);
             
             return new JsonResult(true);
         }

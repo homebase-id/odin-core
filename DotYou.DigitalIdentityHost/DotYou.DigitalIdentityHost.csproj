@@ -7,9 +7,6 @@
   <PropertyGroup>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
-  <ItemGroup>
-    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
-  </ItemGroup>
   
   <ItemGroup>
     <ProjectReference Include="..\DotYou.Kernel\DotYou.Kernel.csproj" />
@@ -73,11 +70,15 @@
     <None Include="ClientApp\package-lock.json" />
     <None Include="ClientApp\package.json" />
     <None Include="ClientApp\public\manifest.json" />
-    <None Include="wwwroot\favicon.ico" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="ClientApp\public\assets\unknown.png" />
     <Content Include="Properties\PublishProfiles\FTPProfile.pubxml.user" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\assets\unknown.png" />
   </ItemGroup>
 
 </Project>

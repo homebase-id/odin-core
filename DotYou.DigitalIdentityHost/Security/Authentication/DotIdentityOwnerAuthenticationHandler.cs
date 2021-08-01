@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Web;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types;
 using DotYou.Types.Admin;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +24,6 @@ namespace DotYou.TenantHost.Security.Authentication
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            
             //HACK: need to review if this makes sense.  maybe instead we just host all API calls on api.frodobaggins.me.
             if (Context.Request.Path.StartsWithSegments("/api", StringComparison.InvariantCultureIgnoreCase) == false)
             {
@@ -42,12 +42,12 @@ namespace DotYou.TenantHost.Security.Authentication
             Context.Response.Redirect(b.ToString());
             return Task.CompletedTask;
         }
-        
+
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             const string YouFoundationIssuer = "YouFoundation";
-            
+
             Guid token;
             if (GetToken(out token))
             {
@@ -66,7 +66,7 @@ namespace DotYou.TenantHost.Security.Authentication
                         new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                     };
 
-                    var identity = new ClaimsIdentity(claims, DotYouAuthSchemes.DotIdentityOwner);
+                    var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 
                     AuthenticationProperties authProperties = new AuthenticationProperties();
@@ -74,9 +74,9 @@ namespace DotYou.TenantHost.Security.Authentication
                     authProperties.ExpiresUtc = DateTime.UtcNow.AddDays(1);
                     authProperties.AllowRefresh = true;
                     authProperties.IsPersistent = true;
-                    
-                    var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthSchemes.DotIdentityOwner);
-                    ticket.Properties.SetParameter("token", token);
+
+                    var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthConstants.DotIdentityOwnerScheme);
+                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, token);
                     return AuthenticateResult.Success(ticket);
                 }
             }
@@ -108,8 +108,18 @@ namespace DotYou.TenantHost.Security.Authentication
 
         private bool GetToken(out Guid token)
         {
+            //the header is used by the mobile app
             if (Guid.TryParse(Context.Request.Headers[DotYouHeaderNames.AuthToken], out token))
             {
+                return true;
+            }
+
+            //the react client app uses the cookie
+            AuthenticationResult result;
+            var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];
+            if (AuthenticationResult.TryParse(value, out result))
+            {
+                token = result.Token;
                 return true;
             }
 
@@ -120,9 +130,8 @@ namespace DotYou.TenantHost.Security.Authentication
             {
                 return Guid.TryParse(accessToken, out token);
             }
-            
+
             return false;
         }
-        
     }
 }
