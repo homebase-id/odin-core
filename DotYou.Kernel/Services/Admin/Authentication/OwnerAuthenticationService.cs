@@ -58,7 +58,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             rp.RsaEncrypted = reply.RsaEncrypted;
             rp.crc = reply.crc;
 
-            var (kek, sharedSecret) = LoginManager.Authenticate(noncePackage, rp, null); // XXX missing RSA list
+            var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, null); // XXX missing RSA list
 
             // TODO: audit login some where, or in helper class below
 

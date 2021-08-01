@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DotYou.Kernel.Cryptography
 {
-    public static class LoginManager
+    public static class LoginKeyManager
     {
         /// <summary>
         /// Only call this on initializing an identity the first time 
@@ -64,7 +64,7 @@ namespace DotYou.Kernel.Cryptography
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
-            var passwordKey = LoginManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+            var passwordKey = LoginKeyManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
 
             return passwordKey;
         }

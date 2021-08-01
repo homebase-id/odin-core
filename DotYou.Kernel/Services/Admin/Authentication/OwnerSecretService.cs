@@ -35,7 +35,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
-            var pk = LoginManager.SetInitialPassword(originalNoncePackage, reply, null); // XXX
+            var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, null); // XXX
             WithTenantStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         {
             var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
-            LoginManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            LoginKeyManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
     }
 }

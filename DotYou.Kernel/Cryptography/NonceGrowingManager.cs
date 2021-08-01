@@ -43,6 +43,17 @@ namespace DotYou.Kernel.Cryptography
         {
             if (nonce > table.lastNonce) // This is what we expect
             {
+                if ((nonce - table.lastNonce) > 20) 
+                {
+                    // When you have a shaky network connection some requests might
+                    // be lost. We might need to experiment with the margin of jump 
+                    // we allow here. I've also considered not incrementing the nonce
+                    // with 1, but e.g. random(1,255). In that case this margin needs
+                    // to be reconsidered.
+                    //
+                    return false;
+                }
+
                 // Check the nonce - just use CRC32C for now
                 var calc = CalculateNonce(nonce, secret);
 

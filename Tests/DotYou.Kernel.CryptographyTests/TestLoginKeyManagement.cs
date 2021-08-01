@@ -31,10 +31,10 @@ namespace DotYou.Kernel.CryptographyTests
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np);
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np);
 
             // Server receives the passwordReply and set's the user's initial password
-            LoginKeyData pk = LoginManager.SetInitialPassword(np, pr, hostRsa);
+            LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
             Assert.Pass();
         }
@@ -62,10 +62,10 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Client calculates the passwordReply based on the password and noncePackage
             // the reply includes the shared secret and is sent to the server
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np);
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np);
 
             // Server receives the passwordReply and now needs to validate the password
-            var (kek, sharedsecret) = LoginManager.Authenticate(np, pr, hostRsa);
+            var (kek, sharedsecret) = LoginKeyManager.Authenticate(np, pr, hostRsa);
 
             // Server generates Login Authentication Token in DB and cookies for client.
             var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(kek, sharedsecret);
@@ -111,10 +111,10 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Client calculates the passwordReply based on the password and noncePackage
             // the reply includes the shared secret and is sent to the server
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np);
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np);
 
             // Server receives the passwordReply and now needs to validate the password
-            var (kek, sharedsecret) = LoginManager.Authenticate(np, pr, hostRsa);
+            var (kek, sharedsecret) = LoginKeyManager.Authenticate(np, pr, hostRsa);
 
             // Server generates Login Authentication Token in DB and cookies for client.
             var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(kek, sharedsecret);
@@ -144,9 +144,9 @@ namespace DotYou.Kernel.CryptographyTests
 
             RsaKeyManagement.generateNewKey(hostRsa, 24);
 
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
-            LoginKeyData pk = LoginManager.SetInitialPassword(np, pr, hostRsa);
+            LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
             Assert.Pass();
         }
@@ -166,9 +166,9 @@ namespace DotYou.Kernel.CryptographyTests
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
             //var SanityHashKek = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltKek64), KeyDerivationPrf.HMACSHA256, 100000, 16);
 
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
-            LoginKeyData pk = LoginManager.SetInitialPassword(np, pr, hostRsa);
+            LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
             if (YFByteArray.EquiByteArrayCompare(SanityHashPassword, pk.HashPassword) == false)
                 Assert.Fail();
@@ -193,8 +193,8 @@ namespace DotYou.Kernel.CryptographyTests
             var resultPasswordArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
             var resultKekArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
 
-            var pr = LoginManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
-            LoginKeyData pk = LoginManager.SetInitialPassword(np, pr, hostRsa);
+            var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
+            LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
             if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
                 Assert.Fail();
