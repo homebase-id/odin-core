@@ -27,5 +27,31 @@ namespace DotYou.Types
                 Token2 = Guid.Parse(arr[1])
             };
         }
+        
+        public static bool TryParse(string value, out AuthenticationResult result)
+        {
+            result = null;
+            if (null == value)
+            {
+                return false;
+            }
+            
+            var arr = value.Split(SEPARATOR);
+            Guid t1;
+            Guid t2;
+
+            if (Guid.TryParse(arr[0], out t1) && Guid.TryParse(arr[1], out t2))
+            {
+                result = new AuthenticationResult()
+                {
+                    Token = t1,
+                    Token2 = t2
+                };
+                
+                return true;
+            }
+
+            return false;
+        }
     }
 }

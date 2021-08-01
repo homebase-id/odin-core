@@ -100,6 +100,21 @@ namespace DotYou.Kernel.Services.Circle
             return Task.CompletedTask;
         }
 
+        public async Task<PublicProfile> GetPublicInfo(string dotYouId)
+        {
+            Guard.Argument(dotYouId, nameof(dotYouId)).NotNull().NotEmpty();
+            
+            var response = await base.CreatePerimeterHttpClient((DotYouIdentity)dotYouId).GetPublicProfile();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                //TODO: add more info
+                throw new Exception("Failed to establish connection request");
+            }
+
+            return response.Content;
+        }
+
         public async Task<ConnectionRequest> GetSentRequest(Guid id)
         {
             var result = await WithTenantStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(id));

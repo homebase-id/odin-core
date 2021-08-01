@@ -70,6 +70,7 @@ namespace DotYou.Kernel.Services.Circle
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
         Task DeletePendingRequest(Guid id);
-        
+
+        Task<PublicProfile> GetPublicInfo(string dotYouId);
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Types.Circle;
@@ -10,6 +11,11 @@ namespace DotYou.Kernel.Services
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class NotificationHub : Hub<INotificationHub>
     {
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            return base.OnDisconnectedAsync(exception);
+        }
+
         public override Task OnConnectedAsync()
         {
             return base.OnConnectedAsync();
