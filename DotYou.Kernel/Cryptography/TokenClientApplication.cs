@@ -43,7 +43,7 @@ namespace DotYou.Kernel.Cryptography
         //      and the table entry
         //
 
-        public static (byte[], TokenClientApplicationData) CreateClientToken(byte[] ApplicationId, byte[] ApplicationKeK, byte[] sharedSecret = null)
+        public static (byte[] cookie2, TokenClientApplicationData token) CreateClientToken(byte[] ApplicationId, byte[] ApplicationKeK, byte[] sharedSecret = null)
         {
             var token = new TokenClientApplicationData
             {

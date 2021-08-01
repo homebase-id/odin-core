@@ -60,43 +60,92 @@ namespace DotYou.Kernel.Cryptography
         /// <returns>The PasswordKey to store on the Identity</returns>
         public static PasswordKey SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
         {
+            var (hpwd64, kek64, sharedsecret) = ParsePasswordReply(reply, listRsa);
+
+            TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
+
+            var passwordKey = LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+
+            return passwordKey;
+        }
+
+
+        // From the PasswordReply package received from the client, try to decrypt the RSA
+        // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
+        private static (string pwd64, string kek64, string sharedsecret64) ParsePasswordReply(PasswordReply reply, RsaKeyList listRsa)
+        {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
-            var key = RsaKeyManagement.findKey(listRsa, reply.crc);
-
             RSACryptoServiceProvider rsa = RsaKeyManagement.findKeyPrivate(listRsa, reply.crc);
 
-            byte[] decryptedRSA = rsa.Decrypt(Convert.FromBase64String(reply.RsaEncrypted), true);
+            if (rsa == null)
+                throw new Exception("no matching RSA key");
+
+            byte[] decryptedRSA;
+
+            try
+            {
+                decryptedRSA = rsa.Decrypt(Convert.FromBase64String(reply.RsaEncrypted), true);
+            }
+            catch
+            {
+                throw new Exception("Unable to RSA decrypt password header");
+            }
+
             string originalResult = Encoding.Default.GetString(decryptedRSA);
 
             // I guess / hope if it fails it throws an exception :-))
             //
-            var o = JsonConvert.DeserializeObject<dynamic>(originalResult);
-            string hpwd64 = o.hpwd64;
-            string kek64 = o.kek64;
-            string sharedsecret = o.sharedsecret;
 
-            // Perform NONCE sanity check (we can only do that now because we needed to decrypt the hashedpassword)
-            // Make sure that the NonceHashedPassword64 calculated on the client 
-            // also has the same calculation on the server.
+            string hpwd64;
+            string kek64;
+            string sharedsecret64;
+            try
+            {
+                var o = JsonConvert.DeserializeObject<dynamic>(originalResult);
 
-            var b1 = Convert.FromBase64String(reply.NonceHashedPassword64);
-            var b2 = KeyDerivation.Pbkdf2(
-                hpwd64,
-                Convert.FromBase64String(reply.Nonce64),
+                hpwd64 = o.hpwd64;
+                kek64 = o.kek64;
+                sharedsecret64 = o.secret;
+            }
+            catch
+            {
+                throw new Exception("Unable to parse the decrypted RSA password header");
+            }
+
+            if ((Convert.FromBase64String(hpwd64).Length != 16) ||
+                (Convert.FromBase64String(kek64).Length != 16) ||
+                (Convert.FromBase64String(sharedsecret64).Length != 16))
+                throw new Exception("Base64 strings in password reply incorrect");
+
+            return (hpwd64, kek64, sharedsecret64);
+        }
+
+
+        // Returns the shared secret if authenticated or throws an exception otherwise
+        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
+        {
+            var (hpwd64, kek64, sharedsecret64) = ParsePasswordReply(reply, listRsa);
+
+            TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
+
+            return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
+        }
+
+
+        public static void TryPasswordKeyMatch(string hashPassword64, string nonceHashedPassword64, string nonce64)
+        {
+            var noncePasswordBytes = Convert.FromBase64String(nonceHashedPassword64);
+
+            var nonceHashedPassword = KeyDerivation.Pbkdf2(
+                hashPassword64,
+                Convert.FromBase64String(nonce64),
                 KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE);
 
-            if (YFByteArray.EquiByteArrayCompare(b1, b2) == false)
-            {
-                throw new InvalidDataException("NonceHashedPassword sanity mismatch");
-            }
-
-            // XXX we need code for adding the client HTTP ONLY, secure cookie, and stroing the sharedsecret
-            // Se we need to return the sharedsecret somehow
-
-            return LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+            if (YFByteArray.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword) == false)
+                throw new Exception("Password mismatch");
         }
 
 
@@ -108,19 +157,11 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="nonceHashedPassword64">The client calculated nonceHashedPassword64</param>
         /// <param name="nonce64">The nonce the client was given by the server</param>
         /// <returns></returns>
-        public static bool IsPasswordKeyMatch(PasswordKey pk, string nonceHashedPassword64, string nonce64)
+        public static void TryPasswordKeyMatch(PasswordKey pk, string nonceHashedPassword64, string nonce64)
         {
-            var noncePasswordBytes = Convert.FromBase64String(nonceHashedPassword64);
-
-            var nonceHashedPassword = KeyDerivation.Pbkdf2(
-                Convert.ToBase64String(pk.HashPassword),
-                Convert.FromBase64String(nonce64),
-                KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE);
-
-            return YFByteArray.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword);
+            TryPasswordKeyMatch(Convert.ToBase64String(pk.HashPassword), nonceHashedPassword64, nonce64);
         }
+
 
         public static PasswordKey SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
         {

@@ -28,6 +28,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <param name="nonceHashedPassword64"></param>
         /// <param name="nonce64"></param>
         /// <returns></returns>
-        Task<bool> IsPasswordKeyMatch(string nonceHashedPassword64, string nonce64);
+        Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64);
     }
 }

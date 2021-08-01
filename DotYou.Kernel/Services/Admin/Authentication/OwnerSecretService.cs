@@ -36,7 +36,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             var pk = LoginKeyManagement.SetInitialPassword(originalNoncePackage, reply, null); // XXX
-
             WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
@@ -60,11 +59,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             };
         }
 
-        public async Task<bool> IsPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
+        public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
             var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
 
-            return LoginKeyManagement.IsPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            LoginKeyManagement.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
     }
 }

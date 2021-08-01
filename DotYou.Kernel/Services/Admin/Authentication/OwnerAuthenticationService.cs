@@ -39,53 +39,70 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         public async Task<NoncePackage> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
-            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64, "xxx");
+            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64, "XXX we need the pem here");
             WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
         
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
+            // XXX CALL THE LoginKeyManagement Authenticate
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             var noncePackage = await WithTenantStorageReturnSingle<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
-            var match = await _secretService.IsPasswordKeyMatch(reply.NonceHashedPassword64, noncePackage.Nonce64);
-            
-            if (match == false)
+            // XXX I don't understand why we have two of these.... AuthenticationNonceReply should go....
+            var rp = new PasswordReply();
+            rp.Nonce64 = reply.Nonce64;
+            rp.NonceHashedPassword64 = reply.NonceHashedPassword64;
+            rp.RsaEncrypted = reply.RsaEncrypted;
+            rp.crc = reply.crc;
+
+            var (kek, sharedSecret) = LoginKeyManagement.Authenticate(noncePackage, rp, null); // XXX missing RSA list
+
+            // TODO: audit login some where, or in helper class below
+
+            var (halfCookie, LoginToken) = LoginTokenManager.CreateClientToken(kek, sharedSecret);
+
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(LoginToken));
+
+            // Is this necessary ? :-) 
+            // It would be nicer to see the cookie set here...
+            return new AuthenticationResult() 
             {
-                throw new AuthenticationException();
-            }
+                Token = LoginToken.Id,
+                Token2 = new Guid(halfCookie),
+                DotYouId = this.Context.DotYouId // I don't think we should have this...
+            }; 
 
-            //TODO: audit login some where
+            /*const int ttlSeconds = 60 * 10; // Way too short. Tokens can be semi-permanent.
 
-            const int ttlSeconds = 60 * 10;
-            
-            var kekBytes = Convert.FromBase64String(reply.KeK64);
+            byte[] kekBytes = Convert.FromBase64String(kek64);
             byte[] serverHalf = YFByteArray.GetRndByteArray(16);
-            byte[] clientHalf = YFByteArray.EquiByteArrayXor(kekBytes, serverHalf);
+            byte[] clientHalf = XorManagement.XorEncrypt(kekBytes, serverHalf);
 
             var token = YFByteArray.GetRandomCryptoGuid();
-            var entry = new AuthTokenEntry()
+            var entry = new LoginTokenData()
             {
                 Id = token,
-                KekKey = new Guid(serverHalf),
+                HalfKey = serverHalf,
+                SharedSecret = Convert.FromBase64String(sharedSecret64),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
 
             return new AuthenticationResult()
             {
                 Token = token,
                 Token2 = new Guid(clientHalf),
                 DotYouId = this.Context.DotYouId
-            };
+            };*/
         }
-        
+
         public async Task<bool> IsValidToken(Guid token)
         {
-            var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             return IsAuthTokenEntryValid(entry);
         }
 
@@ -95,32 +112,32 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
         }
 
         public void ExpireToken(Guid token)
         {
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
         
         public async Task<bool> IsLoggedIn()
         {
             //check if an active token exists
-            var authTokens = await WithTenantStorageReturnList<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
+            var authTokens = await WithTenantStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
             
             var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
 
             return activeToken != null;
         }
 
-        private async Task<AuthTokenEntry> GetValidatedEntry(Guid token)
+        private async Task<LoginTokenData> GetValidatedEntry(Guid token)
         {
-            var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             AssertTokenIsValid(entry);
             return entry;
         }
         
-        private bool IsAuthTokenEntryValid(AuthTokenEntry entry)
+        private bool IsAuthTokenEntryValid(LoginTokenData entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var valid =
@@ -132,7 +149,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             return valid;
         }
 
-        private void AssertTokenIsValid(AuthTokenEntry entry)
+        private void AssertTokenIsValid(LoginTokenData entry)
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {

@@ -6,7 +6,7 @@ namespace DotYou.Types
     {
         public Guid Token { get; set; }
 
-        public DotYouIdentity DotYouId { get; set; }
+        public DotYouIdentity DotYouId { get; set; } // XXX Why is this necessary?
         
         /// <summary>
         /// The Client's 1/2 of the KeK

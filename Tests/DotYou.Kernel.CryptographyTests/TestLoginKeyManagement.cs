@@ -39,6 +39,91 @@ namespace DotYou.Kernel.CryptographyTests
             Assert.Pass();
         }
 
+        [Test]
+        // Use this code for guidance on how to implement client login (e.g. new browser)
+        public void ExistingLoginTestPass()
+        {
+            // Generate Host RSA key - on the server this key already pre-exists
+            // The host RSA key is not encrypted on the server and thus the secret key
+            // is accessible to the server even without a password.
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            // Client requests a noncePackage from the server (after password is entered)
+            // The server loads the salts via GetSToredSalts() and generates the noncePackage
+            // in GenerateAuthenticationNonce() and stores it and returns it to the client
+            // We probably cannot streamline that in a call here
+
+            // Simulate pre-generated PasswordKey values
+            string saltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
+            string saltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
+
+            var np = new NoncePackage(saltPassword64, saltKek64, RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
+
+            // Client calculates the passwordReply based on the password and noncePackage
+            // the reply includes the shared secret and is sent to the server
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np);
+
+            // Server receives the passwordReply and now needs to validate the password
+            var (kek, sharedsecret) = LoginKeyManagement.Authenticate(np, pr, hostRsa);
+
+            // Server generates Login Authentication Token in DB and cookies for client.
+            var (halfCookie, loginToken) = LoginTokenManager.CreateClientToken(kek, sharedsecret);
+
+            // Now on the client for login place these cookies (secure(medium), HTTP only):
+            //
+            // cookie["login"] = loginToken.TokenId
+            // cookie["loginkey"] = cookie2
+
+            var calcNonce = NonceGrowingManager.CalculateNonce(1, sharedsecret);
+            NonceGrowingManager.ValidateNonce(loginToken.NonceKeeper, 1, calcNonce, loginToken.SharedSecret);
+
+            calcNonce = NonceGrowingManager.CalculateNonce(7, sharedsecret);
+            NonceGrowingManager.ValidateNonce(loginToken.NonceKeeper, 7, calcNonce, loginToken.SharedSecret);
+
+            Assert.Pass();
+        }
+
+
+        [Test]
+        // Example of client sending two requests and how the nonce increases
+        public void TwoRequestsNonceLoginTestPass()
+        {
+            // Generate Host RSA key - on the server this key already pre-exists
+            // The host RSA key is not encrypted on the server and thus the secret key
+            // is accessible to the server even without a password.
+            var hostRsa = new RsaKeyList(2);
+            RsaKeyManagement.generateNewKey(hostRsa, 24);
+
+            // Client requests a noncePackage from the server (after password is entered)
+            // The server loads the salts via GetSToredSalts() and generates the noncePackage
+            // in GenerateAuthenticationNonce() and stores it and returns it to the client
+            // We probably cannot streamline that in a call here
+            var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
+
+            // Client calculates the passwordReply based on the password and noncePackage
+            // the reply includes the shared secret and is sent to the server
+            var pr = LoginKeyManagement.CalculatePasswordReply("EnSøienØ", np);
+
+            // Server receives the passwordReply and now needs to validate the password
+            var (kek, sharedsecret) = LoginKeyManagement.Authenticate(np, pr, hostRsa);
+
+            // Server generates Login Authentication Token in DB and cookies for client.
+            var (halfCookie, loginToken) = LoginTokenManager.CreateClientToken(kek, sharedsecret);
+
+            // Now on the client for login place these cookies (secure(medium), HTTP only):
+            //
+            // cookie["login"] = loginToken.TokenId
+            // cookie["loginkey"] = cookie2
+
+            // Now we need to communicate with the server, do two requests and validate the nonce
+            // combined with the sharedSecret.
+            // XXX
+
+            Assert.Pass();
+        }
+
+
 
         [Test]
         public void NewLoginTest2KeysPass()

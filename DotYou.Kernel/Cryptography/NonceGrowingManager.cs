@@ -10,9 +10,11 @@ namespace DotYou.Kernel.Cryptography
         public UInt64 timestamp;
     }
 
-    public class NonceTable
+    public struct NonceTable // Struct because it's used in a class
     {
         public UInt32 lastNonce;
+        // Not needed for now, but maybe if we can get out of sequence nonces
+        // we might need to add some logic
         // public int max;
         // public LinkedList<NonceEntry> entry;
     }
