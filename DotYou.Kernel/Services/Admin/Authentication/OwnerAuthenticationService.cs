@@ -58,11 +58,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             rp.RsaEncrypted = reply.RsaEncrypted;
             rp.crc = reply.crc;
 
-            var (kek, sharedSecret) = LoginKeyManagement.Authenticate(noncePackage, rp, null); // XXX missing RSA list
+            var (kek, sharedSecret) = LoginManager.Authenticate(noncePackage, rp, null); // XXX missing RSA list
 
             // TODO: audit login some where, or in helper class below
 
-            var (halfCookie, LoginToken) = LoginTokenManager.CreateClientToken(kek, sharedSecret);
+            var (halfCookie, LoginToken) = LoginTokenManager.CreateLoginToken(kek, sharedSecret);
 
             WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(LoginToken));
 

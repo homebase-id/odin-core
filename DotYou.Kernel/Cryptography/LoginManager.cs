@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DotYou.Kernel.Cryptography
 {
-    public static class LoginKeyManagement
+    public static class LoginManager
     {
         /// <summary>
         /// Only call this on initializing an identity the first time 
@@ -19,9 +19,9 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static PasswordKey CreateInitialPasswordKey(NoncePackage nonce, string HashedPassword64, string KeK64)
+        private static LoginKeyData CreateInitialPasswordKey(NoncePackage nonce, string HashedPassword64, string KeK64)
         {
-            var passwordKey = new PasswordKey()
+            var passwordKey = new LoginKeyData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
                 SaltKek      = Convert.FromBase64String(nonce.SaltKek64),
@@ -36,14 +36,14 @@ namespace DotYou.Kernel.Cryptography
         }
 
 
-        public static void ChangePassword(PasswordKey passwordKey, byte[] oldKeK, byte[] newKeK)
+        public static void ChangePassword(LoginKeyData passwordKey, byte[] oldKeK, byte[] newKeK)
         {
             var DeK = GetDek(passwordKey, oldKeK);
             passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, newKeK);
             YFByteArray.WipeByteArray(DeK);
         }
 
-        public static byte[] GetDek(PasswordKey passwordKey, byte[] KeK)
+        public static byte[] GetDek(LoginKeyData passwordKey, byte[] KeK)
         {
             return XorManagement.XorEncrypt(passwordKey.XorEncryptedDek, KeK);
         }
@@ -58,13 +58,13 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static PasswordKey SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
+        public static LoginKeyData SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordReply(reply, listRsa);
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
-            var passwordKey = LoginKeyManagement.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+            var passwordKey = LoginManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
 
             return passwordKey;
         }
@@ -157,13 +157,13 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="nonceHashedPassword64">The client calculated nonceHashedPassword64</param>
         /// <param name="nonce64">The nonce the client was given by the server</param>
         /// <returns></returns>
-        public static void TryPasswordKeyMatch(PasswordKey pk, string nonceHashedPassword64, string nonce64)
+        public static void TryPasswordKeyMatch(LoginKeyData pk, string nonceHashedPassword64, string nonce64)
         {
             TryPasswordKeyMatch(Convert.ToBase64String(pk.HashPassword), nonceHashedPassword64, nonce64);
         }
 
 
-        public static PasswordKey SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
+        public static LoginKeyData SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
         }

@@ -23,7 +23,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
         /// <summary>
         /// Checks if the nonce-hashed password matches the stored
-        /// <see cref="PasswordKey.HashPassword"/> (hashed with a <param name="nonce64">nonce</param>
+        /// <see cref="LoginKeyData.HashPassword"/> (hashed with a <param name="nonce64">nonce</param>
         /// </summary>
         /// <param name="nonceHashedPassword64"></param>
         /// <param name="nonce64"></param>

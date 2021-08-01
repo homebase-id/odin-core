@@ -2,7 +2,7 @@
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {
-    public class PasswordKey
+    public class LoginKeyData
     {   
         public static Guid Key => Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -26,7 +26,10 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// </summary>
         public byte[] HashPassword { get; set; }
 
-
+        /// <summary>
+        /// This is the DeK encrypted with the KeK. You'll derive the KeK from the 
+        /// LoginTokenData when the client and server halves meet.
+        /// </summary>
         public byte[] XorEncryptedDek { get; set; }
     }
 }

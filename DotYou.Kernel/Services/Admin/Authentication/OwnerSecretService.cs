@@ -35,8 +35,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
 
-            var pk = LoginKeyManagement.SetInitialPassword(originalNoncePackage, reply, null); // XXX
-            WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
+            var pk = LoginManager.SetInitialPassword(originalNoncePackage, reply, null); // XXX
+            WithTenantStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
             WithTenantStorage<NoncePackage>(STORAGE, s => s.Delete(originalNoncePackageKey));
@@ -45,7 +45,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
         public async Task<SaltsPackage> GetStoredSalts()
         {
-            var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
+            var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
             if (null == pk)
             {
@@ -61,9 +61,9 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
         public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
-            var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
+            var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
-            LoginKeyManagement.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            LoginManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
     }
 }

@@ -36,7 +36,7 @@ namespace DotYou.Kernel.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] halfCookie, LoginTokenData token) CreateClientToken(byte[] LoginKeK, byte[] sharedSecret)
+        public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
         {
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
 
@@ -56,9 +56,9 @@ namespace DotYou.Kernel.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static byte[] GetApplicationKek(LoginTokenData clientToken, byte[] cookie2)
+        public static byte[] GetLoginKek(LoginTokenData loginToken, byte[] halfCookie)
         {
-            return XorManagement.XorEncrypt(clientToken.HalfKey, cookie2);
+            return XorManagement.XorEncrypt(loginToken.HalfKey, halfCookie);
         }
     }
 }
