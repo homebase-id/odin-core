@@ -46,10 +46,7 @@ namespace DotYou.DigitalIdentityHost
                     config.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
-            ).AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            });
+            ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
 
@@ -61,7 +58,6 @@ namespace DotYou.DigitalIdentityHost
                 {
                     options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
                     options.DefaultChallengeScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
-                    
                 })
                 .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthConstants.DotIdentityOwnerScheme, op => { op.LoginUri = "/login"; })
                 .AddCertificate(DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme, options =>
@@ -115,14 +111,14 @@ namespace DotYou.DigitalIdentityHost
                 var logger = svc.GetRequiredService<ILogger<OwnerSecretService>>();
                 return new OwnerSecretService(context, logger);
             });
-            
+
             services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
                 svc =>
                 {
                     var context = ResolveContext(svc);
                     var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
                     var ss = svc.GetRequiredService<IOwnerSecretService>();
-                    
+
                     return new OwnerAuthenticationService(context, logger, ss);
                 });
 
@@ -170,13 +166,13 @@ namespace DotYou.DigitalIdentityHost
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var cs = svc.GetRequiredService<IContactService>();
                 var admin = svc.GetRequiredService<IAdminIdentityAttributeService>();
-
-                return new PrototrialDemoDataService(context, logger, cs, admin);
+                var cn = svc.GetRequiredService<ICircleNetworkService>();
+                
+                return new PrototrialDemoDataService(context, logger, cs, admin, cn);
             });
-            
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -211,7 +207,7 @@ namespace DotYou.DigitalIdentityHost
                     o.Transports = HttpTransportType.WebSockets;
                 });
             });
-            
+
             app.UseSpa(spa =>
             {
                 spa.Options.SourcePath = "ClientApp";
@@ -292,7 +288,7 @@ namespace DotYou.DigitalIdentityHost
         {
             var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
             var deserialize = new Func<BsonValue, DotYouIdentity>(bson => new DotYouIdentity(bson.AsString));
-                
+
             //see: Register our custom type @ https://www.litedb.org/docs/object-mapping/   
             BsonMapper.Global.RegisterType<DotYouIdentity>(
                 serialize: serialize,
@@ -304,7 +300,7 @@ namespace DotYou.DigitalIdentityHost
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };

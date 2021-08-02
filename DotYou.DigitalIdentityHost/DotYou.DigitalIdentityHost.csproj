@@ -81,4 +81,8 @@
     <_ContentIncludedByDefault Remove="wwwroot\assets\unknown.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\assets" />
+  </ItemGroup>
+
 </Project>

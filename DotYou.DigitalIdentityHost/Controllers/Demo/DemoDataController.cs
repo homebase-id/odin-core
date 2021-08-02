@@ -53,8 +53,11 @@ namespace DotYou.TenantHost.Controllers.Demo
                 await _contactService.Save(contact);
             }
             
-            var result = await _prototrial.AddDigitalIdentities();
-            return new JsonResult(result);
+            var result1 = await _prototrial.AddDigitalIdentities();
+
+            var result2 = await _prototrial.AddConnectionRequests();
+            
+            return new JsonResult(result1 && result2);
         }
 
         [HttpGet("profiledata")]

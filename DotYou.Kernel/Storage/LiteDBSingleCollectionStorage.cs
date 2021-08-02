@@ -145,6 +145,13 @@ namespace DotYou.Kernel.Storage
             return Task.CompletedTask;
         }
 
+        // public Task Save(Guid id, T item)
+        // {
+        //     BsonValue bId = new BsonValue(id);
+        //     var col = GetCollection();
+        //     var resultId = col.Upsert(id, item);
+        //     return Task.CompletedTask;
+        // }
 
         public Task Delete(Guid id)
         {

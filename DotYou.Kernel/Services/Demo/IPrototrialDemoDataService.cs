@@ -12,6 +12,8 @@ namespace DotYou.Kernel.Services.Demo
         /// </summary>
         public Task<bool> AddDigitalIdentities();
 
+        Task<bool> AddConnectionRequests();
+        
         public Task SetPublicProfile();
 
     }
