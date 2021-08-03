@@ -22,6 +22,6 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// </summary>
         public byte[] SharedSecret { get; set; }
 
-        public NonceTable NonceKeeper { get; set; } // XXX Should it be here? Probably 
+        public NonceTable NonceKeeper { get; set; }
     }
 }

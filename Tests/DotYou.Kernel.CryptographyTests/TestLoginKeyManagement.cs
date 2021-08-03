@@ -24,8 +24,8 @@ namespace DotYou.Kernel.CryptographyTests
             // Generate Host RSA key - on the server this key already pre-exists
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
@@ -46,8 +46,8 @@ namespace DotYou.Kernel.CryptographyTests
             // Generate Host RSA key - on the server this key already pre-exists
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
             // The server loads the salts via GetSToredSalts() and generates the noncePackage
@@ -100,8 +100,8 @@ namespace DotYou.Kernel.CryptographyTests
             // Generate Host RSA key - on the server this key already pre-exists
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
             // The server loads the salts via GetSToredSalts() and generates the noncePackage
@@ -137,12 +137,12 @@ namespace DotYou.Kernel.CryptographyTests
         public void NewLoginTest2KeysPass()
         {
             // Generate Host RSA key
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
@@ -157,8 +157,8 @@ namespace DotYou.Kernel.CryptographyTests
         public void CreateInitialPasswordKeyPass()
         {
             // Generate Host RSA key 
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 
@@ -182,8 +182,8 @@ namespace DotYou.Kernel.CryptographyTests
         public void CreateInitialPasswordKeyConstantPass()
         {
             // Generate Host RSA key 
-            var hostRsa = new RsaKeyList(2);
-            RsaKeyManagement.generateNewKey(hostRsa, 24);
+            var hostRsa = RsaKeyManagement.CreateRsaKeyList(2);
+            RsaKeyManagement.GenerateNewKey(hostRsa, 24);
 
             var np = NoncePackage.NewRandomNonce(RsaKeyManagement.GetCurrentPublicKeyPem(hostRsa));
 

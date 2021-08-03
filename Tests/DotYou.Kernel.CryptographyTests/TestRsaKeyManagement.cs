@@ -19,19 +19,63 @@ namespace DotYou.Kernel.CryptographyTests
 
 
         [Test]
+        public void TestGenerateNewKeyDefaultsPass()
+        {
+            var rsaList = RsaKeyManagement.CreateRsaKeyList(7);
+
+            if (rsaList.listRSA.Count != 1)
+                Assert.Fail();
+            else
+                Assert.Pass();
+        }
+
+        [Test]
+        public void TestGenerateNewKeyIllegalMaxFail()
+        {
+            try
+            {
+                var rsaList = RsaKeyManagement.CreateRsaKeyList(0);
+            }
+            catch (Exception e)
+            {
+                Assert.Pass();
+                return;
+            }
+
+            Assert.Fail();
+        }
+
+        [Test]
+        public void TestGenerateNewKeyIllegalHoursFail()
+        {
+            try
+            {
+                var rsaList = RsaKeyManagement.CreateRsaKeyList(1, 23);
+            }
+            catch (Exception e)
+            {
+                Assert.Pass();
+                return;
+            }
+
+            Assert.Fail();
+        }
+
+
+        [Test]
         public void TestGenerateNewKeyPass()
         {
-            var rsaList = new RsaKeyList(1);
-
-            if (rsaList.listRSA.Count != 0)
-                Assert.Fail();
-
-            RsaKeyManagement.generateNewKey(rsaList, 24);
+            var rsaList = RsaKeyManagement.CreateRsaKeyList(1);
 
             if (rsaList.listRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyManagement.generateNewKey(rsaList, 24);
+            RsaKeyManagement.GenerateNewKey(rsaList, 24);
+
+            if (rsaList.listRSA.Count != 1)
+                Assert.Fail();
+
+            RsaKeyManagement.GenerateNewKey(rsaList, 24);
 
             // Got to make this part of the code
             if (rsaList.listRSA.Count != 1)

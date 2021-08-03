@@ -22,8 +22,6 @@ namespace DotYou.Kernel.Cryptography
     {
         public LinkedList<RsaKey> listRSA;  // List.first is the current key, the rest are historic
         public int maxKeys; // At least 1. 
-
-        public RsaKeyList(int max) { listRSA = new LinkedList<RsaKey>(); maxKeys = max; }
     }
 
 
@@ -31,6 +29,8 @@ namespace DotYou.Kernel.Cryptography
     // Not sure if I should break it into two almost identical classes.
     public static class RsaKeyManagement
     {
+        const int DefaultKeyHours = 24;
+
         // ==== RsaKey Helpers here
         public static RSACryptoServiceProvider KeyPublic(RsaKey key)
         {
@@ -100,6 +100,23 @@ namespace DotYou.Kernel.Cryptography
         // ==========================
         // ==== RsaKeyList below ====
 
+        public static RsaKeyList CreateRsaKeyList(int max, int hours = DefaultKeyHours)
+        {
+            if (max < 1)
+                throw new Exception("Max cannot be less than 1");
+
+            if (hours < 24)
+                throw new Exception("Hours cannot be less than 24");
+
+            var rkl = new RsaKeyList();
+            rkl.listRSA = new LinkedList<RsaKey>();
+            rkl.maxKeys = max;
+
+            GenerateNewKey(rkl, hours);
+
+            return rkl;
+        }
+
         public static bool CanGenerateNewKey(RsaKeyList listRsa)
         {
             // Do a check here. If there are any queued packages with 
@@ -110,21 +127,42 @@ namespace DotYou.Kernel.Cryptography
             return true;
         }
 
+        // We should have a convention that if there is less than e.g. an hour to 
+        // key expiration then the requestor should request a new key.
+        // The host should create a new key when there is less than two hours. 
+        // The precise timing depends on how quickly we want keys to expire,
+        // maybe the minimum is 24 hours. Generating a new key takes a significant
+        // amount of CPU.
+        public static void GenerateNewKey(RsaKeyList listRsa, int hours)
+        {
+            if (hours < 24)
+                throw new Exception("RSA key must live for at least 24 hours");
+
+            if (CanGenerateNewKey(listRsa) == false)
+                throw new Exception("Cannot generate new RSA key because the previous is in use");
+
+            var rsa = NewKey(hours);
+
+            listRsa.listRSA.AddFirst(rsa);
+            if (listRsa.listRSA.Count > listRsa.maxKeys)
+                listRsa.listRSA.RemoveLast();
+        }
+
+
         public static RsaKey GetCurrentKey(RsaKeyList listRsa)
         {
-            if (listRsa.listRSA.Count < 1)
-                throw new Exception("List is empty, no public key");
+            if ((listRsa.listRSA == null) || (listRsa.listRSA.Count < 1))
+                throw new Exception("List shouldn't be null / empty");
 
             return listRsa.listRSA.First.Value;
         }
 
         public static RsaKey findKey(RsaKeyList listRsa, UInt32 publicKeyCrc)
         {
-            if (listRsa.listRSA.Count < 1)
-                throw new Exception("List is empty, no public key");
+            var RsaKey = GetCurrentKey(listRsa); // Will create a key if none are present
 
-            if (listRsa.listRSA.First.Value.crc32c == publicKeyCrc)
-                return listRsa.listRSA.First.Value;
+            if (RsaKey.crc32c == publicKeyCrc)
+                return RsaKey;
             else
             {
                 // Check if the previous key matches (but don't check further)
@@ -150,9 +188,6 @@ namespace DotYou.Kernel.Cryptography
 
         public static string GetCurrentPublicKeyPem(RsaKeyList listRsa)
         {
-            if (listRsa.listRSA.Count < 1)
-                throw new Exception("List is empty, no public key");
-
             return publicPem(GetCurrentKey(listRsa));
         }
 
@@ -170,29 +205,6 @@ namespace DotYou.Kernel.Cryptography
             var key = findKey(listRsa, publicKeyCrc);
 
             return KeyPrivate(key);
-        }
-
-
-
-        // We should have a convention that if there is less than e.g. an hour to 
-        // key expiration then the requestor should request a new key.
-        // The host should create a new key when there is less than two hours. 
-        // The precise timing depends on how quickly we want keys to expire,
-        // maybe the minimum is 24 hours. Generating a new key takes a significant
-        // amount of CPU.
-        public static void generateNewKey(RsaKeyList listRsa, int hours)
-        {
-            if (hours < 24)
-                throw new Exception("RSA key must live for at least 24 hours");
-
-            if (CanGenerateNewKey(listRsa) == false)
-                throw new Exception("Cannot generate new RSA key because the previous is in use");
-                // Maybe extend the current key
-
-            var rsa = NewKey(hours);
-            listRsa.listRSA.AddFirst(rsa);
-            if (listRsa.listRSA.Count > listRsa.maxKeys)
-                listRsa.listRSA.RemoveLast();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotYou.Kernel.Services.Admin.Authentication;
+using System;
 
 // We'll need something like this on the identity:
 //     List<TokenClientAppplicationManager> tokenApplicationList;
@@ -6,18 +7,7 @@
 
 namespace DotYou.Kernel.Cryptography
 {
-    public class ApplicationTokenData
-    {
-        public string name;           // Not used. Could be e.g. 'login', 'chat', 'diary'. Maýbe use another ID / Key here.
-        public byte[] id;             // The token ID (this is the value stored in the client cookie 'token' for the application)
-
-        public byte[] akekXoredAdek; // The Application DeK encrypted with the Application KeK i.e. (ADeK ^ AKeK)
-        public byte[] kekAesAkek;    // The application KeK encrypted with the (login) KeK, i.e. aes(aKeK, KeK)
-                                      //   can be used by login priv. to access the Application DeK above.
-        public byte[] iv;            // IV for AES
-    }
-
-    public static class TokenApplicationManager
+    public static class AppTokenManager
     {
         /// <summary>
         /// Get the Application Kek by means of the LoginKek master key
@@ -25,7 +15,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="LoginKek">The master key LoginKek</param>
         /// <returns>The (aes) decrypted Application KeK</returns>
-        public static byte[] MasterGetApplicationKek(ApplicationTokenData token, byte[] LoginKek)
+        public static byte[] MasterGetApplicationKek(AppTokenData token, byte[] LoginKek)
         {
             return AesCbc.DecryptBytesFromBytes_Aes(token.kekAesAkek, LoginKek, token.iv);
         }
@@ -37,7 +27,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="LoginKek">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static byte[] MasterGetApplicationDek(ApplicationTokenData token, byte[] LoginKeK)
+        public static byte[] MasterGetApplicationDek(AppTokenData token, byte[] LoginKeK)
         {
             var appKek = MasterGetApplicationKek(token, LoginKeK);
             var appDek = GetApplicationDek(token, appKek);
@@ -53,7 +43,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="ApplicationKek">The application KeK</param>
         /// <returns>The decrypted DeK</returns>
-        public static byte[] GetApplicationDek(ApplicationTokenData token, byte[] ApplicationKek)
+        public static byte[] GetApplicationDek(AppTokenData token, byte[] ApplicationKek)
         {
             return YFByteArray.EquiByteArrayXor(token.akekXoredAdek, ApplicationKek);
         }
@@ -76,12 +66,12 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="name">Friendly name, not used</param>
         /// <param name="LoginKeK">The master key which can later be used to retrieve the aDeK or aKeK</param>
         /// <returns>A new ApplicationTokenData object</returns>
-        public static ApplicationTokenData CreateApplication(string name, byte[] LoginKeK)
+        public static AppTokenData CreateApplication(string name, byte[] LoginKeK)
         {
             var AdeK     = YFByteArray.GetRndByteArray(16); // Create the ApplicationDataEncryptionKey (AdeK)
             var AkeK     = YFByteArray.GetRndByteArray(16); // Create the ApplicationKeyEncryptionKey (AkeK)
 
-            var token = new ApplicationTokenData
+            var token = new AppTokenData
             {
                 id = YFByteArray.GetRndByteArray(16),
                 name = name,

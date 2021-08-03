@@ -1,5 +1,4 @@
 ﻿using System;
-using DotYou.Types;
 using DotYou.Types.Cryptography;
 
 

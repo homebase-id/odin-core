@@ -1,6 +1,7 @@
 ﻿using DotYou.AdminClient.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace DotYou.Kernel.Cryptography
 {
@@ -36,6 +37,15 @@ namespace DotYou.Kernel.Cryptography
             calc = CRC32C.CalculateCRC32C(calc, secret);
 
             return calc;
+        }
+
+        // I think this is overkill, wish there was a simple 128 bit hash
+        public static string CalculateNonceSHA256(UInt32 nonce, byte[] secret)
+        {
+            SHA256Managed hashstring = new SHA256Managed();
+            byte[] hash = hashstring.ComputeHash(YFByteArray.Combine(UInt32ToBytes(nonce), secret));
+
+            return Convert.ToBase64String(hash);
         }
 
 

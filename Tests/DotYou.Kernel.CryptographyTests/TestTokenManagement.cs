@@ -33,14 +33,14 @@ namespace DotYou.Kernel.CryptographyTests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = TokenApplicationManager.CreateApplication("chat", loginKek);
+            var appToken = AppTokenManager.CreateApplication("chat", loginKek);
 
             // Now create a mapping from a client device/app to the application token above
 
             // First get the applicationKek
-            var applicationKek = TokenApplicationManager.MasterGetApplicationKek(appToken, loginKek);
-            var applicationDek = TokenApplicationManager.MasterGetApplicationDek(appToken, loginKek);
-            var applicationDek2 = TokenApplicationManager.GetApplicationDek(appToken, applicationKek);
+            var applicationKek = AppTokenManager.MasterGetApplicationKek(appToken, loginKek);
+            var applicationDek = AppTokenManager.MasterGetApplicationDek(appToken, loginKek);
+            var applicationDek2 = AppTokenManager.GetApplicationDek(appToken, applicationKek);
 
             if (YFByteArray.EquiByteArrayCompare(applicationDek, applicationDek2) == false)
             {
@@ -64,17 +64,17 @@ namespace DotYou.Kernel.CryptographyTests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = TokenApplicationManager.CreateApplication("chat", loginKek);
+            var appToken = AppTokenManager.CreateApplication("chat", loginKek);
 
             // Now create a mapping from a client device/app to the application token above
 
             // First get the applicationKek
-            var applicationKek = TokenApplicationManager.MasterGetApplicationKek(appToken, loginKek);
+            var applicationKek = AppTokenManager.MasterGetApplicationKek(appToken, loginKek);
 
             // Now create the mapping
-            var (cookie2, clientToken) = TokenClientAppplicationManager.CreateClientToken(appToken.id, applicationKek);
+            var (cookie2, clientToken) = AppClientTokenManager.CreateClientToken(appToken.id, applicationKek);
 
-            var appKek2 = TokenClientAppplicationManager.GetApplicationKek(clientToken, cookie2);
+            var appKek2 = AppClientTokenManager.GetApplicationKek(clientToken, cookie2);
 
             if (YFByteArray.EquiByteArrayCompare(applicationKek, appKek2) == false)
             {
