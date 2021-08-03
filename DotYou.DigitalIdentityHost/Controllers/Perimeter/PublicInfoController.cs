@@ -28,6 +28,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
         [HttpGet("profile")]
         public async Task<IActionResult> GetPublicProfile()
         {
+            //TODO: determine if we map the avatar uri to one that sends the request back through the user's DI
             var profile = await _identityAttribute.GetPublicProfile();
             return new JsonResult(profile);
         }

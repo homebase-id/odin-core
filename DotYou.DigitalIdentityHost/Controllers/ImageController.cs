@@ -21,7 +21,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
 
         
         [HttpGet("avatar/{identifier}")]
-        public IActionResult Get(string identifier)
+        public IActionResult GetAvatar(string identifier)
         {
             //TODO: read from cache or contact list by identifier
             //return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
