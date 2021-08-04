@@ -2,6 +2,8 @@
 using DotYou.Types.Circle;
 using Microsoft.Extensions.Logging;
 using System;
+using System.ComponentModel;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
@@ -35,7 +37,11 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.SenderGivenName;
+            Expression<Func<ConnectionRequest, bool>> predicate = c => true;  //HACK: need to update the storage provider GetList method
+            var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
+
+            // var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
@@ -103,13 +109,16 @@ namespace DotYou.Kernel.Services.Circle
         public async Task<PublicProfile> GetPublicInfo(string dotYouId)
         {
             Guard.Argument(dotYouId, nameof(dotYouId)).NotNull().NotEmpty();
-            
-            var response = await base.CreatePerimeterHttpClient((DotYouIdentity)dotYouId).GetPublicProfile();
 
+            var response = await base.CreatePerimeterHttpClient((DotYouIdentity) dotYouId).GetPublicProfile();
+
+            //TODO: this needs to check many more things - ie. : is the endpoint a DotYou server, is their profile configured, etc
+            //for #prototrial, i will simply return a 404 if we don't get a success status
             if (!response.IsSuccessStatusCode)
             {
-                //TODO: add more info
-                throw new Exception("Failed to establish connection request");
+                return null;
+                // //TODO: add more info
+                // throw new Exception("Failed to establish connection request");
             }
 
             return response.Content;

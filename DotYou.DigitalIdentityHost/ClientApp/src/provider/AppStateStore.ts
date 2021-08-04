@@ -11,9 +11,11 @@ class AppStateStore {
         makeObservable(this,
             {
                 isAuthenticated: observable,
+                deviceToken:observable,
                 theme: observable,
                 initialize: action.bound,
                 authenticate: action.bound,
+                authenticateDevice:action.bound,
                 logout: action.bound,
                 setDarkMode: action,
                 setLightMode: action
@@ -22,6 +24,7 @@ class AppStateStore {
 
     private isInitialized: boolean = false;
     isAuthenticated: boolean = false;
+    deviceToken: string | null = null;
     theme: string = "light";
 
     async initialize(): Promise<void> {
@@ -43,7 +46,21 @@ class AppStateStore {
             this.isAuthenticated = success;
             return success;
         });
+    }
 
+    //TODO this code is almost a duplicate authenticate method. need to refactor it
+    async authenticateDevice(password: string): Promise<boolean> {
+        let client = createAuthenticationProvider();
+        return client.authenticateDevice(password).then(token => {
+            if (token) {
+                this.deviceToken = token
+                this.isAuthenticated = true;
+                return true;
+            }
+            this.deviceToken = null;
+            this.isAuthenticated = false;
+            return false;
+        });
     }
 
     public async logout(): Promise<boolean> {

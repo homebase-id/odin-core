@@ -11,6 +11,7 @@ import {useAppStateStore} from "./provider/AppStateStore";
 import {observer} from "mobx-react-lite";
 import Profile from "./components/Profile";
 import PrivacySettings from "./components/PrivacySettings";
+import AppLogin from "./components/AppLogin";
 
 function App() {
 
@@ -37,6 +38,28 @@ function App() {
                 aria-hidden="true"
             />
         </Container>
+    }
+
+    //HACK: if we're asking to authenticate a device
+    if (window.location.href.toLowerCase().includes("?dl777")) {
+
+        if (state.isAuthenticated && state.deviceToken) {
+            //redirect to the app
+            //todo: this is duplicate code
+            console.log('device is authenticated; redirecting')
+            window.location.href = "dotyou://auth/" + state.deviceToken;
+            //window.location.href = "https://3930ckalal.com/" + state.deviceToken;
+
+            //console.log('dt on apptsx: ', state.deviceToken);
+
+            return;
+        }
+        
+        return (
+            <Container className="h-100 align-content-center text-center">
+                <AppLogin/>;
+            </Container>
+        );
     }
 
     if (state.isAuthenticated) {

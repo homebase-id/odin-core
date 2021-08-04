@@ -83,6 +83,23 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             };
         }
         
+        public async Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply)
+        {
+            var authResult = await Authenticate(reply);
+            
+            //TODO: extra device auth stuff here - like seeing if it's an authorized device, etc.
+            //HACK: hard coded until we integrate michael's stuff
+            var deviceToken = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+            
+            var result = new DeviceAuthenticationResult()
+            {
+                AuthenticationResult = authResult,
+                DeviceToken = deviceToken
+            };
+
+            return result;
+        }
+
         public async Task<bool> IsValidToken(Guid token)
         {
             //HACK

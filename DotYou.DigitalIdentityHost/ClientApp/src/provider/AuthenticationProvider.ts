@@ -38,6 +38,24 @@ class AuthenticationProvider extends ProviderBase {
         })
     }
 
+    //returns a device token
+    async authenticateDevice(password: string): Promise<string> {
+        return this.getNonce().then(noncePackage => {
+
+            return this.prepareAuthPassword(password, noncePackage).then(reply => {
+                let client = this.createAxiosClient();
+
+                return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
+                    if (response.status === 200) {
+                        return response.data;
+                    }
+
+                    return null;
+                }).catch(super.handleErrorResponse);
+            })
+        })
+    }
+
     async logout(): Promise<boolean> {
 
         let client = this.createAxiosClient();
@@ -65,7 +83,7 @@ class AuthenticationProvider extends ProviderBase {
             hashedPassword64: hp ? hashedPassword64 : ""
         };
     }
-    
+
     private async getNonce(): Promise<ClientNoncePackage> {
         let client = this.createAxiosClient();
         return client.get("/admin/authentication/nonce").then(response => {

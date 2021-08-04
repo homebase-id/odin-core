@@ -28,7 +28,7 @@ namespace DotYou.Kernel.Services.Contacts
             //TODO: need to revist this merge process to be more explicit for the caller who has the context of what they want to do 
 
             Contact existingContact = null;
-            
+
             //if we find a record by their dotYouId, save it and overwrite everything else
             existingContact = await GetByDotYouId(contact.DotYouId);
             if (existingContact != null)
@@ -51,7 +51,7 @@ namespace DotYou.Kernel.Services.Contacts
                 WithTenantStorage<Contact>(CONTACT_COLLECTION, storage => storage.Save(existingContact));
                 return;
             }
-            
+
             //otherwise just save it by the id
 
             WithTenantStorage<Contact>(CONTACT_COLLECTION, storage => storage.Save(contact));
@@ -59,15 +59,23 @@ namespace DotYou.Kernel.Services.Contacts
 
         public async Task<PagedResult<Contact>> GetContacts(PageOptions req, bool connectedContactsOnly)
         {
-            PagedResult<Contact> results;
-            if (connectedContactsOnly)
-            {
-                results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(c => c.SystemCircle == SystemCircle.Connected, req));
-            }
-            else
-            {
-                results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, storage => storage.GetList(req));
-            }
+            Expression<Func<Contact, string>> sortKeySelector = key => key.GivenName;
+            Expression<Func<Contact, bool>> predicate = connectedContactsOnly ? c => c.SystemCircle == SystemCircle.Connected : c => true; //HACK: need to update the storage provider GetList method
+            
+            PagedResult<Contact> results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+
+            return results;
+            
+            //
+            // if (connectedContactsOnly)
+            // {
+            //     results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(predicate,ListSortDirection.Ascending, sortKeySelector, req));
+            // }
+            // else
+            // {
+            //     // results = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, storage => storage.GetList(req));
+            //     
+            // }
 
             return results;
         }
@@ -91,7 +99,7 @@ namespace DotYou.Kernel.Services.Contacts
             var page = await WithTenantStorageReturnList<Contact>(CONTACT_COLLECTION, s => s.Find(c => c.DotYouId == domainName && c.PublicKeyCertificate != null, PageOptions.Default));
             return page.Results.SingleOrDefault();
         }
-        
+
         private async Task<Contact> GetByExactNameMatch(Contact contact)
         {
             Guid id = MiscUtils.MD5HashToGuid(contact.GivenName + contact.Surname);

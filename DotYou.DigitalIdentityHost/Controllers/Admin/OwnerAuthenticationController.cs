@@ -58,6 +58,28 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
                 return new JsonResult(false);
             }
         }
+        
+        [HttpPost("device")]
+        public async Task<IActionResult> AuthenticateDevice([FromBody] AuthenticationNonceReply package)
+        {
+            try
+            {
+                var deviceAuth = await _authService.AuthenticateDevice(package);
+               
+                //set the cookies like normal to keep the browser logged in.  this will ensure
+                //the user does not have to authenticate across multiple apps
+                var value = $"{deviceAuth.AuthenticationResult.Token}|{deviceAuth.AuthenticationResult.Token2}";
+                var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
+                Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
+                
+                //return only the device token to be used from the app, etc
+                return new JsonResult(deviceAuth.DeviceToken);
+            }
+            catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
+            {
+                return new JsonResult(false);
+            }
+        }
 
 
         [HttpGet("logout")]
