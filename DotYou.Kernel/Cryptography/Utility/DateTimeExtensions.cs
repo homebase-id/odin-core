@@ -4,16 +4,11 @@ namespace DotYou.AdminClient.Extensions
 {
     public static class DateTimeExtensions
     {
-        public static UInt64 ToDateTimeOffsetSec(this Int64 seconds)
+        public static UInt64 UnixTime()
         {
-            return (UInt64) DateTimeOffset.FromUnixTimeSeconds(seconds).Second;
+            return (UInt64) DateTimeOffset.Now.ToUnixTimeSeconds();
         }
 
-        public static DateTimeOffset ToDateTimeOffset(this Int64 seconds)
-        {
-            return DateTimeOffset.FromUnixTimeSeconds(seconds);
-        }
-        
         /// <summary>
         /// Returns a nicely formatted datetime (i.e. about 1 hour ago)
         /// Nicked from code project

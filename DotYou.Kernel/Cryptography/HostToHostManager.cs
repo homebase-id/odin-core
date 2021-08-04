@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Cryptography
             var payload = new HostToHostPayload
             {
                 crc = 0,
-                creationtime = DateTimeExtensions.ToDateTimeOffsetSec(0),
+                creationtime = DateTimeExtensions.UnixTime(),
                 payload = Encoding.UTF8.GetBytes(message)
             };
 

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types.Cryptography;
@@ -17,71 +18,42 @@ namespace DotYou.Kernel.CryptographyTests
         {
         }
 
+        [Test]
+        public void RsaKeyCreateTest()
+        {
+            var key = RsaKeyManagement.CreateKey(1);
+        }
 
         [Test]
-        public void TestGenerateNewKeyDefaultsPass()
+        public void RsaKeyCreateInvalidTest()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(7);
+            try
+            {
+                var key = RsaKeyManagement.CreateKey(0);
+            }
+            catch (Exception e)
+            {
+                Assert.Pass();
+                return;
+            }
 
-            if (rsaList.listRSA.Count != 1)
+            Assert.Fail();
+        }
+
+        [Test]
+        public void RsaKeyCreateTimerTest()
+        {
+            var key = RsaKeyManagement.CreateKey(0,seconds:2);
+
+            if (RsaKeyManagement.IsExpired(key))
                 Assert.Fail();
+
+            Thread.Sleep(3000);
+
+            if (RsaKeyManagement.IsExpired(key))
+                Assert.Pass();
             else
-                Assert.Pass();
-        }
-
-        [Test]
-        public void TestGenerateNewKeyIllegalMaxFail()
-        {
-            try
-            {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(0);
-            }
-            catch (Exception e)
-            {
-                Assert.Pass();
-                return;
-            }
-
-            Assert.Fail();
-        }
-
-        [Test]
-        public void TestGenerateNewKeyIllegalHoursFail()
-        {
-            try
-            {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(1, 23);
-            }
-            catch (Exception e)
-            {
-                Assert.Pass();
-                return;
-            }
-
-            Assert.Fail();
-        }
-
-
-        [Test]
-        public void TestGenerateNewKeyPass()
-        {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(1);
-
-            if (rsaList.listRSA.Count != 1)
                 Assert.Fail();
-
-            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
-
-            if (rsaList.listRSA.Count != 1)
-                Assert.Fail();
-
-            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
-
-            // Got to make this part of the code
-            if (rsaList.listRSA.Count != 1)
-                Assert.Fail();
-
-            Assert.Pass();
         }
 
 

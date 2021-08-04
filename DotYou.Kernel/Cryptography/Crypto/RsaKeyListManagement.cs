@@ -55,7 +55,7 @@ namespace DotYou.Kernel.Cryptography
             if (CanGenerateNewKey(listRsa) == false)
                 throw new Exception("Cannot generate new RSA key because the previous is in use");
 
-            var rsa = RsaKeyManagement.NewKey(hours);
+            var rsa = RsaKeyManagement.CreateKey(hours);
 
             listRsa.listRSA.AddFirst(rsa);
             if (listRsa.listRSA.Count > listRsa.maxKeys)

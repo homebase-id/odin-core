@@ -9,7 +9,7 @@ using NUnit.Framework;
 
 namespace DotYou.Kernel.CryptographyTests
 {
-    public class TestSandbox
+    public class TestZandbox
     {
         [SetUp]
         public void Setup()

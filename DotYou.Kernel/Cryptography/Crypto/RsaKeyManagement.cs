@@ -10,6 +10,37 @@ namespace DotYou.Kernel.Cryptography
     // Not sure if I should break it into two almost identical classes.
     public static class RsaKeyManagement
     {
+        // Work to do here. OAEP or for signing? Encrypted private?
+        public static RsaKeyData CreateKey(int hours, int minutes=0, int seconds=0)
+        {
+            var rsa = new RsaKeyData();
+
+            rsa.encrypted = false;
+            rsa.iv = Guid.Empty;
+
+            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
+            rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
+            rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
+            rsa.crc32c = KeyCRC(rsaGenKeys);
+            rsa.instantiated = DateTimeExtensions.UnixTime();
+            rsa.expiration = rsa.instantiated + (UInt64)hours * 3600+ (UInt64)minutes*60+(UInt64)seconds;
+
+            if (rsa.expiration <= rsa.instantiated)
+                throw new Exception("Expiration must be > 0");
+
+            return rsa;
+        }
+
+        public static bool IsExpired(RsaKeyData key)
+        {
+            UInt64 t = DateTimeExtensions.UnixTime();
+            if (t > key.expiration)
+                return true;
+            else
+                return false;
+        }
+
+
         public static RSACryptoServiceProvider KeyPublic(RsaKeyData key)
         {
             int nBytesRead;
@@ -56,21 +87,5 @@ namespace DotYou.Kernel.Cryptography
         }
 
 
-        // Work to do here. OAEP or for signing? Encrypted private?
-        public static RsaKeyData NewKey(int hours)
-        {
-            var rsa = new RsaKeyData();
-
-            rsa.encrypted = false;
-            rsa.iv = Guid.Empty;
-
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
-            rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
-            rsa.crc32c = KeyCRC(rsaGenKeys);
-            rsa.instantiated = DateTimeExtensions.ToDateTimeOffsetSec(0);
-            rsa.expiration = rsa.instantiated + (UInt64) hours * 3600;
-            return rsa;
-        }
     }
 }
