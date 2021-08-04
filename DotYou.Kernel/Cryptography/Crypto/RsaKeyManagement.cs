@@ -21,7 +21,7 @@ namespace DotYou.Kernel.Cryptography
             RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
             rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
             rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
-            rsa.crc32c = KeyCRC(rsaGenKeys);
+            rsa.crc32c = KeyCRC(rsa);
             rsa.instantiated = DateTimeExtensions.UnixTime();
             rsa.expiration = rsa.instantiated + (UInt64)hours * 3600+ (UInt64)minutes*60+(UInt64)seconds;
 
@@ -61,7 +61,7 @@ namespace DotYou.Kernel.Cryptography
             return rsaFull;
         }
 
-        public static UInt32 KeyCRC(RsaKeyData key)
+        private static UInt32 KeyCRC(RsaKeyData key)
         {
             return CRC32C.CalculateCRC32C(0, KeyPublic(key).ExportRSAPublicKey());
         }
