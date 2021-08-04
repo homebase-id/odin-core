@@ -21,7 +21,7 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void TestGenerateNewKeyDefaultsPass()
         {
-            var rsaList = RsaKeyManagement.CreateRsaKeyList(7);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(7);
 
             if (rsaList.listRSA.Count != 1)
                 Assert.Fail();
@@ -34,7 +34,7 @@ namespace DotYou.Kernel.CryptographyTests
         {
             try
             {
-                var rsaList = RsaKeyManagement.CreateRsaKeyList(0);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(0);
             }
             catch (Exception e)
             {
@@ -50,7 +50,7 @@ namespace DotYou.Kernel.CryptographyTests
         {
             try
             {
-                var rsaList = RsaKeyManagement.CreateRsaKeyList(1, 23);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(1, 23);
             }
             catch (Exception e)
             {
@@ -65,17 +65,17 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void TestGenerateNewKeyPass()
         {
-            var rsaList = RsaKeyManagement.CreateRsaKeyList(1);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(1);
 
             if (rsaList.listRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyManagement.GenerateNewKey(rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
 
             if (rsaList.listRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyManagement.GenerateNewKey(rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
 
             // Got to make this part of the code
             if (rsaList.listRSA.Count != 1)
@@ -189,8 +189,5 @@ namespace DotYou.Kernel.CryptographyTests
 
             Assert.Pass();
         }
-
-
-
     }
 }

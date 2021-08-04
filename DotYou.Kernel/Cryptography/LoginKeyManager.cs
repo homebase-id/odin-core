@@ -58,7 +58,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
+        public static LoginKeyData SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordReply(reply, listRsa);
 
@@ -72,11 +72,11 @@ namespace DotYou.Kernel.Cryptography
 
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        private static (string pwd64, string kek64, string sharedsecret64) ParsePasswordReply(PasswordReply reply, RsaKeyList listRsa)
+        private static (string pwd64, string kek64, string sharedsecret64) ParsePasswordReply(PasswordReply reply, RsaKeyListData listRsa)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
-            RSACryptoServiceProvider rsa = RsaKeyManagement.findKeyPrivate(listRsa, reply.crc);
+            RSACryptoServiceProvider rsa = RsaKeyListManagement.FindKeyPrivate(listRsa, reply.crc);
 
             if (rsa == null)
                 throw new Exception("no matching RSA key");
@@ -123,7 +123,7 @@ namespace DotYou.Kernel.Cryptography
 
 
         // Returns the shared secret if authenticated or throws an exception otherwise
-        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyList listRsa)
+        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordReply(reply, listRsa);
 
