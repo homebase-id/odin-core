@@ -42,25 +42,8 @@ namespace DotYou.IdentityRegistry
                     PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
                 });
 
-        /// <summary>
-        /// Resolves a context based on a given domain name
-        /// </summary>
-        /// <param name="domainName"></param>
-        /// <returns></returns>
-        public DotYouContext ResolveContext(string domainName)
-        {
-            var key = _identityMap.LookupName(domainName);
-
-            if (key == Guid.Empty) return null;
-
-            IdentityCertificate cert;
-            if (!_certificates.TryGetValue(key, out cert))
-                throw new InvalidDataException(
-                    $"The Trie map contains a key for domain {domainName} but it is not cached in the dictionary.");
-
-            return new DotYouContext((DotYouIdentity) domainName, cert, CreateTenantStorage(domainName));
-        }
-
+        private IIdentityContextRegistry _identityContextRegistryImplementation;
+        
         public void Initialize()
         {
             IdentityCertificate samwise =
@@ -78,8 +61,8 @@ namespace DotYou.IdentityRegistry
                         CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.cer"),
                         PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key")
                     });
-            
-            IdentityCertificate gandalf = 
+
+            IdentityCertificate gandalf =
                 new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
                     new CertificateLocation()
                     {
@@ -98,12 +81,30 @@ namespace DotYou.IdentityRegistry
                 _identityMap.AddDomain(c.DomainName, c.Key);
             }
         }
+        
+        public IdentityCertificate ResolveCertificate(string domainName)
+        {
+            var key = _identityMap.LookupName(domainName);
 
-        private TenantStorageConfig CreateTenantStorage(string domainName)
+            if (key == Guid.Empty)
+            {
+                return null;
+            }
+
+            if (!_certificates.TryGetValue(key, out var cert))
+            {
+                throw new InvalidDataException($"The Trie map contains a key for domain {domainName} but it is not cached in the dictionary.");
+            }
+
+            return cert;
+        }
+
+        public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
             var path = Path.Combine(_dataStoragePath, domainName);
             var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(path, "images"));
             return result;
         }
+
     }
 }

@@ -29,7 +29,7 @@ namespace DotYou.Kernel.HttpClient
         [Post(RootPath + "/status/chat")]
         Task<ApiResponse<bool>> GetAvailability();
 
-        [Get(RootPath + "/publicinfo/profile")]
-        Task<ApiResponse<PublicProfile>> GetPublicProfile();
+        [Get(RootPath + "/profile")]
+        Task<ApiResponse<Profile>> GetProfile();
     }
 }

@@ -24,16 +24,19 @@ namespace DotYou.Kernel.Services.Admin.IdentityManagement
         Task SavePrimaryName(NameAttribute name);
 
         /// <summary>
-        /// Retrieves the profile information available to the public internet
+        /// Retrieves the profile information available to the caller; meaning the caller will
+        /// only receive as much as they are authorized
         /// </summary>
         /// <returns></returns>
-        Task<PublicProfile> GetPublicProfile();
+        Task<Profile> GetMyProfile();
 
         /// <summary>
         /// Sets the profile information available to the public internet
         /// </summary>
         /// <param name="profile"></param>
         /// <returns></returns>
-        Task SavePublicProfile(PublicProfile profile);
+        Task SavePublicProfile(Profile profile);
+        
+        Task SaveConnectedProfile(ConnectedProfile profile);
     }
 }

@@ -25,6 +25,13 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// <param name="reply"></param>
         /// <returns></returns>
         Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply);
+
+        /// <summary>
+        /// Determines if the device <paramref name="token"/> is valid and has not expired.  
+        /// </summary>
+        /// <param name="token">The token to be validated</param>
+        /// <returns></returns>
+        Task<bool> IsValidDeviceToken(Guid token);
         
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  

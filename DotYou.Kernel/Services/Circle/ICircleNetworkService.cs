@@ -71,6 +71,19 @@ namespace DotYou.Kernel.Services.Circle
         /// </summary>
         Task DeletePendingRequest(Guid id);
 
-        Task<PublicProfile> GetPublicInfo(string dotYouId);
+        /// <summary>
+        /// Gets the profile for a given <param name="dotYouId">dotYouId</param>.  The level of information
+        /// returned is based on the caller's connection and permission status.
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
+        Task<Profile> GetProfile(string dotYouId);
+
+        /// <summary>
+        /// Gets the <see cref="SystemCircle"/> in which the specified <param name="dotYouId"></param> belongs.
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
+        Task<SystemCircle> GetSystemCircle(string dotYouId);
     }
 }

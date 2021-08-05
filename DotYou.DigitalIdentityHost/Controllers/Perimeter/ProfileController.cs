@@ -14,24 +14,23 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
     /// Controller which enables the querying of any information the user deems public
     /// </summary>
     [ApiController]
-    [Route("api/perimeter/publicinfo")]
+    [Route("api/perimeter/profile")]
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
-    public class PublicInfoController : ControllerBase
+    public class ProfileController : ControllerBase
     {
         private readonly IAdminIdentityAttributeService _identityAttribute;
 
-        public PublicInfoController(IAdminIdentityAttributeService identityAttribute)
+        public ProfileController(IAdminIdentityAttributeService identityAttribute)
         {
             _identityAttribute = identityAttribute;
         }
         
-        [HttpGet("profile")]
-        public async Task<IActionResult> GetPublicProfile()
+        [HttpGet]
+        public async Task<IActionResult> GetProfile()
         {
             //TODO: determine if we map the avatar uri to one that sends the request back through the user's DI
-            var profile = await _identityAttribute.GetPublicProfile();
+            var profile = await _identityAttribute.GetMyProfile();
             return new JsonResult(profile);
         }
-        
     }
 }

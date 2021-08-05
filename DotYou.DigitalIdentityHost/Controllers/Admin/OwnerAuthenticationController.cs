@@ -25,6 +25,22 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
             _ss = ss;
         }
 
+        [HttpGet("verifyDeviceToken")]
+        public async Task<IActionResult> VerifyDeviceToken(Guid token)
+        {
+            //note: this will intentionally ignore any error, including token parsing errors
+            try
+            {
+                var isValid = await _authService.IsValidDeviceToken(token);
+                return new JsonResult(isValid);
+            }
+            catch
+            {
+                return new JsonResult(false);
+            }
+        }
+
+        
         [HttpGet("verifyToken")]
         public async Task<IActionResult> VerifyCookieBasedToken()
         {

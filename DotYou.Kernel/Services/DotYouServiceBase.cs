@@ -56,7 +56,7 @@ namespace DotYou.Kernel.Services
 
         protected INotificationHub Notify
         {
-            get => _notificationHub.Clients.User(this.Context.DotYouId);
+            get => _notificationHub.Clients.User(this.Context.HostDotYouId);
         }
         
         protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)

@@ -29,6 +29,7 @@ namespace DotYou.Kernel.Services.Circle
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
         private readonly IContactService _contactService;
+        private ICircleNetworkService _circleNetworkServiceImplementation;
 
         public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
@@ -62,7 +63,7 @@ namespace DotYou.Kernel.Services.Circle
             request.Recipient = header.Recipient;
             request.Message = header.Message;
 
-            request.SenderDotYouId = this.Context.DotYouId;
+            request.SenderDotYouId = this.Context.HostDotYouId;
             request.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             //TODO: these need to pull from the identity attribute server using the public profile attributes
@@ -106,11 +107,11 @@ namespace DotYou.Kernel.Services.Circle
             return Task.CompletedTask;
         }
 
-        public async Task<PublicProfile> GetPublicInfo(string dotYouId)
+        public async Task<Profile> GetProfile(string dotYouId)
         {
             Guard.Argument(dotYouId, nameof(dotYouId)).NotNull().NotEmpty();
 
-            var response = await base.CreatePerimeterHttpClient((DotYouIdentity) dotYouId).GetPublicProfile();
+            var response = await base.CreatePerimeterHttpClient((DotYouIdentity) dotYouId).GetProfile();
 
             //TODO: this needs to check many more things - ie. : is the endpoint a DotYou server, is their profile configured, etc
             //for #prototrial, i will simply return a 404 if we don't get a success status
@@ -122,6 +123,19 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             return response.Content;
+        }
+
+        public async Task<SystemCircle> GetSystemCircle(string dotYouId)
+        {
+            var contact = await _contactService.GetByDotYouId(dotYouId);
+
+            if (contact == null)
+            {
+                //TODO: I wonder if we should throw an exception because this is inaccurate
+                return SystemCircle.PublicAnonymous;
+            }
+
+            return contact.SystemCircle;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(Guid id)

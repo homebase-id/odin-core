@@ -27,9 +27,9 @@ namespace DotYou.TenantHost.WebAPI.Tests
         [Test]
         public void CanMakePublicKeyCertificatePortable()
         {
-            var samContext = scaffold.Registry.ResolveContext(scaffold.Samwise);
+            var samCertificate = scaffold.Registry.ResolveCertificate(scaffold.Samwise);
 
-            string certificatePath = samContext.TenantCertificate.Location.CertificatePath;
+            string certificatePath = samCertificate.Location.CertificatePath;
 
             string portableFormat;
             string key1Thumprint;

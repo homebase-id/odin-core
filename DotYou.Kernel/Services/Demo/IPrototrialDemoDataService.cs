@@ -14,7 +14,7 @@ namespace DotYou.Kernel.Services.Demo
 
         Task<bool> AddConnectionRequests();
         
-        public Task SetPublicProfile();
+        public Task SetProfiles();
 
     }
 }

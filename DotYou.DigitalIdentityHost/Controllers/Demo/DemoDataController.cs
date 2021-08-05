@@ -63,8 +63,9 @@ namespace DotYou.TenantHost.Controllers.Demo
         [HttpGet("profiledata")]
         public async Task<IActionResult> SetProfileData()
         {
-            await _prototrial.SetPublicProfile();
-            var storedProfile = await _admin.GetPublicProfile();
+            await _prototrial.SetProfiles();
+          
+            var storedProfile = await _admin.GetMyProfile();
             return new JsonResult(storedProfile);
         }
     }

@@ -23,6 +23,7 @@ using DotYou.Types.SignalR;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
@@ -97,14 +98,6 @@ namespace DotYou.DigitalIdentityHost
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
-            services.AddScoped<IAdminIdentityAttributeService, AdminIdentityAttributeService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-
-                return new AdminIdentityAttributeService(context, logger);
-            });
-
             services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -139,6 +132,15 @@ namespace DotYou.DigitalIdentityHost
                 return new CircleNetworkService(context, contactSvc, logger, hub, fac);
             });
 
+            services.AddScoped<IAdminIdentityAttributeService, AdminIdentityAttributeService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
+
+                var cns = svc.GetRequiredService<ICircleNetworkService>();
+                return new AdminIdentityAttributeService(context, cns, logger);
+            });
+
             services.AddScoped<IMessagingService, MessagingService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -167,7 +169,7 @@ namespace DotYou.DigitalIdentityHost
                 var cs = svc.GetRequiredService<IContactService>();
                 var admin = svc.GetRequiredService<IAdminIdentityAttributeService>();
                 var cn = svc.GetRequiredService<ICircleNetworkService>();
-                
+
                 return new PrototrialDemoDataService(context, logger, cs, admin, cn);
             });
 
@@ -226,13 +228,20 @@ namespace DotYou.DigitalIdentityHost
             var accessor = svc.GetRequiredService<IHttpContextAccessor>();
             var reg = svc.GetRequiredService<IIdentityContextRegistry>();
 
-            var context = reg.ResolveContext(accessor.HttpContext.Request.Host.Host);
+            var httpContext = accessor.HttpContext;
+            
+            string hostname = httpContext.Request.Host.Host;
+            var cert = reg.ResolveCertificate(hostname);
+            var storage = reg.ResolveStorageConfig(hostname);
+
+            var caller = (DotYouIdentity) accessor.HttpContext.User.Identity.Name;
+            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
             return context;
         }
 
         private Task CertificateValidated(CertificateValidatedContext context)
         {
-            //todo: call out to additonal service to validate more rules
+            //todo: call out to additional service to validate more rules
             // i.e. blocked list
             // determine if this certificate is in my network an add extra claims
             //add system circle claim based on my relationship to this person

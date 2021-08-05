@@ -100,6 +100,17 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             return result;
         }
 
+        public async Task<bool> IsValidDeviceToken(Guid token)
+        {
+            //HACK
+            if (token == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462"))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        
         public async Task<bool> IsValidToken(Guid token)
         {
             //HACK

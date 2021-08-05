@@ -70,7 +70,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
 
-            message.SenderDotYouId = this.Context.DotYouId;
+            message.SenderDotYouId = this.Context.HostDotYouId;
             message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             //message.SentTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
