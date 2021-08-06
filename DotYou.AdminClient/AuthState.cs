@@ -6,6 +6,7 @@ using DotYou.Types.ApiClient;
 using Microsoft.JSInterop;
 using DotYou.Types.Cryptography;
 using Newtonsoft.Json;
+using System.Diagnostics;
 
 namespace DotYou.AdminClient
 {
@@ -56,10 +57,14 @@ namespace DotYou.AdminClient
             T clientReply = new()
             {
                 Nonce64 = serverNonce.Nonce64,
-                KeK64 = hashedKek64,
-                HashedPassword64 = hashedPassword64,
+                //KeK64 = hashedKek64,
+                //HashedPassword64 = hashedPassword64,
                 NonceHashedPassword64 = hashNoncePassword64
             };
+
+            // XXX Are we using this function at all? Then we need to implement the RSA response
+            // See password reply.
+            Debug.Assert(false);
 
             return clientReply;
         }

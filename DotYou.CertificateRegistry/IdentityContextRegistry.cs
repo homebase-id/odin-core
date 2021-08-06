@@ -43,7 +43,7 @@ namespace DotYou.IdentityRegistry
                 });
 
         private IIdentityContextRegistry _identityContextRegistryImplementation;
-        
+
         public void Initialize()
         {
             IdentityCertificate samwise =
@@ -81,7 +81,7 @@ namespace DotYou.IdentityRegistry
                 _identityMap.AddDomain(c.DomainName, c.Key);
             }
         }
-        
+
         public IdentityCertificate ResolveCertificate(string domainName)
         {
             var key = _identityMap.LookupName(domainName);
@@ -105,6 +105,5 @@ namespace DotYou.IdentityRegistry
             var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(path, "images"));
             return result;
         }
-
     }
 }

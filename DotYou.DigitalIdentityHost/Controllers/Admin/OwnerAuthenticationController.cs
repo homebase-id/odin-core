@@ -136,14 +136,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         public async Task<IActionResult> GenerateNonce()
         {
             var result = await _authService.GenerateAuthenticationNonce();
-
-            var cn = new ClientNoncePackage()
-            {
-                Nonce64 = result.Nonce64,
-                SaltKek64 = result.SaltKek64,
-                SaltPassword64 = result.SaltPassword64
-            };
-            return new JsonResult(cn);
+            return new JsonResult(result);
         }
 
         [HttpPost("todo_move_this")]
@@ -156,17 +149,8 @@ namespace DotYou.DigitalIdentityHost.Controllers.Admin
         [HttpGet("getsalts")]
         public async Task<IActionResult> GenerateSalts()
         {
-            //TODO: Need to drop this client nonce package convert nonsense
             var salts = await _ss.GenerateNewSalts();
-
-            var cn = new ClientNoncePackage()
-            {
-                Nonce64 = salts.Nonce64,
-                SaltKek64 = salts.SaltKek64,
-                SaltPassword64 = salts.SaltPassword64
-            };
-
-            return new JsonResult(cn);
+            return new JsonResult(salts);
         }
     }
 }

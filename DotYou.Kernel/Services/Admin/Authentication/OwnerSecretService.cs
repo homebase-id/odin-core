@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
@@ -14,6 +15,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     {
         private const string STORAGE = "Provisioning";
         private const string PWD_STORAGE = "k3";
+        private const string RSA_KEY_STORAGE = "rks";
+        private readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
 
         public OwnerSecretService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
         {
@@ -23,65 +26,42 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        public Task<NoncePackage> GenerateNewSalts()
+        public async Task<NonceData> GenerateNewSalts()
         {
-            var nonce = NoncePackage.NewRandomNonce();
-            WithTenantStorage<NoncePackage>(STORAGE, s => s.Save(nonce));
-            return Task.FromResult(nonce);
+            //HACK: this will be moved to the overall provisioning process
+            await this.GenerateRsaKeyList();
+            var rsa = await this.GetRsaKeyList();
+
+            var key = RsaKeyListManagement.GetCurrentKey(rsa);
+            var publicKey = RsaKeyManagement.publicPem(key);
+            
+            var crc = RsaKeyManagement.KeyCRC(key);
+            var nonce = NonceData.NewRandomNonce(publicKey, crc);
+            WithTenantStorage<NonceData>(STORAGE, s => s.Save(nonce));
+            return nonce;
         }
+
 
         public async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
+            var originalNoncePackage = await WithTenantStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
 
-            var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
+            //HACK: this will be moved to the overall provisioning process
+            //await this.GenerateRsaKeyList();
+            var keys = await this.GetRsaKeyList();
 
-            var b1 = Convert.FromBase64String(reply.NonceHashedPassword64);
-            var b2 = KeyDerivation.Pbkdf2(
-                reply.HashedPassword64,
-                Convert.FromBase64String(reply.Nonce64),
-                KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE);
+            var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, keys);
+            WithTenantStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
-            // var hashNoncePassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", hashedPasswordBytes, saltNonceBytes, 100000, 16);
-
-            
-            // var hashedPassword64 = await _js.InvokeAsync<string>("wrapPbkdf2HmacSha256", passwordBytes, saltPasswordBytes, 100000, 16);
-            // var hashedPasswordBytes = Convert.FromBase64String(hashedPassword64);
-            
-            if (YFByteArray.EquiByteArrayCompare(b1, b2) == false)
-            {
-                throw new InvalidDataException("Invalid payload");
-            }
-
-            var pk = new PasswordKey()
-            {
-                HashPassword = Convert.FromBase64String(reply.HashedPassword64),
-                SaltPassword = Convert.FromBase64String(originalNoncePackage.SaltPassword64),
-                SaltKek = Convert.FromBase64String(originalNoncePackage.SaltKek64)
-            };
-
-            //TODO: revisit how and when we generate data encryption keys
-            //reply.KeK64
-            // RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            // PublicKey = rsaGenKeys.ToXmlString(false);
-            // EncryptedPrivateKey = rsaGenKeys.ToXmlString(true);
-            //
-            // // Server Encrypts the private key with the KEK and throws the KEK away.
-            // byte[] encrypted = YFRijndaelWrap.EncryptStringToBytes(EncryptedPrivateKey, reply.KeK64, SaltPassword);
-            // EncryptedPrivateKey = Convert.ToBase64String(encrypted);
-            // YFByteArray.WipeByteArray(KeyEncryptionKey);
-
-            WithTenantStorage<PasswordKey>(PWD_STORAGE, s => s.Save(pk));
-            
             //delete the temporary salts
-            WithTenantStorage<NoncePackage>(STORAGE, s => s.Delete(originalNoncePackageKey));
+            WithTenantStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
+
 
         public async Task<SaltsPackage> GetStoredSalts()
         {
-            var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
+            var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
             if (null == pk)
             {
@@ -95,20 +75,53 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             };
         }
 
-        public async Task<bool> IsPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
+        public Task GenerateRsaKeyList()
         {
-            var pk = await WithTenantStorageReturnSingle<PasswordKey>(PWD_STORAGE, s => s.Get(PasswordKey.Key));
-            var noncePasswordBytes = Convert.FromBase64String(nonceHashedPassword64);
-            
-            var nonceHashedPassword = KeyDerivation.Pbkdf2(
-                Convert.ToBase64String(pk.HashPassword),
-                Convert.FromBase64String(nonce64),
-                KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE);
+            //HACK: need to refactor this when storage is rebuilt 
+            const int MAX_KEYS = 2; //leave this size 
 
-            bool match = YFByteArray.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword);
-            return match;
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
+            rsaKeyList.Id = RSA_KEY_STORAGE_ID;
+            var keys = rsaKeyList.listRSA.ToArray();
+                
+            //HACK : mapping to ensure storage works 
+            var storage = new RsaKeyStorage()
+            {
+                Id = rsaKeyList.Id,
+                Keys = new List<RsaKeyData>(keys)
+            };
+
+            WithTenantStorage<RsaKeyStorage>(RSA_KEY_STORAGE, s => s.Save(storage));
+            return Task.CompletedTask;
         }
+
+        public async Task<RsaKeyListData> GetRsaKeyList()
+        {
+            var result = await WithTenantStorageReturnSingle<RsaKeyStorage>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
+            
+            //HACK CONVERT from storage
+            RsaKeyListData converted = new RsaKeyListData()
+            {
+                Id = result.Id,
+                maxKeys = result.Keys.Count,
+                listRSA = new LinkedList<RsaKeyData>(result.Keys)
+            };
+
+            return converted;
+        }
+
+        public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
+        {
+            var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+
+            LoginKeyManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+        }
+    }
+
+    class RsaKeyStorage
+    {
+        public Guid Id { get; set; }
+
+        public List<RsaKeyData> Keys { get; set; }
     }
 }

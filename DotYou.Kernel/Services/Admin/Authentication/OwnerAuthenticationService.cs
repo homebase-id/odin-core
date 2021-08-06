@@ -36,51 +36,51 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             _secretService = secretService;
         }
 
-        public async Task<NoncePackage> GenerateAuthenticationNonce()
+        public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
-            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64);
-            WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+
+            var rsa = await _secretService.GetRsaKeyList();
+            
+            var key = RsaKeyListManagement.GetCurrentKey(rsa);
+            var publicKey = RsaKeyManagement.publicPem(key);
+            
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, RsaKeyManagement.KeyCRC(key));
+            
+            WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
         
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
+            // XXX CALL THE LoginKeyManagement Authenticate
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
-            var noncePackage = await WithTenantStorageReturnSingle<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            var noncePackage = await WithTenantStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
-            var match = await _secretService.IsPasswordKeyMatch(reply.NonceHashedPassword64, noncePackage.Nonce64);
-            
-            if (match == false)
+            // XXX I don't understand why we have two of these.... AuthenticationNonceReply should go....
+            var rp = new PasswordReply();
+            rp.Nonce64 = reply.Nonce64;
+            rp.NonceHashedPassword64 = reply.NonceHashedPassword64;
+            rp.RsaEncrypted = reply.RsaEncrypted;
+            rp.crc = reply.crc;
+
+            var keys = await this._secretService.GetRsaKeyList();
+            var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys); 
+
+            // TODO: audit login some where, or in helper class below
+
+            var (halfCookie, LoginToken) = LoginTokenManager.CreateLoginToken(kek, sharedSecret);
+
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(LoginToken));
+
+            // Is this necessary ? :-) 
+            // It would be nicer to see the cookie set here...
+            return new AuthenticationResult() 
             {
-                //TODO: login failure
-                throw new AuthenticationException();
-            }
-
-            //TODO: audit login
-
-            const int ttlSeconds = 60 * 10;
-            
-            var kekBytes = Convert.FromBase64String(reply.KeK64);
-            byte[] serverHalf = YFByteArray.GetRndByteArray(16);
-            byte[] clientHalf = YFByteArray.EquiByteArrayXor(kekBytes, serverHalf);
-
-            var token = YFByteArray.GetRandomCryptoGuid();
-            var entry = new AuthTokenEntry()
-            {
-                Id = token,
-                KekKey = new Guid(serverHalf),
-                ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
-            };
-
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
-
-            return new AuthenticationResult()
-            {
-                Token = token,
-                Token2 = new Guid(clientHalf)
-            };
+                Token = LoginToken.Id,
+                Token2 = new Guid(halfCookie)
+            }; 
         }
         
         public async Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply)
@@ -119,7 +119,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
                 return true;
             }
             
-            var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             return IsAuthTokenEntryValid(entry);
         }
 
@@ -129,32 +129,32 @@ namespace DotYou.Kernel.Services.Admin.Authentication
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
         }
 
         public void ExpireToken(Guid token)
         {
-            WithTenantStorage<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
         
         public async Task<bool> IsLoggedIn()
         {
             //check if an active token exists
-            var authTokens = await WithTenantStorageReturnList<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
+            var authTokens = await WithTenantStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
             
             var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
 
             return activeToken != null;
         }
 
-        private async Task<AuthTokenEntry> GetValidatedEntry(Guid token)
+        private async Task<LoginTokenData> GetValidatedEntry(Guid token)
         {
-            var entry = await WithTenantStorageReturnSingle<AuthTokenEntry>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             AssertTokenIsValid(entry);
             return entry;
         }
         
-        private bool IsAuthTokenEntryValid(AuthTokenEntry entry)
+        private bool IsAuthTokenEntryValid(LoginTokenData entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var valid =
@@ -165,7 +165,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             return valid;
         }
 
-        private void AssertTokenIsValid(AuthTokenEntry entry)
+        private void AssertTokenIsValid(LoginTokenData entry)
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {

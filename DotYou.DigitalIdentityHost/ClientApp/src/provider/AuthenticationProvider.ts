@@ -1,4 +1,4 @@
-import {AuthenticationReplyNonce, AuthenticationResult, ClientNoncePackage} from "./AuthenticationTypes";
+import {AuthenticationPayload, AuthenticationReplyNonce, AuthenticationResult, NonceData} from "./AuthenticationTypes";
 import {ProviderBase} from "./ProviderBase";
 
 class AuthenticationProvider extends ProviderBase {
@@ -67,31 +67,50 @@ class AuthenticationProvider extends ProviderBase {
     }
 
 
-    private async prepareAuthPassword(password: string, noncePackage: ClientNoncePackage, hp: boolean = false): Promise<AuthenticationReplyNonce> {
+    private async prepareAuthPassword(password: string, nonceData: NonceData, hp: boolean = false): Promise<AuthenticationReplyNonce> {
 
         const interations = 100000;
         const len = 16;
 
-        let hashedPassword64 = await this.wrapPbkdf2HmacSha256(password, noncePackage.saltPassword64, interations, len);
-        let hashNoncePassword64 = await this.wrapPbkdf2HmacSha256(hashedPassword64, noncePackage.nonce64, interations, len);
-        let hashedKek64 = await this.wrapPbkdf2HmacSha256(password, noncePackage.saltKek64, interations, len);
+        let hashedPassword64 = await this.wrapPbkdf2HmacSha256(password, nonceData.saltPassword64, interations, len);
+        let hashNoncePassword64 = await this.wrapPbkdf2HmacSha256(hashedPassword64, nonceData.nonce64, interations, len);
+        let hashedKek64 = await this.wrapPbkdf2HmacSha256(password, nonceData.saltKek64, interations, len);
 
+        let base64Key = this.rsaPemStrip(nonceData.publicPem);
+        let key = await this.rsaImportKey(base64Key);
+
+        let secret = window.crypto.getRandomValues(new Uint8Array(16));
+        //@ts-ignore: ignore complaint about not using a number[] for the 'secret' param
+        let secret64 = btoa(String.fromCharCode.apply(null, secret));
+        
+        let payload: AuthenticationPayload =
+            {
+                hpwd64: hashedPassword64,
+                kek64: hashedKek64,
+                secret: secret64
+            }
+
+        let encryptable = JSON.stringify(payload);
+        let cipher = await this.rsaOaepEncrypt(key, encryptable);
+
+        //@ts-ignore: ignore complaint about not using a number[] for the 'cipher' param
+        let cipher64 = btoa(String.fromCharCode.apply(null, cipher));
         return {
-            nonce64: noncePackage.nonce64,
-            keK64: hashedKek64,
+            nonce64: nonceData.nonce64,
             nonceHashedPassword64: hashNoncePassword64,
-            hashedPassword64: hp ? hashedPassword64 : ""
+            crc: nonceData.crc,
+            rsaEncrypted: cipher64
         };
     }
 
-    private async getNonce(): Promise<ClientNoncePackage> {
+    private async getNonce(): Promise<NonceData> {
         let client = this.createAxiosClient();
         return client.get("/admin/authentication/nonce").then(response => {
             return response.data;
         }).catch(super.handleErrorResponse);
     }
 
-    private async getSalts(): Promise<ClientNoncePackage> {
+    private async getSalts(): Promise<NonceData> {
         let client = this.createAxiosClient();
         return client.get("/admin/authentication/getsalts").then(response => {
             return response.data;
@@ -137,6 +156,7 @@ class AuthenticationProvider extends ProviderBase {
         let u8salt = Uint8Array.from(atob(saltArray64), c => c.charCodeAt(0));
 
         return this.pbkdf2(password, u8salt, "SHA-256", iterations, len).then(hashed => {
+                //@ts-ignore    
                 let base64 = btoa(String.fromCharCode.apply(null, hashed));
                 return base64;
             }
@@ -146,6 +166,78 @@ class AuthenticationProvider extends ProviderBase {
     private fromBase64string(data64: string): Uint8Array {
         return Uint8Array.from(atob(data64), c => c.charCodeAt(0))
     }
+
+
+    private rsaPemStrip(pem: string) {
+        var s = pem.replace('-----BEGIN PUBLIC KEY-----', '');
+        s = s.replace('-----END PUBLIC KEY-----', '');
+
+        return s.replace('\n', '');
+    }
+
+
+    // from https://developers.google.com/web/updates/2012/06/How-to-convert-ArrayBuffer-to-and-from-String
+    str2ab(str: string): ArrayBuffer {
+        const buf = new ArrayBuffer(str.length);
+        const bufView = new Uint8Array(buf);
+
+        for (let i = 0, strLen = str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+
+        return buf;
+    }
+
+    // key is base64 encoded
+    async rsaImportKey(key64: string): Promise<CryptoKey> {
+
+        // base64 decode the string to get the binary data
+        const binaryDerString = window.atob(key64);
+        // convert from a binary string to an ArrayBuffer
+        const binaryDer = this.str2ab(binaryDerString);
+
+        return window.crypto.subtle.importKey(
+            "spki",
+            binaryDer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256"
+            },
+            true,
+            ["encrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
+        );
+
+        // console.log("Imported key = ", key);
+        // return key;
+    }
+
+    async rsaOaepEncrypt(publicKey: CryptoKey, str: string) {
+        // return window.crypto.subtle.encrypt(
+        //     {
+        //         name: "RSA-OAEP",
+        //         //label: Uint8Array([...]) //optional
+        //     },
+        //     publicKey, //from generateKey or importKey above
+        //     this.str2ab(str) //ArrayBuffer of data you want to encrypt
+        // ).then(encrypted => {
+        //     return new Uint8Array(encrypted)
+        // });
+
+        //}
+
+        let c = {
+            name: "RSA-OAEP",
+            //label: Uint8Array([...]) //optional
+        };
+
+        let s2 = this.str2ab(str); //ArrayBuffer of data you want to encrypt
+
+        let encrypted = await window.crypto.subtle.encrypt(c, publicKey, s2);
+        let u8a = new Uint8Array(encrypted);
+        console.log("RSA Encrypted = ", u8a);
+        return u8a;
+    }
+
 }
 
 export function createAuthenticationProvider() {

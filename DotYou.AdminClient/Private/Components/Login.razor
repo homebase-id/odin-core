@@ -66,10 +66,13 @@
         var pw = new PasswordReply()
         {
             Nonce64 = reply.Nonce64,
-            HashedPassword64 = reply.HashedPassword64,
-            KeK64 = reply.KeK64,
+            //HashedPassword64 = reply.HashedPassword64,
+            //KeK64 = reply.KeK64,
             NonceHashedPassword64 = reply.NonceHashedPassword64
         };
+
+        //Debug.Assert(false);
+        // THIS DOES NOT WORK XXX
         
         await _authClient.SetNewPassword(pw);
     }

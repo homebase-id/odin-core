@@ -1,18 +1,7 @@
-﻿// https://www.nuget.org/packages/Crc32C.NET/  <-- Skimming code I like this one best
-// Here seems to be a JS library supporting CRC32C:
-// https://www.npmjs.com/package/fast-crc32c
+﻿// NOTES TO REMEMBER
 //
-// ===
-
-// https://github.com/robertvazan/crc32c.net
-//--
-// https://www.nuget.org/packages/Crc32.NET/
-//--
-// JavaScript libraries 
-//
-// RSA: https://www.codeproject.com/Articles/22073/Object-Oriented-JavaScript-Class-Library-in-C-NET
-// RSA: https://github.com/travist/jsencrypt
-// (no RSA for asmCrypto)
+// Write scenario for chat client to get rights to update status and to check
+// contact card for other identities.
 //
 
 Documentation for Basic Encryption
@@ -22,36 +11,25 @@ Documentation for Basic Encryption
 Fields / Properties / Values
 ----------------------------
 
+Everything password/login related:
+
 Client Cookie("")
    The client cookie when set, is both a HTTPS secure cookie, meaning it only transmits over https.
-   Also, it is HTTP only, meaning it is not possible to access the cookie via JavaScript.
+   Also, it is HTTP ONLY, meaning it is not possible to access the cookie via JavaScript.
+
+   ** We'll add a shared client / server secret and introduce a nonce as well to prevent cookie
+      theft.
 
 Password (volatile)
    The owner's clear text password (will never leave the client).
    Password only exists briefly in memory on the client when entered into the password dialogue
 
-RsaPublic (owner property) [DB] [to-be-added]
-   Is the owner's 2048 bit public key, stored in the database. Used for
-   encryption of secrets. Available as:
-   .RsaPublic
-
-RsaPrivate (volatile)
-   Is the owner's 2048 bit private key (in-memory value only). Used for encryption of secrets.
-
-EncryptedRsaPrivate (owner property) [DB] [to-be-added]
-   Is the owner's 2048 bit private key, encrypted using AES with the KeK.
-   Stored in the owner's database. Available as the pair:
-
-   (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
-
-   Note that the IV (128 bit vector) needs to be stored for decryption purposes.
-
-DataEncryptionKey (DeK) [to-be-added] (volatile)
+DataEncryptionKey (DeK) (volatile)
     Is the owner's random 16-byte AES random key used for all data encryption.
     The DataEncryptionKey is necessary so that the owner can change password without
     reencrypting all data.
     
-EncryptedDeK [to-be-added] [DB] (owner property)
+EncryptedDeK [DB] (owner property)
     The encrypted DeK. 
     (isn't XORing DeK and the KEK good enough?)
     Stored in owner's database.
@@ -82,25 +60,57 @@ Nonce (owner DB lookup [DB], timeout)
    The value is sent back to the server. On the server, the nonce is used to hash the hashPassword stored in the database.
    If they match, the password has been entered correctly and the user can login.
 
+--
+
+HostRSA - RSA key pair on the host which is available also when the user is not logged in.
+          Typically renewed daily.
+
+EncryptionRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host. Used for sending encrypted data header to
+                the Host.
+
+SignRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host.
+--
+
+
+RsaPublic (owner property) [DB] [to-be-added]
+   Is the owner's 2048 bit public key, stored in the database. Used for
+   encryption of secrets. Available as:
+   .RsaPublic
+
+RsaPrivate (volatile)
+   Is the owner's 2048 bit private key (in-memory value only). Used for encryption of secrets.
+
+EncryptedRsaPrivate (owner property) [DB] [to-be-added]
+   Is the owner's 2048 bit private key, encrypted using AES with the KeK.
+   Stored in the owner's database. Available as the pair:
+
+   (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
+
+   Note that the IV (128 bit vector) needs to be stored for decryption purposes.
+
+
 
 
 Password handling:
 ------------------
 
-Password initialization
+Password initialization(first time password setup):
+   ** TO BE DONE: Server generates HostToHost RSA key (unencrypted). Pass public key in noncePackage.
+
    Owner enters password on client.
-   Client requests Nonce package from server.
+   Client requests Nonce package from server, server replies with 'NoncePackage'
    Client receives, saltPassword, saltKek, Nonce.
    Client calculates hashNonce (Hash(Hash(password, saltPassword), Nonce) and hashKek (=KeK)
-   Client sends hashNonce, hashKek to the server.
-   Server looks up Nonce, checks for timeout.
+   Client sends package 'PasswordReply' containing hashNonce, hashKek to the server.
+   Server receives 'PasswordReply', then looks up Nonce, checks for timeout. ** XXX is timeout added yet?
+   Server uses the PasswordReply and NoncePackage to generate the PasswordKey package. Which contains 
+        a newly generated DeK as a random 16-byte array, and encrypts it with the KeK (XOR).
 
-   Server generates the dataKey as a random 16-byte array, and encrypts it with the KeK (XOR).
-   Server generates the RsaPublic & RsaPrivate. Encrypts RsaPrivate using AES() with the KeK.
+   ** TO BE DONE:
+     Server generates the RsaPublic & RsaPrivate. Encrypts RsaPrivate using AES() with the KeK.
 
-   Stores these two encrypted values.
-
-   [Need to devise a scheme whereby we could generate the RsaKeys on the server before the KeK exists]
 
 Password verify
    Owner enters password on client.

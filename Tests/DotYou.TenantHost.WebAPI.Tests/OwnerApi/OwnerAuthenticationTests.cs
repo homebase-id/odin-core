@@ -56,6 +56,8 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         [Test]
         public async Task FrodoCanGenerateNonce()
         {
+            Assert.IsFalse(true, "No longer working");
+
             string identity = scaffold.Frodo;
 
             using HttpClient authClient = new();
@@ -73,7 +75,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             AuthenticationNonceReply clientReply = new AuthenticationNonceReply()
             {
                 Nonce64 = clientNonce.Nonce64,
-                KeK64 = "todo",
+                // KeK64 = "todo",  XXX the culprit
                 NonceHashedPassword64 = "should be hashed "
             };
                 
