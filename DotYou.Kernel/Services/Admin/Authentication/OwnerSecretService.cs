@@ -23,23 +23,23 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        public Task<NoncePackage> GenerateNewSalts()
+        public Task<NonceData> GenerateNewSalts()
         {
-            var nonce = NoncePackage.NewRandomNonce("xxx");
-            WithTenantStorage<NoncePackage>(STORAGE, s => s.Save(nonce));
+            var nonce = NonceData.NewRandomNonce("xxx");
+            WithTenantStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return Task.FromResult(nonce);
         }
 
         public async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
-            var originalNoncePackage = await WithTenantStorageReturnSingle<NoncePackage>(STORAGE, s => s.Get(originalNoncePackageKey));
+            var originalNoncePackage = await WithTenantStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, null); // XXX
             WithTenantStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
-            WithTenantStorage<NoncePackage>(STORAGE, s => s.Delete(originalNoncePackageKey));
+            WithTenantStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
 

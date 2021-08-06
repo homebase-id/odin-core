@@ -28,7 +28,7 @@ namespace DotYou.Kernel.CryptographyTests
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
-            var np = NoncePackage.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
             var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np);
@@ -47,7 +47,7 @@ namespace DotYou.Kernel.CryptographyTests
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
-            RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
+            //RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
             // The server loads the salts via GetSToredSalts() and generates the noncePackage
@@ -58,7 +58,7 @@ namespace DotYou.Kernel.CryptographyTests
             string saltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
             string saltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
 
-            var np = new NoncePackage(saltPassword64, saltKek64, RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = new NonceData(saltPassword64, saltKek64, RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
             // the reply includes the shared secret and is sent to the server
@@ -107,7 +107,7 @@ namespace DotYou.Kernel.CryptographyTests
             // The server loads the salts via GetSToredSalts() and generates the noncePackage
             // in GenerateAuthenticationNonce() and stores it and returns it to the client
             // We probably cannot streamline that in a call here
-            var np = NoncePackage.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
             // the reply includes the shared secret and is sent to the server
@@ -140,7 +140,7 @@ namespace DotYou.Kernel.CryptographyTests
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
-            var np = NoncePackage.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
@@ -160,7 +160,7 @@ namespace DotYou.Kernel.CryptographyTests
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
-            var np = NoncePackage.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Sanity Values
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
@@ -185,7 +185,7 @@ namespace DotYou.Kernel.CryptographyTests
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
-            var np = NoncePackage.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             np.SaltPassword64 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 12, 13, 14, 15, 16 });
             np.SaltKek64      = Convert.ToBase64String(new byte[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 });

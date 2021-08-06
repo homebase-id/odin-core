@@ -8,11 +8,11 @@ namespace DotYou.Kernel.Cryptography
     /// Holds salts used during a delicate process wherein you need to hash
     /// and salt passwords yet hold a copy of the Nonce serverside to ensure
     /// </summary>
-    public sealed class NoncePackage
+    public sealed class NonceData
     {
-        public static NoncePackage NewRandomNonce(string pem)
+        public static NonceData NewRandomNonce(string pem)
         {
-            var np = new NoncePackage()
+            var np = new NonceData()
             {
                 Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
@@ -26,7 +26,7 @@ namespace DotYou.Kernel.Cryptography
             return np;
         }
 
-        public NoncePackage()
+        public NonceData()
         {
         }
 
@@ -35,7 +35,7 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="saltPassword64"></param>
         /// <param name="saltKek64"></param>
-        public NoncePackage(string saltPassword64, string saltKek64, string pem)
+        public NonceData(string saltPassword64, string saltKek64, string pem)
         {
              // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
              // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);

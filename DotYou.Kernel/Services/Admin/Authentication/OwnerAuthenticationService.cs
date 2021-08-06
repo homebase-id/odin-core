@@ -36,11 +36,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             _secretService = secretService;
         }
 
-        public async Task<NoncePackage> GenerateAuthenticationNonce()
+        public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
-            var nonce = new NoncePackage(salts.SaltPassword64, salts.SaltKek64, "XXX we need the pem here");
-            WithTenantStorage<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, "XXX we need the pem here");
+            WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
         
@@ -49,7 +49,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
             // XXX CALL THE LoginKeyManagement Authenticate
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
-            var noncePackage = await WithTenantStorageReturnSingle<NoncePackage>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            var noncePackage = await WithTenantStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
             // XXX I don't understand why we have two of these.... AuthenticationNonceReply should go....
             var rp = new PasswordReply();

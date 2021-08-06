@@ -19,7 +19,7 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static LoginKeyData CreateInitialPasswordKey(NoncePackage nonce, string HashedPassword64, string KeK64)
+        private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
         {
             var passwordKey = new LoginKeyData()
             {
@@ -58,7 +58,7 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
+        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordReply(reply, listRsa);
 
@@ -123,7 +123,7 @@ namespace DotYou.Kernel.Cryptography
 
 
         // Returns the shared secret if authenticated or throws an exception otherwise
-        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NoncePackage loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
+        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordReply(reply, listRsa);
 
@@ -163,12 +163,12 @@ namespace DotYou.Kernel.Cryptography
         }
 
 
-        public static LoginKeyData SetInitialPassword(NoncePackage noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
+        public static LoginKeyData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
         }
 
-        public static PasswordReply CalculatePasswordReply(string password, NoncePackage nonce)
+        public static PasswordReply CalculatePasswordReply(string password, NonceData nonce)
         {
             var pr = new PasswordReply();
 
