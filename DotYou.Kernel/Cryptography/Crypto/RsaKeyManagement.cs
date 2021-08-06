@@ -31,10 +31,35 @@ namespace DotYou.Kernel.Cryptography
             return rsa;
         }
 
+        // Not expired, it's still good (it may be overdue for a refresh)
+        public static bool IsValid(RsaKeyData key)
+        {
+            UInt64 t = DateTimeExtensions.UnixTime();
+            if (t <= key.expiration)
+                return true;
+            else
+                return false;
+        }
+
+
         public static bool IsExpired(RsaKeyData key)
         {
             UInt64 t = DateTimeExtensions.UnixTime();
             if (t > key.expiration)
+                return true;
+            else
+                return false;
+        }
+
+
+        // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration, 
+        // then the key is considered dead and will be removed
+        public static bool IsDead(RsaKeyData key)
+        {
+            UInt64 t = DateTimeExtensions.UnixTime();
+            UInt64 d = Math.Min(2 * (key.expiration - key.instantiated), 3600*24) + key.instantiated;
+
+            if (t > d)
                 return true;
             else
                 return false;
@@ -85,7 +110,5 @@ namespace DotYou.Kernel.Cryptography
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
             return "-----BEGIN PRIVATE KEY-----\n" + Convert.ToBase64String(KeyPrivate(key).ExportPkcs8PrivateKey()) + "\n-----END PRIVATE KEY-----";
         }
-
-
     }
 }

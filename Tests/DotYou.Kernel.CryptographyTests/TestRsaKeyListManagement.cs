@@ -83,6 +83,40 @@ namespace DotYou.Kernel.CryptographyTests
 
             Assert.Pass();
         }
+
+        [Test]
+        public void TestGenerateNewKeyTwoPass()
+        {
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(2);
+
+            if (rsaList.listRSA.Count != 1)
+                Assert.Fail();
+
+            var crc1 = rsaList.listRSA.First.Value.crc32c;
+
+            if (RsaKeyListManagement.FindKey(rsaList, crc1) == null)
+                Assert.Fail();
+
+            if (RsaKeyListManagement.FindKey(rsaList, crc1+1) != null)
+                Assert.Fail();
+
+            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
+
+            if (rsaList.listRSA.Count != 2)
+                Assert.Fail();
+
+            var crc2 = rsaList.listRSA.First.Value.crc32c;
+
+            if (RsaKeyListManagement.FindKey(rsaList, crc1) == null)
+                Assert.Fail();
+
+            if (RsaKeyListManagement.FindKey(rsaList, crc2) == null)
+                Assert.Fail();
+
+            Assert.Pass();
+        }
+
+
     }
 }
 

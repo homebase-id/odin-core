@@ -45,15 +45,38 @@ namespace DotYou.Kernel.CryptographyTests
         {
             var key = RsaKeyManagement.CreateKey(0,seconds:2);
 
+            if (!RsaKeyManagement.IsValid(key))
+                Assert.Fail();
+
             if (RsaKeyManagement.IsExpired(key))
                 Assert.Fail();
 
-            Thread.Sleep(3000);
-
-            if (RsaKeyManagement.IsExpired(key))
-                Assert.Pass();
-            else
+            if (RsaKeyManagement.IsDead(key))
                 Assert.Fail();
+
+            Thread.Sleep(3000);  // The key is now 1 second expired.
+
+            if (!RsaKeyManagement.IsExpired(key))
+                Assert.Fail();
+
+            if (RsaKeyManagement.IsValid(key))
+                Assert.Fail();
+
+            if (RsaKeyManagement.IsDead(key))
+                Assert.Fail();
+
+            Thread.Sleep(3000); // The key is now 4 seconds expired, so dead.
+
+            if (!RsaKeyManagement.IsExpired(key))
+                Assert.Fail();
+
+            if (RsaKeyManagement.IsValid(key))
+                Assert.Fail();
+
+            if (!RsaKeyManagement.IsDead(key))
+                Assert.Fail();
+
+            Assert.Pass();
         }
 
 

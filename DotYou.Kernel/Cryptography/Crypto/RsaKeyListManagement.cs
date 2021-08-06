@@ -3,11 +3,10 @@ using DotYou.Kernel.Services.Admin.Authentication;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
+
 
 namespace DotYou.Kernel.Cryptography
 {
-
     // So it's slightly messy to mix up the version with encrypted and unencrypted private key.
     // Not sure if I should break it into two almost identical classes.
     public static class RsaKeyListManagement
@@ -65,29 +64,58 @@ namespace DotYou.Kernel.Cryptography
 
         public static RsaKeyData GetCurrentKey(RsaKeyListData listRsa)
         {
-            if ((listRsa.listRSA == null) || (listRsa.listRSA.Count < 1))
-                throw new Exception("List shouldn't be null / empty");
+            if (listRsa.listRSA == null)
+                throw new Exception("List shouldn't be null");
+
+            if (RsaKeyManagement.IsDead(listRsa.listRSA.First.Value))
+            {
+                listRsa.listRSA.RemoveFirst();
+                GenerateNewKey(listRsa, DefaultKeyHours);
+            }
+
+            if (listRsa.listRSA.Count < 1)
+                GenerateNewKey(listRsa, DefaultKeyHours);
 
             return listRsa.listRSA.First.Value;
         }
 
+        /// <summary>
+        /// Will return a valid or expired key, but remove any dead keys
+        /// </summary>
+        /// <param name="listRsa"></param>
+        /// <param name="publicKeyCrc"></param>
+        /// <returns></returns>
         public static RsaKeyData FindKey(RsaKeyListData listRsa, UInt32 publicKeyCrc)
         {
-            var RsaKey = GetCurrentKey(listRsa); // Will create a key if none are present
+            if (listRsa.listRSA == null)
+                throw new Exception("List shouldn't be null");
 
-            if (RsaKey.crc32c == publicKeyCrc)
-                return RsaKey;
-            else
+            if (listRsa.listRSA.First != null)
             {
-                // Check if the previous key matches (but don't check further)
-                if (listRsa.listRSA.First.Next != null)
+                if (RsaKeyManagement.IsDead(listRsa.listRSA.First.Value))
                 {
-                    if (listRsa.listRSA.First.Next.Value.crc32c == publicKeyCrc)
-                    {
-                        // XXX TODO: Add some timeout sanity check here.
-                        // E.g. don't accept it older than 1 hour expired or whatever
-                        return listRsa.listRSA.First.Next.Value;
-                    }
+                    listRsa.listRSA.RemoveFirst();
+                    return FindKey(listRsa, publicKeyCrc);
+                }
+
+                if (listRsa.listRSA.First.Value.crc32c == publicKeyCrc)
+                    return listRsa.listRSA.First.Value;
+            }
+
+            // Check if the previous key matches (but don't check further)
+            if (listRsa.listRSA.First.Next != null)
+            {
+                if (RsaKeyManagement.IsDead(listRsa.listRSA.First.Next.Value))
+                {
+                    listRsa.listRSA.Remove(listRsa.listRSA.First.Next);
+                    return null;
+                }
+
+                if (listRsa.listRSA.First.Next.Value.crc32c == publicKeyCrc)
+                {
+                    // XXX TODO: Add some timeout sanity check here.
+                    // E.g. don't accept it older than 1 hour expired or whatever
+                    return listRsa.listRSA.First.Next.Value;
                 }
             }
 
@@ -104,8 +132,6 @@ namespace DotYou.Kernel.Cryptography
         {
             return RsaKeyManagement.publicPem(GetCurrentKey(listRsa));
         }
-
-
 
         public static RSACryptoServiceProvider FindKeyPublic(RsaKeyListData listRsa, UInt32 publicKeyCrc)
         {
