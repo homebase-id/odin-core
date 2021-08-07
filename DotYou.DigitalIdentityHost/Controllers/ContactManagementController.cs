@@ -16,19 +16,19 @@ namespace DotYou.TenantHost.Controllers
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class ContactManagementController : ControllerBase
     {
-        IContactService _contactService;
+        IPersonService _personService;
 
-        public ContactManagementController(IContactService contactService)
+        public ContactManagementController(IPersonService personService)
         {
-            _contactService = contactService;
+            _personService = personService;
         }
 
 
         [HttpGet("find")]
-        public async Task<PagedResult<Contact>> Find(string text, int pageNumber, int pageSize)
+        public async Task<PagedResult<Person>> Find(string text, int pageNumber, int pageSize)
         {
             string q = text.ToLower();
-            Expression<Func<Contact, bool>> predicate;
+            Expression<Func<Person, bool>> predicate;
             /*
             if (mustHaveYFIdentity)
             {
@@ -51,7 +51,7 @@ namespace DotYou.TenantHost.Controllers
                 c.Surname.ToLower().Contains(q) ||
                 c.DotYouId.Value.Id.Contains(q);
 
-            var results = await _contactService.FindContacts(predicate, new PageOptions(pageNumber, pageSize));
+            var results = await _personService.FindContacts(predicate, new PageOptions(pageNumber, pageSize));
 
             return results;
         }
@@ -59,7 +59,7 @@ namespace DotYou.TenantHost.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetContactById(Guid id)
         {
-            var result = await _contactService.Get(id);
+            var result = await _personService.Get(id);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
@@ -74,7 +74,7 @@ namespace DotYou.TenantHost.Controllers
         [HttpGet("{domainName}")]
         public async Task<IActionResult> GetContactByDomainName(string domainName)
         {
-            var result = await _contactService.GetByDotYouId(domainName);
+            var result = await _personService.GetByDotYouId(domainName);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
@@ -87,23 +87,23 @@ namespace DotYou.TenantHost.Controllers
         }
 
         [HttpGet]
-        public async Task<PagedResult<Contact>> GetContactsList(bool connectedContactsOnly, int pageNumber, int pageSize)
+        public async Task<PagedResult<Person>> GetContactsList(bool connectedContactsOnly, int pageNumber, int pageSize)
         {
-            var result = await _contactService.GetContacts(new PageOptions(pageNumber, pageSize), connectedContactsOnly);
+            var result = await _personService.GetContacts(new PageOptions(pageNumber, pageSize), connectedContactsOnly);
             return result;
         }
 
         [HttpPost]
-        public async Task<IActionResult> SaveContact(Contact contact)
+        public async Task<IActionResult> SaveContact(Person person)
         {
-            await _contactService.Save(contact);
+            await _personService.Save(person);
             return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteContact(Guid id)
         {
-            await _contactService.Delete(id);
+            await _personService.Delete(id);
             return new JsonResult(new NoResultResponse(true));
         }
     }

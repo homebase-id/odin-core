@@ -4,7 +4,7 @@ namespace DotYou.Types.Admin
 {
     public class AvailabilityStatus
     {
-        public Contact Contact { get; set; }
+        public Person Person { get; set; }
         
         public Int64 Updated { get; set; }
 

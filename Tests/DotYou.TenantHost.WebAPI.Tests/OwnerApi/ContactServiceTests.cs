@@ -74,7 +74,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             {
                 var svc = RestService.For<IContactManagementClient>(client);
                 
-                Contact contact = new()
+                Person person = new()
                 {
                     DotYouId = scaffold.Samwise,
                     GivenName = "Samwise",
@@ -85,7 +85,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                     Tag = "fellowship",
                 };
 
-                var response = await svc.SaveContact(contact);
+                var response = await svc.SaveContact(person);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
@@ -99,7 +99,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             {
                 var svc = RestService.For<IContactManagementClient>(client);
                 
-                Contact contact = new()
+                Person person = new()
                 {
                     DotYouId = scaffold.Frodo,
                     GivenName = "Frodo",
@@ -110,7 +110,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                     Tag = "fellowship",
                 };
 
-                var response = await svc.SaveContact(contact);
+                var response = await svc.SaveContact(person);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");

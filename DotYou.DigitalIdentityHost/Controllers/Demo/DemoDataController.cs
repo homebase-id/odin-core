@@ -21,13 +21,13 @@ namespace DotYou.TenantHost.Controllers.Demo
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes =  DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
-        private IContactService _contactService;
+        private IPersonService _personService;
         private IPrototrialDemoDataService _prototrial;
         private IAdminIdentityAttributeService _admin;
 
-        public DemoDataController(IContactService contactService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
+        public DemoDataController(IPersonService personService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
         {
-            _contactService = contactService;
+            _personService = personService;
             _prototrial = prototrial;
             _admin = admin;
         }
@@ -42,7 +42,7 @@ namespace DotYou.TenantHost.Controllers.Demo
 
             foreach (var importedContact in contacts)
             {
-                var contact = new Contact()
+                var contact = new Person()
                 {
                     GivenName = importedContact.GivenName,
                     Surname = importedContact.Surname,
@@ -50,7 +50,7 @@ namespace DotYou.TenantHost.Controllers.Demo
                     Tag = importedContact.Tag
                 };
 
-                await _contactService.Save(contact);
+                await _personService.Save(contact);
             }
             
             var result1 = await _prototrial.AddDigitalIdentities();

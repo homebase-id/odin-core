@@ -8,21 +8,21 @@ namespace DotYou.Kernel.Services.Contacts
     /// <summary>
     /// Services for managing, importing, and connecting with contacts.
     /// </summary>
-    public interface IContactService
+    public interface IPersonService
     {
         /// <summary>
         /// Retreives the contact by a given Id
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        Task<Contact> Get(Guid id);
+        Task<Person> Get(Guid id);
 
         /// <summary>
         /// Upserts a contact into the system.
         /// </summary>
-        /// <param name="contact"></param>
+        /// <param name="person"></param>
         /// <returns></returns>
-        Task Save(Contact contact);
+        Task Save(Person person);
 
         /// <summary>
         /// Deletes the specified contact
@@ -37,18 +37,18 @@ namespace DotYou.Kernel.Services.Contacts
         /// <param name="req"></param>
         /// <param name="connectedContactsOnly">If true, only returns connects with which I am connected.</param>
         /// <returns></returns>
-        Task<PagedResult<Contact>> GetContacts(PageOptions req, bool connectedContactsOnly);
+        Task<PagedResult<Person>> GetContacts(PageOptions req, bool connectedContactsOnly);
 
         /// <summary>
         /// Finds contacts matching the given predicate.
         /// </summary>
-        Task<PagedResult<Contact>> FindContacts(Expression<Func<Contact, bool>> predicate, PageOptions req);
+        Task<PagedResult<Person>> FindContacts(Expression<Func<Person, bool>> predicate, PageOptions req);
 
         /// <summary>
         /// Retrieves a contact by their domain name
         /// </summary>
         /// <param name="domainName"></param>
         /// <returns></returns>
-        Task<Contact> GetByDotYouId(string domainName);
+        Task<Person> GetByDotYouId(string domainName);
     }
 }

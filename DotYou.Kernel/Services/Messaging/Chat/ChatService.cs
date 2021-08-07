@@ -20,11 +20,11 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
-        private readonly IContactService _contactService;
+        private readonly IPersonService _personService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IContactService contactService) : base(context, logger, hub, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IPersonService personService) : base(context, logger, hub, fac)
         {
-            _contactService = contactService;
+            _personService = personService;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -33,7 +33,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
 
-            var contactsPage = await _contactService.GetContacts(options, true);
+            var contactsPage = await _personService.GetContacts(options, true);
 
             var bag = new ConcurrentBag<AvailabilityStatus>();
 
@@ -48,7 +48,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 {
                     IsChatAvailable = canChat,
                     Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    Contact = contact
+                    Person = contact
                 };
 
                 bag.Add(av);
@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
             //look up recipient's public key from contacts
-            var contact = await _contactService.GetByDotYouId(message.Recipient);
+            var contact = await _personService.GetByDotYouId(message.Recipient);
 
             if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.PublicKeyCertificate))
             {

@@ -28,12 +28,11 @@ namespace DotYou.Kernel.Services.Circle
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
-        private readonly IContactService _contactService;
-        private ICircleNetworkService _circleNetworkServiceImplementation;
+        private readonly IPersonService _personService;
 
-        public CircleNetworkService(DotYouContext context, IContactService contactService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IPersonService personService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
-            _contactService = contactService;
+            _personService = personService;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
@@ -107,11 +106,11 @@ namespace DotYou.Kernel.Services.Circle
             return Task.CompletedTask;
         }
 
-        public async Task<Profile> GetProfile(string dotYouId)
+        public async Task<Profile> GetProfile(DotYouIdentity dotYouId)
         {
-            Guard.Argument(dotYouId, nameof(dotYouId)).NotNull().NotEmpty();
+            Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull().NotEmpty();
 
-            var response = await base.CreatePerimeterHttpClient((DotYouIdentity) dotYouId).GetProfile();
+            var response = await base.CreatePerimeterHttpClient(dotYouId).GetProfile();
 
             //TODO: this needs to check many more things - ie. : is the endpoint a DotYou server, is their profile configured, etc
             //for #prototrial, i will simply return a 404 if we don't get a success status
@@ -125,9 +124,9 @@ namespace DotYou.Kernel.Services.Circle
             return response.Content;
         }
 
-        public async Task<SystemCircle> GetSystemCircle(string dotYouId)
+        public async Task<SystemCircle> GetSystemCircle(DotYouIdentity dotYouId)
         {
-            var contact = await _contactService.GetByDotYouId(dotYouId);
+            var contact = await _personService.GetByDotYouId(dotYouId);
 
             if (contact == null)
             {
@@ -136,6 +135,21 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             return contact.SystemCircle;
+        }
+
+        public Task<bool> Disconnect(DotYouIdentity dotYouId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> Block(DotYouIdentity dotYouId)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public Task<bool> Unblock(DotYouIdentity dotYouId)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<ConnectionRequest> GetSentRequest(Guid id)
@@ -155,13 +169,13 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _contactService.GetByDotYouId(cert.DotYouId);
+            var ec = await _personService.GetByDotYouId(cert.DotYouId);
 
             //TODO: address how this contact merge should really happen
             //TODO: add relationship id to unify the connection; perhaps use ConnectionRequestId
 
             //create a new contact
-            var contact = new Contact()
+            var person = new Person()
             {
                 Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.RecipientGivenName,
@@ -173,7 +187,7 @@ namespace DotYou.Kernel.Services.Circle
                 Tag = ec == null ? "" : ec.Tag
             };
 
-            await _contactService.Save(contact);
+            await _personService.Save(person);
 
             //await this.DeleteSentRequest(request.ConnectionRequestId);
 
@@ -193,13 +207,13 @@ namespace DotYou.Kernel.Services.Circle
             this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
             var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _contactService.GetByDotYouId(cert.DotYouId);
+            var ec = await _personService.GetByDotYouId(cert.DotYouId);
 
             //TODO: add relationshipId for future analysis
 
             //TODO: address how this contact merge should really happen
 
-            var contact = new Contact()
+            var contact = new Person()
             {
                 Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.SenderGivenName,
@@ -211,7 +225,7 @@ namespace DotYou.Kernel.Services.Circle
                 Tag = ec == null ? "" : ec.Tag
             };
 
-            await _contactService.Save(contact);
+            await _personService.Save(contact);
 
             //call to request.Sender's agent to establish connection.
             EstablishConnectionRequest acceptedReq = new()

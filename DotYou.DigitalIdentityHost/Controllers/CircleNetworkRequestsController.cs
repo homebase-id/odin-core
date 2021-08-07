@@ -92,7 +92,7 @@ namespace DotYou.TenantHost.Controllers
         [HttpGet("profile/{dotYouId}")]
         public async Task<IActionResult> GetDotYouProfile(string dotYouId)
         {
-            var result = await _circleNetwork.GetProfile(dotYouId);
+            var result = await _circleNetwork.GetProfile((DotYouIdentity)dotYouId);
             return new JsonResult(result);
         }
 

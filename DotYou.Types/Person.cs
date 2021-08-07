@@ -4,12 +4,12 @@ using System.Text.Json.Serialization;
 
 namespace DotYou.Types
 {
-    public class Contact
+    public class Person
     {
         private string _givenName;
         private string _surname;
 
-        public Contact()
+        public Person()
         {
             Id = Guid.NewGuid();
         }
