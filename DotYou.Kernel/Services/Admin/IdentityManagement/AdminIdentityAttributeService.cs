@@ -4,7 +4,7 @@ using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
-using DotYou.Types.Identity;
+using DotYou.Types.DataAttribute;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Admin.IdentityManagement

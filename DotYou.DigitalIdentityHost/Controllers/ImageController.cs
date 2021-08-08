@@ -12,11 +12,11 @@ namespace DotYou.DigitalIdentityHost.Controllers
     //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class ImageController : ControllerBase
     {
-        IPersonService _personService;
+        IHumanConnectionProfileService _humanConnectionProfileService;
 
-        public ImageController(IPersonService personService)
+        public ImageController(IHumanConnectionProfileService humanConnectionProfileService)
         {
-            _personService = personService;
+            _humanConnectionProfileService = humanConnectionProfileService;
         }
 
         

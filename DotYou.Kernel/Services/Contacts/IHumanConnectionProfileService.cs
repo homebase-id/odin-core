@@ -6,23 +6,23 @@ using DotYou.Types;
 namespace DotYou.Kernel.Services.Contacts
 {
     /// <summary>
-    /// Services for managing, importing, and connecting with contacts.
+    /// Services for managing, importing, and connecting with humans.
     /// </summary>
-    public interface IPersonService
+    public interface IHumanConnectionProfileService
     {
         /// <summary>
-        /// Retreives the contact by a given Id
+        /// Retrieves the contact by a given Id
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        Task<Person> Get(Guid id);
+        Task<HumanConnectionProfile> Get(Guid id);
 
         /// <summary>
         /// Upserts a contact into the system.
         /// </summary>
-        /// <param name="person"></param>
+        /// <param name="humanConnectionProfile"></param>
         /// <returns></returns>
-        Task Save(Person person);
+        Task Save(HumanConnectionProfile humanConnectionProfile);
 
         /// <summary>
         /// Deletes the specified contact
@@ -37,18 +37,18 @@ namespace DotYou.Kernel.Services.Contacts
         /// <param name="req"></param>
         /// <param name="connectedContactsOnly">If true, only returns connects with which I am connected.</param>
         /// <returns></returns>
-        Task<PagedResult<Person>> GetContacts(PageOptions req, bool connectedContactsOnly);
+        Task<PagedResult<HumanConnectionProfile>> GetContacts(PageOptions req, bool connectedContactsOnly);
 
         /// <summary>
         /// Finds contacts matching the given predicate.
         /// </summary>
-        Task<PagedResult<Person>> FindContacts(Expression<Func<Person, bool>> predicate, PageOptions req);
+        Task<PagedResult<HumanConnectionProfile>> FindContacts(Expression<Func<HumanConnectionProfile, bool>> predicate, PageOptions req);
 
         /// <summary>
         /// Retrieves a contact by their domain name
         /// </summary>
         /// <param name="domainName"></param>
         /// <returns></returns>
-        Task<Person> GetByDotYouId(string domainName);
+        Task<HumanConnectionProfile> GetByDotYouId(string domainName);
     }
 }

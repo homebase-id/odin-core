@@ -1,6 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
-using DotYou.Types.Identity;
+using DotYou.Types.DataAttribute;
 
 namespace DotYou.Types
 {

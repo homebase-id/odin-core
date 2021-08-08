@@ -28,11 +28,11 @@ namespace DotYou.Kernel.Services.Circle
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
-        private readonly IPersonService _personService;
+        private readonly IHumanConnectionProfileService _humanConnectionProfileService;
 
-        public CircleNetworkService(DotYouContext context, IPersonService personService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IHumanConnectionProfileService humanConnectionProfileService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
-            _personService = personService;
+            _humanConnectionProfileService = humanConnectionProfileService;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
@@ -126,7 +126,7 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task<SystemCircle> GetSystemCircle(DotYouIdentity dotYouId)
         {
-            var contact = await _personService.GetByDotYouId(dotYouId);
+            var contact = await _humanConnectionProfileService.GetByDotYouId(dotYouId);
 
             if (contact == null)
             {
@@ -169,13 +169,10 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _personService.GetByDotYouId(cert.DotYouId);
-
-            //TODO: address how this contact merge should really happen
-            //TODO: add relationship id to unify the connection; perhaps use ConnectionRequestId
+            var ec = await _humanConnectionProfileService.GetByDotYouId(cert.DotYouId);
 
             //create a new contact
-            var person = new Person()
+            var person = new HumanConnectionProfile()
             {
                 Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.RecipientGivenName,
@@ -187,7 +184,7 @@ namespace DotYou.Kernel.Services.Circle
                 Tag = ec == null ? "" : ec.Tag
             };
 
-            await _personService.Save(person);
+            await _humanConnectionProfileService.Save(person);
 
             //await this.DeleteSentRequest(request.ConnectionRequestId);
 
@@ -207,13 +204,13 @@ namespace DotYou.Kernel.Services.Circle
             this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
             var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _personService.GetByDotYouId(cert.DotYouId);
+            var ec = await _humanConnectionProfileService.GetByDotYouId(cert.DotYouId);
 
             //TODO: add relationshipId for future analysis
 
             //TODO: address how this contact merge should really happen
 
-            var contact = new Person()
+            var contact = new HumanConnectionProfile()
             {
                 Id = ec?.Id ?? Guid.NewGuid(),
                 GivenName = request.SenderGivenName,
@@ -225,7 +222,7 @@ namespace DotYou.Kernel.Services.Circle
                 Tag = ec == null ? "" : ec.Tag
             };
 
-            await _personService.Save(contact);
+            await _humanConnectionProfileService.Save(contact);
 
             //call to request.Sender's agent to establish connection.
             EstablishConnectionRequest acceptedReq = new()

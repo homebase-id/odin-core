@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using DotYou.Types.Identity;
+using DotYou.Types.DataAttribute;
 using Refit;
 
 namespace DotYou.Types.ApiClient

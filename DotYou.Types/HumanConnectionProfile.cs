@@ -4,17 +4,18 @@ using System.Text.Json.Serialization;
 
 namespace DotYou.Types
 {
-    public class Person
+    public class HumanConnectionProfile
     {
         private string _givenName;
         private string _surname;
 
-        public Person()
+        public HumanConnectionProfile()
         {
             Id = Guid.NewGuid();
         }
         
         public Guid Id { get; set; }
+        
         
         /// <summary>
         /// A unique id based on md5hash(lcase(<see cref="GivenName"/> + <see cref="Surname"/>)) to be used for 
@@ -25,7 +26,17 @@ namespace DotYou.Types
             set;
         }
 
-        public DotYouIdentity? DotYouId { get; set; }
+        /// <summary>
+        /// Specifies the DI address for this Human
+        /// </summary>
+        public DotYouIdentity DotYouId { get; set; }
+        
+        /// <summary>
+        /// A base64 string of this contacts public key certificate.  This must be 
+        /// populated if <see cref="SystemCircle"/> is <see cref="SystemCircle.Connected"/>.
+        /// </summary>
+        public string PublicKeyCertificate { get; set; }
+
 
         public string GivenName
         {
@@ -57,12 +68,7 @@ namespace DotYou.Types
 
         public string PrimaryEmail { get; set; }
 
-        /// <summary>
-        /// A base64 string of this contacts public key certificate.  This must be 
-        /// populated if <see cref="SystemCircle"/> is <see cref="SystemCircle.Connected"/>.
-        /// </summary>
-        public string PublicKeyCertificate { get; set; }
-
+       
         /// <summary>
         /// Specifies which system circle this contact exists with-in.
         /// </summary>

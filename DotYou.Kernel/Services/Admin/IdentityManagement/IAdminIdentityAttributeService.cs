@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using DotYou.Types;
-using DotYou.Types.Identity;
-using Identity.DataType.Attributes;
+using DotYou.Types.DataAttribute;
 
 namespace DotYou.Kernel.Services.Admin.IdentityManagement
 {

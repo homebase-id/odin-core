@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using DotYou.Types;
-using Identity.DataType.Attributes;
 
 namespace DotYou.IdentityRegistry
 {

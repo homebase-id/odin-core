@@ -1,7 +1,6 @@
 ﻿using DotYou.Kernel.Services.Identity;
 using DotYou.TenantHost;
 using DotYou.Types;
-using Identity.DataType.Attributes;
 using NUnit.Framework;
 using System;
 using System.Diagnostics;

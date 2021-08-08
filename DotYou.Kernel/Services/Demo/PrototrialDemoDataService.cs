@@ -7,7 +7,7 @@ using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
 using DotYou.Types.Circle;
-using DotYou.Types.Identity;
+using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -17,13 +17,13 @@ namespace DotYou.Kernel.Services.Demo
 {
     public class PrototrialDemoDataService : DotYouServiceBase, IPrototrialDemoDataService
     {
-        private readonly IPersonService _personService;
+        private readonly IHumanConnectionProfileService _humanConnectionProfileService;
         private readonly IAdminIdentityAttributeService _admin;
         private readonly ICircleNetworkService _circleNetworkService;
 
-        public PrototrialDemoDataService(DotYouContext context, ILogger logger, IPersonService personService, IAdminIdentityAttributeService admin, ICircleNetworkService circleNetworkService) : base(context, logger, null, null)
+        public PrototrialDemoDataService(DotYouContext context, ILogger logger, IHumanConnectionProfileService humanConnectionProfileService, IAdminIdentityAttributeService admin, ICircleNetworkService circleNetworkService) : base(context, logger, null, null)
         {
-            _personService = personService;
+            _humanConnectionProfileService = humanConnectionProfileService;
             _admin = admin;
             _circleNetworkService = circleNetworkService;
         }
@@ -33,29 +33,29 @@ namespace DotYou.Kernel.Services.Demo
             if (IsFrodo)
             {
                 //sam was left out intentionally; like a blank page.  actually just so we can send a request and fulfill it.
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
             }
 
             if (IsSam)
             {
                 //frodo was left out intentionally; like a blank page.  actually just so we can send a request and fulfill it.
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
             }
 
             if (IsGandalf)
             {
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "frodobaggins.me", GivenName = "Frodo", Surname = "Baggins", Tag = "Fellowship", PrimaryEmail = "mail@frodobaggins.me"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "samwisegamgee.me", GivenName = "Samwise", Surname = "Gamgee", Tag = "Fellowship", PrimaryEmail = "mail@samwisegamgee.me"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "frodobaggins.me", GivenName = "Frodo", Surname = "Baggins", Tag = "Fellowship", PrimaryEmail = "mail@frodobaggins.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "samwisegamgee.me", GivenName = "Samwise", Surname = "Gamgee", Tag = "Fellowship", PrimaryEmail = "mail@samwisegamgee.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "odin.valhalla.com", GivenName = "Odin", Surname = "Rune Bringer", Tag = "Acquaintance", PrimaryEmail = "mail@frodobaggins.me"});
             }
 
             if (IsOdin)
             {
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "frodobaggins.me", GivenName = "Frodo", Surname = "Baggins", Tag = "Fellowship", PrimaryEmail = "mail@frodobaggins.me"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
-                await _personService.Save(new Person() {DotYouId = (DotYouIdentity) "samwisegamgee.me", GivenName = "Samwise", Surname = "Gamgee", Tag = "Fellowship", PrimaryEmail = "mail@samwisegamgee.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "frodobaggins.me", GivenName = "Frodo", Surname = "Baggins", Tag = "Fellowship", PrimaryEmail = "mail@frodobaggins.me"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "gandalf.middleearth.life", GivenName = "Olorin", Surname = "Maiar", Tag = "Fellowship", PrimaryEmail = "mail@gandalf.middleearth.life"});
+                await _humanConnectionProfileService.Save(new HumanConnectionProfile() {DotYouId = (DotYouIdentity) "samwisegamgee.me", GivenName = "Samwise", Surname = "Gamgee", Tag = "Fellowship", PrimaryEmail = "mail@samwisegamgee.me"});
             }
 
             return true;

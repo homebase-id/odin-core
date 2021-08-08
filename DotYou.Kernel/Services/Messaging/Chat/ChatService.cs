@@ -20,11 +20,11 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
-        private readonly IPersonService _personService;
+        private readonly IHumanConnectionProfileService _humanConnectionProfileService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IPersonService personService) : base(context, logger, hub, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IHumanConnectionProfileService humanConnectionProfileService) : base(context, logger, hub, fac)
         {
-            _personService = personService;
+            _humanConnectionProfileService = humanConnectionProfileService;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -33,13 +33,13 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
 
-            var contactsPage = await _personService.GetContacts(options, true);
+            var contactsPage = await _humanConnectionProfileService.GetContacts(options, true);
 
             var bag = new ConcurrentBag<AvailabilityStatus>();
 
             var tasks = contactsPage.Results.Select(async contact =>
             {
-                var client = base.CreatePerimeterHttpClient(contact.DotYouId.GetValueOrDefault());
+                var client = base.CreatePerimeterHttpClient(contact.DotYouId);
                 var response = await client.GetAvailability();
 
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
@@ -48,7 +48,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 {
                     IsChatAvailable = canChat,
                     Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    Person = contact
+                    HumanConnectionProfile = contact
                 };
 
                 bag.Add(av);
@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
             //look up recipient's public key from contacts
-            var contact = await _personService.GetByDotYouId(message.Recipient);
+            var contact = await _humanConnectionProfileService.GetByDotYouId(message.Recipient);
 
             if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.PublicKeyCertificate))
             {

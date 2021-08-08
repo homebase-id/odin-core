@@ -3,7 +3,7 @@ using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
-using DotYou.Types.Identity;
+using DotYou.Types.DataAttribute;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

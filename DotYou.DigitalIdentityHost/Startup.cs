@@ -115,18 +115,18 @@ namespace DotYou.DigitalIdentityHost
                     return new OwnerAuthenticationService(context, logger, ss);
                 });
 
-            services.AddScoped<IPersonService, PersonService>(svc =>
+            services.AddScoped<IHumanConnectionProfileService, HumanConnectionProfileService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<PersonService>>();
-                return new PersonService(context, logger);
+                var logger = svc.GetRequiredService<ILogger<HumanConnectionProfileService>>();
+                return new HumanConnectionProfileService(context, logger);
             });
 
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var contactSvc = svc.GetRequiredService<IPersonService>();
+                var contactSvc = svc.GetRequiredService<IHumanConnectionProfileService>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 return new CircleNetworkService(context, contactSvc, logger, hub, fac);
@@ -157,7 +157,7 @@ namespace DotYou.DigitalIdentityHost
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                var cs = svc.GetRequiredService<IPersonService>();
+                var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
                 return new ChatService(context, logger, hub, fac, cs);
             });
 
@@ -166,7 +166,7 @@ namespace DotYou.DigitalIdentityHost
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
-                var cs = svc.GetRequiredService<IPersonService>();
+                var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
                 var admin = svc.GetRequiredService<IAdminIdentityAttributeService>();
                 var cn = svc.GetRequiredService<ICircleNetworkService>();
 

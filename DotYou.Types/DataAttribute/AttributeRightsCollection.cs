@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
-namespace DotYou.Types.Identity
+namespace DotYou.Types.DataAttribute
 {
     /// <summary>
     /// These access right flags are for attributes. For each actor on an attribute, these

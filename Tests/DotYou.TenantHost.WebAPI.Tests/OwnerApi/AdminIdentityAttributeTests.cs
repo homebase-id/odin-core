@@ -4,8 +4,7 @@ using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
 using DotYou.Types.ApiClient;
-using DotYou.Types.Identity;
-using Identity.DataType.Attributes;
+using DotYou.Types.DataAttribute;
 using Refit;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi

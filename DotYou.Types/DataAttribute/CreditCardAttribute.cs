@@ -1,7 +1,6 @@
-﻿using DotYou.Types.Identity;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-namespace Identity.DataType.Attributes
+namespace DotYou.Types.DataAttribute
 {
     public class CreditCardAttribute : BaseAttribute
     {

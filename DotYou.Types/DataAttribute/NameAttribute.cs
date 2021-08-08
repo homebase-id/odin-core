@@ -1,7 +1,6 @@
-﻿using Identity.DataType.Attributes;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-namespace DotYou.Types.Identity
+namespace DotYou.Types.DataAttribute
 {
     public class NameAttribute : BaseAttribute
     {

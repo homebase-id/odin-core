@@ -1,8 +1,6 @@
 ﻿using System;
-using Identity.DataType.Attributes;
-using Newtonsoft.Json;
 
-namespace DotYou.Types.Identity
+namespace DotYou.Types.DataAttribute
 {
     /// <summary>
     /// Summary description for Class1

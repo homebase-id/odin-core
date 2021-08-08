@@ -11,19 +11,19 @@ namespace DotYou.Types.ApiClient
 
 
         [Get(root_path + "/{id}")]
-        Task<ApiResponse<Person>> GetContact(Guid id);
+        Task<ApiResponse<HumanConnectionProfile>> GetContact(Guid id);
 
         [Get(root_path + "/{domainName}")]
-        Task<ApiResponse<Person>> GetContactByDomain(string domainName);
+        Task<ApiResponse<HumanConnectionProfile>> GetContactByDomain(string domainName);
 
         [Get(root_path)]
-        Task<ApiResponse<PagedResult<Person>>> GetContactsList(PageOptions pageRequest, bool connectedContactsOnly);
+        Task<ApiResponse<PagedResult<HumanConnectionProfile>>> GetContactsList(PageOptions pageRequest, bool connectedContactsOnly);
 
         [Post(root_path)]
-        Task<ApiResponse<NoResultResponse>> SaveContact([Body]Person person);
+        Task<ApiResponse<NoResultResponse>> SaveContact([Body]HumanConnectionProfile humanConnectionProfile);
 
         [Get(root_path + "/find")]
-        Task<ApiResponse<PagedResult<Person>>> Find(string text, [Query]PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<HumanConnectionProfile>>> Find(string text, [Query]PageOptions pageRequest);
 
         [Delete(root_path + "/{id}")]
         Task<ApiResponse<NoResultResponse>> DeleteContact(Guid id);

@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace DotYou.Types.Identity
+namespace DotYou.Types.DataAttribute
 {
     // XXX I'd like the Id and AttrType to be readonly 
     public abstract class BaseAttribute
@@ -12,5 +12,6 @@ namespace DotYou.Types.Identity
         [JsonProperty("attributeType")]
         public abstract int AttributeType { get; set; }
 
+        public virtual Guid CategoryId { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Identity.DataType.Attributes
+﻿namespace DotYou.Types.DataAttribute
 {
     public enum AttributeTypes
     {

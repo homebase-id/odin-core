@@ -8,7 +8,6 @@ using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
-using DotYou.Types.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
@@ -21,13 +20,13 @@ namespace DotYou.TenantHost.Controllers.Demo
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes =  DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
-        private IPersonService _personService;
+        private IHumanConnectionProfileService _humanConnectionProfileService;
         private IPrototrialDemoDataService _prototrial;
         private IAdminIdentityAttributeService _admin;
 
-        public DemoDataController(IPersonService personService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
+        public DemoDataController(IHumanConnectionProfileService humanConnectionProfileService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
         {
-            _personService = personService;
+            _humanConnectionProfileService = humanConnectionProfileService;
             _prototrial = prototrial;
             _admin = admin;
         }
@@ -42,7 +41,7 @@ namespace DotYou.TenantHost.Controllers.Demo
 
             foreach (var importedContact in contacts)
             {
-                var contact = new Person()
+                var contact = new HumanConnectionProfile()
                 {
                     GivenName = importedContact.GivenName,
                     Surname = importedContact.Surname,
@@ -50,7 +49,7 @@ namespace DotYou.TenantHost.Controllers.Demo
                     Tag = importedContact.Tag
                 };
 
-                await _personService.Save(contact);
+                await _humanConnectionProfileService.Save(contact);
             }
             
             var result1 = await _prototrial.AddDigitalIdentities();
