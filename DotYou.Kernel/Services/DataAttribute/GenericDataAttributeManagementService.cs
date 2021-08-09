@@ -1,14 +1,9 @@
 using System;
 using System.Linq.Expressions;
-using System.Security;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.DataSecurity;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
-using DotYou.Types.SignalR;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.DataAttribute
@@ -37,35 +32,30 @@ namespace DotYou.Kernel.Services.DataAttribute
         
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
         {
-            AssertCallerIsOwner();
             var results = await WithTenantStorageReturnList<DataAttributeCategory>(_categoryStorageName, s => s.GetList(pageOptions));
             return results;
         }
 
         public Task SaveCategory(DataAttributeCategory category)
         {
-            AssertCallerIsOwner();
             WithTenantStorage<DataAttributeCategory>(_categoryStorageName, s => s.Save(category));
             return Task.CompletedTask;
         }
 
         public Task DeleteCategory(Guid id)
         {
-            AssertCallerIsOwner();
             WithTenantStorage<DataAttributeCategory>(_categoryStorageName, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
         public Task SaveAttribute(BaseAttribute attribute)
         {
-            AssertCallerIsOwner();
             WithTenantStorage<BaseAttribute>(_attributeStorageName, s => s.Save(attribute));
             return Task.CompletedTask;
         }
 
         public Task DeleteAttribute(Guid id)
         {
-            AssertCallerIsOwner();
             WithTenantStorage<DataAttributeCategory>(_attributeStorageName, s => s.Delete(id));
             return Task.CompletedTask;
         }

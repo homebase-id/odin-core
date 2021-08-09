@@ -1,16 +1,15 @@
-using System;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
 
-namespace DotYou.Kernel.Services.Owner.IdentityManagement
+namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
     /// Enables a Digital Identity Owner to manage their identity
     /// data, including who can see what.
     /// </summary>
-    public interface IOwnerDataAttributeService: IDataAttributeManagementService
+    public interface IOwnerDataAttributeManagementService: IDataAttributeManagementService
     {
         /// <summary>
         /// Returns a <see cref="NameAttribute"/> for this Digital Identity's primary name.

@@ -17,7 +17,7 @@ using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Kernel.Services.Owner.Authentication;
-using DotYou.Kernel.Services.Owner.IdentityManagement;
+using DotYou.Kernel.Services.Owner.Data;
 using DotYou.TenantHost;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
@@ -135,12 +135,12 @@ namespace DotYou.DigitalIdentityHost
                 return new CircleNetworkService(context, contactSvc, logger, hub, fac);
             });
 
-            services.AddScoped<IOwnerDataAttributeService, OwnerDataAttributeService>(svc =>
+            services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
 
-                return new OwnerDataAttributeService(context, logger);
+                return new OwnerDataAttributeManagementService(context, logger);
             });
 
             services.AddScoped<IMessagingService, MessagingService>(svc =>
@@ -169,7 +169,7 @@ namespace DotYou.DigitalIdentityHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
-                var admin = svc.GetRequiredService<IOwnerDataAttributeService>();
+                var admin = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
                 var cn = svc.GetRequiredService<ICircleNetworkService>();
 
                 return new PrototrialDemoDataService(context, logger, cs, admin, cn);

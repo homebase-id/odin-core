@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
-using DotYou.Kernel.Services.Owner.IdentityManagement;
+using DotYou.Kernel.Services.Owner.Data;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
@@ -22,9 +22,9 @@ namespace DotYou.TenantHost.Controllers.Demo
     {
         private IHumanConnectionProfileService _humanConnectionProfileService;
         private IPrototrialDemoDataService _prototrial;
-        private IOwnerDataAttributeService _admin;
+        private IOwnerDataAttributeManagementService _admin;
 
-        public DemoDataController(IHumanConnectionProfileService humanConnectionProfileService, IPrototrialDemoDataService prototrial, IOwnerDataAttributeService admin)
+        public DemoDataController(IHumanConnectionProfileService humanConnectionProfileService, IPrototrialDemoDataService prototrial, IOwnerDataAttributeManagementService admin)
         {
             _humanConnectionProfileService = humanConnectionProfileService;
             _prototrial = prototrial;
@@ -63,9 +63,7 @@ namespace DotYou.TenantHost.Controllers.Demo
         public async Task<IActionResult> SetProfileData()
         {
             await _prototrial.SetProfiles();
-          
-            var storedProfile = await _admin.GetMyProfile();
-            return new JsonResult(storedProfile);
+            return new JsonResult(true);
         }
     }
 }

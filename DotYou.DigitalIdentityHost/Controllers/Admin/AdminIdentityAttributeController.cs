@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Owner.IdentityManagement;
+using DotYou.Kernel.Services.Owner.Data;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
@@ -14,17 +14,17 @@ namespace DotYou.TenantHost.Controllers.Admin
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class AdminIdentityAttributeController : Controller
     {
-        private readonly IOwnerDataAttributeService _identService;
+        private readonly IOwnerDataAttributeManagementService _identManagementService;
 
-        public AdminIdentityAttributeController(IOwnerDataAttributeService identService)
+        public AdminIdentityAttributeController(IOwnerDataAttributeManagementService identManagementService)
         {
-            _identService = identService;
+            _identManagementService = identManagementService;
         }
 
         [HttpGet("primary")]
         public async Task<NameAttribute> GetPrimaryName()
         {
-            var result = await _identService.GetPrimaryName();
+            var result = await _identManagementService.GetPrimaryName();
             return result;
         }
 
@@ -38,7 +38,7 @@ namespace DotYou.TenantHost.Controllers.Admin
         [HttpPost("primary")]
         public async Task<IActionResult> SavePrimaryName([FromBody] NameAttribute name)
         {
-            await _identService.SavePrimaryName(name);
+            await _identManagementService.SavePrimaryName(name);
             
             return new JsonResult(new NoResultResponse(true));
         }

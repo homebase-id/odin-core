@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
 
-namespace DotYou.Kernel.Services.DataAttribute
+namespace DotYou.Kernel.Services.Owner.Data
 {
-    public interface IDataAttributeReaderService
+    public interface IOwnerDataAttributeReaderService
     {
         /// <summary>
         /// Gets all attributes

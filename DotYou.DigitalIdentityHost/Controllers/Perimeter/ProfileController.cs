@@ -2,7 +2,8 @@
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.Owner.IdentityManagement;
+using DotYou.Kernel.Services.DataAttribute;
+using DotYou.Kernel.Services.Owner.Data;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
@@ -18,18 +19,18 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class ProfileController : ControllerBase
     {
-        private readonly IOwnerDataAttributeService _identityAttribute;
+        private readonly IOwnerDataAttributeReaderService _reader;
 
-        public ProfileController(IOwnerDataAttributeService identityAttribute)
+        public ProfileController(IOwnerDataAttributeReaderService reader)
         {
-            _identityAttribute = identityAttribute;
+            _reader = reader;
         }
         
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
             //TODO: determine if we map the avatar uri to one that sends the request back through the user's DI
-            var profile = await _identityAttribute.GetMyProfile();
+            var profile = await _reader.GetProfile();
             return new JsonResult(profile);
         }
     }

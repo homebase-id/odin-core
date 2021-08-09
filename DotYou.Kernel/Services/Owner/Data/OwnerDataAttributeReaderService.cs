@@ -4,29 +4,29 @@ using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.Owner.IdentityManagement;
+using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
-namespace DotYou.Kernel.Services.DataAttribute
+namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
     /// Supports reading data attributes for a DI owner.  Implementations must ensure only the scope
     /// of data assigned to the caller is returned.  (i.e. if this is frodo's digital identity, it will ensure only
     /// those in the fellowship know he has the one ring)
     /// </summary>
-    public class OwnerDataAttributeReaderService : DotYouServiceBase, IDataAttributeReaderService
+    public class OwnerDataAttributeReaderService : DotYouServiceBase, IOwnerDataAttributeReaderService
     {
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly DataAttributeStorage _das;
+        private readonly OwnerDataAttributeStorage _das;
 
         public OwnerDataAttributeReaderService(DotYouContext context, ILogger logger, ICircleNetworkService circleNetwork, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _circleNetwork = circleNetwork;
-            _das = new DataAttributeStorage(context, logger);
+            _das = new OwnerDataAttributeStorage(context, logger);
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)
@@ -58,6 +58,8 @@ namespace DotYou.Kernel.Services.DataAttribute
             }
 
             var profile = await _das.GetPublicProfile();
+
+            //HACK: OMG HACK #2
             profile.SystemCircle = SystemCircle.PublicAnonymous;
             return profile;
         }

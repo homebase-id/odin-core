@@ -1,24 +1,25 @@
 using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
 using Microsoft.Extensions.Logging;
 
-namespace DotYou.Kernel.Services.Owner.IdentityManagement
+namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
     /// Enables the owner of a DI to read/write their data attributes.  This handles both fixed
     /// and generic attributes.  (Fixed attributes are those built-into the system like
     /// Name, Address, etc.)
     /// </summary>
-    public class OwnerDataAttributeService : DotYouServiceBase, IOwnerDataAttributeService
+    public class OwnerDataAttributeManagementService : DotYouServiceBase, IOwnerDataAttributeManagementService
     {
-        private readonly DataAttributeStorage _das;
+        private readonly OwnerDataAttributeStorage _das;
 
-        public OwnerDataAttributeService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public OwnerDataAttributeManagementService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
         {
-            _das = new DataAttributeStorage(context, logger);
+            _das = new OwnerDataAttributeStorage(context, logger);
         }
 
         public async Task<NameAttribute> GetPrimaryName()

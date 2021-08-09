@@ -3,18 +3,17 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
 using Microsoft.Extensions.Logging;
 
-namespace DotYou.Kernel.Services.Owner.IdentityManagement
+namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
     /// Specialized storage for DI Profiles.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
-    internal sealed class DataAttributeStorage : DotYouServiceBase
+    internal sealed class OwnerDataAttributeStorage : DotYouServiceBase
     {
         private const string ADMIN_IDENTITY_COLLECTION = "AdminIdentity";
         private const string PUBLIC_INFO_COLLECTION = "PublicInfo";
@@ -27,7 +26,7 @@ namespace DotYou.Kernel.Services.Owner.IdentityManagement
         private readonly Guid PUBLIC_PROFILE_ID = Guid.Parse("ffffff6d-d8ff-4aff-97ff-071aafffdfff");
         private readonly Guid CONNECTED_PROFILE_ID = Guid.Parse("EEEEEf6d-d8ff-4aff-97ff-071aafffdfff");
 
-        public DataAttributeStorage(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public OwnerDataAttributeStorage(DotYouContext context, ILogger logger) : base(context, logger, null, null)
         {
         }
 
