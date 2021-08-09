@@ -9,15 +9,17 @@ namespace DotYou.IdentityRegistry
     /// </summary>
     public class DotYouContext
     {
-        public DotYouContext(DotYouIdentity hostDotYouId, IdentityCertificate tenantCertificate, TenantStorageConfig storageConfig, DotYouIdentity callerDotYouId)
+        public DotYouContext(DotYouIdentity hostDotYouId, IdentityCertificate tenantCertificate, TenantStorageConfig storageConfig, CallerContext caller)
         {
+            Guard.Argument(hostDotYouId.Id, nameof(hostDotYouId)).NotNull().NotEmpty();
             Guard.Argument(tenantCertificate, nameof(tenantCertificate)).NotNull();
             Guard.Argument(storageConfig, nameof(storageConfig)).NotNull();
+            Guard.Argument(caller, nameof(caller)).NotNull();
 
             this.HostDotYouId = hostDotYouId;
             this.StorageConfig = storageConfig;
+            this.Caller = caller;
             this.TenantCertificate = tenantCertificate;
-            this.CallerDotYouId = callerDotYouId;
         }
 
         /// <summary>
@@ -35,16 +37,6 @@ namespace DotYou.IdentityRegistry
         /// </summary>
         public TenantStorageConfig StorageConfig { get; }
 
-        /// <summary>
-        /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
-        /// </summary>
-        public DotYouIdentity CallerDotYouId { get; }
-
-        /*         
-        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-        new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-        new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-         */
+        public CallerContext Caller { get; }
     }
 }

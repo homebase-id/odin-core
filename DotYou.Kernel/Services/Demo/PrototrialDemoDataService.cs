@@ -2,9 +2,9 @@
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.Owner.IdentityManagement;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using DotYou.Types.DataAttribute;
@@ -18,10 +18,10 @@ namespace DotYou.Kernel.Services.Demo
     public class PrototrialDemoDataService : DotYouServiceBase, IPrototrialDemoDataService
     {
         private readonly IHumanConnectionProfileService _humanConnectionProfileService;
-        private readonly IAdminIdentityAttributeService _admin;
+        private readonly IOwnerDataAttributeService _admin;
         private readonly ICircleNetworkService _circleNetworkService;
 
-        public PrototrialDemoDataService(DotYouContext context, ILogger logger, IHumanConnectionProfileService humanConnectionProfileService, IAdminIdentityAttributeService admin, ICircleNetworkService circleNetworkService) : base(context, logger, null, null)
+        public PrototrialDemoDataService(DotYouContext context, ILogger logger, IHumanConnectionProfileService humanConnectionProfileService, IOwnerDataAttributeService admin, ICircleNetworkService circleNetworkService) : base(context, logger, null, null)
         {
             _humanConnectionProfileService = humanConnectionProfileService;
             _admin = admin;

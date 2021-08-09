@@ -2,6 +2,7 @@
 using DotYou.Types;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Security;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
@@ -57,6 +58,14 @@ namespace DotYou.Kernel.Services
         protected INotificationHub Notify
         {
             get => _notificationHub.Clients.User(this.Context.HostDotYouId);
+        }
+        
+        protected void AssertCallerIsOwner()
+        {
+            if (this.Context.Caller.IsOwner == false)
+            {
+                throw new SecurityException("Caller is not the owner");
+            }
         }
         
         protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)

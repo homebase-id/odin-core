@@ -1,9 +1,10 @@
 ﻿using System.Threading.Tasks;
 using DotYou.Kernel.Cryptography;
+using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace DotYou.Kernel.Services.Owner.Authentication
 {
     public interface IOwnerSecretService
     {

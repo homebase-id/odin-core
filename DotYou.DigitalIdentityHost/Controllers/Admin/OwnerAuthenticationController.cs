@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Cryptography;

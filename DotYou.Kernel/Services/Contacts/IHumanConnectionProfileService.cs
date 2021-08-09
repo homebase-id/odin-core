@@ -20,9 +20,9 @@ namespace DotYou.Kernel.Services.Contacts
         /// <summary>
         /// Upserts a contact into the system.
         /// </summary>
-        /// <param name="humanConnectionProfile"></param>
+        /// <param name="profile"></param>
         /// <returns></returns>
-        Task Save(HumanConnectionProfile humanConnectionProfile);
+        Task Save(HumanConnectionProfile profile);
 
         /// <summary>
         /// Deletes the specified contact

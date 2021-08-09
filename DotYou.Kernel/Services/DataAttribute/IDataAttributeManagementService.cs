@@ -9,8 +9,15 @@ namespace DotYou.Kernel.Services.DataAttribute
     /// Enables the definition and management of various data attributes
     /// describing a <see cref="HumanConnectionProfile"/>
     /// </summary>
-    public interface IDataAttributeService
+    public interface IDataAttributeManagementService
     {
+        /// <summary>
+        /// Gets a list of categories
+        /// </summary>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions);
+
         /// <summary>
         /// Creates or updates the specified category
         /// </summary>
@@ -37,7 +44,7 @@ namespace DotYou.Kernel.Services.DataAttribute
         /// <param name="id"></param>
         /// <returns></returns>
         Task DeleteAttribute(Guid id);
-
+        
         /// <summary>
         /// Gets all attributes
         /// </summary>
@@ -50,8 +57,8 @@ namespace DotYou.Kernel.Services.DataAttribute
         /// to find attributes not assigned to a category
         /// </summary>
         /// <param name="pageOptions"></param>
-        /// <param name="cagtegoryId"></param>
+        /// <param name="categoryId"></param>
         /// <returns></returns>
-        Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions, Guid cagtegoryId);
+        Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions, Guid categoryId);
     }
 }

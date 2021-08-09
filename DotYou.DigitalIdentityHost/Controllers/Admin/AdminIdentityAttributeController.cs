@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.Owner.IdentityManagement;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
@@ -14,9 +14,9 @@ namespace DotYou.TenantHost.Controllers.Admin
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class AdminIdentityAttributeController : Controller
     {
-        private readonly IAdminIdentityAttributeService _identService;
+        private readonly IOwnerDataAttributeService _identService;
 
-        public AdminIdentityAttributeController(IAdminIdentityAttributeService identService)
+        public AdminIdentityAttributeController(IOwnerDataAttributeService identService)
         {
             _identService = identService;
         }

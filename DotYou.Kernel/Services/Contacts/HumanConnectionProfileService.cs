@@ -23,38 +23,38 @@ namespace DotYou.Kernel.Services.Contacts
             return result;
         }
 
-        public async Task Save(HumanConnectionProfile humanConnectionProfile)
+        public async Task Save(HumanConnectionProfile profile)
         {
             //TODO: need to revist this merge process to be more explicit for the caller who has the context of what they want to do 
 
-            HumanConnectionProfile existingHumanConnectionProfile = null;
+            HumanConnectionProfile existingProfile = null;
 
             //if we find a record by their dotYouId, save it and overwrite everything else
-            existingHumanConnectionProfile = await GetByDotYouId(humanConnectionProfile.DotYouId);
-            if (existingHumanConnectionProfile != null)
+            existingProfile = await GetByDotYouId(profile.DotYouId);
+            if (existingProfile != null)
             {
-                existingHumanConnectionProfile.GivenName = humanConnectionProfile.GivenName;
-                existingHumanConnectionProfile.Surname = humanConnectionProfile.Surname;
-                existingHumanConnectionProfile.Tag = humanConnectionProfile.Tag;
-                existingHumanConnectionProfile.PrimaryEmail = humanConnectionProfile.PrimaryEmail;
-                WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(existingHumanConnectionProfile));
+                existingProfile.GivenName = profile.GivenName;
+                existingProfile.Surname = profile.Surname;
+                existingProfile.Tag = profile.Tag;
+                existingProfile.PrimaryEmail = profile.PrimaryEmail;
+                WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(existingProfile));
                 return;
             }
 
-            existingHumanConnectionProfile = await GetByExactNameMatch(humanConnectionProfile);
-            if (existingHumanConnectionProfile != null)
+            existingProfile = await GetByExactNameMatch(profile);
+            if (existingProfile != null)
             {
-                existingHumanConnectionProfile.GivenName = humanConnectionProfile.GivenName;
-                existingHumanConnectionProfile.Surname = humanConnectionProfile.Surname;
-                existingHumanConnectionProfile.Tag = humanConnectionProfile.Tag;
-                existingHumanConnectionProfile.PrimaryEmail = humanConnectionProfile.PrimaryEmail;
-                WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(existingHumanConnectionProfile));
+                existingProfile.GivenName = profile.GivenName;
+                existingProfile.Surname = profile.Surname;
+                existingProfile.Tag = profile.Tag;
+                existingProfile.PrimaryEmail = profile.PrimaryEmail;
+                WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(existingProfile));
                 return;
             }
 
             //otherwise just save it by the id
 
-            WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(humanConnectionProfile));
+            WithTenantStorage<HumanConnectionProfile>(DATA_COLLECTION, storage => storage.Save(profile));
         }
 
         public async Task<PagedResult<HumanConnectionProfile>> GetContacts(PageOptions req, bool connectedContactsOnly)

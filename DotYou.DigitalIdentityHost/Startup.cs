@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
@@ -8,13 +9,15 @@ using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Kernel.Services.Demo;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
+using DotYou.Kernel.Services.Owner.Authentication;
+using DotYou.Kernel.Services.Owner.IdentityManagement;
 using DotYou.TenantHost;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
@@ -132,13 +135,12 @@ namespace DotYou.DigitalIdentityHost
                 return new CircleNetworkService(context, contactSvc, logger, hub, fac);
             });
 
-            services.AddScoped<IAdminIdentityAttributeService, AdminIdentityAttributeService>(svc =>
+            services.AddScoped<IOwnerDataAttributeService, OwnerDataAttributeService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
 
-                var cns = svc.GetRequiredService<ICircleNetworkService>();
-                return new AdminIdentityAttributeService(context, cns, logger);
+                return new OwnerDataAttributeService(context, logger);
             });
 
             services.AddScoped<IMessagingService, MessagingService>(svc =>
@@ -167,7 +169,7 @@ namespace DotYou.DigitalIdentityHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
-                var admin = svc.GetRequiredService<IAdminIdentityAttributeService>();
+                var admin = svc.GetRequiredService<IOwnerDataAttributeService>();
                 var cn = svc.GetRequiredService<ICircleNetworkService>();
 
                 return new PrototrialDemoDataService(context, logger, cs, admin, cn);
@@ -229,12 +231,17 @@ namespace DotYou.DigitalIdentityHost
             var reg = svc.GetRequiredService<IIdentityContextRegistry>();
 
             var httpContext = accessor.HttpContext;
-            
+
             string hostname = httpContext.Request.Host.Host;
             var cert = reg.ResolveCertificate(hostname);
             var storage = reg.ResolveStorageConfig(hostname);
 
-            var caller = (DotYouIdentity) accessor.HttpContext.User.Identity.Name;
+            var user = httpContext.User;
+            var caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity.Name,
+                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower())
+            );
+
             var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
             return context;
         }

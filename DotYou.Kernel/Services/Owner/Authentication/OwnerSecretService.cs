@@ -5,11 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
+using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Logging;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace DotYou.Kernel.Services.Owner.Authentication
 {
     public class OwnerSecretService : DotYouServiceBase, IOwnerSecretService
     {

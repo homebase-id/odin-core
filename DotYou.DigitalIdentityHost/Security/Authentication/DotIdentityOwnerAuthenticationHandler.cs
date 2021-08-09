@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Web;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using Microsoft.AspNetCore.Authentication;
@@ -57,6 +58,7 @@ namespace DotYou.TenantHost.Security.Authentication
                 {
                     //TODO: this needs to be pulled from context rather than the domain
 
+                    //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
                     var claims = new[]
                     {

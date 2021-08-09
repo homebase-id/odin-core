@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Authorization;
+using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -2,10 +2,10 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
+using DotYou.Kernel.Services.Owner.IdentityManagement;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
@@ -22,9 +22,9 @@ namespace DotYou.TenantHost.Controllers.Demo
     {
         private IHumanConnectionProfileService _humanConnectionProfileService;
         private IPrototrialDemoDataService _prototrial;
-        private IAdminIdentityAttributeService _admin;
+        private IOwnerDataAttributeService _admin;
 
-        public DemoDataController(IHumanConnectionProfileService humanConnectionProfileService, IPrototrialDemoDataService prototrial, IAdminIdentityAttributeService admin)
+        public DemoDataController(IHumanConnectionProfileService humanConnectionProfileService, IPrototrialDemoDataService prototrial, IOwnerDataAttributeService admin)
         {
             _humanConnectionProfileService = humanConnectionProfileService;
             _prototrial = prototrial;

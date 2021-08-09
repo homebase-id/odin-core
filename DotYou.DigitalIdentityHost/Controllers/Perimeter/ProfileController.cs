@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Admin.IdentityManagement;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Circle;
+using DotYou.Kernel.Services.Owner.IdentityManagement;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
@@ -18,9 +18,9 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class ProfileController : ControllerBase
     {
-        private readonly IAdminIdentityAttributeService _identityAttribute;
+        private readonly IOwnerDataAttributeService _identityAttribute;
 
-        public ProfileController(IAdminIdentityAttributeService identityAttribute)
+        public ProfileController(IOwnerDataAttributeService identityAttribute)
         {
             _identityAttribute = identityAttribute;
         }

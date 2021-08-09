@@ -4,7 +4,7 @@ using DotYou.Kernel.Cryptography;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace DotYou.Kernel.Services.Owner.Authentication
 {
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity

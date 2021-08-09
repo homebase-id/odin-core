@@ -1,16 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Xml;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.HttpClient;
+using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
-using DotYou.Types.SignalR;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using Constants = Microsoft.VisualBasic.Constants;
 
 /// <summary>
 /// Goals here are that:
@@ -21,7 +17,7 @@ using Constants = Microsoft.VisualBasic.Constants;
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
 /// 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace DotYou.Kernel.Services.Owner.Authentication
 {
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
