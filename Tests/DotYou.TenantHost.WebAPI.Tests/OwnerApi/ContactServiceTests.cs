@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using DotYou.Types.ApiClient;
+using DotYou.Types.DataAttribute;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {
@@ -41,9 +42,8 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 var contactResponse = await svc.GetContactByDomain(scaffold.Samwise);
 
                 Assert.IsNotNull(contactResponse.Content, $"Contact was not found by domain [{scaffold.Samwise}]");
-                Assert.IsTrue(contactResponse.Content.GivenName == "Samwise");
-                Assert.IsTrue(contactResponse.Content.Surname == "Gamgee");
-                Assert.IsTrue(contactResponse.Content.PrimaryEmail == "mail@samwisegamgee.me");
+                Assert.IsTrue(contactResponse.Content.Name.Personal == "Samwise");
+                Assert.IsTrue(contactResponse.Content.Name.Surname == "Gamgee");
 
             }
         }
@@ -73,19 +73,20 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             using (var client = scaffold.CreateHttpClient(scaffold.Frodo))
             {
                 var svc = RestService.For<IContactManagementClient>(client);
-                
-                HumanConnectionProfile humanConnectionProfile = new()
+
+                var name = new NameAttribute()
+                {
+                    Personal = "Samwise",
+                    Surname = "Gamgee"
+                };
+                HumanProfile humanProfile = new()
                 {
                     DotYouId = scaffold.Samwise,
-                    GivenName = "Samwise",
-                    Surname = "Gamgee",
-                    PrimaryEmail = "mail@samwisegamgee.me",
+                    Name = name,
                     PublicKeyCertificate = "",
-                    SystemCircle = SystemCircle.PublicAnonymous,
-                    Tag = "fellowship",
                 };
 
-                var response = await svc.SaveContact(humanConnectionProfile);
+                var response = await svc.SaveContact(humanProfile);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
@@ -99,18 +100,19 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             {
                 var svc = RestService.For<IContactManagementClient>(client);
                 
-                HumanConnectionProfile humanConnectionProfile = new()
+                var name = new NameAttribute()
+                {
+                    Personal = "Frodo",
+                    Surname = "Baggins"
+                };
+                
+                HumanProfile humanProfile = new()
                 {
                     DotYouId = scaffold.Frodo,
-                    GivenName = "Frodo",
-                    Surname = "Baggins",
-                    PrimaryEmail = "mail@frodobaggins.me",
                     PublicKeyCertificate = "",
-                    SystemCircle = SystemCircle.PublicAnonymous,
-                    Tag = "fellowship",
                 };
 
-                var response = await svc.SaveContact(humanConnectionProfile);
+                var response = await svc.SaveContact(humanProfile);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");

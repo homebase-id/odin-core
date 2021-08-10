@@ -6,9 +6,9 @@ using DotYou.Types;
 namespace DotYou.Kernel.Services.Contacts
 {
     /// <summary>
-    /// Services for managing, importing, and connecting with humans.
+    /// Services for managing profiles about with humans with which I'm connected.
     /// </summary>
-    public interface IHumanConnectionProfileService
+    public interface IProfileService
     {
 
         /// <summary>
@@ -16,14 +16,14 @@ namespace DotYou.Kernel.Services.Contacts
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<HumanConnectionProfile> Get(DotYouIdentity dotYouId);
+        Task<HumanProfile> Get(DotYouIdentity dotYouId);
         
         /// <summary>
         /// Upserts a profile into the system.
         /// </summary>
         /// <param name="profile"></param>
         /// <returns></returns>
-        Task Save(HumanConnectionProfile profile);
+        Task Save(HumanProfile profile);
 
         /// <summary>
         /// Deletes the specified profile
@@ -33,16 +33,9 @@ namespace DotYou.Kernel.Services.Contacts
         Task Delete(DotYouIdentity dotYouId);
 
         /// <summary>
-        /// Gets connections from the system
-        /// </summary>
-        /// <param name="req"></param>
-        /// <returns></returns>
-        Task<PagedResult<HumanConnectionProfile>> GetConnections(PageOptions req);
-
-        /// <summary>
         /// Finds contacts matching the given predicate.
         /// </summary>
-        Task<PagedResult<HumanConnectionProfile>> Find(Expression<Func<HumanConnectionProfile, bool>> predicate, PageOptions req);
+        Task<PagedResult<HumanProfile>> Find(Expression<Func<HumanProfile, bool>> predicate, PageOptions req);
 
      
     }

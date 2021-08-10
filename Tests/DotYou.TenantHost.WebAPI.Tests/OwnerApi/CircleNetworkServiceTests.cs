@@ -159,8 +159,8 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to contain at domain {_scaffold.Samwise}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No contact with domain {_scaffold.Samwise} found");
-                Assert.IsTrue(response.Content.GivenName == "Samwise");
-                Assert.IsTrue(response.Content.Surname == "Gamgee");
+                Assert.IsTrue(response.Content.Name.Personal == "Samwise");
+                Assert.IsTrue(response.Content.Name.Surname == "Gamgee");
 
             }
 
@@ -175,8 +175,8 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to retrieve {_scaffold.Frodo}");
                 Assert.IsNotNull(response.Content, $"No contact with domain {_scaffold.Frodo} found");
-                Assert.IsTrue(response.Content.GivenName == "Frodo");
-                Assert.IsTrue(response.Content.Surname == "Baggins");
+                Assert.IsTrue(response.Content.Name.Personal == "Frodo");
+                Assert.IsTrue(response.Content.Name.Surname == "Baggins");
             }
         }
 

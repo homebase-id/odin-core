@@ -1,5 +1,6 @@
 ﻿using System;
 using Dawn;
+using DotYou.Types.DataAttribute;
 
 namespace DotYou.Types.Circle
 {
@@ -14,7 +15,12 @@ namespace DotYou.Types.Circle
         /// The Id of the original connection request
         /// </summary>
         public Guid ConnectionRequestId { get; set; }
-       
+        
+        /// <summary>
+        /// The name to be shown the recipient on the request
+        /// </summary>
+        public NameAttribute Name { get; set; }
+        
         public string RecipientGivenName { get; set; }
         
         public string RecipientSurname { get; set; }

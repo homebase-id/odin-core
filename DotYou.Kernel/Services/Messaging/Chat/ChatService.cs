@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
+using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
 using DotYou.Types.Admin;
@@ -20,11 +21,13 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
-        private readonly IHumanConnectionProfileService _profileService;
+        private readonly IProfileService _profileService;
+        private readonly ICircleNetworkService _cns;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IHumanConnectionProfileService profileService) : base(context, logger, hub, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns) : base(context, logger, hub, fac)
         {
             _profileService = profileService;
+            _cns = cns;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -33,30 +36,33 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
 
-            var contactsPage = await _profileService.GetConnections(options);
-
+            
+            var connections = await _cns.GetConnections(options);
+            
             var bag = new ConcurrentBag<AvailabilityStatus>();
-
-            var tasks = contactsPage.Results.Select(async contact =>
+            
+            var tasks = connections.Results.Select(async connectionInfo =>
             {
-                var client = base.CreatePerimeterHttpClient(contact.DotYouId);
+                var client = base.CreatePerimeterHttpClient(connectionInfo.DotYouId);
                 var response = await client.GetAvailability();
-
+            
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
-
+            
                 var av = new AvailabilityStatus
                 {
                     IsChatAvailable = canChat,
                     Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    HumanConnectionProfile = contact
+                    DotYouId =  connectionInfo.DotYouId,
+                    DisplayName = connectionInfo.DotYouId, //TODO: get the name information from the profile service
+                    StatusMessage = ""
                 };
-
+            
                 bag.Add(av);
             });
-
+            
             await Task.WhenAll(tasks);
-
-            var availabilityPage = new PagedResult<AvailabilityStatus>(options, contactsPage.TotalPages, bag.ToList());
+            
+            var availabilityPage = new PagedResult<AvailabilityStatus>(options, connections.TotalPages, bag.ToList());
             return availabilityPage;
         }
 

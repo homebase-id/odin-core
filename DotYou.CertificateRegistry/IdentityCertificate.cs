@@ -44,6 +44,7 @@ namespace DotYou.IdentityRegistry
         /// <summary>
         /// Specifies the Name of the individual holding the certifiate
         /// </summary>
+        [Obsolete("not required any longer")]
         public NameInfo OwnerName { get; }
         
         /// <summary>

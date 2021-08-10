@@ -118,11 +118,11 @@ namespace DotYou.DigitalIdentityHost
                     return new OwnerAuthenticationService(context, logger, ss);
                 });
 
-            services.AddScoped<IHumanConnectionProfileService, HumanConnectionProfileService>(svc =>
+            services.AddScoped<IProfileService, ProfileService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<HumanConnectionProfileService>>();
-                return new HumanConnectionProfileService(context, logger);
+                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
+                return new ProfileService(context, logger);
             });
 
             
@@ -130,20 +130,21 @@ namespace DotYou.DigitalIdentityHost
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var contactSvc = svc.GetRequiredService<IHumanConnectionProfileService>();
+                var cns = svc.GetRequiredService<ICircleNetworkService>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                return new CircleNetworkRequestService(context, contactSvc, logger, hub, fac);
+                var mgt = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
+                return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
             });
             
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var contactSvc = svc.GetRequiredService<IHumanConnectionProfileService>();
+                var profileSvc = svc.GetRequiredService<IProfileService>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                return new CircleNetworkService(context, contactSvc, logger, hub, fac);
+                return new CircleNetworkService(context, profileSvc, logger, hub, fac);
             });
 
             services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
@@ -170,8 +171,9 @@ namespace DotYou.DigitalIdentityHost
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
-                return new ChatService(context, logger, hub, fac, cs);
+                var p = svc.GetRequiredService<IProfileService>();
+                var cns = svc.GetRequiredService<ICircleNetworkService>();
+                return new ChatService(context, logger, hub, fac, p, cns);
             });
 
 
@@ -179,7 +181,7 @@ namespace DotYou.DigitalIdentityHost
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
-                var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
+                var cs = svc.GetRequiredService<IProfileService>();
                 var admin = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
                 var cnrs = svc.GetRequiredService<ICircleNetworkRequestService>();
 

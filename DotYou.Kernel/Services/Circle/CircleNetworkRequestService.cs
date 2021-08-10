@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Kernel.Services.Owner.Data;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using DotYou.Types.SignalR;
@@ -20,17 +20,19 @@ namespace DotYou.Kernel.Services.Circle
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
-        private readonly IHumanConnectionProfileService _profileService;
+        private readonly ICircleNetworkService _cns;
+        private readonly IOwnerDataAttributeManagementService _mgts;
 
-        public CircleNetworkRequestService(DotYouContext context, IHumanConnectionProfileService profileService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
         {
-            _profileService = profileService;
+            _cns = cns;
+            _mgts = mgts;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.SenderGivenName;
-            Expression<Func<ConnectionRequest, bool>> predicate = c => true;  //HACK: need to update the storage provider GetList method
+            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
+            Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
 
             // var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
@@ -57,9 +59,8 @@ namespace DotYou.Kernel.Services.Circle
             request.SenderDotYouId = this.Context.HostDotYouId;
             request.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            //TODO: these need to pull from the identity attribute server using the public profile attributes
-            request.SenderGivenName = this.Context.TenantCertificate.OwnerName.GivenName;
-            request.SenderSurname = this.Context.TenantCertificate.OwnerName.Surname;
+            var primaryName = await _mgts.GetPrimaryName();
+            request.Name = primaryName;
 
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
 
@@ -113,25 +114,9 @@ namespace DotYou.Kernel.Services.Circle
             {
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
-
-            DomainCertificate cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _profileService.Get(cert.DotYouId);
-
-            //create a new contact
-            var person = new HumanConnectionProfile()
-            {
-                Id = ec?.Id ?? Guid.NewGuid(),
-                GivenName = request.RecipientGivenName,
-                Surname = request.RecipientSurname,
-                DotYouId = cert.DotYouId,
-                SystemCircle = SystemCircle.Connected,
-                PrimaryEmail = ec == null ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
-                Tag = ec == null ? "" : ec.Tag
-            };
-
-            await _profileService.Save(person);
-
+            
+            await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
+            
             //await this.DeleteSentRequest(request.ConnectionRequestId);
 
             this.Notify.ConnectionRequestAccepted(request).Wait();
@@ -149,33 +134,15 @@ namespace DotYou.Kernel.Services.Circle
 
             this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            var cert = new DomainCertificate(request.SenderPublicKeyCertificate);
-            var ec = await _profileService.Get(cert.DotYouId);
+            await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
 
-            //TODO: add relationshipId for future analysis
+            //Now send back an acknowledgement
 
-            //TODO: address how this contact merge should really happen
-
-            var contact = new HumanConnectionProfile()
-            {
-                Id = ec?.Id ?? Guid.NewGuid(),
-                GivenName = request.SenderGivenName,
-                Surname = request.SenderSurname,
-                DotYouId = cert.DotYouId,
-                SystemCircle = SystemCircle.Connected,
-                PrimaryEmail = ec == null ? "" : ec.PrimaryEmail,
-                PublicKeyCertificate = request.SenderPublicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
-                Tag = ec == null ? "" : ec.Tag
-            };
-
-            await _profileService.Save(contact);
-
-            //call to request.Sender's agent to establish connection.
+            var primaryName = await _mgts.GetPrimaryName();
             EstablishConnectionRequest acceptedReq = new()
             {
                 ConnectionRequestId = id,
-                RecipientGivenName = this.Context.TenantCertificate.OwnerName.GivenName,
-                RecipientSurname = this.Context.TenantCertificate.OwnerName.Surname
+                Name = primaryName
             };
 
             var response = await this.CreatePerimeterHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);

@@ -15,23 +15,23 @@ namespace DotYou.DigitalIdentityHost.Controllers
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class HumanConnectionProfileController : ControllerBase
     {
-        IHumanConnectionProfileService _profile;
+        IProfileService _profile;
 
-        public HumanConnectionProfileController(IHumanConnectionProfileService profile)
+        public HumanConnectionProfileController(IProfileService profile)
         {
             _profile = profile;
         }
 
 
         [HttpGet("find")]
-        public async Task<PagedResult<HumanConnectionProfile>> Find(string text, int pageNumber, int pageSize)
+        public async Task<PagedResult<HumanProfile>> Find(string text, int pageNumber, int pageSize)
         {
             string q = text.ToLower();
-            Expression<Func<HumanConnectionProfile, bool>> predicate;
+            Expression<Func<HumanProfile, bool>> predicate;
            
             predicate = c =>
-                c.GivenName.ToLower().Contains(q) ||
-                c.Surname.ToLower().Contains(q) ||
+                c.Name.Personal.ToLower().Contains(q) ||
+                c.Name.Surname.ToLower().Contains(q) ||
                 c.DotYouId.Id.Contains(q);
 
             var results = await _profile.Find(predicate, new PageOptions(pageNumber, pageSize));
@@ -54,17 +54,10 @@ namespace DotYou.DigitalIdentityHost.Controllers
             return new JsonResult(result);
         }
 
-        [HttpGet]
-        public async Task<PagedResult<HumanConnectionProfile>> GetContactsList(int pageNumber, int pageSize)
-        {
-            var result = await _profile.GetConnections(new PageOptions(pageNumber, pageSize));
-            return result;
-        }
-
         [HttpPost]
-        public async Task<IActionResult> Save(HumanConnectionProfile humanConnectionProfile)
+        public async Task<IActionResult> Save(HumanProfile humanProfile)
         {
-            await _profile.Save(humanConnectionProfile);
+            await _profile.Save(humanProfile);
             return new JsonResult(new NoResultResponse(true));
         }
 

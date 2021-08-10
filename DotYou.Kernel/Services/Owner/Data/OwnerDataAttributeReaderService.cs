@@ -43,8 +43,7 @@ namespace DotYou.Kernel.Services.Owner.Data
 
         public async Task<Profile> GetProfile()
         {
-            var isConnectedWithMe = await _circleNetwork.GetSystemCircle(base.Context.Caller.DotYouId) == SystemCircle.Connected;
-            if (isConnectedWithMe)
+            if (await _circleNetwork.IsConnected(Context.Caller.DotYouId) )
             {
                 var connectedProfile = await _das.GetConnectedProfile();
                 
