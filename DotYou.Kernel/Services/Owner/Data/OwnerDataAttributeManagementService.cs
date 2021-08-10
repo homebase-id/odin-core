@@ -8,11 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {
-    /// <summary>
-    /// Enables the owner of a DI to read/write their data attributes.  This handles both fixed
-    /// and generic attributes.  (Fixed attributes are those built-into the system like
-    /// Name, Address, etc.)
-    /// </summary>
+    /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
     public class OwnerDataAttributeManagementService : DotYouServiceBase, IOwnerDataAttributeManagementService
     {
         private readonly OwnerDataAttributeStorage _das;

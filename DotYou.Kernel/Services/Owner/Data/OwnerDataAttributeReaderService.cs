@@ -13,11 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {
-    /// <summary>
-    /// Supports reading data attributes for a DI owner.  Implementations must ensure only the scope
-    /// of data assigned to the caller is returned.  (i.e. if this is frodo's digital identity, it will ensure only
-    /// those in the fellowship know he has the one ring)
-    /// </summary>
+    /// <inheritdoc cref="IOwnerDataAttributeReaderService"/>
     public class OwnerDataAttributeReaderService : DotYouServiceBase, IOwnerDataAttributeReaderService
     {
         private readonly ICircleNetworkService _circleNetwork;

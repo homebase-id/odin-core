@@ -48,10 +48,6 @@ function App() {
             //todo: this is duplicate code
             console.log('device is authenticated; redirecting')
             window.location.href = "dotyou://auth/" + state.deviceToken;
-            //window.location.href = "https://3930ckalal.com/" + state.deviceToken;
-
-            //console.log('dt on apptsx: ', state.deviceToken);
-
             return;
         }
         

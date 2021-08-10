@@ -37,18 +37,35 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             var salts = await _secretService.GetStoredSalts();
 
             var rsa = await _secretService.GetRsaKeyList();
-            
+
             var key = RsaKeyListManagement.GetCurrentKey(rsa);
             var publicKey = RsaKeyManagement.publicPem(key);
-            
+
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, RsaKeyManagement.KeyCRC(key));
-            
+
             WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
-        
+
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
+            //HACK: login set to unblock me while encryption is being sorted
+            bool match = Guid.Parse(reply.Nonce64) == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+            if (match == false)
+            {
+                throw new AuthenticationException();
+            }
+
+            Guid token = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+            Guid clientHalf = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
+
+            return new AuthenticationResult()
+            {
+                Token = token,
+                Token2 = clientHalf
+            };
+
+            ////////////////////
             // XXX CALL THE LoginKeyManagement Authenticate
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
@@ -62,7 +79,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             rp.crc = reply.crc;
 
             var keys = await this._secretService.GetRsaKeyList();
-            var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys); 
+            var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys);
 
             // TODO: audit login some where, or in helper class below
 
@@ -72,21 +89,21 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
             // Is this necessary ? :-) 
             // It would be nicer to see the cookie set here...
-            return new AuthenticationResult() 
+            return new AuthenticationResult()
             {
                 Token = LoginToken.Id,
                 Token2 = new Guid(halfCookie)
-            }; 
+            };
         }
-        
+
         public async Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply)
         {
             var authResult = await Authenticate(reply);
-            
+
             //TODO: extra device auth stuff here - like seeing if it's an authorized device, etc.
             //HACK: hard coded until we integrate michael's stuff
             var deviceToken = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-            
+
             var result = new DeviceAuthenticationResult()
             {
                 AuthenticationResult = authResult,
@@ -106,7 +123,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
             return false;
         }
-        
+
         public async Task<bool> IsValidToken(Guid token)
         {
             //HACK
@@ -114,7 +131,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             {
                 return true;
             }
-            
+
             var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             return IsAuthTokenEntryValid(entry);
         }
@@ -132,12 +149,12 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         {
             WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
-        
+
         public async Task<bool> IsLoggedIn()
         {
             //check if an active token exists
             var authTokens = await WithTenantStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
-            
+
             var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
 
             return activeToken != null;
@@ -149,7 +166,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             AssertTokenIsValid(entry);
             return entry;
         }
-        
+
         private bool IsAuthTokenEntryValid(LoginTokenData entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -157,7 +174,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
                 null != entry &&
                 entry.Id != Guid.Empty &&
                 entry.ExpiryUnixTime > now;
-            
+
             return valid;
         }
 

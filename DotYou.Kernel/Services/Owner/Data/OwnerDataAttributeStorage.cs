@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
-    /// Specialized storage for DI Profiles.  This does not enforce data
+    /// Specialized storage for the DI Owner's data attributes.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
     internal sealed class OwnerDataAttributeStorage : DotYouServiceBase

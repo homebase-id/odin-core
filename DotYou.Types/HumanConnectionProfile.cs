@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 namespace DotYou.Types

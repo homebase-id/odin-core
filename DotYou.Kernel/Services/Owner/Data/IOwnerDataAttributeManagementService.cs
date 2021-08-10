@@ -6,8 +6,11 @@ using DotYou.Types.DataAttribute;
 namespace DotYou.Kernel.Services.Owner.Data
 {
     /// <summary>
-    /// Enables a Digital Identity Owner to manage their identity
-    /// data, including who can see what.
+    /// Enables the owner of a DI to read/write their data attributes  This handles both fixed
+    /// and generic attributes.  (Fixed attributes are those built-into the system like
+    /// Name, Address, etc.)
+    ///
+    /// This is not intended to be consumed by any services on the perimeter.
     /// </summary>
     public interface IOwnerDataAttributeManagementService: IDataAttributeManagementService
     {

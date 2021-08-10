@@ -12,11 +12,11 @@ namespace DotYou.TenantHost.Controllers.Admin
     [ApiController]
     [Route("/api/admin/identity")]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
-    public class AdminIdentityAttributeController : Controller
+    public class OwnerDataAttributeController : Controller
     {
         private readonly IOwnerDataAttributeManagementService _identManagementService;
 
-        public AdminIdentityAttributeController(IOwnerDataAttributeManagementService identManagementService)
+        public OwnerDataAttributeController(IOwnerDataAttributeManagementService identManagementService)
         {
             _identManagementService = identManagementService;
         }

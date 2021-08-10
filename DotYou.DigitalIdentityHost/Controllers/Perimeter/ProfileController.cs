@@ -12,7 +12,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {
     /// <summary>
-    /// Controller which enables the querying of any information the user deems public
+    /// Controller making available the DI owner's profile data based on the level
+    /// of access the caller is given
     /// </summary>
     [ApiController]
     [Route("api/perimeter/profile")]
