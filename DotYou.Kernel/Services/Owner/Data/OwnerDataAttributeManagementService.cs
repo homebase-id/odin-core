@@ -28,16 +28,26 @@ namespace DotYou.Kernel.Services.Owner.Data
             return _das.SavePrimaryName(name);
         }
 
-        public Task SaveConnectedProfile(ConnectedProfile profile)
+        public Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile)
         {
             AssertCallerIsOwner();
-            return _das.SaveConnectedProfile(profile);
+            return _das.SaveConnectedProfile(ownerProfile);
         }
 
-        public Task SavePublicProfile(Profile profile)
+        public async Task<OwnerProfile> GetPublicProfile()
+        {
+            return await _das.GetPublicProfile();
+        }
+
+        public async Task<ConnectedOwnerProfile> GetConnectedProfile()
+        {
+            return (ConnectedOwnerProfile) await _das.GetConnectedProfile();
+        }
+
+        public Task SavePublicProfile(OwnerProfile ownerProfile)
         {
             AssertCallerIsOwner();
-            return _das.SavePublicProfile(profile);
+            return _das.SavePublicProfile(ownerProfile);
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)

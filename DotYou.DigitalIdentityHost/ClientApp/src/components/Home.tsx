@@ -6,9 +6,9 @@ function Home(props: any) {
 
     const ddp = createDemoDataProvider();
     function addDemoData() {
-        ddp.addContacts().then(()=>
+        ddp.setPublicProfile().then(()=>
         {
-            ddp.setPublicProfile().then((r)=>
+            ddp.addConnectionRequests().then((r)=>
             {
                 window.alert("Done");
             })

@@ -49,32 +49,32 @@ namespace DotYou.Kernel.Services.Owner.Data
             return Task.CompletedTask;
         }
         
-        public Task SaveConnectedProfile(ConnectedProfile profile)
+        public Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile)
         {
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
-            Guard.Argument(profile, nameof(profile)).NotNull();
-            profile.Id = CONNECTED_PROFILE_ID;
-            WithTenantStorage<Profile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
+            Guard.Argument(ownerProfile, nameof(ownerProfile)).NotNull();
+            ownerProfile.Id = CONNECTED_PROFILE_ID;
+            WithTenantStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(ownerProfile));
             return Task.CompletedTask;
         }
 
-        public Task SavePublicProfile(Profile profile)
+        public Task SavePublicProfile(OwnerProfile ownerProfile)
         {
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
-            Guard.Argument(profile, nameof(profile)).NotNull();
-            profile.Id = PUBLIC_PROFILE_ID;
-            WithTenantStorage<Profile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
+            Guard.Argument(ownerProfile, nameof(ownerProfile)).NotNull();
+            ownerProfile.Id = PUBLIC_PROFILE_ID;
+            WithTenantStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(ownerProfile));
             return Task.CompletedTask;
         }
 
-        public async Task<Profile> GetConnectedProfile()
+        public async Task<OwnerProfile> GetConnectedProfile()
         {
-            return await WithTenantStorageReturnSingle<Profile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
+            return await WithTenantStorageReturnSingle<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
         }
 
-        public async Task<Profile> GetPublicProfile()
+        public async Task<OwnerProfile> GetPublicProfile()
         {
-            return await WithTenantStorageReturnSingle<Profile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
+            return await WithTenantStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
         }
         
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)

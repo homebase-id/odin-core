@@ -1,11 +1,6 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Kernel.Services.Owner.Data;
-using DotYou.Types;
-using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

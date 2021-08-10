@@ -63,7 +63,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(c => c.DotYouId.ToString().ToLower() == scaffold.Frodo.ToString().ToLower()), $"Could not find contact with domain [{scaffold.Frodo}] in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(c => c.Id.ToString().ToLower() == scaffold.Frodo.ToString().ToLower()), $"Could not find contact with domain [{scaffold.Frodo}] in the results");
 
             }
         }
@@ -81,7 +81,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 };
                 HumanProfile humanProfile = new()
                 {
-                    DotYouId = scaffold.Samwise,
+                    Id = scaffold.Samwise,
                     Name = name,
                     PublicKeyCertificate = "",
                 };
@@ -108,7 +108,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                 
                 HumanProfile humanProfile = new()
                 {
-                    DotYouId = scaffold.Frodo,
+                    Id = scaffold.Frodo,
                     PublicKeyCertificate = "",
                 };
 

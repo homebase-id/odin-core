@@ -21,21 +21,37 @@ class AuthenticationProvider extends ProviderBase {
     }
 
     async authenticate(password: string): Promise<boolean> {
-        return this.getNonce().then(noncePackage => {
+        //HACK: unblocking until login is fixed
+        let client = this.createAxiosClient();
 
-            return this.prepareAuthPassword(password, noncePackage).then(reply => {
-                let client = this.createAxiosClient();
+        return this.prepareAuthPassword(password, null).then(reply => {
 
-                //withCredentials lets us set the cookies return from the /admin/authentication endpoint
-                return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
-                    if (response.status === 200) {
-                        return response.data;
-                    }
+            //withCredentials lets us set the cookies return from the /admin/authentication endpoint
+            return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
+                if (response.status === 200) {
+                    return response.data;
+                }
 
-                    return false;
-                }).catch(super.handleErrorResponse);
-            })
-        })
+                return false;
+            }).catch(super.handleErrorResponse);
+        });
+
+
+        // return this.getNonce().then(noncePackage => {
+        //
+        //     return this.prepareAuthPassword(password, noncePackage).then(reply => {
+        //         let client = this.createAxiosClient();
+        //
+        //         //withCredentials lets us set the cookies return from the /admin/authentication endpoint
+        //         return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
+        //             if (response.status === 200) {
+        //                 return response.data;
+        //             }
+        //
+        //             return false;
+        //         }).catch(super.handleErrorResponse);
+        //     });
+        // });
     }
 
     //returns a device token
@@ -69,18 +85,18 @@ class AuthenticationProvider extends ProviderBase {
 
     private async prepareAuthPassword(password: string, nonceData: NonceData, hp: boolean = false): Promise<AuthenticationReplyNonce> {
 
-        
+
         //HACK: unblocking myself
 
         return {
-            nonce64: "9cc5adc2-4f8a-419a-b340-8d69cba6c46",
+            nonce64: "9cc5adc2-4f8a-419a-b340-8d69cba6c462",
             nonceHashedPassword64: "MTIzNDU2Nzg5MDk4NzY1NA==",
-            crc: nonceData.crc,
+            crc: 123,
             rsaEncrypted: "MTIzNDU2Nzg5MDk4NzY1NA=="
         };
-        
+
         //////
-        
+
         const interations = 100000;
         const len = 16;
 
@@ -94,7 +110,7 @@ class AuthenticationProvider extends ProviderBase {
         let secret = window.crypto.getRandomValues(new Uint8Array(16));
         //@ts-ignore: ignore complaint about not using a number[] for the 'secret' param
         let secret64 = btoa(String.fromCharCode.apply(null, secret));
-        
+
         let payload: AuthenticationPayload =
             {
                 hpwd64: hashedPassword64,

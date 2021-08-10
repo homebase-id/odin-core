@@ -38,6 +38,13 @@ namespace DotYou.Kernel.Services.Circle
         Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req);
 
         /// <summary>
+        /// Returns a list of <see cref="HumanProfile"/>s which are connected to this DI
+        /// </summary>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        Task<PagedResult<HumanProfile>> GetConnectedProfiles(PageOptions req);
+
+        /// <summary>
         /// Gets the current connection info
         /// </summary>
         /// <param name="dotYouId"></param>

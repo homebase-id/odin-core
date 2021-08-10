@@ -17,7 +17,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Demo
 {
     [ApiController]
     [Route("api/demodata")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes =  DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
         private IProfileService _profileService;
@@ -30,11 +30,18 @@ namespace DotYou.DigitalIdentityHost.Controllers.Demo
             _prototrial = prototrial;
             _admin = admin;
         }
-        
+
         [HttpGet("profiledata")]
         public async Task<IActionResult> SetProfileData()
         {
             await _prototrial.SetProfiles();
+            return new JsonResult(true);
+        }
+
+        [HttpGet("connectionrequest")]
+        public async Task<IActionResult> SendConnectionRequests()
+        {
+            await _prototrial.AddConnectionRequests();
             return new JsonResult(true);
         }
     }

@@ -1,5 +1,6 @@
 ﻿using Dawn;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
@@ -34,8 +35,19 @@ namespace DotYou.Kernel.Services.Circle
 
     public class ConnectionInfo
     {
-        public DotYouIdentity DotYouId { get; set; }
-        public ConnectionStatus Status { get; set; }
+        private ConnectionStatus _status;
+        public DotYouIdentity Id { get; set; }
+
+        public ConnectionStatus Status
+        {
+            get { return _status; }
+            set
+            {
+                _status = value;
+                this.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            }
+        }
+
         public long LastUpdated { get; set; }
     }
 
@@ -52,27 +64,71 @@ namespace DotYou.Kernel.Services.Circle
         {
             _profileService = profileService;
         }
-        
-        public Task<bool> Disconnect(DotYouIdentity dotYouId)
+
+        public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
-            throw new NotImplementedException();
+            var info = await this.GetConnectionInfo(dotYouId);
+            if (null != info && info.Status == ConnectionStatus.Connected)
+            {
+                info.Status = ConnectionStatus.None;
+                WithTenantStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                return true;
+            }
+
+            return false;
         }
 
-        public Task<bool> Block(DotYouIdentity dotYouId)
+        public async Task<bool> Block(DotYouIdentity dotYouId)
         {
-            throw new NotImplementedException();
+            var info = await this.GetConnectionInfo(dotYouId);
+            if (null != info && info.Status == ConnectionStatus.Connected)
+            {
+                info.Status = ConnectionStatus.Blocked;
+                WithTenantStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                return true;
+            }
+
+            return false;
         }
 
-        public Task<bool> Unblock(DotYouIdentity dotYouId)
+        public async Task<bool> Unblock(DotYouIdentity dotYouId)
         {
-            throw new NotImplementedException();
+            var info = await this.GetConnectionInfo(dotYouId);
+            if (null != info && info.Status == ConnectionStatus.Blocked)
+            {
+                info.Status = ConnectionStatus.Connected;
+                WithTenantStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                return true;
+            }
+
+            return false;
         }
 
         public async Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req)
         {
-            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
+            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.Id;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
             PagedResult<ConnectionInfo> results = await WithTenantStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            return results;
+        }
+
+        public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(PageOptions req)
+        {
+            //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
+            var connections = await GetConnections(req);
+
+            var list = new List<HumanProfile>();
+            foreach (var conn in connections.Results)
+            {
+                var profile = await _profileService.Get(conn.Id);
+                if (null != profile)
+                {
+                    list.Add(profile);
+                }
+            }
+
+            var results = new PagedResult<HumanProfile>(req, connections.TotalPages, list);
+
             return results;
         }
 
@@ -84,7 +140,7 @@ namespace DotYou.Kernel.Services.Circle
             {
                 return new ConnectionInfo()
                 {
-                    DotYouId = dotYouId,
+                    Id = dotYouId,
                     Status = ConnectionStatus.None,
                     LastUpdated = 0
                 };
@@ -129,7 +185,7 @@ namespace DotYou.Kernel.Services.Circle
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()
             {
-                DotYouId = dotYouId,
+                Id = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
@@ -142,9 +198,8 @@ namespace DotYou.Kernel.Services.Circle
 
             var contact = new HumanProfile()
             {
-                Id = ec?.Id ?? Guid.NewGuid(),
                 Name = name,
-                DotYouId = cert.DotYouId,
+                Id = cert.DotYouId,
                 PublicKeyCertificate = publicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
             };
 

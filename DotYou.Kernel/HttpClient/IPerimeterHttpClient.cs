@@ -30,6 +30,6 @@ namespace DotYou.Kernel.HttpClient
         Task<ApiResponse<bool>> GetAvailability();
 
         [Get(RootPath + "/profile")]
-        Task<ApiResponse<Profile>> GetProfile();
+        Task<ApiResponse<OwnerProfile>> GetProfile();
     }
 }

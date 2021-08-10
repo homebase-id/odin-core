@@ -59,9 +59,13 @@ namespace DotYou.Kernel.Services.Circle
             request.SenderDotYouId = this.Context.HostDotYouId;
             request.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            var primaryName = await _mgts.GetPrimaryName();
-            request.Name = primaryName;
+            var profile = await _mgts.GetConnectedProfile();
+            
+            Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
+            Guard.Argument(profile.Name.Personal, nameof(profile.Name.Personal)).NotNull("The DI owner's primary name is not correctly configured");
+            Guard.Argument(profile.Name.Surname, nameof(profile.Name.Surname)).NotNull("The DI owner's primary name is not correctly configured");
 
+            request.Name = profile.Name;
             this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
 
             var response = await base.CreatePerimeterHttpClient(request.Recipient).DeliverConnectionRequest(request);

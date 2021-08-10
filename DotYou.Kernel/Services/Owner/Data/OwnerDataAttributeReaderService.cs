@@ -41,21 +41,15 @@ namespace DotYou.Kernel.Services.Owner.Data
             return attributes;
         }
 
-        public async Task<Profile> GetProfile()
+        public async Task<OwnerProfile> GetProfile()
         {
             if (await _circleNetwork.IsConnected(Context.Caller.DotYouId) )
             {
                 var connectedProfile = await _das.GetConnectedProfile();
-                
-                //HACK: OMG HACK
-                connectedProfile.SystemCircle = SystemCircle.Connected;
                 return connectedProfile;
             }
 
             var profile = await _das.GetPublicProfile();
-
-            //HACK: OMG HACK #2
-            profile.SystemCircle = SystemCircle.PublicAnonymous;
             return profile;
         }
     }

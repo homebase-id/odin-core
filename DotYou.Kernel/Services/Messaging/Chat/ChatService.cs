@@ -43,7 +43,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             
             var tasks = connections.Results.Select(async connectionInfo =>
             {
-                var client = base.CreatePerimeterHttpClient(connectionInfo.DotYouId);
+                var client = base.CreatePerimeterHttpClient(connectionInfo.Id);
                 var response = await client.GetAvailability();
             
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
@@ -52,8 +52,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 {
                     IsChatAvailable = canChat,
                     Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    DotYouId =  connectionInfo.DotYouId,
-                    DisplayName = connectionInfo.DotYouId, //TODO: get the name information from the profile service
+                    DotYouId =  connectionInfo.Id,
+                    DisplayName = connectionInfo.Id, //TODO: get the name information from the profile service
                     StatusMessage = ""
                 };
             

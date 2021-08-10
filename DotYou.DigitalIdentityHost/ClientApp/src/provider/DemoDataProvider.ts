@@ -9,12 +9,24 @@ class DemoDataProvider extends ProviderBase {
     async setPublicProfile(): Promise<void> {
 
         let client = this.createAxiosClient();
-        return client.get("/demodata/profiledata");
+        return client.get("/demodata/profiledata").then(response=>
+        {
+           if( response.status != 200)
+           {
+               throw new Error("failed to set public profile");
+           }
+        });
     }
     
-    async addContacts(): Promise<void> {
+    async addConnectionRequests(): Promise<void> {
         let client = this.createAxiosClient();
-        return client.get("/demodata/contacts");
+        return client.get("/demodata/connectionrequest").then(response=>
+        {
+            if( response.status != 200)
+            {
+                throw new Error("failed to set send connection requests");
+            }
+        })
     }
 }
 

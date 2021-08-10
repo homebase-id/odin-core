@@ -41,5 +41,11 @@ namespace DotYou.DigitalIdentityHost.Controllers
             return new JsonResult(result);
         }
         
+        [HttpGet]
+        public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
+        {
+            var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
+            return result;
+        }
     }
 }

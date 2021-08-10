@@ -29,11 +29,15 @@ namespace DotYou.Kernel.Services.Owner.Data
         /// <summary>
         /// Sets the profile information available to the public internet
         /// </summary>
-        /// <param name="profile"></param>
+        /// <param name="ownerProfile"></param>
         /// <returns></returns>
-        Task SavePublicProfile(Profile profile);
+        Task SavePublicProfile(OwnerProfile ownerProfile);
         
-        Task SaveConnectedProfile(ConnectedProfile profile);
+        Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile);
+        
+        Task<OwnerProfile> GetPublicProfile();
+                                                                    
+        Task<ConnectedOwnerProfile> GetConnectedProfile();
         
     }
 }
