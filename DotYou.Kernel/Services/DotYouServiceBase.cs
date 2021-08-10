@@ -64,7 +64,7 @@ namespace DotYou.Kernel.Services
         {
             if (this.Context.Caller.IsOwner == false)
             {
-                throw new SecurityException("Caller is not the owner");
+                throw new SecurityException("Caller must be owner");
             }
         }
         

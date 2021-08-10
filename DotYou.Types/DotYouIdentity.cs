@@ -13,7 +13,7 @@ namespace DotYou.Types
 
         public DotYouIdentity(string identifier)
         {
-            _identifier = identifier;
+            _identifier = identifier?.ToLower();
         }
 
         [JsonIgnore]

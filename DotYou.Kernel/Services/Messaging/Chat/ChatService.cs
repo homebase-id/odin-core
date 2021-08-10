@@ -20,11 +20,11 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
-        private readonly IHumanConnectionProfileService _humanConnectionProfileService;
+        private readonly IHumanConnectionProfileService _profileService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IHumanConnectionProfileService humanConnectionProfileService) : base(context, logger, hub, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IHumanConnectionProfileService profileService) : base(context, logger, hub, fac)
         {
-            _humanConnectionProfileService = humanConnectionProfileService;
+            _profileService = profileService;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -33,7 +33,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
 
-            var contactsPage = await _humanConnectionProfileService.GetContacts(options, true);
+            var contactsPage = await _profileService.GetConnections(options);
 
             var bag = new ConcurrentBag<AvailabilityStatus>();
 
@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
             //look up recipient's public key from contacts
-            var contact = await _humanConnectionProfileService.GetByDotYouId(message.Recipient);
+            var contact = await _profileService.Get(message.Recipient);
 
             if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.PublicKeyCertificate))
             {

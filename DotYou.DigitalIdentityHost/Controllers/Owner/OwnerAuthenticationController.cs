@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Net;
-using System.Net.Http;
-using System.Security.Authentication;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
@@ -11,7 +7,7 @@ using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Admin
+namespace DotYou.DigitalIdentityHost.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/authentication")]

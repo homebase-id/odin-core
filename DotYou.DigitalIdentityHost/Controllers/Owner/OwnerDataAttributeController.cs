@@ -7,7 +7,7 @@ using DotYou.Types.DataAttribute;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers.Admin
+namespace DotYou.DigitalIdentityHost.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/identity")]

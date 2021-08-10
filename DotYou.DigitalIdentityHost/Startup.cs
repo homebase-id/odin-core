@@ -125,6 +125,17 @@ namespace DotYou.DigitalIdentityHost
                 return new HumanConnectionProfileService(context, logger);
             });
 
+            
+            services.AddScoped<ICircleNetworkRequestService, CircleNetworkRequestService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
+                var contactSvc = svc.GetRequiredService<IHumanConnectionProfileService>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new CircleNetworkRequestService(context, contactSvc, logger, hub, fac);
+            });
+            
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -170,9 +181,9 @@ namespace DotYou.DigitalIdentityHost
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var cs = svc.GetRequiredService<IHumanConnectionProfileService>();
                 var admin = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
-                var cn = svc.GetRequiredService<ICircleNetworkService>();
+                var cnrs = svc.GetRequiredService<ICircleNetworkRequestService>();
 
-                return new PrototrialDemoDataService(context, logger, cs, admin, cn);
+                return new PrototrialDemoDataService(context, logger, cs, admin, cnrs);
             });
 
             // In production, the React files will be served from this directory

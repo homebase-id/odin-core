@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using DotYou.Types.DataAttribute;
 
 namespace DotYou.Types
 {
@@ -7,14 +8,13 @@ namespace DotYou.Types
     {
         private string _givenName;
         private string _surname;
+        private DotYouIdentity _dotYouId;
 
         public HumanConnectionProfile()
         {
-            Id = Guid.NewGuid();
         }
         
         public Guid Id { get; set; }
-        
         
         /// <summary>
         /// A unique id based on md5hash(lcase(<see cref="GivenName"/> + <see cref="Surname"/>)) to be used for 
@@ -28,14 +28,27 @@ namespace DotYou.Types
         /// <summary>
         /// Specifies the DI address for this Human
         /// </summary>
-        public DotYouIdentity DotYouId { get; set; }
-        
+        public DotYouIdentity DotYouId
+        {
+            get => _dotYouId;
+            set
+            {
+                _dotYouId = value;
+                this.Id = MiscUtils.MD5HashToGuid(_dotYouId);
+            }
+        }
+
         /// <summary>
         /// A base64 string of this contacts public key certificate.  This must be 
-        /// populated if <see cref="SystemCircle"/> is <see cref="SystemCircle.Connected"/>.
+        /// populated if <see cref="SystemCircle"/> is Connected.
         /// </summary>
         public string PublicKeyCertificate { get; set; }
 
+        private NameAttribute Name
+        {
+            get;
+            set;
+        }
 
         public string GivenName
         {

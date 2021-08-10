@@ -10,45 +10,40 @@ namespace DotYou.Kernel.Services.Contacts
     /// </summary>
     public interface IHumanConnectionProfileService
     {
-        /// <summary>
-        /// Retrieves the contact by a given Id
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task<HumanConnectionProfile> Get(Guid id);
 
         /// <summary>
-        /// Upserts a contact into the system.
+        /// Retrieves a profile by their <see cref="DotYouIdentity"/>
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
+        Task<HumanConnectionProfile> Get(DotYouIdentity dotYouId);
+        
+        /// <summary>
+        /// Upserts a profile into the system.
         /// </summary>
         /// <param name="profile"></param>
         /// <returns></returns>
         Task Save(HumanConnectionProfile profile);
 
         /// <summary>
-        /// Deletes the specified contact
+        /// Deletes the specified profile
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task Delete(Guid id);
+        Task Delete(DotYouIdentity dotYouId);
 
         /// <summary>
-        /// Gets contacts from the system
+        /// Gets connections from the system
         /// </summary>
         /// <param name="req"></param>
-        /// <param name="connectedContactsOnly">If true, only returns connects with which I am connected.</param>
         /// <returns></returns>
-        Task<PagedResult<HumanConnectionProfile>> GetContacts(PageOptions req, bool connectedContactsOnly);
+        Task<PagedResult<HumanConnectionProfile>> GetConnections(PageOptions req);
 
         /// <summary>
         /// Finds contacts matching the given predicate.
         /// </summary>
-        Task<PagedResult<HumanConnectionProfile>> FindContacts(Expression<Func<HumanConnectionProfile, bool>> predicate, PageOptions req);
+        Task<PagedResult<HumanConnectionProfile>> Find(Expression<Func<HumanConnectionProfile, bool>> predicate, PageOptions req);
 
-        /// <summary>
-        /// Retrieves a contact by their domain name
-        /// </summary>
-        /// <param name="domainName"></param>
-        /// <returns></returns>
-        Task<HumanConnectionProfile> GetByDotYouId(string domainName);
+     
     }
 }

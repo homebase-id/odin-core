@@ -17,9 +17,9 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
     [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class InvitationsController : ControllerBase
     {
-        private readonly ICircleNetworkService _circleNetwork;
+        private readonly ICircleNetworkRequestService _circleNetwork;
 
-        public InvitationsController(ICircleNetworkService circleNetwork)
+        public InvitationsController(ICircleNetworkRequestService circleNetwork)
         {
             _circleNetwork = circleNetwork;
         }

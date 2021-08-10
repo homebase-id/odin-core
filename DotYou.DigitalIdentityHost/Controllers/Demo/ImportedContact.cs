@@ -1,6 +1,6 @@
 using System;
 
-namespace DotYou.TenantHost.Controllers.Demo
+namespace DotYou.DigitalIdentityHost.Controllers.Demo
 {
     internal class ImportedContact
     {

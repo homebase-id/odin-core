@@ -42,14 +42,7 @@ namespace DotYou.Kernel.Storage
 
             string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
             logger.LogDebug($"Database path is [{finalPath}]");
-
-            //var cs = new ConnectionString()
-            //{
-            //    Filename = finalPath,
-            //    Connection = ConnectionType.Shared
-            //};
-
-            //_db = new LiteDatabase(cs);
+            
             _db = new LiteDatabase(finalPath);
             _collectionName = collectionName;
         }
@@ -130,8 +123,16 @@ namespace DotYou.Kernel.Storage
 
             return Task.FromResult(result);
         }
-
+        
+        
         public Task<T> Get(Guid id)
+        {
+            var col = GetCollection();
+            var result = col.FindById(id);
+            return Task.FromResult(result);
+        }
+        
+        public Task<T> Get(string id)
         {
             var col = GetCollection();
             var result = col.FindById(id);
@@ -154,6 +155,13 @@ namespace DotYou.Kernel.Storage
         // }
 
         public Task Delete(Guid id)
+        {
+            var col = GetCollection();
+            col.Delete(id);
+            return Task.CompletedTask;
+        }
+        
+        public Task Delete(string id)
         {
             var col = GetCollection();
             col.Delete(id);

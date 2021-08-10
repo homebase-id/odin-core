@@ -8,7 +8,7 @@ using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotYou.TenantHost.Controllers
+namespace DotYou.DigitalIdentityHost.Controllers
 {
 
     [ApiController]
@@ -16,9 +16,9 @@ namespace DotYou.TenantHost.Controllers
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class CircleNetworkRequestsController : ControllerBase
     {
-        readonly ICircleNetworkService _circleNetwork;
+        readonly ICircleNetworkRequestService _circleNetwork;
 
-        public CircleNetworkRequestsController(ICircleNetworkService cn)
+        public CircleNetworkRequestsController(ICircleNetworkRequestService cn)
         {
             _circleNetwork = cn;
         }
@@ -89,12 +89,6 @@ namespace DotYou.TenantHost.Controllers
             return new JsonResult(new NoResultResponse(true));
         }
         
-        [HttpGet("profile/{dotYouId}")]
-        public async Task<IActionResult> GetDotYouProfile(string dotYouId)
-        {
-            var result = await _circleNetwork.GetProfile((DotYouIdentity)dotYouId);
-            return new JsonResult(result);
-        }
 
     }
 }
