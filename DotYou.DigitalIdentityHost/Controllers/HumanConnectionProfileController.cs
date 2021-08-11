@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DotYou.DigitalIdentityHost.Controllers
 {
     [ApiController]
-    [Route("api/connections")]
+    [Route("api/profiles")]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class HumanConnectionProfileController : ControllerBase
     {
@@ -40,7 +40,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
         }
 
         [HttpGet("{dotYouId}")]
-        public async Task<IActionResult> GetContactByDomainName(string dotYouId)
+        public async Task<IActionResult> GetProfile(string dotYouId)
         {
             var result = await _profile.Get((DotYouIdentity) dotYouId);
             if (result == null)
@@ -54,18 +54,18 @@ namespace DotYou.DigitalIdentityHost.Controllers
             return new JsonResult(result);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Save(HumanProfile humanProfile)
-        {
-            await _profile.Save(humanProfile);
-            return new JsonResult(new NoResultResponse(true));
-        }
-
-        [HttpDelete("{dotYouId}")]
-        public async Task<IActionResult> Delete(string dotYouId)
-        {
-            await _profile.Delete((DotYouIdentity) dotYouId);
-            return new JsonResult(new NoResultResponse(true));
-        }
+        // [HttpPost]
+        // public async Task<IActionResult> Save(HumanProfile humanProfile)
+        // {
+        //     await _profile.Save(humanProfile);
+        //     return new JsonResult(new NoResultResponse(true));
+        // }
+        //
+        // [HttpDelete("{dotYouId}")]
+        // public async Task<IActionResult> Delete(string dotYouId)
+        // {
+        //     await _profile.Delete((DotYouIdentity) dotYouId);
+        //     return new JsonResult(new NoResultResponse(true));
+        // }
     }
 }

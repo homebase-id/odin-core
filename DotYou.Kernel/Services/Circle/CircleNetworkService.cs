@@ -112,6 +112,33 @@ namespace DotYou.Kernel.Services.Circle
             return results;
         }
 
+        public async Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req)
+        {
+            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.Id;
+            Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
+            PagedResult<ConnectionInfo> results = await WithTenantStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            return results;
+        }
+        public async Task<PagedResult<HumanProfile>> GetBlockedProfiles(PageOptions req)
+        {
+            //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
+            var connections = await GetBlockedConnections(req);
+
+            var list = new List<HumanProfile>();
+            foreach (var conn in connections.Results)
+            {
+                var profile = await _profileService.Get(conn.Id);
+                if (null != profile)
+                {
+                    list.Add(profile);
+                }
+            }
+
+            var results = new PagedResult<HumanProfile>(req, connections.TotalPages, list);
+
+            return results;
+        }
+
         public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(PageOptions req)
         {
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db

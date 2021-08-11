@@ -12,7 +12,8 @@ namespace DotYou.Kernel.Services.Contacts
     {
 
         /// <summary>
-        /// Retrieves a profile by their <see cref="DotYouIdentity"/>
+        /// Retrieves a profile by their <see cref="DotYouIdentity"/>.  This will pull a local
+        /// cached copy if it exists, otherwise it will retrieve from the <see cref="DotYouIdentity"/> DI
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>

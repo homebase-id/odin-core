@@ -16,5 +16,7 @@ namespace DotYou.Types
         /// A base64 string of this <see cref="Id"/>'s public key certificate.
         /// </summary>
         public string PublicKeyCertificate { get; set; }
+        
+        public string AvatarUri { get; set; }
     }
 }

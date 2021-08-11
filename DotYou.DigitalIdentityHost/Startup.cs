@@ -18,6 +18,7 @@ using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.Kernel.Services.Owner.Data;
+using DotYou.Kernel.Services.Profile;
 using DotYou.TenantHost;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;

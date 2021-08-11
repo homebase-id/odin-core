@@ -79,5 +79,19 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
         Task Connect(string publicKeyCertificate, NameAttribute name);
+        
+        /// <summary>
+        /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
+        /// </summary>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        Task<PagedResult<HumanProfile>> GetBlockedProfiles(PageOptions req);
+
+        /// <summary>
+        /// Gets connections which have been marked as <see cref="ConnectionStatus.Blocked"/>
+        /// </summary>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req);
     }
 }

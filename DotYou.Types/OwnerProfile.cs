@@ -7,6 +7,7 @@ namespace DotYou.Types
     /// <summary>
     /// Base class for all <see cref="DotYouIdentity"/> profiles.
     /// </summary>
+    [Obsolete("this should be changed to HumanProfile")]
     public class OwnerProfile
     {
         [JsonIgnore]
@@ -17,8 +18,9 @@ namespace DotYou.Types
 
  
     /// <summary>
-    /// The base profile information available to an individual whose connected with another
+    /// The base profile information available to an individual who's connected with another
     /// </summary>
+    [Obsolete("this should be changed to HumanProfile")]
     public class ConnectedOwnerProfile : OwnerProfile
     {
     }

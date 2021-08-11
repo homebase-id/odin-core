@@ -9,7 +9,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
 {
 
     [ApiController]
-    [Route("api/circlenetwork/connected")]
+    [Route("api/circlenetwork/connections")]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class CircleNetworkController : ControllerBase
     {
@@ -41,10 +41,19 @@ namespace DotYou.DigitalIdentityHost.Controllers
             return new JsonResult(result);
         }
         
-        [HttpGet]
+        [HttpGet("connected")]
         public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
+            return result;
+            
+            
+        }
+        
+        [HttpGet("blocked")]
+        public async Task<PagedResult<HumanProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
+        {
+            var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
             return result;
         }
     }
