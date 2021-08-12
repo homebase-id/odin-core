@@ -12,7 +12,7 @@ namespace DotYou.Kernel.Services.Owner.Data
     ///
     /// This is not intended to be consumed by any services on the perimeter.
     /// </summary>
-    public interface IOwnerDataAttributeManagementService: IDataAttributeManagementService
+    public interface IOwnerDataAttributeManagementService : IDataAttributeManagementService
     {
         /// <summary>
         /// Returns a <see cref="NameAttribute"/> for this Digital Identity's primary name.
@@ -25,19 +25,18 @@ namespace DotYou.Kernel.Services.Owner.Data
         /// </summary>
         /// <param name="name"></param>
         Task SavePrimaryName(NameAttribute name);
-        
+
         /// <summary>
         /// Sets the profile information available to the public internet
         /// </summary>
-        /// <param name="ownerProfile"></param>
+        /// <param name="profile"></param>
         /// <returns></returns>
-        Task SavePublicProfile(OwnerProfile ownerProfile);
-        
-        Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile);
-        
+        Task SavePublicProfile(OwnerProfile profile);
+
+        Task SaveConnectedProfile(OwnerProfile profile);
+
         Task<OwnerProfile> GetPublicProfile();
-                                                                    
-        Task<ConnectedOwnerProfile> GetConnectedProfile();
-        
+
+        Task<OwnerProfile> GetConnectedProfile();
     }
 }

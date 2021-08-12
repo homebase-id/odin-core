@@ -48,22 +48,22 @@ namespace DotYou.Kernel.Services.Owner.Data
             WithTenantStorage<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Save(name));
             return Task.CompletedTask;
         }
-        
-        public Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile)
+
+        public Task SaveConnectedProfile(OwnerProfile profile)
         {
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
-            Guard.Argument(ownerProfile, nameof(ownerProfile)).NotNull();
-            ownerProfile.Id = CONNECTED_PROFILE_ID;
-            WithTenantStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(ownerProfile));
+            Guard.Argument(profile, nameof(profile)).NotNull();
+            profile.Id = CONNECTED_PROFILE_ID;
+            WithTenantStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
-        public Task SavePublicProfile(OwnerProfile ownerProfile)
+        public Task SavePublicProfile(OwnerProfile profile)
         {
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
-            Guard.Argument(ownerProfile, nameof(ownerProfile)).NotNull();
-            ownerProfile.Id = PUBLIC_PROFILE_ID;
-            WithTenantStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(ownerProfile));
+            Guard.Argument(profile, nameof(profile)).NotNull();
+            profile.Id = PUBLIC_PROFILE_ID;
+            WithTenantStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
@@ -76,7 +76,7 @@ namespace DotYou.Kernel.Services.Owner.Data
         {
             return await WithTenantStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
         }
-        
+
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
         {
             AssertCallerIsOwner();
@@ -121,6 +121,5 @@ namespace DotYou.Kernel.Services.Owner.Data
             var results = await WithTenantStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
         }
-
     }
 }

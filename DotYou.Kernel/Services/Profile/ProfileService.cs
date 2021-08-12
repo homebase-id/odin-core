@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ namespace DotYou.Kernel.Services.Profile
     {
         private const string PROFILE_DATA_COLLECTION = "hcp";
 
-        public ProfileService(DotYouContext context, ILogger<ProfileService> logger) : base(context, logger, null, null)
+        public ProfileService(DotYouContext context, ILogger<ProfileService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
         }
 
@@ -38,7 +39,7 @@ namespace DotYou.Kernel.Services.Profile
             if (response.IsSuccessStatusCode && response.Content != null)
             {
                 var ownerProfile = response.Content;
-                
+
                 //TODO: drop ownerprofile 
                 profile = new HumanProfile()
                 {
@@ -46,10 +47,10 @@ namespace DotYou.Kernel.Services.Profile
                     AvatarUri = ownerProfile.AvatarUri,
                     // PublicKeyCertificate =  
                 };
-                
+
                 //TODO: need to add a last saved date last cached date
                 await this.Save(profile);
-                
+
                 return profile;
             }
 

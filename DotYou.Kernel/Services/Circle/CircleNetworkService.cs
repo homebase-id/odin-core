@@ -226,7 +226,7 @@ namespace DotYou.Kernel.Services.Circle
             var contact = new HumanProfile()
             {
                 Name = name,
-                Id = cert.DotYouId,
+                DotYouId = cert.DotYouId,
                 PublicKeyCertificate = publicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
             };
 

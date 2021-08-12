@@ -38,7 +38,7 @@ namespace DotYou.Kernel.Services.Circle
         Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req);
 
         /// <summary>
-        /// Returns a list of <see cref="HumanProfile"/>s which are connected to this DI
+        /// Returns a list of <see cref="DotYou.Types.HumanProfile"/>s which are connected to this DI
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>

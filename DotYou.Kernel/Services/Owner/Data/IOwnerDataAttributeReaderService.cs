@@ -34,6 +34,6 @@ namespace DotYou.Kernel.Services.Owner.Data
         /// s/he will see only the public profile)
         /// </summary>
         /// <returns></returns>
-        Task<OwnerProfile> GetProfile();
+        Task<HumanProfile> GetProfile();
     }
 }

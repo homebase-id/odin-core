@@ -35,7 +35,8 @@ namespace DotYou.Types
         {
             return new DotYouIdentity(id);
         }
-
+        
+        
         public override bool Equals(object obj)
         {
             var d2 = (DotYouIdentity)obj;

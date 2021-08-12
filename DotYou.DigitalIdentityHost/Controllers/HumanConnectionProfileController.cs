@@ -32,7 +32,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
             predicate = c =>
                 c.Name.Personal.ToLower().Contains(q) ||
                 c.Name.Surname.ToLower().Contains(q) ||
-                c.Id.ToString().Contains(q);
+                c.DotYouId.ToString().Contains(q);
 
             var results = await _profile.Find(predicate, new PageOptions(pageNumber, pageSize));
 

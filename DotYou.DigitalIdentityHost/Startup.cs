@@ -123,9 +123,20 @@ namespace DotYou.DigitalIdentityHost
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                return new ProfileService(context, logger);
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                return new ProfileService(context, logger, fac);
             });
 
+            
+            services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
+                var profileSvc = svc.GetRequiredService<IProfileService>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new CircleNetworkService(context, profileSvc, logger, hub, fac);
+            });
             
             services.AddScoped<ICircleNetworkRequestService, CircleNetworkRequestService>(svc =>
             {
@@ -138,22 +149,21 @@ namespace DotYou.DigitalIdentityHost
                 return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
             });
             
-            services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var profileSvc = svc.GetRequiredService<IProfileService>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                return new CircleNetworkService(context, profileSvc, logger, hub, fac);
-            });
-
             services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
 
                 return new OwnerDataAttributeManagementService(context, logger);
+            });
+
+            services.AddScoped<IOwnerDataAttributeReaderService, OwnerDataAttributeReaderService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
+                var cn = svc.GetRequiredService<ICircleNetworkService>();
+                return new OwnerDataAttributeReaderService(context, logger, cn);
+
             });
 
             services.AddScoped<IMessagingService, MessagingService>(svc =>

@@ -7,7 +7,7 @@ namespace DotYou.Kernel.Services.DataAttribute
 {
     /// <summary>
     /// Enables the definition and management of various data attributes
-    /// describing a <see cref="HumanProfile"/>
+    /// describing a <see cref="DotYou.Types.HumanProfile"/>
     /// </summary>
     public interface IDataAttributeManagementService
     {

@@ -19,7 +19,7 @@ namespace DotYou.Kernel.Services.Owner.Data
         private readonly ICircleNetworkService _circleNetwork;
         private readonly OwnerDataAttributeStorage _das;
 
-        public OwnerDataAttributeReaderService(DotYouContext context, ILogger logger, ICircleNetworkService circleNetwork, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OwnerDataAttributeReaderService(DotYouContext context, ILogger logger, ICircleNetworkService circleNetwork) : base(context, logger, null, null)
         {
             _circleNetwork = circleNetwork;
             _das = new OwnerDataAttributeStorage(context, logger);
@@ -41,15 +41,25 @@ namespace DotYou.Kernel.Services.Owner.Data
             return attributes;
         }
 
-        public async Task<OwnerProfile> GetProfile()
+        public async Task<HumanProfile> GetProfile()
         {
-            if (await _circleNetwork.IsConnected(Context.Caller.DotYouId) )
+            OwnerProfile oProfile = null;
+            if (await _circleNetwork.IsConnected(Context.Caller.DotYouId))
             {
-                var connectedProfile = await _das.GetConnectedProfile();
-                return connectedProfile;
+                oProfile = await _das.GetConnectedProfile();
+            }
+            else
+            {
+                oProfile = await _das.GetPublicProfile();
             }
 
-            var profile = await _das.GetPublicProfile();
+            var profile = new HumanProfile()
+            {
+                DotYouId = Context.HostDotYouId,
+                Name = oProfile.Name,
+                AvatarUri = oProfile.Photo.Picture
+            };
+
             return profile;
         }
     }

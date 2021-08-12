@@ -1,13 +1,27 @@
 using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
 using DotYou.Types.DataAttribute;
+using Microsoft.AspNetCore.SignalR.Internal;
 using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {
+    /// <summary>
+    /// Profile information 
+    /// </summary>
+    public class OwnerProfile
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        public Guid Id { get; set; }
+
+        public NameAttribute Name { get; set; }
+        public PictureAttribute Photo { get; set; }
+    }
+
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
     public class OwnerDataAttributeManagementService : DotYouServiceBase, IOwnerDataAttributeManagementService
     {
@@ -28,10 +42,10 @@ namespace DotYou.Kernel.Services.Owner.Data
             return _das.SavePrimaryName(name);
         }
 
-        public Task SaveConnectedProfile(ConnectedOwnerProfile ownerProfile)
+        public Task SaveConnectedProfile(OwnerProfile humanProfile)
         {
             AssertCallerIsOwner();
-            return _das.SaveConnectedProfile(ownerProfile);
+            return _das.SaveConnectedProfile(humanProfile);
         }
 
         public async Task<OwnerProfile> GetPublicProfile()
@@ -39,15 +53,15 @@ namespace DotYou.Kernel.Services.Owner.Data
             return await _das.GetPublicProfile();
         }
 
-        public async Task<ConnectedOwnerProfile> GetConnectedProfile()
+        public async Task<OwnerProfile> GetConnectedProfile()
         {
-            return (ConnectedOwnerProfile) await _das.GetConnectedProfile();
+            return await _das.GetConnectedProfile();
         }
 
-        public Task SavePublicProfile(OwnerProfile ownerProfile)
+        public Task SavePublicProfile(OwnerProfile profile)
         {
             AssertCallerIsOwner();
-            return _das.SavePublicProfile(ownerProfile);
+            return _das.SavePublicProfile(profile);
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)

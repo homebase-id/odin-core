@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Security;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Types.SignalR;
@@ -52,6 +53,7 @@ namespace DotYou.Kernel.Services
         /// </summary>
         protected IPerimeterHttpClient CreatePerimeterHttpClient(DotYouIdentity dotYouId)
         {
+            Guard.Argument(_dotYouHttpClientFactory, nameof(_dotYouHttpClientFactory)).NotNull("The derived class did not initialize the http client factory.");
             return _dotYouHttpClientFactory.CreateClient(dotYouId);
         }
 
