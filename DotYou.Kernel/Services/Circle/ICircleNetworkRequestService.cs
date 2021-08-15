@@ -10,12 +10,10 @@ namespace DotYou.Kernel.Services.Circle
     /// </summary>
     public interface ICircleNetworkRequestService
     {
-
         /// <summary>
         /// Sends a <see cref="ConnectionRequest"/> as an invitation.
         /// </summary>
         /// <returns></returns>
-
         Task SendConnectionRequest(ConnectionRequestHeader header);
 
         /// <summary>
@@ -24,13 +22,13 @@ namespace DotYou.Kernel.Services.Circle
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        Task EstablishConnection(EstablishConnectionRequest request);
+        Task EstablishConnection(AcknowledgedConnectionRequest request);
 
         /// <summary>
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        Task AcceptConnectionRequest(Guid id);
+        Task AcceptConnectionRequest(DotYouIdentity sender);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient
@@ -39,24 +37,32 @@ namespace DotYou.Kernel.Services.Circle
         Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageRequest);
 
         /// <summary>
-        /// Gets a sent <see cref="ConnectionRequest"/> by Id
+        /// Gets a connection request sent to the specified recipient
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task<ConnectionRequest> GetSentRequest(Guid id);
+        /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
+        Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient);
 
         /// <summary>
         /// Gets a list of requests awaiting approval.
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageRequest);
+
+        /// <summary>
+        /// Gets a pending request by its sender
+        /// </summary>
+        /// <returns></returns>
+        Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender);
         
         /// <summary>
-        /// Gets a pending <see cref="ConnectionRequest"/> by Id
+        /// Deletes the sent request record.  If the recipient accepts the request
+        /// after it has been delete, the connection will not be established.
+        /// 
+        /// This does not notify the original recipient
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="recipient"></param>
         /// <returns></returns>
-        Task<ConnectionRequest> GetPendingRequest(Guid id);
+        Task DeleteSentRequest(DotYouIdentity recipient);
 
         /// <summary>
         /// Stores an new incoming request that is not yet accepted.
@@ -68,6 +74,6 @@ namespace DotYou.Kernel.Services.Circle
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
-        Task DeletePendingRequest(Guid id);
+        Task DeletePendingRequest(DotYouIdentity sender);
     }
 }

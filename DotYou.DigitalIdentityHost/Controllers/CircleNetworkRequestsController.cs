@@ -10,36 +10,35 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.DigitalIdentityHost.Controllers
 {
-
     [ApiController]
     [Route("api/circlenetwork/requests")]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class CircleNetworkRequestsController : ControllerBase
     {
-        readonly ICircleNetworkRequestService _circleNetwork;
+        readonly ICircleNetworkRequestService _requestService;
 
         public CircleNetworkRequestsController(ICircleNetworkRequestService cn)
         {
-            _circleNetwork = cn;
+            _requestService = cn;
         }
 
         [HttpGet("pending")]
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(int pageNumber, int pageSize)
         {
-            var result = await _circleNetwork.GetPendingRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             return result;
         }
 
-        [HttpGet("pending/{id}")]
-        public async Task<IActionResult> GetPendingRequest(Guid id)
+        [HttpGet("pending/{senderDotYouId}")]
+        public async Task<IActionResult> GetPendingRequest(string senderDotYouId)
         {
-            var result = await _circleNetwork.GetPendingRequest(id);
+            var result = await _requestService.GetPendingRequest((DotYouIdentity) senderDotYouId);
 
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int)HttpStatusCode.NotFound
+                    StatusCode = (int) HttpStatusCode.NotFound
                 };
             }
 
@@ -49,46 +48,52 @@ namespace DotYou.DigitalIdentityHost.Controllers
         [HttpGet("sent")]
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(int pageNumber, int pageSize)
         {
-            var result = await _circleNetwork.GetSentRequests(new PageOptions(pageNumber, pageSize));
+            var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
             return result;
         }
 
-        [HttpGet("sent/{id}")]
-        public async Task<IActionResult> GetSentRequest(Guid id)
+        [HttpGet("sent/{recipientDotYouId}")]
+        public async Task<IActionResult> GetSentRequest(string recipientDotYouId)
         {
-            var result = await _circleNetwork.GetSentRequest(id);
+            var result = await _requestService.GetSentRequest((DotYouIdentity) recipientDotYouId);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int)HttpStatusCode.NotFound
+                    StatusCode = (int) HttpStatusCode.NotFound
                 };
             }
 
             return new JsonResult(result);
         }
 
+
+        [HttpDelete("sent/{recipientDotYouId}")]
+        public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
+        { 
+            await _requestService.DeleteSentRequest((DotYouIdentity) recipientDotYouId);
+            return new JsonResult(new NoResultResponse(true));
+        }
+
         [HttpPost("sent")]
         public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
-            await _circleNetwork.SendConnectionRequest(requestHeader);
+            await _requestService.SendConnectionRequest(requestHeader);
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpPost("pending/accept/{id}")]
-        public async Task<IActionResult> AcceptConnectionRequest(Guid id)
+        [HttpPost("pending/accept/{dotYouId}")]
+        public async Task<IActionResult> AcceptConnectionRequest(string dotYouId)
         {
-            await _circleNetwork.AcceptConnectionRequest(id);
+            await _requestService.AcceptConnectionRequest((DotYouIdentity) dotYouId);
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpDelete("pending/{id}")]
-        public async Task<IActionResult> DeletePending(Guid id)
+        [HttpDelete("pending/{senderDotYouId}")]
+        public async Task<IActionResult> DeletePendingRequest(string senderDotYouId)
         {
-            await _circleNetwork.DeletePendingRequest(id);
+            await _requestService.DeletePendingRequest((DotYouIdentity) senderDotYouId);
             return new JsonResult(new NoResultResponse(true));
         }
-        
-
     }
 }

@@ -19,7 +19,7 @@ namespace DotYou.Kernel.Services.Owner.Data
         public Guid Id { get; set; }
 
         public NameAttribute Name { get; set; }
-        public PictureAttribute Photo { get; set; }
+        public ProfilePicAttribute Photo { get; set; }
     }
 
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>

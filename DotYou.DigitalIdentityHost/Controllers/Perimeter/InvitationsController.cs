@@ -33,7 +33,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 
 
         [HttpPost("establishconnection")]
-        public async Task<IActionResult> EstablishConnection([FromBody] EstablishConnectionRequest request)
+        public async Task<IActionResult> EstablishConnection([FromBody] AcknowledgedConnectionRequest request)
         {
             await _circleNetwork.EstablishConnection(request);
             return new JsonResult(new NoResultResponse(true));

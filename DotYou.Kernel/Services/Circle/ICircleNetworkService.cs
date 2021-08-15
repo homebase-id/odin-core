@@ -38,11 +38,11 @@ namespace DotYou.Kernel.Services.Circle
         Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req);
 
         /// <summary>
-        /// Returns a list of <see cref="DotYou.Types.HumanProfile"/>s which are connected to this DI
+        /// Returns a list of <see cref="DotYouProfile"/>s which are connected to this DI
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<HumanProfile>> GetConnectedProfiles(PageOptions req);
+        Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req);
 
         /// <summary>
         /// Gets the current connection info
@@ -85,7 +85,7 @@ namespace DotYou.Kernel.Services.Circle
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<HumanProfile>> GetBlockedProfiles(PageOptions req);
+        Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req);
 
         /// <summary>
         /// Gets connections which have been marked as <see cref="ConnectionStatus.Blocked"/>

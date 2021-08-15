@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Owner.Data;
 using DotYou.Types;
 using DotYou.Types.Circle;
@@ -27,6 +26,9 @@ namespace DotYou.Kernel.Services.Circle
         {
             _cns = cns;
             _mgts = mgts;
+
+            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
+            WithTenantStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
@@ -51,26 +53,27 @@ namespace DotYou.Kernel.Services.Circle
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
-            var request = new ConnectionRequest();
-            request.Id = header.Id;
-            request.Recipient = header.Recipient;
-            request.Message = header.Message;
-
-            request.SenderDotYouId = this.Context.HostDotYouId;
-            request.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var request = new ConnectionRequest
+            {
+                Id = header.Id,
+                Recipient = header.Recipient,
+                Message = header.Message,
+                SenderDotYouId = this.Context.HostDotYouId, //this should not be required since it's set on the receiving end
+                ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() //this should not be required since it's set on the receiving end
+            };
 
             var profile = await _mgts.GetConnectedProfile();
-            
+
             Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
             Guard.Argument(profile.Name.Personal, nameof(profile.Name.Personal)).NotNull("The DI owner's primary name is not correctly configured");
             Guard.Argument(profile.Name.Surname, nameof(profile.Name.Surname)).NotNull("The DI owner's primary name is not correctly configured");
 
             request.Name = profile.Name;
-            this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of  [{request.Recipient}]");
+            this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
 
             var response = await base.CreatePerimeterHttpClient(request.Recipient).DeliverConnectionRequest(request);
 
-            if (!response.Content.Success)
+            if (response.Content is {Success: false})
             {
                 //TODO: add more info
                 throw new Exception("Failed to establish connection request");
@@ -91,47 +94,48 @@ namespace DotYou.Kernel.Services.Circle
             return Task.CompletedTask;
         }
 
-        public async Task<ConnectionRequest> GetPendingRequest(Guid id)
+        public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Get(id));
+            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
-        public Task DeletePendingRequest(Guid id)
+        public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
-            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Delete(id));
+            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
+            return result;
+        }
+
+        public Task DeleteSentRequest(DotYouIdentity recipient)
+        {
+            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
             return Task.CompletedTask;
         }
 
-        public async Task<ConnectionRequest> GetSentRequest(Guid id)
+        public async Task EstablishConnection(AcknowledgedConnectionRequest request)
         {
-            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(id));
-            return result;
-        }
-
-        public async Task EstablishConnection(EstablishConnectionRequest request)
-        {
-            var originalRequest = await this.GetSentRequest(request.ConnectionRequestId);
+            //grab the request that was sent by the DI that sent me this acknowledgement
+            var originalRequest = await this.GetSentRequest(request.SenderDotYouId);
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
             {
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
-            
+
             await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
-            
-            //await this.DeleteSentRequest(request.ConnectionRequestId);
+
+            await this.DeleteSentRequest(originalRequest.Recipient);
 
             this.Notify.ConnectionRequestAccepted(request).Wait();
         }
 
-        public async Task AcceptConnectionRequest(Guid id)
+        public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
-            var request = await GetPendingRequest(id);
+            var request = await GetPendingRequest(sender);
             if (null == request)
             {
-                throw new InvalidOperationException($"No pending request was found with id [{id}]");
+                throw new InvalidOperationException($"No pending request was found from sender [{sender}]");
             }
 
             request.Validate();
@@ -140,13 +144,13 @@ namespace DotYou.Kernel.Services.Circle
 
             await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
 
-            //Now send back an acknowledgement
+            //Now send back an acknowledgement by establishing a connection
 
-            var primaryName = await _mgts.GetPrimaryName();
-            EstablishConnectionRequest acceptedReq = new()
+            var p = await _mgts.GetConnectedProfile();
+            AcknowledgedConnectionRequest acceptedReq = new()
             {
-                ConnectionRequestId = id,
-                Name = primaryName
+                Name = p.Name,
+                ProfilePic = p.Photo
             };
 
             var response = await this.CreatePerimeterHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
@@ -157,7 +161,13 @@ namespace DotYou.Kernel.Services.Circle
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            await this.DeletePendingRequest(request.Id);
+            await this.DeletePendingRequest(request.SenderDotYouId);
+        }
+
+        public Task DeletePendingRequest(DotYouIdentity sender)
+        {
+            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
+            return Task.CompletedTask;
         }
     }
 }

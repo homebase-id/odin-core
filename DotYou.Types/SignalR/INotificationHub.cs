@@ -10,7 +10,7 @@ namespace DotYou.Types.SignalR
 
         Task ConnectionRequestReceived(ConnectionRequest request);
 
-        Task ConnectionRequestAccepted(EstablishConnectionRequest request);
+        Task ConnectionRequestAccepted(AcknowledgedConnectionRequest request);
 
         Task NewEmailReceived(Message message);
         

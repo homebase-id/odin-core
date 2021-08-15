@@ -42,7 +42,7 @@ namespace DotYou.Kernel.Storage
 
             string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
             logger.LogDebug($"Database path is [{finalPath}]");
-            
+
             _db = new LiteDatabase(finalPath);
             _collectionName = collectionName;
         }
@@ -76,6 +76,19 @@ namespace DotYou.Kernel.Storage
 
             var data = q.Limit(req.PageSize).Offset(req.PageIndex).ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(total), data);
+            return Task.FromResult(result);
+        }
+
+        /// <summary>
+        /// Finds the first record matching the predicate; otherwise null.
+        /// </summary>
+        /// <param name="predicate"></param>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        public Task<T> FindOne(Expression<Func<T, bool>> predicate)
+        {
+            var col = GetCollection();
+            var result = col.FindOne(predicate);
             return Task.FromResult(result);
         }
 
@@ -123,16 +136,8 @@ namespace DotYou.Kernel.Storage
 
             return Task.FromResult(result);
         }
-        
-        
+
         public Task<T> Get(Guid id)
-        {
-            var col = GetCollection();
-            var result = col.FindById(id);
-            return Task.FromResult(result);
-        }
-        
-        public Task<T> Get(string id)
         {
             var col = GetCollection();
             var result = col.FindById(id);
@@ -146,26 +151,18 @@ namespace DotYou.Kernel.Storage
             return Task.CompletedTask;
         }
 
-        // public Task Save(Guid id, T item)
-        // {
-        //     BsonValue bId = new BsonValue(id);
-        //     var col = GetCollection();
-        //     var resultId = col.Upsert(id, item);
-        //     return Task.CompletedTask;
-        // }
-
-        public Task Delete(Guid id)
+        public Task<bool> Delete(Guid id)
         {
             var col = GetCollection();
-            col.Delete(id);
-            return Task.CompletedTask;
+            var success = col.Delete(id);
+            return Task.FromResult(success);
         }
         
-        public Task Delete(string id)
+        public Task<int> DeleteMany(Expression<Func<T, bool>> predicate)
         {
             var col = GetCollection();
-            col.Delete(id);
-            return Task.CompletedTask;
+            var count = col.DeleteMany(predicate);
+            return Task.FromResult(count);
         }
 
         public Task<int> DeleteAll()
@@ -188,6 +185,13 @@ namespace DotYou.Kernel.Storage
                 _logger.LogDebug($"Disposing of {_collectionName} litedb instance");
                 _db.Dispose();
             }
+        }
+
+        public Task EnsureIndex<K>(Expression<Func<T, K>> keySelector, bool unique = false)
+        {
+            var col = GetCollection();
+            col.EnsureIndex(keySelector, unique);
+            return Task.CompletedTask;
         }
     }
 }

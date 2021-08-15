@@ -9,17 +9,22 @@ namespace DotYou.Types.Circle
     /// to establish a connection
     /// </summary>
     
-    public class EstablishConnectionRequest: IIncomingCertificateMetaData
+    public class AcknowledgedConnectionRequest: IIncomingCertificateMetaData
     {
-        /// <summary>
-        /// The Id of the original connection request
-        /// </summary>
-        public Guid ConnectionRequestId { get; set; }
+        // /// <summary>
+        // /// The Id of the original connection request
+        // /// </summary>
+        // public Guid ConnectionRequestId { get; set; }
         
         /// <summary>
         /// The name to be shown the recipient on the request
         /// </summary>
         public NameAttribute Name { get; set; }
+        
+        /// <summary>
+        /// The profile
+        /// </summary>
+        public ProfilePicAttribute ProfilePic { get; set; }
         
         public string RecipientGivenName { get; set; }
         
@@ -33,7 +38,7 @@ namespace DotYou.Types.Circle
         
         public void Validate()
         {
-            Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);
+            //Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);
             Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
             Guard.Argument(RecipientGivenName, nameof(RecipientGivenName)).NotEmpty().NotNull();

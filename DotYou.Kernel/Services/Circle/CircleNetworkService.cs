@@ -26,31 +26,6 @@ namespace DotYou.Kernel.Services.Circle
 
     //can I get SAMs public key certificate from the request of the original client cert auth
 
-    public enum ConnectionStatus
-    {
-        None = 1,
-        Connected = 2,
-        Blocked = 3
-    }
-
-    public class ConnectionInfo
-    {
-        private ConnectionStatus _status;
-        public DotYouIdentity Id { get; set; }
-
-        public ConnectionStatus Status
-        {
-            get { return _status; }
-            set
-            {
-                _status = value;
-                this.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            }
-        }
-
-        public long LastUpdated { get; set; }
-    }
-
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
@@ -106,7 +81,7 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req)
         {
-            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.Id;
+            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
             PagedResult<ConnectionInfo> results = await WithTenantStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
@@ -114,47 +89,48 @@ namespace DotYou.Kernel.Services.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req)
         {
-            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.Id;
+            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
             PagedResult<ConnectionInfo> results = await WithTenantStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
-        public async Task<PagedResult<HumanProfile>> GetBlockedProfiles(PageOptions req)
+        
+        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetBlockedConnections(req);
 
-            var list = new List<HumanProfile>();
+            var list = new List<DotYouProfile>();
             foreach (var conn in connections.Results)
             {
-                var profile = await _profileService.Get(conn.Id);
+                var profile = await _profileService.Get(conn.DotYouId);
                 if (null != profile)
                 {
                     list.Add(profile);
                 }
             }
 
-            var results = new PagedResult<HumanProfile>(req, connections.TotalPages, list);
+            var results = new PagedResult<DotYouProfile>(req, connections.TotalPages, list);
 
             return results;
         }
 
-        public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(PageOptions req)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetConnections(req);
 
-            var list = new List<HumanProfile>();
+            var list = new List<DotYouProfile>();
             foreach (var conn in connections.Results)
             {
-                var profile = await _profileService.Get(conn.Id);
+                var profile = await _profileService.Get(conn.DotYouId);
                 if (null != profile)
                 {
                     list.Add(profile);
                 }
             }
 
-            var results = new PagedResult<HumanProfile>(req, connections.TotalPages, list);
+            var results = new PagedResult<DotYouProfile>(req, connections.TotalPages, list);
 
             return results;
         }
@@ -167,9 +143,9 @@ namespace DotYou.Kernel.Services.Circle
             {
                 return new ConnectionInfo()
                 {
-                    Id = dotYouId,
+                    DotYouId = dotYouId,
                     Status = ConnectionStatus.None,
-                    LastUpdated = 0
+                    LastUpdated = -1
                 };
             }
 
@@ -212,7 +188,7 @@ namespace DotYou.Kernel.Services.Circle
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()
             {
-                Id = dotYouId,
+                DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
@@ -220,10 +196,8 @@ namespace DotYou.Kernel.Services.Circle
             WithTenantStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));
 
             //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
-
-            var ec = await _profileService.Get(dotYouId);
-
-            var contact = new HumanProfile()
+            
+            var contact = new DotYouProfile()
             {
                 Name = name,
                 DotYouId = cert.DotYouId,

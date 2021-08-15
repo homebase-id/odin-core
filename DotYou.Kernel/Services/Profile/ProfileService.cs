@@ -20,14 +20,14 @@ namespace DotYou.Kernel.Services.Profile
         {
         }
 
-        public async Task<HumanProfile> Get(DotYouIdentity dotYouId)
+        public async Task<DotYouProfile> Get(DotYouIdentity dotYouId)
         {
             //TODO:
             // 1 return from cache 
             // 2 if not in cache - pull from DI and update local cache
-            HumanProfile profile = null;
+            DotYouProfile profile = null;
 
-            profile = await WithTenantStorageReturnSingle<HumanProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId.Id));
+            profile = await WithTenantStorageReturnSingle<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId));
 
             if (null != profile)
             {
@@ -38,40 +38,31 @@ namespace DotYou.Kernel.Services.Profile
             var response = await this.CreatePerimeterHttpClient(dotYouId).GetProfile();
             if (response.IsSuccessStatusCode && response.Content != null)
             {
-                var ownerProfile = response.Content;
-
-                //TODO: drop ownerprofile 
-                profile = new HumanProfile()
-                {
-                    Name = ownerProfile.Name,
-                    AvatarUri = ownerProfile.AvatarUri,
-                    // PublicKeyCertificate =  
-                };
-
+                profile = response.Content;
+                
                 //TODO: need to add a last saved date last cached date
                 await this.Save(profile);
-
                 return profile;
             }
 
             return null;
         }
 
-        public Task Save(HumanProfile profile)
+        public Task Save(DotYouProfile profile)
         {
-            WithTenantStorage<HumanProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
+            WithTenantStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
             return Task.CompletedTask;
         }
 
-        public async Task<PagedResult<HumanProfile>> Find(Expression<Func<HumanProfile, bool>> predicate, PageOptions req)
+        public async Task<PagedResult<DotYouProfile>> Find(Expression<Func<DotYouProfile, bool>> predicate, PageOptions req)
         {
-            var results = await WithTenantStorageReturnList<HumanProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
+            var results = await WithTenantStorageReturnList<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
             return results;
         }
 
         public Task Delete(DotYouIdentity dotYouId)
         {
-            WithTenantStorage<HumanProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
+            WithTenantStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
             return Task.CompletedTask;
         }
     }

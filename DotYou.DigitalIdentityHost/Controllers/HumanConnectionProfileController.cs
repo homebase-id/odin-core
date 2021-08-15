@@ -24,10 +24,10 @@ namespace DotYou.DigitalIdentityHost.Controllers
 
 
         [HttpGet("find")]
-        public async Task<PagedResult<HumanProfile>> Find(string text, int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> Find(string text, int pageNumber, int pageSize)
         {
             string q = text.ToLower();
-            Expression<Func<HumanProfile, bool>> predicate;
+            Expression<Func<DotYouProfile, bool>> predicate;
            
             predicate = c =>
                 c.Name.Personal.ToLower().Contains(q) ||

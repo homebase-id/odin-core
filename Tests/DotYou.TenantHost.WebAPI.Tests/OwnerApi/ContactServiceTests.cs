@@ -79,14 +79,14 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                     Personal = "Samwise",
                     Surname = "Gamgee"
                 };
-                HumanProfile humanProfile = new()
+                DotYouProfile dotYouProfile = new()
                 {
                     DotYouId = scaffold.Samwise,
                     Name = name,
                     PublicKeyCertificate = "",
                 };
 
-                var response = await svc.SaveContact(humanProfile);
+                var response = await svc.SaveContact(dotYouProfile);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");
@@ -106,13 +106,13 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
                     Surname = "Baggins"
                 };
                 
-                HumanProfile humanProfile = new()
+                DotYouProfile dotYouProfile = new()
                 {
                     DotYouId = scaffold.Frodo,
                     PublicKeyCertificate = "",
                 };
 
-                var response = await svc.SaveContact(humanProfile);
+                var response = await svc.SaveContact(dotYouProfile);
                 await scaffold.OutputRequestInfo(response);
                 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Response failed with status code [{response.StatusCode}]");

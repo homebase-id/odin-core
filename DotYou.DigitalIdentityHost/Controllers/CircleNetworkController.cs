@@ -40,9 +40,16 @@ namespace DotYou.DigitalIdentityHost.Controllers
             var result = await _circleNetwork.Disconnect((DotYouIdentity)dotYouId);
             return new JsonResult(result);
         }
-        
+
+        [HttpGet("status/{dotYouId}")]
+        public async Task<IActionResult> Status(string dotYouId)
+        {
+            var result = await _circleNetwork.GetConnectionInfo((DotYouIdentity)dotYouId);
+            return new JsonResult(result);
+        }
+
         [HttpGet("connected")]
-        public async Task<PagedResult<HumanProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
             return result;
@@ -51,7 +58,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
         }
         
         [HttpGet("blocked")]
-        public async Task<PagedResult<HumanProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
             return result;

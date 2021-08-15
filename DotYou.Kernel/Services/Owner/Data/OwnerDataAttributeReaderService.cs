@@ -41,7 +41,7 @@ namespace DotYou.Kernel.Services.Owner.Data
             return attributes;
         }
 
-        public async Task<HumanProfile> GetProfile()
+        public async Task<DotYouProfile> GetProfile()
         {
             OwnerProfile oProfile = null;
             if (await _circleNetwork.IsConnected(Context.Caller.DotYouId))
@@ -53,11 +53,11 @@ namespace DotYou.Kernel.Services.Owner.Data
                 oProfile = await _das.GetPublicProfile();
             }
 
-            var profile = new HumanProfile()
+            var profile = new DotYouProfile()
             {
                 DotYouId = Context.HostDotYouId,
                 Name = oProfile.Name,
-                AvatarUri = oProfile.Photo.Picture
+                AvatarUri = oProfile.Photo.ProfilePic
             };
 
             return profile;

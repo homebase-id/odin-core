@@ -5,21 +5,30 @@ namespace DotYou.Types.Circle
 {
     public class ConnectionRequestHeader
     {
-        [JsonConstructor]
-        public ConnectionRequestHeader() { }
-        
-        
-        public Guid Id { get; set; }
-        
+        private DotYouIdentity _recipient;
+
+        public Guid Id
+        {
+            get => _recipient;
+            set
+            {
+                //TODO: review
+                //no-op as the Id is based on the dotYouId of the recpient.  this is wierd
+            }
+        }
+
         /// <summary>
         /// Individual receiving the invite
         /// </summary>
-        public DotYouIdentity Recipient { get; set; }
-        
+        public DotYouIdentity Recipient
+        {
+            get => _recipient;
+            set => _recipient = value;
+        }
+
         /// <summary>
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>
         public string Message { get; set; }
-        
     }
 }

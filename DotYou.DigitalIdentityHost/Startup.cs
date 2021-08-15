@@ -345,6 +345,8 @@ namespace DotYou.DigitalIdentityHost
                 }
             };
 
+            // BsonMapper.Global.Entity<DotYouProfile>()
+            //     .Id(x => x.DotYouId);
             // BsonMapper.Global.Entity<NoncePackage>()
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }

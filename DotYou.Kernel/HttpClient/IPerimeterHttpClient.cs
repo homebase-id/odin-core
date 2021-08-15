@@ -21,7 +21,7 @@ namespace DotYou.Kernel.HttpClient
         Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body]ConnectionRequest request);
         
         [Post(RootPath + "/invitations/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body]EstablishConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body]AcknowledgedConnectionRequest request);
 
         [Post(RootPath + "/chat")]
         Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope message);
@@ -30,6 +30,6 @@ namespace DotYou.Kernel.HttpClient
         Task<ApiResponse<bool>> GetAvailability();
 
         [Get(RootPath + "/profile")]
-        Task<ApiResponse<HumanProfile>> GetProfile();
+        Task<ApiResponse<DotYouProfile>> GetProfile();
     }
 }

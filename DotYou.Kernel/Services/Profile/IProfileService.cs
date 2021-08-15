@@ -17,14 +17,14 @@ namespace DotYou.Kernel.Services.Contacts
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<HumanProfile> Get(DotYouIdentity dotYouId);
+        Task<DotYouProfile> Get(DotYouIdentity dotYouId);
         
         /// <summary>
         /// Upserts a profile into the system.
         /// </summary>
         /// <param name="profile"></param>
         /// <returns></returns>
-        Task Save(HumanProfile profile);
+        Task Save(DotYouProfile profile);
 
         /// <summary>
         /// Deletes the specified profile
@@ -36,7 +36,7 @@ namespace DotYou.Kernel.Services.Contacts
         /// <summary>
         /// Finds contacts matching the given predicate.
         /// </summary>
-        Task<PagedResult<HumanProfile>> Find(Expression<Func<HumanProfile, bool>> predicate, PageOptions req);
+        Task<PagedResult<DotYouProfile>> Find(Expression<Func<DotYouProfile, bool>> predicate, PageOptions req);
 
      
     }
