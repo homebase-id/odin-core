@@ -37,7 +37,6 @@ namespace DotYou.Kernel.Services.Circle
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
 
-            // var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
@@ -109,6 +108,10 @@ namespace DotYou.Kernel.Services.Circle
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
             WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
+
+            //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
+            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
+
             return Task.CompletedTask;
         }
 
@@ -126,6 +129,9 @@ namespace DotYou.Kernel.Services.Circle
             await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
 
             await this.DeleteSentRequest(originalRequest.Recipient);
+
+            //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
+            await this.DeletePendingRequest(originalRequest.Recipient);
 
             this.Notify.ConnectionRequestAccepted(request).Wait();
         }
@@ -162,11 +168,18 @@ namespace DotYou.Kernel.Services.Circle
             }
 
             await this.DeletePendingRequest(request.SenderDotYouId);
+
+            //Just in case I had sent a request, lets delete it too (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
+            await this.DeleteSentRequest(request.SenderDotYouId);
         }
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
             WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
+            
+            //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
+            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
+
             return Task.CompletedTask;
         }
     }
