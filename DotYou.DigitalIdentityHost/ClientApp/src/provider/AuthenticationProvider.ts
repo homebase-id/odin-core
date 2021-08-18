@@ -24,7 +24,14 @@ class AuthenticationProvider extends ProviderBase {
         //HACK: unblocking until login is fixed
         let client = this.createAxiosClient();
 
-        return this.prepareAuthPassword(password, null).then(reply => {
+        let nd: NonceData = {
+            saltKek64:"",
+            saltPassword64:"",
+            crc:4,
+            nonce64:"",
+            publicPem :""
+        };
+        return this.prepareAuthPassword(password, nd).then(reply => {
 
             //withCredentials lets us set the cookies return from the /admin/authentication endpoint
             return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
@@ -56,20 +63,44 @@ class AuthenticationProvider extends ProviderBase {
 
     //returns a device token
     async authenticateDevice(password: string): Promise<string> {
-        return this.getNonce().then(noncePackage => {
 
-            return this.prepareAuthPassword(password, noncePackage).then(reply => {
-                let client = this.createAxiosClient();
+        let client = this.createAxiosClient();
 
-                return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
-                    if (response.status === 200) {
-                        return response.data;
-                    }
+        let nd: NonceData = {
+            saltKek64:"",
+            saltPassword64:"",
+            crc:4,
+            nonce64:"",
+            publicPem :""
+        };
+        
+        return this.prepareAuthPassword(password, nd).then(reply => {
 
-                    return null;
-                }).catch(super.handleErrorResponse);
-            })
-        })
+            let client = this.createAxiosClient();
+
+            return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
+                if (response.status === 200) {
+                    return response.data;
+                }
+
+                return null;
+            }).catch(super.handleErrorResponse);
+        });
+        
+        // return this.getNonce().then(noncePackage => {
+        //
+        //     return this.prepareAuthPassword(password, noncePackage).then(reply => {
+        //         let client = this.createAxiosClient();
+        //
+        //         return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
+        //             if (response.status === 200) {
+        //                 return response.data;
+        //             }
+        //
+        //             return null;
+        //         }).catch(super.handleErrorResponse);
+        //     });
+        // });
     }
 
     async logout(): Promise<boolean> {

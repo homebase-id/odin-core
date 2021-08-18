@@ -75,4 +75,5 @@ function App() {
     );
 }
 
+// @ts-ignore
 export default observer(App);
