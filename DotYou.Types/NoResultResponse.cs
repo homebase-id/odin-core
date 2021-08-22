@@ -10,7 +10,7 @@
         public NoResultResponse() { }
         public NoResultResponse(bool success)
         {
-            Success = true;
+            Success = success;
         }
         public bool Success { get; set; }
     }
