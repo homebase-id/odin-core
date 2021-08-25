@@ -40,9 +40,7 @@ namespace DotYou.IdentityRegistry
                     CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
                     PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
                 });
-
-        private IIdentityContextRegistry _identityContextRegistryImplementation;
-
+        
         public void Initialize()
         {
             IdentityCertificate samwise =
@@ -68,6 +66,23 @@ namespace DotYou.IdentityRegistry
                         CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
                         PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
                     });
+            
+            IdentityCertificate todd =
+                new(Guid.NewGuid(), "toddmitchell.me", new NameInfo() {GivenName = "Todd", Surname = "Mitchell"},
+                    new CertificateLocation()
+                    {
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+                    });
+            
+            IdentityCertificate michael =
+                new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
+                    new CertificateLocation()
+                    {
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+                    });
+            
 
             _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
             _certificates.Add(samwise.Key, samwise);

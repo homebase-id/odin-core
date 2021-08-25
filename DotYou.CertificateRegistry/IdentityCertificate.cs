@@ -29,7 +29,6 @@ namespace DotYou.IdentityRegistry
             Key = key;
             DomainName = domain;
             Location = location;
-            OwnerName = owner;
             
             SetCertificateInfo();
         }
@@ -41,12 +40,6 @@ namespace DotYou.IdentityRegistry
 
         public string DomainName { get; }
 
-        /// <summary>
-        /// Specifies the Name of the individual holding the certifiate
-        /// </summary>
-        [Obsolete("not required any longer")]
-        public NameInfo OwnerName { get; }
-        
         /// <summary>
         /// The Subject for the certificate
         /// </summary>
