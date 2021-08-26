@@ -24,47 +24,5 @@ namespace DotYou.TenantHost.WebAPI.Tests
             scaffold.RunAfterAnyTests();
         }
         
-        [Test]
-        public void CanMakePublicKeyCertificatePortable()
-        {
-            var samCertificate = scaffold.Registry.ResolveCertificate(scaffold.Samwise);
-
-            string certificatePath = samCertificate.Location.CertificatePath;
-
-            string portableFormat;
-            string key1Thumprint;
-            string key1FriendlyName;
-            string key1Subject;
-            using (X509Certificate2 publicKey = new X509Certificate2(certificatePath))
-            {
-                var bytes = publicKey.Export(X509ContentType.Pkcs12);
-                portableFormat = Convert.ToBase64String(bytes);
-                key1Thumprint = publicKey.Thumbprint;
-                key1FriendlyName = publicKey.FriendlyName;
-                key1Subject = publicKey.Subject; 
-                
-                Console.WriteLine($"key 1 thumbprint: {key1Thumprint}");
-                Console.WriteLine($"key 1 friendly name: {key1FriendlyName}");
-                Console.WriteLine($"key 1 subject: {key1Subject}");
-                //Console.WriteLine($"Portable: {portableFormat}");
-            }
-
-            new DomainCertificate(portableFormat);
-            using (X509Certificate2 importedCert = new X509Certificate2(Convert.FromBase64String(portableFormat)))
-            {
-                //reload portable format
-                //Console.WriteLine($"Portable: {publicKey.GetNameInfo(X509NameType.SimpleName, false)}");
-
-                Console.WriteLine($"key 2 thumbprint: {importedCert.Thumbprint}");
-                Console.WriteLine($"key 2 friendly name: {importedCert.FriendlyName}");
-                Console.WriteLine($"key 2 subject: {importedCert.Subject}");
-
-                Assert.IsTrue(key1Thumprint == importedCert.Thumbprint, "Thumbprints do not match");
-                Assert.IsTrue(key1FriendlyName == importedCert.FriendlyName, "Friendly names do not match");
-                Assert.IsTrue(key1Subject == importedCert.Subject, "Subjects do not match");
-            }
-            
-
-        }
     }
 }

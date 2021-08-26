@@ -1,17 +1,16 @@
 using System;
-using System.ComponentModel;
+using System.IO;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
-using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Kernel.Services.Demo;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Messaging.Chat;
@@ -27,13 +26,12 @@ using DotYou.Types.SignalR;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -44,8 +42,19 @@ namespace DotYou.DigitalIdentityHost
     {
         const string YouFoundationIssuer = "YouFoundation";
 
+        public IConfiguration Configuration { get; }
+        
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+        
         public void ConfigureServices(IServiceCollection services)
         {
+            var config = this.Configuration.GetSection("Config").Get<Config>();
+            AssertValidConfiguration(config);
+            PrepareEnvironment(config);
+
             services.AddControllers(config =>
                 {
                     config.Filters.Add(new ApplyPerimeterMetaData());
@@ -204,7 +213,7 @@ namespace DotYou.DigitalIdentityHost
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env) 
         {
             this.ConfigureLiteDBSerialization();
 
@@ -349,6 +358,19 @@ namespace DotYou.DigitalIdentityHost
             //     .Id(x => x.DotYouId);
             // BsonMapper.Global.Entity<NoncePackage>()
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
+        }
+        
+        private void AssertValidConfiguration(Config config)
+        {
+            Guard.Argument(config, nameof(config)).NotNull();
+            Guard.Argument(config.RegistryServerUri, nameof(config.RegistryServerUri)).NotNull().NotEmpty();
+            Guard.Argument(Uri.IsWellFormedUriString(config.RegistryServerUri, UriKind.Absolute), nameof(config.RegistryServerUri)).True();
+            Guard.Argument(config.TenantDataRootPath, nameof(config.TenantDataRootPath)).NotNull().NotEmpty();
+        }
+
+        private void PrepareEnvironment(Config config)
+        {
+            Directory.CreateDirectory(config.TenantDataRootPath);
         }
     }
 }

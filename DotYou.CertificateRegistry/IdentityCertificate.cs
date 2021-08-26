@@ -24,7 +24,7 @@ namespace DotYou.IdentityRegistry
             Guard.Argument(location.CertificatePath, nameof(CertificateLocation.CertificatePath)).NotEmpty();
             Guard.Argument(location.PrivateKeyPath, nameof(CertificateLocation.PrivateKeyPath)).NotEmpty();
             
-            Guard.Argument(owner, nameof(owner)).NotNull();
+            //Guard.Argument(owner, nameof(owner)).NotNull();
             
             Key = key;
             DomainName = domain;
@@ -69,6 +69,9 @@ namespace DotYou.IdentityRegistry
             {
                 throw new Exception($"No certificate configured for {this.DomainName}");
             }
+            
+            Console.WriteLine($"Public Key [{certificatePath}]");
+            Console.WriteLine($"Private Key [{privateKeyPath}]");
 
             return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
 

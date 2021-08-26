@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using MessagePack;
 
 namespace DotYou.Types
 {
+    [MessagePackObject]
     public class PagedResult<T>
     {
         public PagedResult()
@@ -32,10 +34,13 @@ namespace DotYou.Types
             Results = results;
         }
 
+        [Key(0)]
         public PageOptions Request { get; set; }
 
+        [Key(1)]
         public int TotalPages { get; set; }
 
+        [Key(2)]
         public IList<T> Results { get; set; }
     }
 }

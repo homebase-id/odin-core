@@ -1,4 +1,5 @@
 ﻿using System;
+using MessagePack;
 using Newtonsoft.Json;
 
 namespace DotYou.Types
@@ -7,6 +8,7 @@ namespace DotYou.Types
     /// <summary>
     /// Specifies details for how an <see cref="IEnumerable<T>"/> should be returned
     /// </summary>
+    [MessagePackObject]
     public class PageOptions
     {
         public readonly static PageOptions Default = new PageOptions(1, 55);
@@ -28,14 +30,17 @@ namespace DotYou.Types
             PageSize = pageSize;
         }
 
+        
         /// <summary>
         /// The page number (starting from 1)
         /// </summary>
+        [Key(0)]
         public int PageNumber { get; private set; }
 
         /// <summary>
         /// Number of records per page
         /// </summary>
+        [Key(1)]
         public int PageSize { get; private set; }
 
         /// <summary>
@@ -59,6 +64,7 @@ namespace DotYou.Types
         /// Returns the page index (0 based)
         /// </summary>
         [JsonIgnore]
+        [IgnoreMember]
         public int PageIndex
         {
             get { return PageNumber - 1; }

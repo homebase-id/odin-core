@@ -1,11 +1,11 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using DotYou.DigitalIdentityHost;
+using DotYou.DigitalIdentityHost.IdentityRegistry;
 using DotYou.IdentityRegistry;
-using DotYou.TenantHost.Logging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,78 +17,38 @@ namespace DotYou.TenantHost
     {
         private static IIdentityContextRegistry _registry;
 
+        private static Config LoadConfig()
+        {
+            var config = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: false)
+                .Build();
+
+            var cfg = new Config();
+            config.GetSection("Config").Bind(cfg);
+            return cfg;
+        }
+
         public static void Main(string[] args)
         {
-            const string logPathEnvName = "DOTYOU_LOGPATH";
-            const string dataRootPath = "DATA_ROOT_PATH";
-            string path = Environment.GetEnvironmentVariable(dataRootPath);
-            string logPath = Environment.GetEnvironmentVariable(logPathEnvName);
-
-            // Console.WriteLine("Start Paths");
-            // Console.WriteLine($"DATA_ROOT_PATH={path}");
-            // Console.WriteLine($"DOTYOU_LOGPATH={logPath}");
-            // Console.WriteLine("End Paths");
-
-            path ??= "\\srv\\data\\tenants";
-            logPath ??= "\\srv\\data\\logs";
-            
-            //HACK: need a centralized method to handle paths by operating system
-            path = (path ?? "").Replace('\\', Path.DirectorySeparatorChar);
-            logPath = (logPath ?? "").Replace('\\', Path.DirectorySeparatorChar);
-
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
-
-            if (!Directory.Exists(logPath))
-            {
-                Directory.CreateDirectory(logPath);
-            }
-
-            var newargs = new[] {path, logPath};
-
-            CreateHostBuilder(newargs).Build().Run();
+            Console.WriteLine("Includes-RPC v2");
+            CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
-
-        private static Args ParseArgs(string[] args)
-        {
-            if (args.Length != 2)
-            {
-                throw new InvalidDataException(
-                    "Args are invalid.  the first must be the DataPathRoot indicating where to store tenant data and the second must be LogPath for your log files.");
-            }
-
-            var parsed = new Args()
-            {
-                DataPathRoot = args[0],
-                LogFilePath = args[1]
-            };
-
-            if (Directory.Exists(parsed.DataPathRoot) && Directory.Exists(parsed.LogFilePath))
-            {
-                return parsed;
-            }
-
-            throw new InvalidDataException(
-                $"Could not find or access the DatPathRoot at [{parsed.DataPathRoot}] or the LogFilePath at [{parsed.LogFilePath}].  The directories must exist and be accessible to the process.");
-        }
-
+        
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var parsedArgs = ParseArgs(args);
-
-            _registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
+            Config config = LoadConfig();
+            Directory.CreateDirectory(config.LogFilePath);
+            
+            //_registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
+            _registry = new IdentityRegistryRpc(config);
             _registry.Initialize();
-
-            string logPath = FindLogPath(parsedArgs);
-
+            
             return Host.CreateDefaultBuilder(args)
-                .ConfigureLogging(config =>
+                .ConfigureLogging(logConfig =>
                 {
-                    config.ClearProviders();
-                    config.AddConsole();
-                    config.AddFile(logPath, opts =>
+                    logConfig.ClearProviders();
+                    logConfig.AddConsole();
+                    logConfig.AddFile(Path.Combine(config.LogFilePath, "app_{0:yyyy}-{0:MM}-{0:dd}.log"), opts =>
                     {
                         //opts.FormatLogEntry
                         opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
@@ -128,34 +88,7 @@ namespace DotYou.TenantHost
                         .UseStartup<Startup>();
                 });
         }
-
-        private static string FindLogPath(Args args)
-        {
-            string logPath = args.LogFilePath;
-
-            if (string.IsNullOrEmpty(logPath) && string.IsNullOrWhiteSpace(logPath))
-            {
-                var isUnixBased = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
-                                  RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ||
-                                  RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-
-                logPath = isUnixBased ? "/tmp/dotyoulogs" : "\\temp\\dotyoulogs";
-            }
-            else
-            {
-                //if an env var is set it must be a valid path.
-                if (!Directory.Exists(logPath))
-                {
-                    throw new InvalidConfigurationException(
-                        $"No path found at [{logPath}].  Please be sure your app has read/write access to the path.");
-                }
-            }
-
-            logPath = Path.Combine(logPath, "app_{0:yyyy}-{0:MM}-{0:dd}.log");
-
-            Console.WriteLine($"Logs will be found at [{logPath}]");
-            return logPath;
-        }
+        
     }
 
     internal class Args

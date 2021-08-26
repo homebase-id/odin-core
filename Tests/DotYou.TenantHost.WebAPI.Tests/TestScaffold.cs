@@ -26,10 +26,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
             this._folder = folder;
         }
 
-        public IdentityContextRegistry Registry
-        {
-            get => _registry;
-        }
 
         public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
         public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
