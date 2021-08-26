@@ -31,15 +31,22 @@ namespace DotYou.Kernel.Services.Profile
 
             if (null != profile)
             {
+                Console.WriteLine($"Cached Profile found {dotYouId}");
                 return profile;
             }
 
+            Console.WriteLine($"Retrieving remote profile for {dotYouId}");
+
             //maybe this should be a call from the cache
-            var response = await this.CreatePerimeterHttpClient(dotYouId).GetProfile();
+            var client = this.CreatePerimeterHttpClient(dotYouId);
+            var response = await client.GetProfile();
+            
             if (response.IsSuccessStatusCode && response.Content != null)
             {
                 profile = response.Content;
-                
+
+                Console.WriteLine($"Profile retrieved: Name is: {profile.Name}");
+
                 //TODO: need to add a last saved date last cached date
                 await this.Save(profile);
                 return profile;

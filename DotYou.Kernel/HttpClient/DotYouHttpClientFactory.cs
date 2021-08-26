@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Security.Authentication;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
 using Refit;
@@ -20,16 +21,18 @@ namespace DotYou.Kernel.HttpClient
 
         public IPerimeterHttpClient CreateClient(DotYouIdentity dotYouId)
         {
+            Console.WriteLine("CreateClient -> Loading certificate");
             var cert = _context.TenantCertificate.LoadCertificateWithPrivateKey();
 
             var handler = new HttpClientHandler();
             handler.ClientCertificates.Add(cert);
             handler.AllowAutoRedirect = false;
             //handler.ServerCertificateCustomValidationCallback
-
+            handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
+            
             var client = new System.Net.Http.HttpClient(handler);
             client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
-            
+
             var ogClient = RestService.For<IPerimeterHttpClient>(client);
 
             return ogClient;

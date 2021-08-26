@@ -223,6 +223,7 @@ namespace DotYou.DigitalIdentityHost
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseCertificateForwarding();
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();

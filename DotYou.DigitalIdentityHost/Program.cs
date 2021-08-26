@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Authentication;
 using DotYou.DigitalIdentityHost;
 using DotYou.DigitalIdentityHost.IdentityRegistry;
 using DotYou.IdentityRegistry;
@@ -30,19 +31,19 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Includes-RPC v2");
+            Console.WriteLine("Includes-RPC v5");
             CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
-        
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             Config config = LoadConfig();
             Directory.CreateDirectory(config.LogFilePath);
-            
+
             //_registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
             _registry = new IdentityRegistryRpc(config);
             _registry.Initialize();
-            
+
             return Host.CreateDefaultBuilder(args)
                 .ConfigureLogging(logConfig =>
                 {
@@ -80,6 +81,8 @@ namespace DotYou.TenantHost
                                     return cert;
                                 };
 
+                                opts.SslProtocols = SslProtocols.None; //| SslProtocols.Tls13;
+//                                opts.AllowAnyClientCertificate();
                                 opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                             });
                         })
@@ -88,12 +91,5 @@ namespace DotYou.TenantHost
                         .UseStartup<Startup>();
                 });
         }
-        
-    }
-
-    internal class Args
-    {
-        public string DataPathRoot { get; set; }
-        public string LogFilePath { get; set; }
     }
 }
