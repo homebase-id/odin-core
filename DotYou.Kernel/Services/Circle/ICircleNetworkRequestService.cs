@@ -17,8 +17,8 @@ namespace DotYou.Kernel.Services.Circle
         Task SendConnectionRequest(ConnectionRequestHeader header);
 
         /// <summary>
-        /// Establishes a connection between two individuals.  This should be called when
-        /// from a recipient who has accpeted a sender's connection request
+        /// Establishes a connection between two individuals.  This should be called
+        /// from a recipient who has accepted a sender's connection request
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>

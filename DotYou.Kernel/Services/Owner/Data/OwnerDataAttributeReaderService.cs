@@ -56,8 +56,8 @@ namespace DotYou.Kernel.Services.Owner.Data
             var profile = new DotYouProfile()
             {
                 DotYouId = Context.HostDotYouId,
-                Name = oProfile.Name,
-                AvatarUri = oProfile.Photo.ProfilePic
+                Name = oProfile?.Name,
+                AvatarUri = oProfile?.Photo?.ProfilePic
             };
 
             return profile;

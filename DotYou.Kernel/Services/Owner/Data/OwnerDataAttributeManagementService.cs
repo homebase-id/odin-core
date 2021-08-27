@@ -8,20 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {
-    /// <summary>
-    /// Profile information 
-    /// </summary>
-    public class OwnerProfile
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        public Guid Id { get; set; }
-
-        public NameAttribute Name { get; set; }
-        public ProfilePicAttribute Photo { get; set; }
-    }
-
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
     public class OwnerDataAttributeManagementService : DotYouServiceBase, IOwnerDataAttributeManagementService
     {

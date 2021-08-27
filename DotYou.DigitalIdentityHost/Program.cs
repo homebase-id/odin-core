@@ -5,6 +5,7 @@ using DotYou.DigitalIdentityHost;
 using DotYou.DigitalIdentityHost.IdentityRegistry;
 using DotYou.IdentityRegistry;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,14 +76,21 @@ namespace DotYou.TenantHost
                             {
                                 opts.ServerCertificateSelector = (connectionContext, hostName) =>
                                 {
-                                    //Console.WriteLine($"Resolving certificate for host [{hostName}]");
-                                    var certInfo = _registry.ResolveCertificate(hostName);
-                                    var cert = certInfo.LoadCertificateWithPrivateKey();
-                                    return cert;
+                                    if (!string.IsNullOrEmpty(hostName))
+                                    {
+                                        //Console.WriteLine($"Resolving certificate for host [{hostName}]");
+                                        var certInfo = _registry.ResolveCertificate(hostName);
+                                        var cert = certInfo.LoadCertificateWithPrivateKey();
+                                        return cert;    
+                                    }
+
+                                    Console.WriteLine($"Received request with a hostname.  Request Host is [{connectionContext.GetHttpContext()?.Request.Host}]");
+                                    return null;
                                 };
 
-                                opts.SslProtocols = SslProtocols.None; //| SslProtocols.Tls13;
-//                                opts.AllowAnyClientCertificate();
+                                //Let the OS decide
+                                //TODO: revisit if we should let the OS decide
+                                opts.SslProtocols = SslProtocols.None;
                                 opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                             });
                         })
