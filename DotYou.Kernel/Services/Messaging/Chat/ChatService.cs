@@ -21,13 +21,16 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
+        
         private readonly IProfileService _profileService;
         private readonly ICircleNetworkService _cns;
+        private readonly IHubContext<ChatHub, IChatHub> _chatHub;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns) : base(context, logger, hub, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;
+            _chatHub = chatHub;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -68,6 +71,9 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         public async Task<bool> SendMessage(ChatMessageEnvelope message)
         {
+            Console.BackgroundColor = ConsoleColor.DarkCyan;
+            Console.ForegroundColor = ConsoleColor.White;
+            
             //look up recipient's public key from contacts
             var contact = await _profileService.Get(message.Recipient);
 
@@ -80,6 +86,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             //message.SentTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+            Console.WriteLine($"Message being sent from {this.Context.HostDotYouId} to {message.Recipient}");
+            
             var encryptedMessage = new ChatMessageEnvelope()
             {
                 Id = message.Id,
@@ -107,16 +115,25 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 };
 
                 WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
-
-                await this.Notify.NewChatMessageSent(message);
+                
+                Console.WriteLine($"Message was sent to {message.Recipient}");
+                await this.ChatHub.NewChatMessageSent(message);
+                Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
             }
 
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.White;
+            
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message)
         {
             //TODO: add validation - like not allowing empty messages
+            Console.BackgroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.Black;
+            
+            Console.WriteLine($"Message received from {message.SenderDotYouId} to {this.Context.HostDotYouId}");
             
             string collection = GetChatStoragePath(message.SenderDotYouId);
             WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
@@ -130,7 +147,12 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
 
-            await this.Notify.NewChatMessageReceived(message);
+            await this.ChatHub.NewChatMessageReceived(message);
+            Console.WriteLine($"ChatHub.NewChatMessageReceived sent to {this.Context.HostDotYouId}");
+            
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.White;
+
 
             return true;
         }
@@ -183,6 +205,11 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         private string GetChatStoragePath(DotYouIdentity dotYouId)
         {
             return $"{CHAT_MESSAGE_STORAGE}_{dotYouId.Id.Replace(".", "_")}";
+        }
+        
+        protected IChatHub ChatHub
+        {
+            get => _chatHub.Clients.User(this.Context.HostDotYouId);
         }
     }
 }

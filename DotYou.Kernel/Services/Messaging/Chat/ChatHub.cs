@@ -1,25 +1,25 @@
-using System;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
-using DotYou.Types.Circle;
-using DotYou.Types.SignalR;
+using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace DotYou.Kernel.Services
+namespace DotYou.Kernel.Services.Messaging.Chat
 {
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
-    public class NotificationHub : Hub<INotificationHub>
+    public class ChatHub : Hub<IChatHub>
     {
         public override Task OnConnectedAsync()
         {
-            Console.WriteLine($"NotificationHub [{this.Context?.User?.Identity?.Name} is connected]");
+            Console.WriteLine($"ChatHub [{this.Context?.User?.Identity?.Name} is connected]");
             return base.OnConnectedAsync();
         }
 
         public override Task OnDisconnectedAsync(Exception exception)
         {
-            Console.WriteLine($"NotificationHub [{this.Context?.User?.Identity?.Name} is disconnected]");
+            Console.WriteLine($"ChatHub [{this.Context?.User?.Identity?.Name} is disconnected]");
             return base.OnDisconnectedAsync(exception);
         }
     }

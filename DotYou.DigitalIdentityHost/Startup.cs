@@ -22,6 +22,7 @@ using DotYou.TenantHost;
 using DotYou.TenantHost.Security;
 using DotYou.TenantHost.Security.Authentication;
 using DotYou.Types;
+using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -190,10 +191,11 @@ namespace DotYou.DigitalIdentityHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<ChatService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 var p = svc.GetRequiredService<IProfileService>();
                 var cns = svc.GetRequiredService<ICircleNetworkService>();
-                return new ChatService(context, logger, hub, fac, p, cns);
+                
+                var chatHub = svc.GetRequiredService<IHubContext<ChatHub, IChatHub>>();
+                return new ChatService(context, logger, fac, p, cns, chatHub);
             });
 
 
@@ -237,7 +239,16 @@ namespace DotYou.DigitalIdentityHost
                 endpoints.MapControllers();
                 //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
+
                 endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
+                {
+                    //TODO: for #prototrial, i narrowed this to websockets
+                    //only so i could disable negotiation from the client
+                    //as it was causing issues with authentication.
+                    o.Transports = HttpTransportType.WebSockets;
+                });
+
+                endpoints.MapHub<ChatHub>("/api/live/chat", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets
                     //only so i could disable negotiation from the client

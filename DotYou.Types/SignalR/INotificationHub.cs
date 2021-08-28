@@ -13,10 +13,6 @@ namespace DotYou.Types.SignalR
         Task ConnectionRequestAccepted(AcknowledgedConnectionRequest request);
 
         Task NewEmailReceived(Message message);
-        
-        Task NewChatMessageReceived(ChatMessageEnvelope message);
-
-        Task NewChatMessageSent(ChatMessageEnvelope message);
     }
 
 }
