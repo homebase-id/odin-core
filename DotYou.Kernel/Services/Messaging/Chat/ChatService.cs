@@ -187,7 +187,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
                 Expression<Func<ChatMessageEnvelope, long>> sortKeySelector = key => key.ReceivedTimestampMilliseconds;
 
-                return s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions);
+                return s.Find(predicate, ListSortDirection.Descending, sortKeySelector, pageOptions);
             });
 
             var finalResult = new DateRangePagedResult<ChatMessageEnvelope>()
