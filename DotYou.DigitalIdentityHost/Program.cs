@@ -41,7 +41,7 @@ namespace DotYou.TenantHost
             Config config = LoadConfig();
             Directory.CreateDirectory(config.LogFilePath);
             
-            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Machine) == "1";
+            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
             if (useLocalReg)
             {
                 _registry = new IdentityContextRegistry(config.TenantDataRootPath);

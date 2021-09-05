@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.MediaService;
@@ -32,19 +33,17 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
         }
 
         [HttpPost("images")]
-        //public async Task<Guid> SaveImage(IFormFile file)
-        public async Task<Guid> SaveImage([FromForm]IFormFile file)
+        public async Task<Guid> SaveImage([FromForm(Name = "file")] IFormFile file)
         {
+            // var file = files.Files.FirstOrDefault();
             Console.WriteLine("Save image Http Post called");
             if (file == null)
             {
-                throw new Exception("Failed to read file from upload");
+                return Guid.Empty;
             }
 
             Console.WriteLine("Save image called");
             Guid id = Guid.NewGuid();
-
-            Console.WriteLine($"File {file.FileName}");
 
             MemoryStream stream = new MemoryStream();
             await file.CopyToAsync(stream);
