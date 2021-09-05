@@ -11,7 +11,6 @@ using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
@@ -96,7 +95,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 //SentTimestampMilliseconds = message.SentTimestampMilliseconds,
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
-                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body)
+                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body),
             };
 
             var client = this.CreatePerimeterHttpClient(message.Recipient);

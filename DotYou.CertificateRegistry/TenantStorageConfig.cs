@@ -6,16 +6,12 @@
     public class TenantStorageConfig
     {
         private readonly string _dataStoragePath;
-        private readonly string _imageStoragePath;
 
-        public TenantStorageConfig(string dataStoragePath, string imageStoragePath)
+        public TenantStorageConfig(string dataStoragePath)
         {
             _dataStoragePath = dataStoragePath;
-            _imageStoragePath = imageStoragePath;
         }
 
         public string DataStoragePath { get => this._dataStoragePath; }
-
-        public string ImageStoragePath { get => this._imageStoragePath; }
     }
 }

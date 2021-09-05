@@ -116,7 +116,7 @@ namespace DotYou.IdentityRegistry
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
             var path = Path.Combine(_dataStoragePath, domainName);
-            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(path, "images"));
+            var result = new TenantStorageConfig(Path.Combine(path, "data"));
             return result;
         }
     }

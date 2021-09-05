@@ -13,6 +13,7 @@ using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Demo;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Kernel.Services.MediaService;
 using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Kernel.Services.Owner.Authentication;
@@ -197,8 +198,14 @@ namespace DotYou.DigitalIdentityHost
                 var chatHub = svc.GetRequiredService<IHubContext<ChatHub, IChatHub>>();
                 return new ChatService(context, logger, fac, p, cns, chatHub);
             });
-
-
+            
+            services.AddScoped<IMediaService, FileBasedMediaService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<FileBasedMediaService>>();
+                return new FileBasedMediaService(context, logger);
+            });
+            
             services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
             {
                 var context = ResolveContext(svc);
