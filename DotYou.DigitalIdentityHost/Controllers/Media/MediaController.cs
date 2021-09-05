@@ -18,10 +18,10 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
     {
         public IEnumerable<IFormFile> Files { get; set; }
     }
-    
+
     [ApiController]
     [Route("api/media")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
+    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class MediaController : Controller
     {
         private readonly IMediaService _mediaService;
@@ -33,27 +33,22 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
 
         [HttpPost("images")]
         //public async Task<Guid> SaveImage(IFormFile file)
-        public async Task<Guid>SaveImage([FromForm] ValueFile f)
+        public async Task<Guid> SaveImage([FromForm]IFormFile file)
         {
-            if (f.Files.Count() > 1)
-            {
-                throw new Exception("Cannot handle more than 1 file. #prototrial");
-            }
-            var file = f.Files.FirstOrDefault();
-
+            Console.WriteLine("Save image Http Post called");
             if (file == null)
             {
                 throw new Exception("Failed to read file from upload");
             }
-            
+
             Console.WriteLine("Save image called");
             Guid id = Guid.NewGuid();
-            
+
             Console.WriteLine($"File {file.FileName}");
-            
+
             MemoryStream stream = new MemoryStream();
             await file.CopyToAsync(stream);
-            
+
             var metaData = new MediaMetaData()
             {
                 Id = id,

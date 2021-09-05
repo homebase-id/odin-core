@@ -20,6 +20,7 @@ namespace DotYou.Kernel.Services.MediaService
 
         public async Task SaveImage(MediaMetaData metaData, byte[] bytes)
         {
+            Console.WriteLine($"SaveImage called - size: {bytes.Length}");
             string path = GetFilePath(metaData.Id);
             await using var fs = File.Create(path);
             await fs.WriteAsync(bytes);
@@ -69,6 +70,7 @@ namespace DotYou.Kernel.Services.MediaService
         private string GetMediaRoot()
         {
             string path = Path.Combine(Context.StorageConfig.DataStoragePath, "media");
+            Directory.CreateDirectory(path);
             return path;
         }
         

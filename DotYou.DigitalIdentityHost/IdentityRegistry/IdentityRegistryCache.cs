@@ -36,8 +36,15 @@ namespace DotYou.DigitalIdentityHost.IdentityRegistry
             foreach (var ident in page.Results)
             {
                 Console.WriteLine($"Mapping {ident.DomainName} to cert");
-                IdentityCertificate identCert = Map(ident);
-                _identityMap.AddDomain(ident.DomainName, identCert);
+                try
+                {
+                    IdentityCertificate identCert = Map(ident);
+                    _identityMap.AddDomain(ident.DomainName, identCert);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to caching domain [{e.Message}]");
+                }
             }
         }
         

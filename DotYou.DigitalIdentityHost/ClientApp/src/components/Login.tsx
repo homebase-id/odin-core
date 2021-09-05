@@ -1,5 +1,4 @@
-
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {Button, Card, FormControl, Image} from "react-bootstrap";
 import {createAuthenticationProvider} from "../provider/AuthenticationProvider";
 import {useAppStateStore} from "../provider/AppStateStore";
@@ -9,7 +8,7 @@ function Login(props: any) {
     const [passwordText, setPasswordText] = useState<string>("");
     const [errorText, setErrorText] = useState<string>("");
     const {authenticate} = useAppStateStore();
-
+    
     async function handleLoginClick() {
         if (!passwordText) {
             setErrorText("Please enter your password");
@@ -31,6 +30,7 @@ function Login(props: any) {
             setPasswordText("a")
         }
     }
+    
 
     return <Card className="align-content-center text-center align-middle">
         <Card.Body>
@@ -49,6 +49,8 @@ function Login(props: any) {
                 <br/>
                 <Button className="btn mt-10" onClick={handleForcePassword}>Force password to "a"</Button>
                 {/*<p className="mt-5 mb-3 text-muted">&copy; 2017-2018</p>*/}
+
+             
             </form>
         </Card.Body>
     </Card>

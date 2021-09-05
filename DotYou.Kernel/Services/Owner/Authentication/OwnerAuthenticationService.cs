@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Kernel.Storage;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
     public class OwnerAuthenticationService : DotYouServiceBase, IOwnerAuthenticationService
     {
         private readonly IOwnerSecretService _secretService;
+        private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
         private const string AUTH_TOKEN_COLLECTION = "tko";
 
         public OwnerAuthenticationService(DotYouContext context, ILogger logger, IOwnerSecretService secretService) : base(context, logger, null, null)

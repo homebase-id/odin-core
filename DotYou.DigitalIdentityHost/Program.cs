@@ -32,7 +32,7 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Includes-RPC v5");
+            Console.WriteLine("Includes-RPC v9");
             CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
 
@@ -40,9 +40,18 @@ namespace DotYou.TenantHost
         {
             Config config = LoadConfig();
             Directory.CreateDirectory(config.LogFilePath);
+            
+            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Machine) == "1";
+            if (useLocalReg)
+            {
+                _registry = new IdentityContextRegistry(config.TenantDataRootPath);
+            }
+            else
+            {
+                Console.WriteLine("Using IdentityRegistryRpc");
+                _registry = new IdentityRegistryRpc(config);
+            }
 
-            //_registry = new IdentityContextRegistry(parsedArgs.DataPathRoot);
-            _registry = new IdentityRegistryRpc(config);
             _registry.Initialize();
 
             return Host.CreateDefaultBuilder(args)
@@ -81,7 +90,7 @@ namespace DotYou.TenantHost
                                         //Console.WriteLine($"Resolving certificate for host [{hostName}]");
                                         var certInfo = _registry.ResolveCertificate(hostName);
                                         var cert = certInfo.LoadCertificateWithPrivateKey();
-                                        return cert;    
+                                        return cert;
                                     }
 
                                     Console.WriteLine($"Received request with a hostname.  Request Host is [{connectionContext.GetHttpContext()?.Request.Host}]");
