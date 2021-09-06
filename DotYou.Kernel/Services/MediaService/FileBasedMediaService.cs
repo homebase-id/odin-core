@@ -32,6 +32,7 @@ namespace DotYou.Kernel.Services.MediaService
             var fileRecord = await _storage.Get(id);
             if (null == fileRecord)
             {
+                Console.WriteLine($"No file record found with ID [{id}]");
                 Logger.LogInformation($"No file record found with ID [{id}]");
                 return null;
             }
@@ -39,11 +40,14 @@ namespace DotYou.Kernel.Services.MediaService
             string path = GetFilePath(id);
             if (File.Exists(path) == false)
             {
+                Console.WriteLine($"Record exists for ID [{id}] but file not found");
                 Logger.LogInformation($"Record exists for ID [{id}] but file not found");
                 return null;
             }
 
             await using var fs = File.OpenRead(path);
+            
+            Console.WriteLine($"Path opened at [{path}] with len [{fs.Length}]");
             var bytes = new byte[fs.Length];
             await fs.ReadAsync(bytes, 0, (int)fs.Length);
             

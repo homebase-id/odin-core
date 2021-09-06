@@ -22,7 +22,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
 
     [ApiController]
     [Route("api/media")]
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class MediaController : Controller
     {
         private readonly IMediaService _mediaService;
@@ -33,13 +33,11 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
         }
 
         [HttpPost("images")]
-        public async Task<Guid> SaveImage([FromForm(Name = "file")] IFormFile file)
+        public async Task<IActionResult> SaveImage([FromForm(Name = "file")] IFormFile file)
         {
-            // var file = files.Files.FirstOrDefault();
-            Console.WriteLine("Save image Http Post called");
             if (file == null)
             {
-                return Guid.Empty;
+                return new JsonResult(new { imageId = Guid.Empty });
             }
 
             Console.WriteLine("Save image called");
@@ -58,19 +56,29 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
             Console.WriteLine($"{bytes.Length} uploaded");
 
             await _mediaService.SaveImage(metaData, bytes);
-            return id;
+            return new JsonResult(new { imageId = id });
         }
 
         [HttpGet("images/{id}")]
-        public async Task<HttpResponseMessage> GetImage(Guid id)
+        public async Task<IActionResult> GetImage(Guid id)
         {
+            //Console.WriteLine($"Retrieving image id [{id}]");
             var result = await _mediaService.GetImage(id);
-            var response = new HttpResponseMessage(HttpStatusCode.OK);
-            MemoryStream ms = new MemoryStream(result.Bytes);
-            response.Content = new StreamContent(ms);
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue(result.MimeType);
-            this.Response.ContentLength = result.Bytes.Length;
-            return response;
+
+            if (null == result || result.Bytes.Length == 0)
+            {
+                return NotFound(id);
+            }
+
+            //Console.WriteLine($"Found image with mime [{result.MimeType}]");
+            return File(new MemoryStream(result.Bytes), result.MimeType);
+
+            // var response = new HttpResponseMessage(HttpStatusCode.OK);
+            // MemoryStream ms = new MemoryStream(result.Bytes);
+            // response.Content = new StreamContent(ms);
+            // response.Content.Headers.ContentType = new MediaTypeHeaderValue(result.MimeType);
+            // this.Response.ContentLength = result.Bytes.Length;
+            //return response;
         }
     }
 }

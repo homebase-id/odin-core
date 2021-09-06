@@ -27,7 +27,7 @@ function App() {
         init();
 
     }, []);
-
+    
     if (isInitializing) {
         return <Container className="h-100 align-content-center text-center">
             <Spinner
@@ -50,7 +50,7 @@ function App() {
             window.location.href = "dotyou://auth/" + state.deviceToken;
             return;
         }
-        
+
         return (
             <Container className="h-100 align-content-center text-center">
                 <AppLogin/>;

@@ -8,20 +8,19 @@ namespace DotYou.Types.Messaging
     /// </summary>
     public class RecentChatMessageHeader
     {
-        
         /// <summary>
         /// This is the Id of the other individual or group.  This is not the dotYoudId owner of this instance
         /// </summary>
         public DotYouIdentity DotYouId { get; set; }
 
         public string Body { get; set; }
-        
+
         /// <summary>
         /// The time to display; whether sent or received
         /// </summary>
         public long Timestamp { get; set; }
     }
-    
+
     public class ChatMessageEnvelope : IIncomingCertificateMetaData
     {
         public Guid Id { get; set; }
@@ -29,6 +28,11 @@ namespace DotYou.Types.Messaging
         public DotYouIdentity Recipient { get; set; }
 
         public string Body { get; set; }
+
+        /// <summary>
+        /// An image message.  The ImageId can be resolved using the MediaService 
+        /// </summary>
+        public Guid ImageId { get; set; }
 
         /// <summary>
         /// Timestamp indicating when the message was transmitted

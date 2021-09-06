@@ -96,7 +96,9 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 //SentTimestampMilliseconds = message.SentTimestampMilliseconds,
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
-                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body)
+                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body),
+                ImageId = message.ImageId //TODO: need to also send over the related image
+                
             };
 
             var client = this.CreatePerimeterHttpClient(message.Recipient);
