@@ -10,17 +10,18 @@ namespace DotYou.Kernel.Services.MediaService
     public class FileBasedMediaService : DotYouServiceBase, IMediaService, IDisposable
     {
         private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
-        const string CollectionName = "MediaData";
+        const string CollectionName = "md";
+        private const string MediaRoot = "media";
 
         public FileBasedMediaService(DotYouContext context, ILogger<FileBasedMediaService> logger) : base(context, logger, null, null)
         {
-            string path = Path.Combine(context.StorageConfig.DataStoragePath, CollectionName);
+            string path = Path.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
             _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
         }
 
         public async Task SaveImage(MediaMetaData metaData, byte[] bytes)
         {
-            Console.WriteLine($"SaveImage called - size: {bytes.Length}");
+            Logger.LogDebug($"SaveImage called - size: {bytes.Length}");
             string path = GetFilePath(metaData.Id);
             await using var fs = File.Create(path);
             await fs.WriteAsync(bytes);
@@ -73,7 +74,7 @@ namespace DotYou.Kernel.Services.MediaService
 
         private string GetMediaRoot()
         {
-            string path = Path.Combine(Context.StorageConfig.DataStoragePath, "media");
+            string path = Path.Combine(Context.StorageConfig.DataStoragePath, MediaRoot);
             Directory.CreateDirectory(path);
             return path;
         }

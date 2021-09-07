@@ -43,8 +43,16 @@ namespace DotYou.Kernel.Storage
             string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
             logger.LogDebug($"Database path is [{finalPath}]");
 
-            _db = new LiteDatabase(finalPath);
+            //_db = new LiteDatabase(finalPath);
+            _db = new LiteDatabase(new ConnectionString
+            {
+                Filename = finalPath,
+                Connection = ConnectionType.Shared,
+                ReadOnly = false
+            });
             _collectionName = collectionName;
+            
+            
         }
 
         public Task<PagedResult<T>> GetList(PageOptions req)

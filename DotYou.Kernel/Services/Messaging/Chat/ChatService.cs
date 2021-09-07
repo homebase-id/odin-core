@@ -98,8 +98,12 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
                 Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body),
                 ImageId = message.ImageId //TODO: need to also send over the related image
-                
             };
+
+            if (message.ImageId != Guid.Empty)
+            {
+                //transfer the image
+            }
 
             var client = this.CreatePerimeterHttpClient(message.Recipient);
             var response = await client.DeliverChatMessage(encryptedMessage);

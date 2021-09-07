@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.MediaService;
@@ -15,11 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Media
 {
-    public class ValueFile
-    {
-        public IEnumerable<IFormFile> Files { get; set; }
-    }
-
     [ApiController]
     [Route("api/media")]
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
@@ -62,7 +52,6 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
         [HttpGet("images/{id}")]
         public async Task<IActionResult> GetImage(Guid id)
         {
-            //Console.WriteLine($"Retrieving image id [{id}]");
             var result = await _mediaService.GetImage(id);
 
             if (null == result || result.Bytes.Length == 0)
@@ -70,15 +59,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
                 return NotFound(id);
             }
 
-            //Console.WriteLine($"Found image with mime [{result.MimeType}]");
             return File(new MemoryStream(result.Bytes), result.MimeType);
-
-            // var response = new HttpResponseMessage(HttpStatusCode.OK);
-            // MemoryStream ms = new MemoryStream(result.Bytes);
-            // response.Content = new StreamContent(ms);
-            // response.Content.Headers.ContentType = new MediaTypeHeaderValue(result.MimeType);
-            // this.Response.ContentLength = result.Bytes.Length;
-            //return response;
         }
     }
 }
