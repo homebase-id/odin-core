@@ -8,8 +8,8 @@ namespace DotYou.Kernel.Services.MediaService
     /// </summary>
     public interface IMediaService
     {
-        Task SaveImage(MediaMetaData metaData, byte[] bytes);
+        Task<Guid> SaveImage(MediaData mediaData, bool giveNewId = false);
 
-        Task<MediaResult> GetImage(Guid id);
+        Task<MediaData> GetImage(Guid id);
     }
 }

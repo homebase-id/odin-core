@@ -93,7 +93,7 @@ namespace DotYou.TenantHost
                                         return cert;
                                     }
 
-                                    Console.WriteLine($"Received request with a hostname.  Request Host is [{connectionContext.GetHttpContext()?.Request.Host}]");
+                                    //Console.WriteLine($"Received request with a hostname.  Request Host is [{connectionContext.GetHttpContext()?.Request.Host}]");
                                     return null;
                                 };
 

@@ -30,8 +30,9 @@ namespace DotYou.Types.Messaging
         public string Body { get; set; }
 
         /// <summary>
-        /// An image message.  The ImageId can be resolved using the MediaService 
+        /// An image message.  The ImageId can be resolved using the MediaService
         /// </summary>
+        //TODO: this is not used on the PerimeterChatMessageEnvelope so this needs to be addressed
         public Guid ImageId { get; set; }
 
         /// <summary>

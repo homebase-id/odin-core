@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Storage;
 using Microsoft.Extensions.Logging;
@@ -19,16 +20,42 @@ namespace DotYou.Kernel.Services.MediaService
             _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
         }
 
-        public async Task SaveImage(MediaMetaData metaData, byte[] bytes)
+        public async Task<Guid> SaveImage(MediaData mediaData, bool giveNewId = false)
         {
-            Logger.LogDebug($"SaveImage called - size: {bytes.Length}");
-            string path = GetFilePath(metaData.Id);
+            Logger.LogDebug($"SaveImage called - size: {mediaData.Bytes.Length}");
+
+            if (!giveNewId && mediaData.Id == Guid.Empty)
+            {
+                throw new ArgumentException("Id is empty guid.  You must specify giveNewId = true if you pass in an empty guid.");
+            }
+            
+            var id = giveNewId ? Guid.NewGuid() : mediaData.Id;
+            
+            string path = GetFilePath(id);
+
+            if (File.Exists(path))
+            {
+                throw new Exception($"Media with Id [{id}] already exists.");
+            }
+            
+            Console.WriteLine($"Saving image to disk");
+            
             await using var fs = File.Create(path);
-            await fs.WriteAsync(bytes);
-            await _storage.Save(metaData);
+            await fs.WriteAsync(mediaData.Bytes);
+
+            Console.WriteLine($"Saving metadata");
+            
+            await _storage.Save(new MediaMetaData()
+            {
+                Id = id,
+                MimeType = mediaData.MimeType
+            });
+            
+            Logger.LogDebug($"Image saved:{id}");
+            return id;
         }
 
-        public async Task<MediaResult> GetImage(Guid id)
+        public async Task<MediaData> GetImage(Guid id)
         {
             var fileRecord = await _storage.Get(id);
             if (null == fileRecord)
@@ -52,7 +79,7 @@ namespace DotYou.Kernel.Services.MediaService
             var bytes = new byte[fs.Length];
             await fs.ReadAsync(bytes, 0, (int)fs.Length);
             
-            return new MediaResult()
+            return new MediaData()
             {
                 Id = fileRecord.Id,
                 MimeType = fileRecord.MimeType,

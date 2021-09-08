@@ -4,10 +4,12 @@ using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.Contacts;
+using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
@@ -21,16 +23,18 @@ namespace DotYou.Kernel.Services.Messaging.Chat
     {
         private const string CHAT_MESSAGE_STORAGE = "chat";
         private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
-        
+
         private readonly IProfileService _profileService;
         private readonly ICircleNetworkService _cns;
         private readonly IHubContext<ChatHub, IChatHub> _chatHub;
+        private readonly IMediaService _mediaService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub, IMediaService mediaService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;
             _chatHub = chatHub;
+            _mediaService = mediaService;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -39,32 +43,32 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
 
-            
+
             var connections = await _cns.GetConnections(options);
-            
+
             var bag = new ConcurrentBag<AvailabilityStatus>();
-            
+
             var tasks = connections.Results.Select(async connectionInfo =>
             {
                 var client = base.CreatePerimeterHttpClient(connectionInfo.DotYouId);
                 var response = await client.GetAvailability();
-            
+
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
-            
+
                 var av = new AvailabilityStatus
                 {
                     IsChatAvailable = canChat,
                     Updated = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    DotYouId =  connectionInfo.DotYouId,
+                    DotYouId = connectionInfo.DotYouId,
                     DisplayName = connectionInfo.DotYouId, //TODO: get the name information from the profile service
                     StatusMessage = ""
                 };
-            
+
                 bag.Add(av);
             });
-            
+
             await Task.WhenAll(tasks);
-            
+
             var availabilityPage = new PagedResult<AvailabilityStatus>(options, connections.TotalPages, bag.ToList());
             return availabilityPage;
         }
@@ -73,7 +77,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         {
             Console.BackgroundColor = ConsoleColor.DarkCyan;
             Console.ForegroundColor = ConsoleColor.White;
-            
+
             //look up recipient's public key from contacts
             var contact = await _profileService.Get(message.Recipient);
 
@@ -84,10 +88,28 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             message.SenderDotYouId = this.Context.HostDotYouId;
             message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            //message.SentTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             Console.WriteLine($"Message being sent from {this.Context.HostDotYouId} to {message.Recipient}");
-            
+
+            MediaData imageData = null;
+            MediaMetaData metaData = null;
+            byte[] bytes = Array.Empty<byte>();
+            if (message.ImageId != Guid.Empty)
+            {
+                imageData = await _mediaService.GetImage(message.ImageId);
+
+                if (imageData != null)
+                {
+                    metaData = new MediaMetaData()
+                    {
+                        Id = imageData.Id,
+                        MimeType = imageData.MimeType
+                    };
+
+                    bytes = imageData.Bytes;
+                }
+            }
+
             var encryptedMessage = new ChatMessageEnvelope()
             {
                 Id = message.Id,
@@ -97,19 +119,20 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
                 Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body),
-                ImageId = message.ImageId //TODO: need to also send over the related image
+                //ImageId = //TODO: not required when sending to the other DI.  it will get a new id for that DI 
             };
 
-            if (message.ImageId != Guid.Empty)
-            {
-                //transfer the image
-            }
-
             var client = this.CreatePerimeterHttpClient(message.Recipient);
-            var response = await client.DeliverChatMessage(encryptedMessage);
+
+            Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
+            Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
+            Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
+
+            var response = await client.DeliverChatMessage(encryptedMessage, metaData, bytes);
 
             if (response.IsSuccessStatusCode)
             {
+                Console.WriteLine($"Message successfully sent to {message.Recipient}");
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
@@ -121,44 +144,62 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 };
 
                 WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
-                
-                Console.WriteLine($"Message was sent to {message.Recipient}");
+
                 await this.ChatHub.NewChatMessageSent(message);
-                Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
+                //Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
+            }
+            else
+            {
+                Console.WriteLine($"Message failed to be sent to {message.Recipient}");
+                Console.WriteLine($"Status code {response.StatusCode}");
             }
 
             Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.White;
-            
+
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message)
+        public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope envelope, MediaData mediaData)
         {
             //TODO: add validation - like not allowing empty messages
             Console.BackgroundColor = ConsoleColor.Yellow;
             Console.ForegroundColor = ConsoleColor.Black;
-            
-            Console.WriteLine($"Message received from {message.SenderDotYouId} to {this.Context.HostDotYouId}");
-            
-            string collection = GetChatStoragePath(message.SenderDotYouId);
-            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(message));
+
+            Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
+
+            if (mediaData != null)
+            {
+                Guard.Argument(mediaData.MimeType, nameof(mediaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
+
+                Console.WriteLine($"Storing Image with old id: {mediaData.Id}");
+                envelope.ImageId = await _mediaService.SaveImage(mediaData, giveNewId: true);
+                Console.WriteLine($"Image stored - new Id: {envelope.ImageId}");
+            }
+            else
+            {
+                Console.WriteLine("No image data found on the message");
+            }
+
+            string collection = GetChatStoragePath(envelope.SenderDotYouId);
+
+            //the downcast avoid storing the ImageData 
+            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save((ChatMessageEnvelope)envelope));
 
             var recent = new RecentChatMessageHeader()
             {
-                DotYouId = message.SenderDotYouId,
-                Body = message.Body,
-                Timestamp = message.ReceivedTimestampMilliseconds
+                DotYouId = envelope.SenderDotYouId,
+                Body = envelope.Body,
+                Timestamp = envelope.ReceivedTimestampMilliseconds
             };
 
             WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
 
-            await this.ChatHub.NewChatMessageReceived(message);
+            await this.ChatHub.NewChatMessageReceived(envelope);
+
             Console.WriteLine($"ChatHub.NewChatMessageReceived sent to {this.Context.HostDotYouId}");
-            
             Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.White;
-
 
             return true;
         }
@@ -173,7 +214,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 var mostRecentMessage = g.OrderByDescending(m => m.Timestamp).First();
                 var header = new RecentChatMessageHeader();
-                header.DotYouId = (DotYouIdentity) g.Key;
+                header.DotYouId = (DotYouIdentity)g.Key;
                 header.Body = mostRecentMessage.Body;
                 header.Timestamp = mostRecentMessage.Timestamp;
 
@@ -212,7 +253,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         {
             return $"{CHAT_MESSAGE_STORAGE}_{dotYouId.Id.Replace(".", "_")}";
         }
-        
+
         protected IChatHub ChatHub
         {
             get => _chatHub.Clients.User(this.Context.HostDotYouId);

@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.HttpClient;
+using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
@@ -30,9 +32,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         /// <summary>
         /// Accepts an incoming chat message from another Digital Identity
         /// </summary>
-        /// <param name="message"></param>
         /// <returns></returns>
-        public Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope message);
+        public Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope envelope, MediaData mediaData);
 
         /// <summary>
         /// Returns a list of recent messages across all connected contacts

@@ -70,8 +70,8 @@ namespace DotYou.IdentityRegistry
                 throw new Exception($"No certificate configured for {this.DomainName}");
             }
             
-            Console.WriteLine($"Public Key [{certificatePath}]");
-            Console.WriteLine($"Private Key [{privateKeyPath}]");
+            // Console.WriteLine($"Public Key [{certificatePath}]");
+            // Console.WriteLine($"Private Key [{privateKeyPath}]");
 
             return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
 

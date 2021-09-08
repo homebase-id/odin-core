@@ -50,19 +50,14 @@ namespace DotYou.DigitalIdentityHost.IdentityRegistry
         
         public IdentityCertificate ResolveCertificate(string domainName)
         {
-            Console.WriteLine($"Resolving certificate for [{domainName}]");
-            var cert = _identityMap.LookupName(domainName);
+            //Console.WriteLine($"Resolving certificate for [{domainName}]");
+            var cert = _identityMap.LookupName(domainName) ?? LazyLoad(domainName).ConfigureAwait(false).GetAwaiter().GetResult();
+
             if (cert == null)
             {
-                Console.WriteLine($"No cert loaded - querying registry for [{domainName}]");
-                cert = LazyLoad(domainName).ConfigureAwait(false).GetAwaiter().GetResult();
-
-                if (cert == null)
-                {
-                    Console.WriteLine($"No cert found on registry server");
-                }
+                Console.WriteLine($"No cert found on registry server for [{domainName}]");
             }
-            
+
             return cert;
         }
 
@@ -75,7 +70,14 @@ namespace DotYou.DigitalIdentityHost.IdentityRegistry
         
         private async Task<IdentityCertificate> LazyLoad(string domainName)
         {
-            var identCert = Map(await GetClient().Get(domainName));
+            var cert = await GetClient().Get(domainName);
+            if (cert == null)
+            {
+                Console.WriteLine($"No cert found on registry server for [{domainName}]");
+                return null;
+            }
+
+            var identCert = Map(cert);
             if(null != identCert)
             {
                 _identityMap.AddDomain(identCert.DomainName, identCert);

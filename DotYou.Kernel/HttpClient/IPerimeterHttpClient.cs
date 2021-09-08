@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Circle;
@@ -18,14 +19,15 @@ namespace DotYou.Kernel.HttpClient
         Task<ApiResponse<NoResultResponse>> DeliverEmail(Message message);
 
         [Post(RootPath + "/invitations/connect")]
-        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body]ConnectionRequest request);
-        
-        [Post(RootPath + "/invitations/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body]AcknowledgedConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] ConnectionRequest request);
 
+        [Post(RootPath + "/invitations/establishconnection")]
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] AcknowledgedConnectionRequest request);
+
+        [Multipart]
         [Post(RootPath + "/chat")]
-        Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope message);
-        
+        Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, byte[] media);
+
         [Post(RootPath + "/status/chat")]
         Task<ApiResponse<bool>> GetAvailability();
 

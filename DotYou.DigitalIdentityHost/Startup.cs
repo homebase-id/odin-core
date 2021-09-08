@@ -69,6 +69,9 @@ namespace DotYou.DigitalIdentityHost
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
+            
+            services.AddGrpc();
+            services.AddMagicOnion();
 
             services.AddAuthentication(options =>
                 {
@@ -94,7 +97,7 @@ namespace DotYou.DigitalIdentityHost
                 //TODO: this certificate cache is not multi-tenant
                 .AddCertificateCache(options =>
                 {
-                    //TODO: revist this to see if it will serve as our re-validation method to ensure
+                    //TODO: revisit this to see if it will serve as our re-validation method to ensure
                     // caller certs are still good 
                     options.CacheSize = 2048;
                     options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
@@ -194,9 +197,10 @@ namespace DotYou.DigitalIdentityHost
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var p = svc.GetRequiredService<IProfileService>();
                 var cns = svc.GetRequiredService<ICircleNetworkService>();
+                var ms = svc.GetRequiredService<IMediaService>();
                 
                 var chatHub = svc.GetRequiredService<IHubContext<ChatHub, IChatHub>>();
-                return new ChatService(context, logger, fac, p, cns, chatHub);
+                return new ChatService(context, logger, fac, p, cns, chatHub, ms);
             });
             
             services.AddScoped<IMediaService, FileBasedMediaService>(svc =>
@@ -247,6 +251,8 @@ namespace DotYou.DigitalIdentityHost
                 //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
 
+                endpoints.MapMagicOnionService();
+                
                 endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets

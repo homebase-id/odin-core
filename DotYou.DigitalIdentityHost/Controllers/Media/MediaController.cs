@@ -31,21 +31,22 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
             }
 
             Console.WriteLine("Save image called");
+            
             Guid id = Guid.NewGuid();
-
             MemoryStream stream = new MemoryStream();
             await file.CopyToAsync(stream);
-
-            var metaData = new MediaMetaData()
+            var bytes = stream.ToArray();
+            
+            var mediaData = new MediaData()
             {
                 Id = id,
                 MimeType = file.ContentType,
+                Bytes = bytes
             };
 
-            var bytes = stream.ToArray();
-            Console.WriteLine($"{bytes.Length} uploaded");
+            await _mediaService.SaveImage(mediaData);
+            // Console.WriteLine($"{bytes.Length} uploaded");
 
-            await _mediaService.SaveImage(metaData, bytes);
             return new JsonResult(new { imageId = id });
         }
 
