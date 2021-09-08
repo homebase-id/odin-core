@@ -70,9 +70,6 @@ namespace DotYou.DigitalIdentityHost
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
             
-            services.AddGrpc();
-            services.AddMagicOnion();
-
             services.AddAuthentication(options =>
                 {
                     options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
@@ -251,8 +248,6 @@ namespace DotYou.DigitalIdentityHost
                 //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
 
-                endpoints.MapMagicOnionService();
-                
                 endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets

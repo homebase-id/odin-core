@@ -13,7 +13,6 @@ using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
@@ -21,8 +20,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 {
     public class ChatService : DotYouServiceBase, IChatService
     {
-        private const string CHAT_MESSAGE_STORAGE = "chat";
-        private const string RECENT_CHAT_MESSAGES_HISTORY = "recent_messages";
+        private const string ChatMessageStorageCollection = "chat";
+        private const string RecentChatMessagesHistoryCollection = "recent_messages";
 
         private readonly IProfileService _profileService;
         private readonly ICircleNetworkService _cns;
@@ -42,8 +41,6 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             //TODO: this needs to hold a cache of the availability status
             // when checking updates, it needs to examine the Updated timestamp
             // of each status to see if should re-query the DI
-
-
             var connections = await _cns.GetConnections(options);
 
             var bag = new ConcurrentBag<AvailabilityStatus>();
@@ -118,21 +115,21 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 //SentTimestampMilliseconds = message.SentTimestampMilliseconds,
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
-                Body = Cryptography.Encrypt.UsingPublicKey(contact.PublicKeyCertificate, message.Body),
+                Body = message.Body
                 //ImageId = //TODO: not required when sending to the other DI.  it will get a new id for that DI 
             };
 
             var client = this.CreatePerimeterHttpClient(message.Recipient);
 
-            Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
-            Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
-            Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
+            // Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
+            // Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
+            // Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
 
             var response = await client.DeliverChatMessage(encryptedMessage, metaData, bytes);
 
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Message successfully sent to {message.Recipient}");
+                // Console.WriteLine($"Message successfully sent to {message.Recipient}");
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
@@ -143,7 +140,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                     Timestamp = message.ReceivedTimestampMilliseconds
                 };
 
-                WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
+                WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
                 await this.ChatHub.NewChatMessageSent(message);
                 //Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
@@ -160,25 +157,18 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope envelope, MediaData mediaData)
+        public async Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaData mediaData)
         {
             //TODO: add validation - like not allowing empty messages
-            Console.BackgroundColor = ConsoleColor.Yellow;
-            Console.ForegroundColor = ConsoleColor.Black;
+            // Console.BackgroundColor = ConsoleColor.Yellow;
+            // Console.ForegroundColor = ConsoleColor.Black;
 
-            Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
+            // Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
 
             if (mediaData != null)
             {
                 Guard.Argument(mediaData.MimeType, nameof(mediaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
-
-                Console.WriteLine($"Storing Image with old id: {mediaData.Id}");
                 envelope.ImageId = await _mediaService.SaveImage(mediaData, giveNewId: true);
-                Console.WriteLine($"Image stored - new Id: {envelope.ImageId}");
-            }
-            else
-            {
-                Console.WriteLine("No image data found on the message");
             }
 
             string collection = GetChatStoragePath(envelope.SenderDotYouId);
@@ -193,20 +183,20 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 Timestamp = envelope.ReceivedTimestampMilliseconds
             };
 
-            WithTenantStorage<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.Save(recent));
+            WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
             await this.ChatHub.NewChatMessageReceived(envelope);
 
-            Console.WriteLine($"ChatHub.NewChatMessageReceived sent to {this.Context.HostDotYouId}");
-            Console.BackgroundColor = ConsoleColor.Black;
-            Console.ForegroundColor = ConsoleColor.White;
+            // Console.WriteLine($"ChatHub.NewChatMessageReceived sent to {this.Context.HostDotYouId}");
+            // Console.BackgroundColor = ConsoleColor.Black;
+            // Console.ForegroundColor = ConsoleColor.White;
 
             return true;
         }
 
         public async Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions)
         {
-            var page = await WithTenantStorageReturnList<RecentChatMessageHeader>(RECENT_CHAT_MESSAGES_HISTORY, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
+            var page = await WithTenantStorageReturnList<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
 
             //HACK:  need to redesign the storage of chat and/or recent messages
             var grouping = page.Results.GroupBy(h => h.DotYouId, StringComparer.InvariantCultureIgnoreCase);
@@ -251,10 +241,10 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         private string GetChatStoragePath(DotYouIdentity dotYouId)
         {
-            return $"{CHAT_MESSAGE_STORAGE}_{dotYouId.Id.Replace(".", "_")}";
+            return $"{ChatMessageStorageCollection}_{dotYouId.Id.Replace(".", "_")}";
         }
 
-        protected IChatHub ChatHub
+        private IChatHub ChatHub
         {
             get => _chatHub.Clients.User(this.Context.HostDotYouId);
         }

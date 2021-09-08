@@ -33,7 +33,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         /// Accepts an incoming chat message from another Digital Identity
         /// </summary>
         /// <returns></returns>
-        public Task<bool> ReceiveIncomingMessage(ChatMessageEnvelope envelope, MediaData mediaData);
+        public Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaData mediaData);
 
         /// <summary>
         /// Returns a list of recent messages across all connected contacts
