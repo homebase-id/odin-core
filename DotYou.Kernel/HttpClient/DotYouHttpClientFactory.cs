@@ -24,6 +24,11 @@ namespace DotYou.Kernel.HttpClient
             Console.WriteLine("CreateClient -> Loading certificate");
             var cert = _context.TenantCertificate.LoadCertificateWithPrivateKey();
 
+            if (null == cert)
+            {
+                throw new Exception($"No certificate configured for {dotYouId}");
+            }
+
             var handler = new HttpClientHandler();
             handler.ClientCertificates.Add(cert);
             handler.AllowAutoRedirect = false;

@@ -79,8 +79,8 @@ namespace DotYou.DigitalIdentityHost
                 .AddCertificate(DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
-                    options.ValidateCertificateUse = true;
-
+                    options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
+                    
                     //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                     //options.RevocationMode = X509RevocationMode.NoCheck
 

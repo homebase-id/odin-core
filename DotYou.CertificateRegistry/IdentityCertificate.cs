@@ -67,7 +67,7 @@ namespace DotYou.IdentityRegistry
 
             if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
             {
-                throw new Exception($"No certificate configured for {this.DomainName}");
+                return null;
             }
             
             // Console.WriteLine($"Public Key [{certificatePath}]");

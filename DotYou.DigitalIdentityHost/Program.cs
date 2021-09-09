@@ -32,7 +32,7 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Includes-RPC v9");
+            Console.WriteLine("Includes-RPC v11");
             CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
 
@@ -83,6 +83,13 @@ namespace DotYou.TenantHost
                         {
                             options.ConfigureHttpsDefaults(opts =>
                             {
+                                opts.ClientCertificateValidation = (certificate2, chain, arg3) =>
+                                {
+                                    //HACK: need to expand this to perform validation.
+                                    //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
+                                    return true;
+                                };
+                                
                                 opts.ServerCertificateSelector = (connectionContext, hostName) =>
                                 {
                                     if (!string.IsNullOrEmpty(hostName))
@@ -90,6 +97,12 @@ namespace DotYou.TenantHost
                                         //Console.WriteLine($"Resolving certificate for host [{hostName}]");
                                         var certInfo = _registry.ResolveCertificate(hostName);
                                         var cert = certInfo.LoadCertificateWithPrivateKey();
+
+                                        if (null == cert)
+                                        {
+                                            //TODO: add logging or throw exception
+                                            Console.WriteLine($"No certificate configured for {hostName}");
+                                        }
                                         return cert;
                                     }
 
@@ -99,7 +112,7 @@ namespace DotYou.TenantHost
 
                                 //Let the OS decide
                                 //TODO: revisit if we should let the OS decide
-                                opts.SslProtocols = SslProtocols.None;
+                                //opts.SslProtocols = SslProtocols.None;
                                 opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                             });
                         })
