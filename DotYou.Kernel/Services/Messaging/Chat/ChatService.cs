@@ -121,15 +121,16 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             var client = this.CreatePerimeterHttpClient(message.Recipient);
 
-            // Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
-            // Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
-            // Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
+            Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
+            Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
+            Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
 
             var response = await client.DeliverChatMessage(encryptedMessage, metaData, bytes);
 
             if (response.IsSuccessStatusCode)
             {
-                // Console.WriteLine($"Message successfully sent to {message.Recipient}");
+                Console.WriteLine($"Message successfully sent to {message.Recipient}");
+                
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
@@ -163,10 +164,12 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             // Console.BackgroundColor = ConsoleColor.Yellow;
             // Console.ForegroundColor = ConsoleColor.Black;
 
-            // Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
+            Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
 
             if (mediaData != null)
             {
+                Console.WriteLine($"Message has media of type [{mediaData.MimeType}] and length: {mediaData.Bytes.Length}");
+                
                 Guard.Argument(mediaData.MimeType, nameof(mediaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
                 envelope.ImageId = await _mediaService.SaveImage(mediaData, giveNewId: true);
             }

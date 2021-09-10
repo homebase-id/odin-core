@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using BrunoZell.ModelBinding;
 using DotYou.Kernel.Services.MediaService;
@@ -27,7 +28,8 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
             [ModelBinder(BinderType = typeof(JsonModelBinder))] [FromForm(Name = "metaData")] MediaMetaData metaData,
             [FromForm(Name = "media")] IFormFile media)
         {
-            //Console.WriteLine($"ReceiveIncomingChatMessage perimeter ChatMessageController called.  bytes len:{media?.Length ?? 0}");
+            
+            Console.WriteLine($"ReceiveIncomingChatMessage perimeter ChatMessageController called.  bytes len:{media?.Length ?? 0}");
             MediaData mediaData = null;
 
             if (media?.Length > 0)

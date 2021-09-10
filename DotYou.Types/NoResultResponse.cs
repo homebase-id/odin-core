@@ -8,10 +8,15 @@
     public class NoResultResponse
     {
         public NoResultResponse() { }
-        public NoResultResponse(bool success)
+        
+        public NoResultResponse(bool success, string message = null)
         {
             Success = success;
+            Message = message;
         }
+        
         public bool Success { get; set; }
+        
+        public string Message { get; set; }
     }
 }

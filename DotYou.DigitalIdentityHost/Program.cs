@@ -32,7 +32,7 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Includes-RPC v11");
+            Console.WriteLine("Includes-RPC v12");
             CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
 
