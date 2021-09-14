@@ -25,7 +25,8 @@ namespace DotYou.Kernel.CryptographyTests
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
-            
+            RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
+
             // Client requests a noncePackage from the server (after password is entered)
             var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
@@ -56,8 +57,8 @@ namespace DotYou.Kernel.CryptographyTests
             // Simulate pre-generated PasswordKey values
             string saltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
             string saltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE));
-            
-            var np = new NonceData(saltPassword64, saltKek64, RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa), 0);
+
+            var np = new NonceData(saltPassword64, saltKek64, RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
             // the reply includes the shared secret and is sent to the server
@@ -82,10 +83,10 @@ namespace DotYou.Kernel.CryptographyTests
             // cookie["login"] = loginToken.TokenId
             // cookie["loginkey"] = cookie2
 
-            var calcNonce = NonceGrowingManager.CalculateNonce(1, sharedsecret);
+            var calcNonce = NonceGrowingManager.CalculateBase64NonceSHA256(1, sharedsecret);
             NonceGrowingManager.ValidateNonce(loginToken.NonceKeeper, 1, calcNonce, loginToken.SharedSecret);
 
-            calcNonce = NonceGrowingManager.CalculateNonce(7, sharedsecret);
+            calcNonce = NonceGrowingManager.CalculateBase64NonceSHA256(7, sharedsecret);
             NonceGrowingManager.ValidateNonce(loginToken.NonceKeeper, 7, calcNonce, loginToken.SharedSecret);
 
             Assert.Pass();
@@ -182,7 +183,6 @@ namespace DotYou.Kernel.CryptographyTests
         {
             // Generate Host RSA key 
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
-            RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
             var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentPublicKeyPem(hostRsa));
 

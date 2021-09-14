@@ -24,7 +24,7 @@ namespace DotYou.Kernel.CryptographyTests
             var nt = new NonceTable();
             var secret = YFByteArray.GetRndByteArray(16);
 
-            if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateNonce(1, secret), secret))
+            if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateBase64NonceSHA256(1, secret), secret))
                 Assert.Pass();
             else
                 Assert.Fail();
@@ -36,13 +36,13 @@ namespace DotYou.Kernel.CryptographyTests
             var nt = new NonceTable();
             var secret = YFByteArray.GetRndByteArray(16);
 
-            if (!NonceGrowingManager.ValidateNonce(nt, 7, NonceGrowingManager.CalculateNonce(7, secret), secret))
+            if (!NonceGrowingManager.ValidateNonce(nt, 7, NonceGrowingManager.CalculateBase64NonceSHA256(7, secret), secret))
             {
                 Assert.Fail();
                 return;
             }
 
-            if (!NonceGrowingManager.ValidateNonce(nt, 11, NonceGrowingManager.CalculateNonce(11, secret), secret))
+            if (!NonceGrowingManager.ValidateNonce(nt, 11, NonceGrowingManager.CalculateBase64NonceSHA256(11, secret), secret))
             {
                 Assert.Fail();
                 return;
@@ -58,7 +58,7 @@ namespace DotYou.Kernel.CryptographyTests
             var nt = new NonceTable();
             var secret = YFByteArray.GetRndByteArray(16);
 
-            if (!NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateNonce(1, secret), secret))
+            if (!NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateBase64NonceSHA256(1, secret), secret))
             {
                 Assert.Fail();
                 return;
@@ -66,7 +66,7 @@ namespace DotYou.Kernel.CryptographyTests
 
             try
             {
-                if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateNonce(1, secret), secret))
+                if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateBase64NonceSHA256(1, secret), secret))
                 {
                     Assert.Fail();
                     return;
@@ -87,7 +87,7 @@ namespace DotYou.Kernel.CryptographyTests
             var secret1 = YFByteArray.GetRndByteArray(16);
             var secret2 = YFByteArray.GetRndByteArray(16);
 
-            if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateNonce(1, secret1), secret2) == true)
+            if (NonceGrowingManager.ValidateNonce(nt, 1, NonceGrowingManager.CalculateBase64NonceSHA256(1, secret1), secret2) == true)
             {
                 Assert.Fail();
                 return;
@@ -102,7 +102,7 @@ namespace DotYou.Kernel.CryptographyTests
             var nt = new NonceTable();
             var secret = YFByteArray.GetRndByteArray(16);
 
-            if (!NonceGrowingManager.ValidateNonce(nt, 5, NonceGrowingManager.CalculateNonce(5, secret), secret))
+            if (!NonceGrowingManager.ValidateNonce(nt, 5, NonceGrowingManager.CalculateBase64NonceSHA256(5, secret), secret))
             {
                 Assert.Fail();
                 return;
@@ -110,7 +110,7 @@ namespace DotYou.Kernel.CryptographyTests
 
             try
             {
-                if (NonceGrowingManager.ValidateNonce(nt, 3, NonceGrowingManager.CalculateNonce(3, secret), secret))
+                if (NonceGrowingManager.ValidateNonce(nt, 3, NonceGrowingManager.CalculateBase64NonceSHA256(3, secret), secret))
                 {
                     Assert.Fail();
                     return;

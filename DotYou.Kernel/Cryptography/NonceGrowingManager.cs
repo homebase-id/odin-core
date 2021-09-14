@@ -28,28 +28,23 @@ namespace DotYou.Kernel.Cryptography
             return new byte[] { (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
         }
 
-        public static UInt32 CalculateNonce(UInt32 nonce, byte[] secret)
-        {
-            UInt32 calc;
-
-            // Use MD5 or SHA-256 instead
-            calc = CRC32C.CalculateCRC32C(0, UInt32ToBytes(nonce));  // I believe sequence matters, predictable int first.
-            calc = CRC32C.CalculateCRC32C(calc, secret);
-
-            return calc;
-        }
-
         // I think this is overkill, wish there was a simple 128 bit hash
-        public static string CalculateNonceSHA256(UInt32 nonce, byte[] secret)
+        public static byte[] CalculateNonceSHA256(UInt32 nonce, byte[] secret)
         {
             SHA256Managed hashstring = new SHA256Managed();
             byte[] hash = hashstring.ComputeHash(YFByteArray.Combine(UInt32ToBytes(nonce), secret));
 
-            return Convert.ToBase64String(hash);
+            return hash;
+        }
+
+        // I think this is overkill, wish there was a simple 128 bit hash
+        public static string CalculateBase64NonceSHA256(UInt32 nonce, byte[] secret)
+        {
+            return Convert.ToBase64String(CalculateNonceSHA256(nonce, secret));
         }
 
 
-        public static bool ValidateNonce(NonceTable table, UInt32 nonce, UInt32 compareto, byte[] secret)
+        public static bool ValidateNonce(NonceTable table, UInt32 nonce, string compareto, byte[] secret)
         {
             if (nonce > table.lastNonce) // This is what we expect
             {
@@ -65,7 +60,7 @@ namespace DotYou.Kernel.Cryptography
                 }
 
                 // Check the nonce - just use CRC32C for now
-                var calc = CalculateNonce(nonce, secret);
+                var calc = CalculateBase64NonceSHA256(nonce, secret);
 
                 if (calc != compareto)
                 {
@@ -94,7 +89,6 @@ namespace DotYou.Kernel.Cryptography
             if (nonce == table.lastNonce) // Should be impossible, attack, log?
             {
                 throw new Exception("nonce equal to lastNonce");
-                return false;
             }
 
             throw new Exception("nonce less than lastNonce");
@@ -105,9 +99,6 @@ namespace DotYou.Kernel.Cryptography
             //   a) The nonce is not already present in the table, and
             //   b) The timespan between the nonce and the last table entry closest to the (and less than) nonce
             //      is less than e.g. 10 seconds.
-
-
-            return false;
         }
     }
 }

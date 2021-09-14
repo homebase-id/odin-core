@@ -2,23 +2,22 @@
 using System;
 
 //
-// This is the mapping table between a client's login cookies and the
-// login tokens.
+// After lots of thinking I strongly discourage expiring the login cookie(s).
+// The only weak spot in our system is the password dialog, because the users
+// tend to not look at the URL to make sure it's their own site. EvilGnix2 is
+// the perfect example of what we need to protect against. 
 //
-//    {token-id, application-id, half-akek, shared-secret}
-//
-// Here's the high level flow:
-//
-//     Client sends (HTTPS) request to server. 
-//     Server get's the cookies 'Token' and 'Half'
-//     Server looks up a ClientApplication entry by means of Token
-//     Server calculates the Application Kek by means of Half
-//     Server loads TokenApplicationData using the application-id from the table.
-//     Server accesses the Application KeK by mean of Half
-//     Server accesses the Application DeK by means of the Application KeK
-//
-// We'll need something like this on the identity:
-//     List<TokenClientAppplicationManager> tokenClientApplicationList;
+// Therefore this will be much more effective IMO:
+//   If we want to validate the password with e.g. a one month interval, then
+//   once the month is up, we still log them in, we show their page with the
+//   full name. And we show some 'secret' pictures that are only visible when
+//   you're logged in. Something they're used to seeing when they're logged in.
+//   In this context, we can ask them to re-validate their password. 
+//   
+// Thus, effectively, we make the 'new device' login screen only appear when it
+// is truly a new device. It can have lots of warnings and arrows pointing up
+// to the URL. Thus lowering the risk that the user will just blindly 
+// enter their password because they get the same annoying dialog once+ per month.
 //
 
 namespace DotYou.Kernel.Cryptography
@@ -26,16 +25,20 @@ namespace DotYou.Kernel.Cryptography
 
     public static class LoginTokenManager
     {
-        // For each client that needs to connect to an application call this function
-        //
-        //    It creates the ClientApplication table entry.
-        //    It creates the tokenId which is to be the client's cookie equivalent ID.
-        //    It creates the cookie2 which is to be the client's secod cookie needed to decrypt the AKeK
-        //    It encrypts the AKeK and one for the master login KeK. 
-        //    It returns the second client cookie which is the halfAkek needed to get the Akek 
-        //      and the table entry
-        //
-
+        /// <summary>
+        /// For each (logged in) client that needs access call this function
+        /// 
+        ///    It creates a LoginTokenData object and returns the cookie 
+        ///    and loginTokenData objects. 
+        ///    The cookies to be stored on the client (HTTP ONLY, secure medium) are:
+        ///       token.id (the index key)
+        ///       halfCookie (half the loginKek)
+        ///    The LoginTokenData object is to be stored on the server and retrievable 
+        ///    via the index cookie as DB load key.
+        /// </summary>
+        /// <param name="LoginKeK"></param>
+        /// <param name="sharedSecret"></param>
+        /// <returns></returns>
         public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
         {
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.

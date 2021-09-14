@@ -99,8 +99,11 @@ namespace DotYou.IdentityRegistry
                     if (!EqualityComparer<T>.Default.Equals(p.DataClass, default))
                         return false;
 
+                    if (p.NodeArray == null) // If there are no mode nodes we are OK.
+                        return true;
+
                     ref var q = ref p.NodeArray[m_aTrieMap['.' & 127]];
-                    if (q.NodeArray != null) // A '.' in use
+                    if (q.NodeArray != null) // A '.' in use, we're not OK
                         return false;
 
                     return true;
@@ -196,6 +199,7 @@ namespace DotYou.IdentityRegistry
         }
 
 
+
         public void AddDomain(string sName, T Key)
         {
             TrieMutex.WaitOne();
@@ -221,11 +225,81 @@ namespace DotYou.IdentityRegistry
         }
 
 
+
+        // First attempt at removing name from Trie
+        private void RemoveName(string sName)
+        {
+            if (sName.Length < 1)
+                throw new DomainTooShort();
+
+            // Remove the domain name to the Trie - backwards (important)
+            //
+
+            ref var p = ref m_NodeRoot;
+
+            Debug.Assert(m_NodeRoot.NodeArray != null, "NodeRoot doesn't have array");
+            Debug.Assert(p.NodeArray != null, "Reference p to NodeRoot doesn't have array");
+
+            int c;
+            for (var i = sName.Length - 1; i >= 0; i--)
+            {
+                c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+
+                if (c == 128) // Illegal character
+                {
+                    Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
+                    continue;
+                }
+
+                if (p.NodeArray == null)
+                    throw new Exception("No such name to remove in Trie");
+
+                p = ref p.NodeArray[c];
+
+                if (i == 0)
+                {
+                    if (EqualityComparer<T>.Default.Equals(default, p.DataClass))
+                        throw new Exception("Key not matching for name to remove");
+
+                    // Ok we are ready to remove this.
+                    p.DataClass = default;
+                    return;
+                }
+                // We could also return the remainder of sName (prefix)
+            }
+
+            throw new Exception("No such name to remove.");
+        }
+
+        public void RemoveDomain(string sName)
+        {
+            TrieMutex.WaitOne();
+
+            if (IsDomainUniqueInHierarchy(sName) == true)
+            {
+                TrieMutex.ReleaseMutex();
+                throw new Exception("Trying to remove a domain which is not found in the Trie");
+            }
+
+            try
+            {
+                RemoveName(sName);
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+            finally
+            {
+                TrieMutex.ReleaseMutex();
+            }
+        }
+
+
         // Tests
         public void _PerformanceTest()
         {
             var t = new Trie<Guid>();
-            Guid g;
             var randObj = new Random();
             var stopWatch = new Stopwatch();
             stopWatch.Start();

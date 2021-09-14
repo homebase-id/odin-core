@@ -8,7 +8,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     {
         //HACK: Id only used for storage layer
         public Guid Id { get; set; }
-        public LinkedList<RsaKeyData> listRSA;  // List.first is the current key, the rest are historic
-        public int maxKeys; // At least 1. 
+        public List<RsaKeyData> ListRSA { get; set; }// List.first is the current key, the rest are historic
+        public int MaxKeys { get; set; } // At least 1. 
     }
 }

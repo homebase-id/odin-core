@@ -94,7 +94,6 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
             }
         }
 
-
         [HttpGet("logout")]
         public async Task<IActionResult> ExpireCookieBasedToken()
         {
@@ -127,7 +126,6 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
             var isValid = await _authService.IsValidToken(token);
             return isValid;
         }
-
 
         [HttpGet("nonce")]
         public async Task<IActionResult> GenerateNonce()

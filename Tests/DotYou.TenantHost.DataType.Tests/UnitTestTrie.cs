@@ -277,6 +277,39 @@ namespace TrieUnitTest
                 Assert.Pass();
         }
 
+        [Test]
+        public void RemoveNameTest()
+        {
+            var t = new Trie<Guid>();
+
+            var g = Guid.NewGuid();
+
+            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
+                Assert.Fail();
+
+            t.AddDomain("valhalla.com", g);
+
+            if (t.IsDomainUniqueInHierarchy("valhalla.com") == true)
+                Assert.Fail();
+            
+            t.RemoveDomain("valhalla.com");
+
+            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
+                Assert.Fail();
+
+            t.AddDomain("valhalla.com", g);
+
+            if (t.IsDomainUniqueInHierarchy("valhalla.com") == true)
+                Assert.Fail();
+
+            t.RemoveDomain("valhalla.com");
+
+            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
+                Assert.Fail();
+
+            Assert.Pass();
+        }
+
 
         [Test]
         public void ComplexAddLookup2Pass()
@@ -337,6 +370,8 @@ namespace TrieUnitTest
         }
 
 
+        // Here we could have a test of the private method AddName()
+        // but that's not possible...
         [Test]
         [Ignore("Ignored until the AddName property is resolved.")]
 

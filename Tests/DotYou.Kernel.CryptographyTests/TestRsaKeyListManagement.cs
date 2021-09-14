@@ -23,7 +23,7 @@ namespace DotYou.Kernel.CryptographyTests
         {
             var rsaList = RsaKeyListManagement.CreateRsaKeyList(7);
 
-            if (rsaList.listRSA.Count != 1)
+            if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
             else
                 Assert.Pass();
@@ -67,18 +67,18 @@ namespace DotYou.Kernel.CryptographyTests
         {
             var rsaList = RsaKeyListManagement.CreateRsaKeyList(1);
 
-            if (rsaList.listRSA.Count != 1)
+            if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
             RsaKeyListManagement.GenerateNewKey(rsaList, 24);
 
-            if (rsaList.listRSA.Count != 1)
+            if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
             RsaKeyListManagement.GenerateNewKey(rsaList, 24);
 
             // Got to make this part of the code
-            if (rsaList.listRSA.Count != 1)
+            if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
             Assert.Pass();
@@ -89,10 +89,10 @@ namespace DotYou.Kernel.CryptographyTests
         {
             var rsaList = RsaKeyListManagement.CreateRsaKeyList(2);
 
-            if (rsaList.listRSA.Count != 1)
+            if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
-            var crc1 = rsaList.listRSA.First.Value.crc32c;
+            var crc1 = rsaList.ListRSA[0].crc32c;
 
             if (RsaKeyListManagement.FindKey(rsaList, crc1) == null)
                 Assert.Fail();
@@ -102,10 +102,10 @@ namespace DotYou.Kernel.CryptographyTests
 
             RsaKeyListManagement.GenerateNewKey(rsaList, 24);
 
-            if (rsaList.listRSA.Count != 2)
+            if (rsaList.ListRSA.Count != 2)
                 Assert.Fail();
 
-            var crc2 = rsaList.listRSA.First.Value.crc32c;
+            var crc2 = rsaList.ListRSA[0].crc32c;
 
             if (RsaKeyListManagement.FindKey(rsaList, crc1) == null)
                 Assert.Fail();
@@ -115,8 +115,6 @@ namespace DotYou.Kernel.CryptographyTests
 
             Assert.Pass();
         }
-
-
     }
 }
 

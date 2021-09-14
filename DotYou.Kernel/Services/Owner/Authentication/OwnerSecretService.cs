@@ -36,8 +36,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             var key = RsaKeyListManagement.GetCurrentKey(rsa);
             var publicKey = RsaKeyManagement.publicPem(key);
             
-            var crc = RsaKeyManagement.KeyCRC(key);
-            var nonce = NonceData.NewRandomNonce(publicKey, crc);
+            var nonce = NonceData.NewRandomNonce(publicKey);
             WithTenantStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return nonce;
         }
@@ -83,7 +82,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
-            var keys = rsaKeyList.listRSA.ToArray();
+            var keys = rsaKeyList.ListRSA.ToArray();
                 
             //HACK : mapping to ensure storage works 
             var storage = new RsaKeyStorage()
@@ -104,8 +103,8 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             RsaKeyListData converted = new RsaKeyListData()
             {
                 Id = result.Id,
-                maxKeys = result.Keys.Count,
-                listRSA = new LinkedList<RsaKeyData>(result.Keys)
+                MaxKeys = result.Keys.Count,
+                ListRSA = new List<RsaKeyData>(result.Keys)
             };
 
             return converted;

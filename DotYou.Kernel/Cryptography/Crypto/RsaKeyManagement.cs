@@ -1,13 +1,25 @@
 ﻿using System;
 using System.Security.Cryptography;
+using System.Text;
 using DotYou.AdminClient.Extensions;
 using DotYou.Kernel.Services.Admin.Authentication;
 
 namespace DotYou.Kernel.Cryptography
 {
+    // Unfortunately, the C# class RSACng() is the only class compatible with
+    // the javaScript crypto.subtle. We need that compatibility. So either poke
+    // Microsoft to make a cross-platform RSACng() or add in something that can.
+    
+    //
+    // Here's how to switch to BouncyCastle (BC) to get around the RSACng. Guess I am hoping
+    // .NET Core 6 might solve this so we don't need to implement BC.
+    // https://stackoverflow.com/questions/46916718/oaep-padding-error-when-decrypting-data-in-c-sharp-that-was-encrypted-in-javascr
+
 
     // So it's slightly messy to mix up the version with encrypted and unencrypted private key.
-    // Not sure if I should break it into two almost identical classes.
+    // Not sure if I should break it into two almost identical classes (or an 'interface'?).
+    // Right now only used for the temp key for login. Will also need a third one for signing
+    //
     public static class RsaKeyManagement
     {
         // Work to do here. OAEP or for signing? Encrypted private?
@@ -18,9 +30,14 @@ namespace DotYou.Kernel.Cryptography
             rsa.encrypted = false;
             rsa.iv = Guid.Empty;
 
-            RSACryptoServiceProvider rsaGenKeys = new RSACryptoServiceProvider(2048);
-            rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
-            rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
+            var rsaGenKeys = new RSACng(2048);   // Windows only **wwaaahhh*** Need to figure that one out
+
+            // rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
+            // rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
+
+            rsa.privateKey = rsaGenKeys.ExportPkcs8PrivateKey();
+            rsa.publicKey  = rsaGenKeys.ExportSubjectPublicKeyInfo();  // Be JS crypto.subtle compatible
+
             rsa.crc32c = KeyCRC(rsa);
             rsa.instantiated = DateTimeExtensions.UnixTime();
             rsa.expiration = rsa.instantiated + (UInt64)hours * 3600+ (UInt64)minutes*60+(UInt64)seconds;
@@ -29,6 +46,43 @@ namespace DotYou.Kernel.Cryptography
                 throw new Exception("Expiration must be > 0");
 
             return rsa;
+        }
+
+        public static byte[] Encrypt(RsaKeyData key, byte[] data, bool EncryptWithPublicKey)
+        {
+            RSACng myRsa;
+
+            if (EncryptWithPublicKey)
+                myRsa = KeyPublic(key);
+            else
+                myRsa = KeyPrivate(key);
+
+            var cipher = myRsa.Encrypt(data, RSAEncryptionPadding.OaepSHA256);
+
+            return cipher;
+        }
+
+        public static byte[] Decrypt(RsaKeyData key, byte[] cipher, bool DecryptWithPublicKey)
+        {
+            RSACng myRsa;
+
+            if (DecryptWithPublicKey)
+                myRsa = KeyPublic(key);
+            else
+                myRsa = KeyPrivate(key);
+
+            var data = myRsa.Decrypt(cipher, RSAEncryptionPadding.OaepSHA256);
+
+            return data;
+        }
+
+        public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
+        {
+            var rsa = new RSACng();
+            rsa.ImportFromPem(publicKey);
+            var cipher = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(payload), RSAEncryptionPadding.OaepSHA256));
+
+            return (RsaKeyManagement.KeyCRC(rsa), cipher);
         }
 
         // Not expired, it's still good (it may be overdue for a refresh)
@@ -65,42 +119,54 @@ namespace DotYou.Kernel.Cryptography
                 return false;
         }
 
-
-        public static RSACryptoServiceProvider KeyPublic(RsaKeyData key)
+        public static RSACng KeyPublic(RsaKeyData key)
         {
-            int nBytesRead;
+            var rsaPublic = new RSACng();
 
-            RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider();
-            rsaPublic.ImportRSAPublicKey(key.publicKey, out nBytesRead);
+            rsaPublic.ImportSubjectPublicKeyInfo(key.publicKey, out int _);
 
             return rsaPublic;
         }
 
-        public static RSACryptoServiceProvider KeyPrivate(RsaKeyData key)
+        public static RSACng KeyPrivate(RsaKeyData key)
         {
-            int nBytesRead;
+            var rsaFull = new RSACng();
 
-            RSACryptoServiceProvider rsaFull = new RSACryptoServiceProvider();
-            rsaFull.ImportRSAPrivateKey(key.privateKey, out nBytesRead);
+            rsaFull.ImportPkcs8PrivateKey(key.privateKey, out int _);
 
             return rsaFull;
         }
 
-        public static UInt32 KeyCRC(RsaKeyData key)
+        private static UInt32 KeyCRC(RsaKeyData key)
         {
-            return CRC32C.CalculateCRC32C(0, KeyPublic(key).ExportRSAPublicKey());
+            return CRC32C.CalculateCRC32C(0, key.publicKey);
         }
 
-        public static UInt32 KeyCRC(RSACryptoServiceProvider rsa)
+        public static UInt32 KeyCRC(RSACng rsa)
         {
-            return CRC32C.CalculateCRC32C(0, rsa.ExportRSAPublicKey());
+            return CRC32C.CalculateCRC32C(0, rsa.ExportSubjectPublicKeyInfo());
+        }
+
+        public static string publicBase64(RsaKeyData key)
+        {
+            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
+            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
+            return Convert.ToBase64String(key.publicKey);
+        }
+
+        // privatePEM needs work in case it's encrypted
+        public static string privateBase64(RsaKeyData key)
+        {
+            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
+            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
+            return Convert.ToBase64String(key.privateKey);
         }
 
         public static string publicPem(RsaKeyData key)
         {
             // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
             // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
-            return "-----BEGIN PUBLIC KEY-----\n" + Convert.ToBase64String(KeyPublic(key).ExportSubjectPublicKeyInfo()) + "\n-----END PUBLIC KEY-----";
+            return "-----BEGIN PUBLIC KEY-----\n" + publicBase64(key) + "\n-----END PUBLIC KEY-----";
         }
 
         // privatePEM needs work in case it's encrypted
@@ -108,7 +174,7 @@ namespace DotYou.Kernel.Cryptography
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + Convert.ToBase64String(KeyPrivate(key).ExportPkcs8PrivateKey()) + "\n-----END PRIVATE KEY-----";
+            return "-----BEGIN PRIVATE KEY-----\n" + privateBase64(key)+ "\n-----END PRIVATE KEY-----";
         }
     }
 }

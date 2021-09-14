@@ -1,4 +1,10 @@
-﻿// NOTES TO REMEMBER
+﻿
+** NEXT TODO:
+** Make an AES encrypt & decrypt that inputs & outputs streams
+** Make a Cryptonite function that inputs & outputs stream
+**
+
+// NOTES TO REMEMBER
 //
 // Write scenario for chat client to get rights to update status and to check
 // contact card for other identities.

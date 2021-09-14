@@ -18,7 +18,8 @@
 
 <script>
     // Validate that the implementation returns the same as in C# / .net core
-    function test_pbkdf2() {
+    async function test_pbkdf2() {
+        console.log("========  TEST PBKDF2 CROSS PLATFORM===============");
         const areEqual = (first, second) =>
             first.length === second.length && first.every((value, index) => value === second[index]);
 
@@ -26,16 +27,13 @@
         var expected = new Uint8Array([162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204]);
         const iterations = 100000;
 
-        return null;
-        return wrapPbkdf2HmacSha256("EnSøienØ", btoa(String.fromCharCode.apply(null, salt)), iterations, 16).then(hashed64 => {
+        console.log("Hashing");
+        var hashed = await pbkdf2("EnSøienØ", salt, "SHA-256", iterations, 16);
+        
+        console.log("Compare :  ", hashed, " ?= ", expected);
 
-            var baHash = Uint8Array.from(atob(hashed64), c => c.charCodeAt(0));
-
-            console.log("Hashed64 " + baHash + " ?= " + expected);
-
-            return areEqual(expected, baHash);
-        }
-        );
+        if (!areEqual(expected, hashed))
+            throw "Failed pbkdf2";
     }
 
 
@@ -64,7 +62,9 @@
     }
 
     // Validate that the implementation returns the same as in C# / .net core
-    function test_AesCbc() {
+    async function test_AesCbc() {
+        console.log("========  TEST AES CROSS PLATFORM===============");
+
         const areEqual = (first, second) =>
             first.length === second.length && first.every((value, index) => value === second[index]);
 
@@ -83,64 +83,70 @@
             console.log("Cipher and .NET AreEqual? " + areEqual(expectedCipher, myobj.cipher));
 
             AesCbc_Decrypt(myobj.cipher, key, myobj.iv).then(u8aDecrypted => {
-                console.log("Original " + testData + " ?= " + u8aDecrypted);
+                console.log("Original ", testData, " ?= ", u8aDecrypted);
 
-                return areEqual(testData, u8aDecrypted);
+                if (!areEqual(testData, u8aDecrypted))
+                    throw "AES cross platform failed";
+                console.log(" - - AES done - -");
             });
         });
     }
 
-    // Validate that the implementation returns the same as in C# / .net core
-    async function test_rsa()
+
+    async function test_rsa_xplatformn()
     {
-        console.log("========  TEST RSA IMPORT KEY ===============");
-        key64 = "-----BEGIN PUBLIC KEY-----\n" +
-            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoxAfe6hJ8d0qGVeUzLcpIGbu2r193rwvW33durk3Ktd24gNeSAVflkvZoSEst0deIZ9vnVycYwem5/jY7VSHWZ54IQSLeKoYj9e6WsfrUbGhFzZ6h4gMoC9q0gRTbEsbI8z7KutCC+LaChE1Tld84m7VoxC+FiSl/p+McDmi74sUP8PI7RryrEfDxyAE/8NkuimnPlgUb7v2LZ+LxjwOaN1/LvSPhikr53Sti/uUPenbqVTfIE8wmIjV7JgdERS5cBoQcpSfmN39SyMB3slpGBdddFA/54VhtSmicL4VAZUJpKBRpYELyrsZNCje0Iz6HRBbCbC365osCR16Ge4eKQIDAQAB" +
-            "\n-----END PUBLIC KEY-----";
+        console.log("========  TEST RSA CROSS PLATFORM===============");
 
-        var t = RsaPemStrip(key64);
-        var key = await RsaImportKey(t);
-        console.log("Imported PEM key:", key);
+        publicKey64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6Tt75Wgd7iVOlFk9sTl/+d/oiiMPNH5NtHaK6uOPE1GRCSXWbvvY46+vrgNIk3DZCDSPCk26e0U+AvB/mwtZFaqcRrg3rbO2jcGQWybYZdTA+UqQNVi1BSxRCRlFptGoM+pdGnnAG8o80VwWZlryUPiMXM2FF/BhHSOxDoMfXgFKJnxc+4Mvdzu5qYA+/ivjgCmT+zUhb00eSWnCCgnB4SXRFP/VZB2isH/ovfJ6kTGDE+e1Ct3gQD6mst0CcSe9YvXhYhADqjOO5nLIq4b+BXoM18ce4qy9t75/AmdW9PdOx7CikVDHNrhVwYAt9rNTnftW9yAPmUX9pGydoAlyqQIDAQAB";
+        privateKey64 = "";
 
-        var cipher = await RsaOaepEncrypt(key, "michael seifert");
-        console.log("========= RSA Public Key encryption Cipher:", cipher);
+        let my200 = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
+            "01234567890123456789012345678901234567890123456789";
 
+
+        var key = await RsaImportKey(publicKey64);
+        console.log("RSA Public Key :", key);
+        var cipher = await RsaOaepEncrypt(key, my200);
+        console.log("RSA Public Key encryption Cipher:", cipher);
+        console.log("RSA Public Key encryption Cipher base64:", arrayBufferToBase64(cipher));
+        console.log(" - - DONE - -");
     }
 
-    // RSA
-    console.log("Running import RSA test");
-    var q = test_rsa();
+    async function test_sha_xplatform() {
+        console.log("========  TEST SHA CROSS PLATFORM===============");
 
-    //console.log("Running RSA test old");
-    //const key64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy3Xo3U13dc+xojwQYWoJLCbOQ5fOVY8LlnqcJm1W1BFtxIhOAJWohiHuIRMctv7dzx47TLlmARSKvTRjd0dF92jx/xY20Lz+DXp8YL5yUWAFgA3XkO3LSJgEOex10NB8jfkmgSb7QIudTVvbbUDfd5fwIBmCtaCwWx7NyeWWDb7A9cFxj7EjRdrDaK3ux/ToMLHFXVLqSL341TkCf4ZQoz96RFPUGPPLOfvN0x66CM1PQCkdhzjE6U5XGE964ZkkYUPPsy6Dcie4obhW4vDjgUmLzv0z7UD010RLIneUgDE2FqBfY/C+uWigNPBPkkQ+Bv/UigS6dHqTCVeD5wgyBQIDAQAB";
-    //var importedkey = test_RsaImportKey(key64);
-    //console.log("Running RSA test to generate key");
-    //var testkey = test_RSA();
-    //console.log(testkey);
+        var testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        var sha = await sha256(testData);
+        console.log("The SHA is:", sha);
+        console.log(" - - DONE - -");
+    }
 
+    async function test_crc() {
+        // CRC
+        console.log("========  TEST CRC CROSS PLATFORM ===============");
+        var crc = crc32c("bear sandwich");
+        console.log("CRC32C = ", crc, " expected ", 3711466352);
+        if (crc != 3711466352)
+            throw "CRC not cross platforn";
+    }
 
-    var e = document.getElementById("test3");
-    e.innerText = "yolo";
-    console.log("Finished AES-CBC test");
+    async function run_tests() {
+        // SHA
+        var q = await test_sha_xplatform();
 
+        // RSA
+        var q = await test_rsa_xplatformn();
 
-    // PBKDF2
-    console.log("Running pbkdf2 test");
-    var bOk = test_pbkdf2();
-    var e = document.getElementById("test1");
-    e.innerText = bOk;
-    console.log("Finished pbkdf2 test");
+        // CRC
+        var q = await test_crc();
 
-    console.log("Running AES-CBC test");
-    test_AesCbc();
-    var e = document.getElementById("test2");
-    e.innerText = "yo";
-    console.log("Finished AES-CBC test");
+        // PBKDF2
+        var q = await test_pbkdf2();
 
-    // CRC
-    var crc = crc32c("bear sandwich");
-    console.log("CRC32C = ", crc, " expected ", 3711466352);
+        // AES
+        var q = await test_AesCbc();
+    }
 
-    // Have not made Uint8Array version work. Don't know if we need it
+    run_tests();
 
 </script>

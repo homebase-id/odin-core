@@ -43,7 +43,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             var key = RsaKeyListManagement.GetCurrentKey(rsa);
             var publicKey = RsaKeyManagement.publicPem(key);
 
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, RsaKeyManagement.KeyCRC(key));
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey);
 
             WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
@@ -51,29 +51,11 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
         public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
         {
-            //HACK: login set to unblock me while encryption is being sorted
-            bool match = Guid.Parse(reply.Nonce64) == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-            if (match == false)
-            {
-                throw new AuthenticationException();
-            }
-
-            Guid token = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-            Guid clientHalf = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-
-            return new AuthenticationResult()
-            {
-                Token = token,
-                Token2 = clientHalf
-            };
-
-            ////////////////////
-            // XXX CALL THE LoginKeyManagement Authenticate
+            
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             var noncePackage = await WithTenantStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
-            // XXX I don't understand why we have two of these.... AuthenticationNonceReply should go....
             var rp = new PasswordReply();
             rp.Nonce64 = reply.Nonce64;
             rp.NonceHashedPassword64 = reply.NonceHashedPassword64;
@@ -85,15 +67,15 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
             // TODO: audit login some where, or in helper class below
 
-            var (halfCookie, LoginToken) = LoginTokenManager.CreateLoginToken(kek, sharedSecret);
+            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(kek, sharedSecret);
 
-            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(LoginToken));
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
 
             // Is this necessary ? :-) 
             // It would be nicer to see the cookie set here...
             return new AuthenticationResult()
             {
-                Token = LoginToken.Id,
+                Token = loginToken.Id,
                 Token2 = new Guid(halfCookie)
             };
         }
@@ -128,12 +110,6 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
         public async Task<bool> IsValidToken(Guid token)
         {
-            //HACK
-            if (token == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462"))
-            {
-                return true;
-            }
-
             var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             return IsAuthTokenEntryValid(entry);
         }

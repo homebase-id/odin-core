@@ -68,6 +68,18 @@ function crc32c(str) {
 }
 
 
+// ================== SHA-256 ================== 
+
+// NOT YET TESTED AT ALL, JUST TOOK A LINE FROM S.E. for reference
+async function sha256(data)
+{
+    //
+    // I've manually verified that this matches up with the C# counterpart
+
+    digest = await window.crypto.subtle.digest('SHA-256', data);
+
+    return new Uint8Array(digest);
+}
 
 // ================== PBKDF ================== 
 
@@ -196,6 +208,16 @@ function str2ab(str) {
     return buf;
 }
 
+//https://gist.github.com/QingpingMeng/f51902e2629fc061c6b9fc9bb0f3f57b
+function arrayBufferToBase64(buffer) {
+    var binary = '';
+    var bytes = new Uint8Array(buffer);
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
 
 function RsaPemStrip(pem) {
     var s = pem.replace('-----BEGIN PUBLIC KEY-----', '');
@@ -218,9 +240,10 @@ async function RsaImportKey(key64)
         binaryDer,
         {
             name: "RSA-OAEP",
-            hash: "SHA-256"
+            modulusLength: 256,
+            hash: { name: 'sha-256' }
         },
-        true,
+        false,
         ["encrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
     );
 
@@ -242,7 +265,7 @@ async function RsaOaepEncrypt(publicKey, str)
     );
 
     var u8a = new Uint8Array(encrypted);
-    //console.log("RSA Encrypted = ", u8a);
+    console.log("RSA Encrypted = ", u8a);
 
     return u8a;
 }

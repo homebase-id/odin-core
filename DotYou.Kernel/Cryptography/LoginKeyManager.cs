@@ -76,16 +76,16 @@ namespace DotYou.Kernel.Cryptography
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
-            RSACryptoServiceProvider rsa = RsaKeyListManagement.FindKeyPrivate(listRsa, reply.crc);
+            var key = RsaKeyListManagement.FindKey(listRsa, reply.crc);
 
-            if (rsa == null)
+            if (key == null)
                 throw new Exception("no matching RSA key");
 
             byte[] decryptedRSA;
 
             try
             {
-                decryptedRSA = rsa.Decrypt(Convert.FromBase64String(reply.RsaEncrypted), true);
+                decryptedRSA = RsaKeyManagement.Decrypt(key, Convert.FromBase64String(reply.RsaEncrypted), false);
             }
             catch
             {
@@ -178,9 +178,10 @@ namespace DotYou.Kernel.Cryptography
             string KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
             pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
 
-            RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
-            rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
-            pr.crc = RsaKeyManagement.KeyCRC(rsa);
+			//TODO XXX
+            //RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
+            //rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
+            //pr.crc = RsaKeyManagement.KeyCRC(rsa);
 
             var data = new {
                 hpwd64 = HashedPassword64,
@@ -189,7 +190,7 @@ namespace DotYou.Kernel.Cryptography
             };
             var str = JsonConvert.SerializeObject(data);
 
-            pr.RsaEncrypted = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(str), true));
+            (pr.crc, pr.RsaEncrypted) = RsaKeyManagement.PasswordCalculateReplyHelper(nonce.PublicPem, str);
 
             // If the login is successful then the client will get the cookie
             // and will have to use this sharedsecret on all requests. So store securely in 

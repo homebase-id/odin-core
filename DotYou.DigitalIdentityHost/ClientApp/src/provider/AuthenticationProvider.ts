@@ -21,86 +21,41 @@ class AuthenticationProvider extends ProviderBase {
     }
 
     async authenticate(password: string): Promise<boolean> {
-        //HACK: unblocking until login is fixed
-        let client = this.createAxiosClient();
+        
+        return this.getNonce().then(noncePackage => {
 
-        let nd: NonceData = {
-            saltKek64:"",
-            saltPassword64:"",
-            crc:4,
-            nonce64:"",
-            publicPem :""
-        };
-        return this.prepareAuthPassword(password, nd).then(reply => {
+            return this.prepareAuthPassword(password, noncePackage).then(reply => {
+                let client = this.createAxiosClient();
 
-            //withCredentials lets us set the cookies return from the /admin/authentication endpoint
-            return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
-                if (response.status === 200) {
-                    return response.data;
-                }
+                //withCredentials lets us set the cookies return from the /admin/authentication endpoint
+                return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
+                    if (response.status === 200) {
+                        return response.data;
+                    }
 
-                return false;
-            }).catch(super.handleErrorResponse);
+                    return false;
+                }).catch(super.handleErrorResponse);
+            });
         });
-
-
-        // return this.getNonce().then(noncePackage => {
-        //
-        //     return this.prepareAuthPassword(password, noncePackage).then(reply => {
-        //         let client = this.createAxiosClient();
-        //
-        //         //withCredentials lets us set the cookies return from the /admin/authentication endpoint
-        //         return client.post("/admin/authentication", reply, {withCredentials: true}).then(response => {
-        //             if (response.status === 200) {
-        //                 return response.data;
-        //             }
-        //
-        //             return false;
-        //         }).catch(super.handleErrorResponse);
-        //     });
-        // });
     }
 
     //returns a device token
     async authenticateDevice(password: string): Promise<string> {
 
-        let client = this.createAxiosClient();
+        return this.getNonce().then(noncePackage => {
 
-        let nd: NonceData = {
-            saltKek64:"",
-            saltPassword64:"",
-            crc:4,
-            nonce64:"",
-            publicPem :""
-        };
-        
-        return this.prepareAuthPassword(password, nd).then(reply => {
+            return this.prepareAuthPassword(password, noncePackage).then(reply => {
+                let client = this.createAxiosClient();
 
-            let client = this.createAxiosClient();
+                return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
+                    if (response.status === 200) {
+                        return response.data;
+                    }
 
-            return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
-                if (response.status === 200) {
-                    return response.data;
-                }
-
-                return null;
-            }).catch(super.handleErrorResponse);
+                    return null;
+                }).catch(super.handleErrorResponse);
+            });
         });
-        
-        // return this.getNonce().then(noncePackage => {
-        //
-        //     return this.prepareAuthPassword(password, noncePackage).then(reply => {
-        //         let client = this.createAxiosClient();
-        //
-        //         return client.post("/admin/authentication/device", reply, {withCredentials: true}).then(response => {
-        //             if (response.status === 200) {
-        //                 return response.data;
-        //             }
-        //
-        //             return null;
-        //         }).catch(super.handleErrorResponse);
-        //     });
-        // });
     }
 
     async logout(): Promise<boolean> {
@@ -115,18 +70,6 @@ class AuthenticationProvider extends ProviderBase {
 
 
     private async prepareAuthPassword(password: string, nonceData: NonceData, hp: boolean = false): Promise<AuthenticationReplyNonce> {
-
-
-        //HACK: unblocking myself
-
-        return {
-            nonce64: "9cc5adc2-4f8a-419a-b340-8d69cba6c462",
-            nonceHashedPassword64: "MTIzNDU2Nzg5MDk4NzY1NA==",
-            crc: 123,
-            rsaEncrypted: "MTIzNDU2Nzg5MDk4NzY1NA=="
-        };
-
-        //////
 
         const interations = 100000;
         const len = 16;
@@ -260,9 +203,10 @@ class AuthenticationProvider extends ProviderBase {
             binaryDer,
             {
                 name: "RSA-OAEP",
-                hash: "SHA-256"
+                //modulusLength: 256,
+                hash: {name: "SHA-256"}
             },
-            true,
+            false,
             ["encrypt"] //must be ["encrypt", "decrypt"] or ["wrapKey", "unwrapKey"]
         );
 
@@ -271,32 +215,18 @@ class AuthenticationProvider extends ProviderBase {
     }
 
     async rsaOaepEncrypt(publicKey: CryptoKey, str: string) {
-        // return window.crypto.subtle.encrypt(
-        //     {
-        //         name: "RSA-OAEP",
-        //         //label: Uint8Array([...]) //optional
-        //     },
-        //     publicKey, //from generateKey or importKey above
-        //     this.str2ab(str) //ArrayBuffer of data you want to encrypt
-        // ).then(encrypted => {
-        //     return new Uint8Array(encrypted)
-        // });
-
-        //}
-
-        let c = {
-            name: "RSA-OAEP",
-            //label: Uint8Array([...]) //optional
-        };
-
-        let s2 = this.str2ab(str); //ArrayBuffer of data you want to encrypt
-
-        let encrypted = await window.crypto.subtle.encrypt(c, publicKey, s2);
-        let u8a = new Uint8Array(encrypted);
-        console.log("RSA Encrypted = ", u8a);
-        return u8a;
+        return window.crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+                //label: Uint8Array([...]) //optional
+            },
+            publicKey, //from generateKey or importKey above
+            this.str2ab(str) //ArrayBuffer of data you want to encrypt
+        ).then(encrypted => {
+            console.log("RSA Encrypted = ", encrypted);
+            return new Uint8Array(encrypted);
+        });
     }
-
 }
 
 export function createAuthenticationProvider() {

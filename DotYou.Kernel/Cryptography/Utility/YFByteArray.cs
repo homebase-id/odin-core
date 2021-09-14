@@ -6,6 +6,15 @@ namespace DotYou.Kernel.Cryptography
 {
     public static class YFByteArray
     {
+        public static byte[] UInt32ToBytes(UInt32 i)
+        {
+            return new byte[] { (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
+        }
+        public static byte[] UInt64ToBytes(UInt64 i)
+        {
+            return new byte[] { (byte)(i >> 56 & 0xFF), (byte)(i >> 48 & 0xFF), (byte)(i >> 40 & 0xFF), (byte)(i >> 32 & 0xFF), (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
+        }
+
         public static byte[] Combine(byte[] first, byte[] second)
         {
             byte[] ret = new byte[first.Length + second.Length];

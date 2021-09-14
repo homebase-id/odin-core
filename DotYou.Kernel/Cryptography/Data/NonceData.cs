@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text.Json.Serialization;
 using DotYou.Types.Cryptography;
 
 
@@ -11,15 +10,14 @@ namespace DotYou.Kernel.Cryptography
     /// </summary>
     public sealed class NonceData
     {
-        public static NonceData NewRandomNonce(string pem, UInt32 crc = 0)
+        public static NonceData NewRandomNonce(string pem)
         {
             var np = new NonceData()
             {
                 Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                PublicPem = pem,
-                Crc = crc
+                PublicPem = pem
             };
 
             if (np.SaltPassword64 == np.SaltKek64)
@@ -37,9 +35,7 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="saltPassword64"></param>
         /// <param name="saltKek64"></param>
-        /// <param name="pem"></param>
-        /// <param name="keyCrc"></param>
-        public NonceData(string saltPassword64, string saltKek64, string pem, uint keyCrc)
+        public NonceData(string saltPassword64, string saltKek64, string pem)
         {
              // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
              // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
@@ -48,10 +44,8 @@ namespace DotYou.Kernel.Cryptography
             SaltPassword64 = saltPassword64;
             SaltKek64 = saltKek64;
             PublicPem = pem;
-            Crc = keyCrc;
         }
 
-        [JsonIgnore]
         public Guid Id
         {
             get
@@ -67,10 +61,5 @@ namespace DotYou.Kernel.Cryptography
         public string SaltKek64 { get; set; }
         public string Nonce64 { get; set; }
         public string PublicPem { get; set; }
-        
-        /// <summary>
-        /// Specifies the CRC of the <see cref="PublicPem"/>
-        /// </summary>
-        public UInt32 Crc { get; set; }
     }
 }
