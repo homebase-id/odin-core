@@ -1,4 +1,5 @@
 ﻿using System;
+using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types.Cryptography;
 
 
@@ -10,14 +11,15 @@ namespace DotYou.Kernel.Cryptography
     /// </summary>
     public sealed class NonceData
     {
-        public static NonceData NewRandomNonce(string pem)
+        public static NonceData NewRandomNonce(RsaKeyData keyData)
         {
             var np = new NonceData()
             {
                 Nonce64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(YFByteArray.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                PublicPem = pem
+                PublicPem  = RsaKeyManagement.publicPem(keyData),
+                CRC = keyData.crc32c
             };
 
             if (np.SaltPassword64 == np.SaltKek64)
@@ -35,7 +37,7 @@ namespace DotYou.Kernel.Cryptography
         /// </summary>
         /// <param name="saltPassword64"></param>
         /// <param name="saltKek64"></param>
-        public NonceData(string saltPassword64, string saltKek64, string pem)
+        public NonceData(string saltPassword64, string saltKek64, string pem, UInt32 crc)
         {
              // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
              // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
@@ -44,6 +46,7 @@ namespace DotYou.Kernel.Cryptography
             SaltPassword64 = saltPassword64;
             SaltKek64 = saltKek64;
             PublicPem = pem;
+            CRC = crc;
         }
 
         public Guid Id
@@ -61,5 +64,6 @@ namespace DotYou.Kernel.Cryptography
         public string SaltKek64 { get; set; }
         public string Nonce64 { get; set; }
         public string PublicPem { get; set; }
+        public UInt32 CRC { get; set; }
     }
 }

@@ -34,9 +34,8 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             var rsa = await this.GetRsaKeyList();
 
             var key = RsaKeyListManagement.GetCurrentKey(rsa);
-            var publicKey = RsaKeyManagement.publicPem(key);
             
-            var nonce = NonceData.NewRandomNonce(publicKey);
+            var nonce = NonceData.NewRandomNonce(key);
             WithTenantStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return nonce;
         }

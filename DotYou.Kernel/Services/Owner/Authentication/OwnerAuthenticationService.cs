@@ -43,7 +43,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             var key = RsaKeyListManagement.GetCurrentKey(rsa);
             var publicKey = RsaKeyManagement.publicPem(key);
 
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey);
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);
 
             WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
@@ -62,8 +62,13 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             rp.RsaEncrypted = reply.RsaEncrypted;
             rp.crc = reply.crc;
 
+            await _secretService.TryPasswordKeyMatch(rp.NonceHashedPassword64, rp.Nonce64);
+
+            //TODO - XXX need to refactor by splitting the token generation and other bits to the secret 
+
             var keys = await this._secretService.GetRsaKeyList();
             var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys);
+
 
             // TODO: audit login some where, or in helper class below
 
