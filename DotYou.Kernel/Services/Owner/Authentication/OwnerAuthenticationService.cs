@@ -54,7 +54,15 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
+            // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
             var noncePackage = await WithTenantStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            
+            // TODO TEST Make sure an exception is thrown if it does not exist. 
+            // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
+
+            // TODO - XXX why are AuthenticationNonceReply and PasswordReply identical classes?
+            //        Can we consolidate them to one class to avoid code below?
+            //        SetInitialPassword has the other class.
 
             var rp = new PasswordReply();
             rp.Nonce64 = reply.Nonce64;
@@ -62,13 +70,14 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             rp.RsaEncrypted = reply.RsaEncrypted;
             rp.crc = reply.crc;
 
+            // Here we test if the client's provided nonce is saved on the server and if the
+            // client's calculated nonceHash is equal to the same calculation on the server
             await _secretService.TryPasswordKeyMatch(rp.NonceHashedPassword64, rp.Nonce64);
 
             //TODO - XXX need to refactor by splitting the token generation and other bits to the secret 
 
             var keys = await this._secretService.GetRsaKeyList();
             var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys);
-
 
             // TODO: audit login some where, or in helper class below
 
@@ -84,6 +93,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
                 Token2 = new Guid(halfCookie)
             };
         }
+
 
         public async Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply)
         {

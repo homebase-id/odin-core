@@ -122,12 +122,13 @@ namespace DotYou.Kernel.Cryptography
         }
 
 
-        // Returns the shared secret if authenticated or throws an exception otherwise
+        // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
+        // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
         public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordReply(reply, listRsa);
 
-            TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
+            // TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
         }

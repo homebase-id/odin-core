@@ -109,9 +109,13 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             return converted;
         }
 
+        // Given the client's nonce and nonceHash, load the identitys passwordKey info
+        // and with that info we can validate if the client calculated the right hash.
         public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
             var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+
+            // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 
             LoginKeyManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
