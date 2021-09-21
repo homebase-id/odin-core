@@ -1,4 +1,5 @@
 ﻿using DotYou.Kernel.Services.Admin.Authentication;
+using DotYou.Types.Cryptography;
 using System;
 
 //
@@ -39,19 +40,24 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="LoginKeK"></param>
         /// <param name="sharedSecret"></param>
         /// <returns></returns>
-        public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
+        
+        //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
+        public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(NonceData loadedNoncePackage, IPasswordReply reply, RsaKeyListData listRsa)
         {
+
+            var (hpwd64, kek64, sharedsecret64) = LoginKeyManager.ParsePasswordRSAReply(reply, listRsa);
+
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
 
             var token = new LoginTokenData
             {
                 Id = YFByteArray.GetRandomCryptoGuid(),
-                SharedSecret = sharedSecret,
+                SharedSecret = Convert.FromBase64String(sharedsecret64),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
             var halfCookie = YFByteArray.GetRndByteArray(16);
-            token.HalfKey = XorManagement.XorEncrypt(LoginKeK, halfCookie);
+            token.HalfKey = XorManagement.XorEncrypt(Convert.FromBase64String(kek64), halfCookie);
 
             return (halfCookie, token);
         }

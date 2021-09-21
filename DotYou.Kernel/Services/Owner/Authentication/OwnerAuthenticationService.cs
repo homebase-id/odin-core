@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Admin.Authentication;
@@ -49,44 +50,32 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             return nonce;
         }
 
-        public async Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply)
+        public async Task<AuthenticationResult> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
             var noncePackage = await WithTenantStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
-            
+
             // TODO TEST Make sure an exception is thrown if it does not exist. 
+            Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
+
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-
-            // TODO - XXX why are AuthenticationNonceReply and PasswordReply identical classes?
-            //        Can we consolidate them to one class to avoid code below?
-            //        SetInitialPassword has the other class.
-
-            var rp = new PasswordReply();
-            rp.Nonce64 = reply.Nonce64;
-            rp.NonceHashedPassword64 = reply.NonceHashedPassword64;
-            rp.RsaEncrypted = reply.RsaEncrypted;
-            rp.crc = reply.crc;
+            WithTenantStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
-            await _secretService.TryPasswordKeyMatch(rp.NonceHashedPassword64, rp.Nonce64);
-
-            //TODO - XXX need to refactor by splitting the token generation and other bits to the secret 
+            await _secretService.TryPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
 
             var keys = await this._secretService.GetRsaKeyList();
-            var (kek, sharedSecret) = LoginKeyManager.Authenticate(noncePackage, rp, keys);
+            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(noncePackage, reply, keys);
+            
+            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
 
             // TODO: audit login some where, or in helper class below
 
-            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(kek, sharedSecret);
-
-            WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
-
-            // Is this necessary ? :-) 
-            // It would be nicer to see the cookie set here...
+         
             return new AuthenticationResult()
             {
                 Token = loginToken.Id,
@@ -95,7 +84,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         }
 
 
-        public async Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply)
+        public async Task<DeviceAuthenticationResult> AuthenticateDevice(IPasswordReply reply)
         {
             var authResult = await Authenticate(reply);
 

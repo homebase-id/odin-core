@@ -72,7 +72,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             //TODO encrypt password usign clientNonce
             string password = "p";
 
-            AuthenticationNonceReply clientReply = new AuthenticationNonceReply()
+            PasswordReply clientReply = new PasswordReply()
             {
                 Nonce64 = clientNonce.Nonce64,
                 // KeK64 = "todo",  XXX the culprit

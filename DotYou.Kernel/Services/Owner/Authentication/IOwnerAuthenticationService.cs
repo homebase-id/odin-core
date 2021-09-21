@@ -12,19 +12,19 @@ namespace DotYou.Kernel.Services.Owner.Authentication
     public interface IOwnerAuthenticationService
     {
         /// <summary>
-        /// Authenticates the owner based on the <see cref="AuthenticationNonceReply"/> specified.
+        /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<AuthenticationResult> Authenticate(AuthenticationNonceReply reply);
+        Task<AuthenticationResult> Authenticate(IPasswordReply reply);
 
         /// <summary>
         /// Used for authenticating mobile apps and other mobile devices
         /// </summary>
         /// <param name="reply"></param>
         /// <returns></returns>
-        Task<DeviceAuthenticationResult> AuthenticateDevice(AuthenticationNonceReply reply);
+        Task<DeviceAuthenticationResult> AuthenticateDevice(IPasswordReply reply);
 
         /// <summary>
         /// Determines if the device <paramref name="token"/> is valid and has not expired.  

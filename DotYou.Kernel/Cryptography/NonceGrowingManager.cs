@@ -23,16 +23,11 @@ namespace DotYou.Kernel.Cryptography
 
     public static class NonceGrowingManager
     {
-        public static byte[] UInt32ToBytes(UInt32 i)
-        {
-            return new byte[] { (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
-        }
-
         // I think this is overkill, wish there was a simple 128 bit hash
         public static byte[] CalculateNonceSHA256(UInt32 nonce, byte[] secret)
         {
             SHA256Managed hashstring = new SHA256Managed();
-            byte[] hash = hashstring.ComputeHash(YFByteArray.Combine(UInt32ToBytes(nonce), secret));
+            byte[] hash = hashstring.ComputeHash(YFByteArray.Combine(YFByteArray.UInt32ToBytes(nonce), secret));
 
             return hash;
         }

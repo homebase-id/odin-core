@@ -56,7 +56,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
         }
 
         [HttpPost]
-        public async Task<IActionResult> Authenticate([FromBody] AuthenticationNonceReply package)
+        public async Task<IActionResult> Authenticate([FromBody] PasswordReply package)
         {
             try
             {
@@ -73,7 +73,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
         }
         
         [HttpPost("device")]
-        public async Task<IActionResult> AuthenticateDevice([FromBody] AuthenticationNonceReply package)
+        public async Task<IActionResult> AuthenticateDevice([FromBody] PasswordReply package)
         {
             try
             {

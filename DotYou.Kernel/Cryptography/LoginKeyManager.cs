@@ -60,7 +60,7 @@ namespace DotYou.Kernel.Cryptography
         /// <returns>The PasswordKey to store on the Identity</returns>
         public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
-            var (hpwd64, kek64, sharedsecret) = ParsePasswordReply(reply, listRsa);
+            var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
@@ -72,7 +72,7 @@ namespace DotYou.Kernel.Cryptography
 
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        private static (string pwd64, string kek64, string sharedsecret64) ParsePasswordReply(PasswordReply reply, RsaKeyListData listRsa)
+        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(IPasswordReply reply, RsaKeyListData listRsa)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
@@ -124,12 +124,9 @@ namespace DotYou.Kernel.Cryptography
 
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
-        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
+        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage, IPasswordReply reply, RsaKeyListData listRsa)
         {
-            var (hpwd64, kek64, sharedsecret64) = ParsePasswordReply(reply, listRsa);
-
-            // TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
-
+            var (hpwd64, kek64, sharedsecret64) = ParsePasswordRSAReply(reply, listRsa);
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
         }
 
