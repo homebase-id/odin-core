@@ -17,7 +17,7 @@ namespace DotYou.Kernel.Cryptography
         /// <returns>The (aes) decrypted Application KeK</returns>
         public static byte[] MasterGetApplicationKek(AppTokenData token, byte[] LoginKek)
         {
-            return AesCbc.DecryptBytesFromBytes_Aes(token.kekAesAkek, LoginKek, token.iv);
+            return AesCbc.DecryptBytesFromBytes_Aes(token.kekAesAdek, LoginKek, token.iv);
         }
 
 
@@ -78,7 +78,7 @@ namespace DotYou.Kernel.Cryptography
             };
 
             token.akekXoredAdek = XorManagement.XorEncrypt(AdeK, AkeK);
-            (token.iv, token.kekAesAkek) = AesCbc.EncryptBytesToBytes_Aes(AkeK, LoginKeK);
+            (token.iv, token.kekAesAdek) = AesCbc.EncryptBytesToBytes_Aes(AkeK, LoginKeK);
 
             YFByteArray.WipeByteArray(AdeK);
             YFByteArray.WipeByteArray(AkeK);

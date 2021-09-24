@@ -1,5 +1,6 @@
 ﻿
 using DotYou.Kernel.Cryptography;
+using System;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {
@@ -10,10 +11,29 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     //
     public class AppClientTokenData
     {
-        public byte[] tokenId;       // Random 16-byte secure HTTP only client cookie
-        public byte[] applicationId; // 16-byte guid id to lookup the Application entry
-        public byte[] halfAkek;      // Random 16-byte client cookie needed to calculate the application KeK
+        public Guid deviceId; // 16-byte guid id to lookup the Application entry
+        public Guid applicationId; // 16-byte guid id to lookup the Application entry
+
+        public Guid deviceApplicationId;      // Random 16-byte secure HTTP only client cookie
+        public byte[] halfAdek;      // Random 16-byte client cookie needed to calculate the application KeK
+
         public byte[] SharedSecret;  // The secret shared with the client. We need one per client
         public NonceTable NonceKeeper { get; set; }
+        public bool IsRevoked { get; set; }
+
+    }
+
+    public class DeviceRegistration
+    {
+        public Guid DeviceId { get; set; }
+        
+        public UInt64 RegistrationTimestamp { get; set; }
+
+        public string DeviceName { get; set; }
+
+        /// <summary>
+        /// Specifies if and how this device supports multi-factor authentication
+        /// </summary>
+        public Guid MultiFactorAuthId { get; set; }
     }
 }

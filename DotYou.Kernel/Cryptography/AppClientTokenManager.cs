@@ -39,12 +39,12 @@ namespace DotYou.Kernel.Cryptography
         {
             var token = new AppClientTokenData
             {
-                tokenId  = YFByteArray.GetRndByteArray(16),
+                deviceApplicationId  = YFByteArray.GetRndByteArray(16),
                 applicationId = ApplicationId
             };
 
             var halfCookie = YFByteArray.GetRndByteArray(16);
-            token.halfAkek = XorManagement.XorEncrypt(ApplicationKeK, halfCookie);
+            token.halfAdek = XorManagement.XorEncrypt(ApplicationKeK, halfCookie);
 
             if (sharedSecret == null)
                 token.SharedSecret = YFByteArray.GetRndByteArray(16);
@@ -63,7 +63,7 @@ namespace DotYou.Kernel.Cryptography
         // the application KeK that will unlock the DeK.
         public static byte[] GetApplicationKek(AppClientTokenData clientToken, byte[] cookie2)
         {
-            return XorManagement.XorEncrypt(clientToken.halfAkek, cookie2);
+            return XorManagement.XorEncrypt(clientToken.halfAdek, cookie2);
         }
     }
 }
