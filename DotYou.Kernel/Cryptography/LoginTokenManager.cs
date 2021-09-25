@@ -44,7 +44,6 @@ namespace DotYou.Kernel.Cryptography
         //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
         public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(NonceData loadedNoncePackage, IPasswordReply reply, RsaKeyListData listRsa)
         {
-
             var (hpwd64, kek64, sharedsecret64) = LoginKeyManager.ParsePasswordRSAReply(reply, listRsa);
 
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
@@ -65,9 +64,20 @@ namespace DotYou.Kernel.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
+        public static byte[] GetLoginKek(byte[] halfKey, byte[] halfCookie)
+        {
+            return XorManagement.XorEncrypt(halfKey, halfCookie);
+        }
+
+        // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
+        // the application KeK that will unlock the DeK.
         public static byte[] GetLoginKek(LoginTokenData loginToken, byte[] halfCookie)
         {
-            return XorManagement.XorEncrypt(loginToken.HalfKey, halfCookie);
+            return GetLoginKek(loginToken.HalfKey, halfCookie);
         }
+
+        // XXX TODO Shouldn't there be a GetLoginDek here?
+        // Or at least make a comment to where it is
+        // And make the GetLoginKek and GetLoginDek use the KeyMaster class
     }
 }

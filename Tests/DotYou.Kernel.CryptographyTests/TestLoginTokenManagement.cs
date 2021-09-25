@@ -31,22 +31,30 @@ namespace DotYou.Kernel.CryptographyTests
         [Test]
         public void TokenLoginBasePass()
         {
-            // // Pre-requisites
-            // var loginKek = YFByteArray.GetRndByteArray(16); // Pre-existing
-            // var sharedSecret = YFByteArray.GetRndByteArray(16); // Pre-existing
-            //
-            // // Server generates Login Authentication Token in DB and cookies for client.
-            // var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(loginKek, sharedSecret);
-            //
-            // var testKek = LoginTokenManager.GetLoginKek(loginToken, halfCookie);
-            //
-            // if (YFByteArray.EquiByteArrayCompare(loginKek, testKek) == false)
-            // {
-            //     Assert.Fail();
-            //     return;
-            // }
-            //
-            // Assert.Pass();
+            string password = "EnSøienØ";
+
+            var listRsa = RsaKeyListManagement.CreateRsaKeyList(2);
+            
+            NonceData nonce = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(listRsa));
+
+            // Pre-requisites, using the salt values from a fresh generated random Nonce
+            var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+
+            IPasswordReply rp = LoginKeyManager.CalculatePasswordReply(password, nonce);            
+
+            // Server generates Login Authentication Token in DB and cookies for client.
+            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(nonce, rp, listRsa);
+
+            var testKek = LoginTokenManager.GetLoginKek(loginToken, halfCookie);
+
+            if (YFByteArray.EquiByteArrayCompare(KeK, testKek) == false)
+            {
+                Assert.Fail();
+                return;
+            }
+ 
+            Assert.Pass();
         }
 
         [Test]
