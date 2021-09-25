@@ -30,22 +30,13 @@ namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
         {
             
             Console.WriteLine($"ReceiveIncomingChatMessage perimeter ChatMessageController called.  bytes len:{media?.Length ?? 0}");
-            MediaData mediaData = null;
-
+            Stream stream = Stream.Null;
             if (media?.Length > 0)
             {
-                var stream = new MemoryStream();
-                await media.CopyToAsync(stream);
-                
-                mediaData = new MediaData()
-                {
-                    Id = metaData.Id,
-                    MimeType = metaData.MimeType,
-                    Bytes = stream.ToArray()
-                };
+                stream = media.OpenReadStream();
             }
 
-            await _chatService.ReceiveMessage(envelope, mediaData);
+            await _chatService.ReceiveMessage(envelope, metaData, stream);
 
             return new JsonResult(new NoResultResponse(true));
         }

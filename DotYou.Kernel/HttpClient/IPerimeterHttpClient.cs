@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
@@ -26,7 +27,8 @@ namespace DotYou.Kernel.HttpClient
 
         [Multipart]
         [Post(RootPath + "/chat")]
-        Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, byte[] media);
+        //Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, byte[] media);
+        Task<ApiResponse<NoResultResponse>> DeliverChatMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, Stream media);
 
         [Post(RootPath + "/status/chat")]
         Task<ApiResponse<bool>> GetAvailability();

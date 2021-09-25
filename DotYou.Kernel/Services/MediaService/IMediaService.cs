@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace DotYou.Kernel.Services.MediaService
@@ -9,8 +10,14 @@ namespace DotYou.Kernel.Services.MediaService
     public interface IMediaService
     {
         
-        Task<Guid> SaveImage(MediaData mediaData, bool giveNewId = false);
+        Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false);
+        
+        Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false);
 
-        Task<MediaData> GetImage(Guid id);
+        Task<MediaData> GetMedia(Guid id);
+
+        Task<MediaMetaData> GetMetaData(Guid id);
+        
+        Task<Stream> GetMediaStream(Guid id);
     }
 }

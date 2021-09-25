@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Refit;
 
 namespace DotYou.Kernel.Services.Messaging.Chat
 {
@@ -88,25 +90,6 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             Console.WriteLine($"Message being sent from {this.Context.HostDotYouId} to {message.Recipient}");
 
-            MediaData imageData = null;
-            MediaMetaData metaData = null;
-            byte[] bytes = Array.Empty<byte>();
-            if (message.ImageId != Guid.Empty)
-            {
-                imageData = await _mediaService.GetImage(message.ImageId);
-
-                if (imageData != null)
-                {
-                    metaData = new MediaMetaData()
-                    {
-                        Id = imageData.Id,
-                        MimeType = imageData.MimeType
-                    };
-
-                    bytes = imageData.Bytes;
-                }
-            }
-
             var encryptedMessage = new ChatMessageEnvelope()
             {
                 Id = message.Id,
@@ -116,21 +99,38 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 SenderDotYouId = message.SenderDotYouId,
                 SenderPublicKeyCertificate = message.SenderPublicKeyCertificate,
                 Body = message.Body
-                //ImageId = //TODO: not required when sending to the other DI.  it will get a new id for that DI 
             };
 
+            Logger.LogDebug($"Media Id: {message.MediaId}");
+
+            ApiResponse<NoResultResponse> response;
             var client = this.CreatePerimeterHttpClient(message.Recipient);
+            if (message.MediaId == Guid.Empty)
+            {
+                response = await client.DeliverChatMessage(encryptedMessage, null, null);
+            }
+            else
+            {
+                MediaMetaData metaData = await _mediaService.GetMetaData(message.MediaId);
+                
+                if (metaData == null)
+                {
+                    Logger.LogWarning($"SendMessage -> Meta data missing for [{message.MediaId}]");
+                    response = await client.DeliverChatMessage(encryptedMessage, null, null);
+                }
+                else
+                {
+                    await using var mediaStream = await _mediaService.GetMediaStream(message.MediaId);
+                    response = await client.DeliverChatMessage(encryptedMessage, metaData, mediaStream);
+                }
+            }
 
-            Console.WriteLine($"Sending message to [{encryptedMessage.Recipient}]");
-            Console.WriteLine($"Message has image attached: {(imageData == null ? "no" : "yes")}");
-            Console.WriteLine($"Image len : {imageData?.Bytes.Length}");
-
-            var response = await client.DeliverChatMessage(encryptedMessage, metaData, bytes);
+            //var response = await client.DeliverChatMessage(encryptedMessage, metaData, bytes);
 
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine($"Message successfully sent to {message.Recipient}");
-                
+
                 //upon successful delivery of the message, save our message
                 WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
@@ -158,7 +158,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaData mediaData)
+        public async Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, Stream mediaStream)
         {
             //TODO: add validation - like not allowing empty messages
             // Console.BackgroundColor = ConsoleColor.Yellow;
@@ -166,18 +166,18 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
 
-            if (mediaData != null)
+            Console.WriteLine($"has metadata: {(metaData != null).ToString()}");
+            Console.WriteLine($"metadata len: {mediaStream?.Length}");
+            
+            if (metaData != null && mediaStream is { Length: > 0 })
             {
-                Console.WriteLine($"Message has media of type [{mediaData.MimeType}] and length: {mediaData.Bytes.Length}");
-                
-                Guard.Argument(mediaData.MimeType, nameof(mediaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
-                envelope.ImageId = await _mediaService.SaveImage(mediaData, giveNewId: true);
+                Console.WriteLine($"Message has media of type [{metaData.MimeType}] and length: {mediaStream.Length}");
+                Guard.Argument(metaData.MimeType, nameof(metaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
+                envelope.MediaId = await _mediaService.SaveMedia(metaData, mediaStream, giveNewId: true);
             }
-
+            
             string collection = GetChatStoragePath(envelope.SenderDotYouId);
-
-            //the downcast avoid storing the ImageData 
-            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save((ChatMessageEnvelope)envelope));
+            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
 
             var recent = new RecentChatMessageHeader()
             {

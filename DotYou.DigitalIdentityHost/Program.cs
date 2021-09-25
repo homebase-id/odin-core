@@ -61,7 +61,7 @@ namespace DotYou.TenantHost
                     logConfig.AddConsole();
                     logConfig.AddFile(Path.Combine(config.LogFilePath, "app_{0:yyyy}-{0:MM}-{0:dd}.log"), opts =>
                     {
-                        //opts.FormatLogEntry
+                        opts.FormatLogEntry = entry => $"{entry.LogName}:{entry.EventId}\t{entry.Message}\nException: {entry.Exception}";
                         opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
                     });
                     //config.AddMultiTenantLogger(

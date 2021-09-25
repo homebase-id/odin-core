@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.MediaService;
@@ -10,7 +11,6 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 {
     public interface IChatService
     {
-        
         /// <summary>
         /// Returns a list of contacts available for chat
         /// </summary>
@@ -33,7 +33,8 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         /// Accepts an incoming chat message from another Digital Identity
         /// </summary>
         /// <returns></returns>
-        public Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaData mediaData);
+        //public Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaData mediaData);
+        public Task<bool> ReceiveMessage(ChatMessageEnvelope envelope, MediaMetaData metaData, Stream mediaStream);
 
         /// <summary>
         /// Returns a list of recent messages across all connected contacts

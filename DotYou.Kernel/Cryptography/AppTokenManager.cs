@@ -45,7 +45,7 @@ namespace DotYou.Kernel.Cryptography
         /// <returns>The decrypted DeK</returns>
         public static byte[] GetApplicationDek(AppTokenData token, byte[] ApplicationKek)
         {
-            return YFByteArray.EquiByteArrayXor(token.akekXoredAdek, ApplicationKek);
+            return YFByteArray.EquiByteArrayXor(token.aDekXoredAdek, ApplicationKek);
         }
 
         // On creating a new application, e.g. 'chat' this is done only once:
@@ -77,7 +77,7 @@ namespace DotYou.Kernel.Cryptography
                 name = name,
             };
 
-            token.akekXoredAdek = XorManagement.XorEncrypt(AdeK, AkeK);
+            token.aDekXoredAdek = XorManagement.XorEncrypt(AdeK, AkeK);
             (token.iv, token.kekAesAdek) = AesCbc.EncryptBytesToBytes_Aes(AkeK, LoginKeK);
 
             YFByteArray.WipeByteArray(AdeK);

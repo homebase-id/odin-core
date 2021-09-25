@@ -39,8 +39,8 @@ namespace DotYou.Kernel.Cryptography
         {
             var token = new AppClientTokenData
             {
-                deviceApplicationId  = YFByteArray.GetRndByteArray(16),
-                applicationId = ApplicationId
+                deviceApplicationId  = new Guid(YFByteArray.GetRndByteArray(16)),
+                applicationId = new Guid(ApplicationId)
             };
 
             var halfCookie = YFByteArray.GetRndByteArray(16);
