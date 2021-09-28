@@ -73,6 +73,8 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             
             WithTenantStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
 
+            // TODO - where do we set the MasterKek and MasterDek?
+
             // TODO: audit login some where, or in helper class below
 
          
