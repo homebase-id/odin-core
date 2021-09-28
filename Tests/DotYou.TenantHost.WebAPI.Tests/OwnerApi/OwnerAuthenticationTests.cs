@@ -70,7 +70,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             var clientNonce = response.Content;
 
             //TODO encrypt password usign clientNonce
-            string password = "p";
+            // string password = "p";
 
             PasswordReply clientReply = new PasswordReply()
             {

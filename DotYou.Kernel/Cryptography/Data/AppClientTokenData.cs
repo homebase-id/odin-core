@@ -7,7 +7,8 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     // This token (table) maps between a client's token cookie 
     // and the AppTokenData table. E.g. imagine two chat clients
     // each with their own cookie, sharedSecret, accessing the same
-    // chat 'app' (AppTokenData).
+    // chat 'app' (AppTokenData). Each AppClientTokenData will have its
+    // own App DEK by XOR'ing the cookie with the halfAdek.
     //
     public class AppClientTokenData
     {

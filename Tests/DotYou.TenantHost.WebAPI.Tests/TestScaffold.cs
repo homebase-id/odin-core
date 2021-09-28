@@ -87,7 +87,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            string password = "";
+            // string password = "";
             throw new Exception("TODO: integrate Nonce auth");
             //
             // var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
