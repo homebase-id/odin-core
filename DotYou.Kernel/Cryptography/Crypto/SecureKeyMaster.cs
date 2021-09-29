@@ -22,6 +22,11 @@ namespace DotYou.Kernel.Cryptography
             key = null;
         }
 
+        public SecureKeyMaster(byte[] data)
+        {
+            SetKey(data);
+        }
+
         ~SecureKeyMaster()
         {
             if (key != null)

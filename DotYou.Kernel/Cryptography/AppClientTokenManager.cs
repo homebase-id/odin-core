@@ -61,9 +61,9 @@ namespace DotYou.Kernel.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static byte[] GetApplicationDek(AppClientTokenData clientToken, byte[] cookie2)
+        public static SecureKeyMaster GetApplicationDek(AppClientTokenData clientToken, byte[] cookie2)
         {
-            return XorManagement.XorEncrypt(clientToken.halfAdek, cookie2);
+            return new SecureKeyMaster(XorManagement.XorEncrypt(clientToken.halfAdek, cookie2));
         }
     }
 }

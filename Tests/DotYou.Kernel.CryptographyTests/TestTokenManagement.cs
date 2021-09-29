@@ -37,7 +37,7 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Now create a mapping from a client device/app to the application token above
 
-            var applicationDek = AppKeyManager.LoginGetApplicationDek(appToken, loginKek);
+            var applicationDek = AppKeyManager.GetApplicationDekWithLogin(appToken, loginKek);
 
             Assert.Pass();
         }
@@ -59,23 +59,24 @@ namespace DotYou.Kernel.CryptographyTests
 
             // Now create a mapping from a client device/app to the application token above
 
-            // First get the applicationKek
-            var applicationKek = AppKeyManager.LoginGetApplicationDek(appToken, loginKek);
+            // First get the application DEK
+            var appDekViaLogin = AppKeyManager.GetApplicationDekWithLogin(appToken, loginKek);
 
             // Now create the mapping
-            var (cookie2, clientToken) = AppClientTokenManager.CreateClientToken(appToken.id, applicationKek);
+            var (halfKey, clientToken) = AppClientTokenManager.CreateClientToken(appToken.id, appDekViaLogin.GetKey());
 
-            var appKek2 = AppClientTokenManager.GetApplicationDek(clientToken, cookie2);
+            // The two cookies / keys to give to the client are:
+            //   clientToken.TokenId ["Token"]
+            //   cookie2             ["Half"]
 
-            if (YFByteArray.EquiByteArrayCompare(applicationKek, appKek2) == false)
+            var appDekViaCookies = AppClientTokenManager.GetApplicationDek(clientToken, halfKey);
+
+            if (YFByteArray.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()) == false)
             {
                 Assert.Fail();
                 return;
             }
 
-            // The two cookies / keys to give to the client are:
-            //   clientToken.TokenId ["Token"]
-            //   cookie2             ["Half"]
         }
 
     }

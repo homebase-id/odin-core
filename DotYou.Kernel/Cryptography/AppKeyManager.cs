@@ -15,11 +15,11 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="LoginKek">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static byte[] LoginGetApplicationDek(AppKeyData token, byte[] LoginKeK)
+        public static SecureKeyMaster GetApplicationDekWithLogin(AppKeyData token, byte[] LoginKeK)
         {
             var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.encryptedDek, LoginKeK, token.iv);
 
-            return appDek;
+            return new SecureKeyMaster(appDek);
         }
 
 
