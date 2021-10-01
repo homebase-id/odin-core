@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
+using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Owner.Authentication;
@@ -49,23 +51,30 @@ namespace DotYou.TenantHost.Security.Authentication
         {
             const string YouFoundationIssuer = "YouFoundation";
 
-            Guid token;
-            if (GetToken(out token))
+            Guid sessionToken;
+            if (GetToken(out sessionToken))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
 
-                if (await authService.IsValidToken(token))
+                if (await authService.IsValidToken(sessionToken))
                 {
                     //TODO: this needs to be pulled from context rather than the domain
 
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
-                    var claims = new[]
+
+                    //TODO: we need to avoid using a claim to hold the login kek.  it should just be set duringf the Startup.ResolveContext method
+                    var r = GetAuthenticationResult();
+                    var loginKek = await authService.GetLoginKek(sessionToken, r.ClientHalfKek);
+                    var b64 = Convert.ToBase64String(loginKek.GetKey());
+
+                    var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.LoginKek, b64, ClaimValueTypes.String, YouFoundationIssuer)
                     };
 
                     var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);
@@ -78,12 +87,24 @@ namespace DotYou.TenantHost.Security.Authentication
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthConstants.DotIdentityOwnerScheme);
-                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, token);
+                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, sessionToken);
                     return AuthenticateResult.Success(ticket);
                 }
             }
 
             return AuthenticateResult.Fail("Invalid or missing token");
+        }
+
+        private DotYouAuthenticationResult GetAuthenticationResult()
+        {
+            DotYouAuthenticationResult result;
+            var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];
+            if (DotYouAuthenticationResult.TryParse(value, out result))
+            {
+                return result;
+            }
+
+            return null;
         }
 
         protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
@@ -117,11 +138,11 @@ namespace DotYou.TenantHost.Security.Authentication
             }
 
             //the react client app uses the cookie
-            AuthenticationResult result;
+            DotYouAuthenticationResult result;
             var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];
-            if (AuthenticationResult.TryParse(value, out result))
+            if (DotYouAuthenticationResult.TryParse(value, out result))
             {
-                token = result.Token;
+                token = result.SessionToken;
                 return true;
             }
 

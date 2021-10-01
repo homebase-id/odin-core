@@ -35,9 +35,9 @@ namespace DotYou.Kernel.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] halfCookie, AppClientTokenData token) CreateClientToken(byte[] ApplicationId, byte[] ApplicationDek, byte[] sharedSecret = null)
+        public static (byte[] halfCookie, AppClientRegistrationData token) CreateClientToken(byte[] ApplicationId, byte[] ApplicationDek, byte[] sharedSecret = null)
         {
-            var token = new AppClientTokenData
+            var token = new AppClientRegistrationData
             {
                 deviceApplicationId  = new Guid(YFByteArray.GetRndByteArray(16)),
                 applicationId = new Guid(ApplicationId)
@@ -61,9 +61,9 @@ namespace DotYou.Kernel.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKeyMaster GetApplicationDek(AppClientTokenData clientToken, byte[] cookie2)
+        public static SecureKey GetApplicationDek(AppClientRegistrationData clientToken, byte[] cookie2)
         {
-            return new SecureKeyMaster(XorManagement.XorEncrypt(clientToken.halfAdek, cookie2));
+            return new SecureKey(XorManagement.XorEncrypt(clientToken.halfAdek, cookie2));
         }
     }
 }

@@ -3,8 +3,13 @@ using System;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {
-    public class LoginTokenData
+    public class LoginTokenData: IDisposable
     {
+        ~LoginTokenData()
+        {
+            this.Dispose();
+        }
+
         public Guid Id { get; set; }
 
         /// <summary>
@@ -23,5 +28,11 @@ namespace DotYou.Kernel.Services.Admin.Authentication
         public byte[] SharedSecret { get; set; }
 
         public NonceTable NonceKeeper { get; set; }
+
+        public void Dispose()
+        {
+            YFByteArray.WipeByteArray(this.HalfKey);
+            YFByteArray.WipeByteArray(this.SharedSecret);
+        }
     }
 }

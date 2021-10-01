@@ -10,24 +10,24 @@ namespace DotYou.Kernel.Cryptography
     /// moved around. 
     /// TODO write tests.
     /// </summary>
-    public class SecureKeyMaster
+    public sealed class SecureKey
     {
         // TODO Move this to secure memory
         [JsonIgnore]
-        protected byte[] key;
+        private byte[] key;
         // TODO - test to make sure it doesnt get saved
 
-        public SecureKeyMaster()
+        public SecureKey()
         {
             key = null;
         }
 
-        public SecureKeyMaster(byte[] data)
+        public SecureKey(byte[] data)
         {
             SetKey(data);
         }
 
-        ~SecureKeyMaster()
+        ~SecureKey()
         {
             if (key != null)
                 YFByteArray.WipeByteArray(key);

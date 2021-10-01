@@ -44,5 +44,6 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         /// <param name="nonce64"></param>
         /// <returns></returns>
         Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64);
+
     }
 }

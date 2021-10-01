@@ -48,7 +48,7 @@ namespace DotYou.Kernel.CryptographyTests
 
             var testKek = LoginTokenManager.GetLoginKek(loginToken, halfCookie);
 
-            if (YFByteArray.EquiByteArrayCompare(KeK, testKek) == false)
+            if (YFByteArray.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {
                 Assert.Fail();
                 return;

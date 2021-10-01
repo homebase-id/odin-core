@@ -64,14 +64,14 @@ namespace DotYou.Kernel.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static byte[] GetLoginKek(byte[] halfKey, byte[] halfCookie)
+        public static SecureKey GetLoginKek(byte[] halfServer, byte[] halfClient)
         {
-            return XorManagement.XorEncrypt(halfKey, halfCookie);
+            return new SecureKey(XorManagement.XorEncrypt(halfServer, halfClient));
         }
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static byte[] GetLoginKek(LoginTokenData loginToken, byte[] halfCookie)
+        public static SecureKey GetLoginKek(LoginTokenData loginToken, byte[] halfCookie)
         {
             return GetLoginKek(loginToken.HalfKey, halfCookie);
         }
