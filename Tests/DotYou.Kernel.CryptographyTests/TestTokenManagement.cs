@@ -25,7 +25,7 @@ namespace DotYou.Kernel.CryptographyTests
             // validate the encryption keys match up from creation to decryption.
 
             // Pre-requisites
-            var loginKek = YFByteArray.GetRndByteArray(16); // Simulate pre-existing
+            var loginKek = new SecureKeyMaster(YFByteArray.GetRndByteArray(16)); // Simulate pre-existing
 
             // Create a new application and link the first client to it
 
@@ -47,7 +47,7 @@ namespace DotYou.Kernel.CryptographyTests
         public void TokenBase2Pass()
         {
             // Pre-requisites
-            var loginKek = YFByteArray.GetRndByteArray(16); // Pre-existing
+            var loginKek = new SecureKeyMaster(YFByteArray.GetRndByteArray(16)); // Pre-existing
 
             // Create a new application and link the first client to it
 

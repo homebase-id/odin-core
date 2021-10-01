@@ -15,9 +15,9 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="LoginKek">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static SecureKeyMaster GetApplicationDekWithLogin(AppKeyData token, byte[] LoginKeK)
+        public static SecureKeyMaster GetApplicationDekWithLogin(AppKeyData token, SecureKeyMaster LoginKeK)
         {
-            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.encryptedDek, LoginKeK, token.iv);
+            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.encryptedDek, LoginKeK.GetKey(), token.iv);
 
             return new SecureKeyMaster(appDek);
         }
@@ -41,9 +41,9 @@ namespace DotYou.Kernel.Cryptography
         /// <param name="name">Friendly name, not used</param>
         /// <param name="LoginKeK">The master key which can later be used to retrieve the aDeK or aKeK</param>
         /// <returns>A new ApplicationTokenData object</returns>
-        public static AppKeyData CreateApplication(string name, byte[] LoginKeK)
+        public static AppKeyData CreateApplication(string name, SecureKeyMaster LoginKeK)
         {
-            var appDEK     = YFByteArray.GetRndByteArray(16); // Create the ApplicationDataEncryptionKey (AdeK)
+            var appDEK = new SecureKeyMaster(YFByteArray.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
 
             var token = new AppKeyData
             {
@@ -51,9 +51,7 @@ namespace DotYou.Kernel.Cryptography
                 name = name,
             };
 
-            (token.iv, token.encryptedDek) = AesCbc.EncryptBytesToBytes_Aes(appDEK, LoginKeK);
-
-            YFByteArray.WipeByteArray(appDEK);
+            (token.iv, token.encryptedDek) = AesCbc.EncryptBytesToBytes_Aes(appDEK.GetKey(), LoginKeK.GetKey());
 
             return token;
         }
