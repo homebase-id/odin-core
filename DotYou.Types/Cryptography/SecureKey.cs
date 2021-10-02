@@ -14,12 +14,12 @@ namespace DotYou.Kernel.Cryptography
     {
         // TODO Move this to secure memory
         [JsonIgnore]
-        private byte[] key;
+        private byte[] _key;
         // TODO - test to make sure it doesnt get saved
 
         public SecureKey()
         {
-            key = null;
+            _key = null;
         }
 
         public SecureKey(byte[] data)
@@ -34,34 +34,34 @@ namespace DotYou.Kernel.Cryptography
 
         public void Wipe()
         {
-            if (key != null)
-                YFByteArray.WipeByteArray(key);
+            if (_key != null)
+                YFByteArray.WipeByteArray(_key);
 
-            key = null;
+            _key = null;
         }
 
 
         public void SetKey(byte[] data)
         {
-            if (key != null)
+            if (_key != null)
                 throw new Exception("Can't set a key which is already set");
-            key = data;
+            _key = data;
         }
 
         public byte[] GetKey()
         {
-            if (key == null)
+            if (_key == null)
                 throw new Exception("No key set");
-            return key;
+            return _key;
         }
 
         public bool IsEmpty()
         {
-            return (key == null);
+            return (_key == null);
         }
         public bool IsSet()
         {
-            return (key != null);
+            return (_key != null);
         }
     }
 }
