@@ -29,9 +29,17 @@ namespace DotYou.Kernel.Cryptography
 
         ~SecureKeyMaster()
         {
+            this.Wipe();
+        }
+
+        public void Wipe()
+        {
             if (key != null)
                 YFByteArray.WipeByteArray(key);
+
+            key = null;
         }
+
 
         public void SetKey(byte[] data)
         {
