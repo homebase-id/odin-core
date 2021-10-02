@@ -50,7 +50,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             return nonce;
         }
 
-        public async Task<AuthenticationResult> Authenticate(IPasswordReply reply)
+        public async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
@@ -78,10 +78,10 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             // TODO: audit login some where, or in helper class below
 
          
-            return new AuthenticationResult()
+            return new DotYouAuthenticationResult()
             {
-                Token = loginToken.Id,
-                Token2 = new Guid(halfCookie)
+                SessionToken = loginToken.Id,
+                ClientHalfKek = new SecureKey(halfCookie)
             };
         }
 
@@ -114,10 +114,24 @@ namespace DotYou.Kernel.Services.Owner.Authentication
             return false;
         }
 
-        public async Task<bool> IsValidToken(Guid token)
+        public async Task<bool> IsValidToken(Guid sessionToken)
         {
-            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             return IsAuthTokenEntryValid(entry);
+        }
+
+        public async Task<SecureKey> GetLoginKek(Guid sessionToken, SecureKey clientHalfKek)
+        {
+            //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
+            var loginToken = await WithTenantStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            if (!IsAuthTokenEntryValid(loginToken))
+            {
+                throw new Exception("Token is invalid");
+            }
+
+            var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
+            loginToken.Dispose();
+            return loginKek;
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
@@ -169,5 +183,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
                 throw new AuthenticationException();
             }
         }
+
+       
     }
 }

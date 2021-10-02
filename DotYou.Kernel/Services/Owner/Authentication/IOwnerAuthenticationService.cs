@@ -17,7 +17,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         /// <param name="reply"></param>
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<AuthenticationResult> Authenticate(IPasswordReply reply);
+        Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply);
 
         /// <summary>
         /// Used for authenticating mobile apps and other mobile devices
@@ -38,7 +38,7 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         /// </summary>
         /// <param name="token">The token to be validated</param>
         /// <returns></returns>
-        Task<bool> IsValidToken(Guid token);
+        Task<bool> IsValidToken(Guid sessionToken);
         
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
@@ -58,8 +58,15 @@ namespace DotYou.Kernel.Services.Owner.Authentication
         /// Generates a one time value to used when authenticating a user
         /// </summary>
         /// <returns></returns>
-        public Task<NonceData> GenerateAuthenticationNonce();
+        Task<NonceData> GenerateAuthenticationNonce();
 
-        public Task<bool> IsLoggedIn();
+        Task<bool> IsLoggedIn();
+
+        /// <summary>
+        /// Returns the LoginKek used to access the primary and application data encryption keys
+        /// </summary>
+        /// <returns></returns>
+        Task<SecureKey> GetLoginKek(Guid sessionToken, SecureKey clientHalfKek);
+
     }
 }

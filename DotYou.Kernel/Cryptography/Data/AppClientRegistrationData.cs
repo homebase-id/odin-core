@@ -10,7 +10,7 @@ namespace DotYou.Kernel.Services.Admin.Authentication
     // chat 'app' (AppTokenData). Each AppClientTokenData will have its
     // own App DEK by XOR'ing the cookie with the halfAdek.
     //
-    public class AppClientTokenData
+    public class AppClientRegistrationData
     {
         public Guid deviceId; // 16-byte guid id to lookup the Application entry
         public Guid applicationId; // 16-byte guid id to lookup the Application entry
