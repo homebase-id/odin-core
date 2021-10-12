@@ -83,20 +83,19 @@ namespace DotYou.TenantHost.WebAPI.Tests
         private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
             //force set password
-
-
-
+            
             if (tokens.TryGetValue(identity, out var authResult))
             {
                 return authResult.ToString();
             }
-
-
+            
             using HttpClient authClient = new();
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var clientNonce = (await svc.GenerateNonce()).Content;
+            var nonceResponse = await svc.GenerateNonce();
+            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            var clientNonce = nonceResponse.Content;
             
             //HACK: need to refactor types and drop the clientnoncepackage
             var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC);
@@ -110,10 +109,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
             Assert.NotNull(result, "No authentication result returned");
             var newToken = result.Token;
+            Assert.NotNull(result);
             Assert.IsTrue(newToken != Guid.Empty);
-
-            tokens.Add(identity, newToken);
-            return newToken;
+            Assert.IsTrue(result.Token2 != Guid.Empty);
+            tokens.Add(identity, result);
+            return result.ToString();
         }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
