@@ -117,9 +117,9 @@ namespace DotYou.TenantHost.Security.Authentication
             }
 
             //the react client app uses the cookie
-            AuthenticationResult result;
-            var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];
-            if (AuthenticationResult.TryParse(value, out result))
+            string headerToken = Context.Request.Headers[DotYouAuthConstants.TokenKey];
+            var value = string.IsNullOrEmpty(headerToken?.Trim()) ? Context.Request.Cookies[DotYouAuthConstants.TokenKey] : headerToken;
+            if (AuthenticationResult.TryParse(value, out var result))
             {
                 token = result.Token;
                 return true;

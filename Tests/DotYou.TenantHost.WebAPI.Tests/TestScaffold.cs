@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
+using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Refit;
@@ -25,7 +29,6 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             this._folder = folder;
         }
-
 
         public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
         public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
@@ -76,19 +79,21 @@ namespace DotYou.TenantHost.WebAPI.Tests
             }
         }
 
-        private Guid EnsureAuthToken(DotYouIdentity identity)
+        private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
-            if (tokens.TryGetValue(identity, out Guid token))
-            {
-                return token;
-            }
+            return "cfb35a93-ed47-7701-f4cb-f2fd38e2ba91%7C544251bc-2de4-5fb6-bc92-a0ec981b6203";
+            //might need to decode this to : cfb35a93-ed47-7701-f4cb-f2fd38e2ba91|544251bc-2de4-5fb6-bc92-a0ec981b6203
 
-            using HttpClient authClient = new();
-            authClient.BaseAddress = new Uri($"https://{identity}");
-            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-
+            // if (tokens.TryGetValue(identity, out Guid token))
+            // {
+            //     return token;
+            // }
+            
+            // using HttpClient authClient = new();
+            // authClient.BaseAddress = new Uri($"https://{identity}");
+            // var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+            
             string password = "";
-            throw new Exception("TODO: integrate Nonce auth");
             //
             // var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
             //
@@ -104,10 +109,16 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
-            var token = EnsureAuthToken(identity);
-
-            HttpClient client = new();
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
+            var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token));
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+            HttpClient client = new(handler);
+            //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
+            
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }

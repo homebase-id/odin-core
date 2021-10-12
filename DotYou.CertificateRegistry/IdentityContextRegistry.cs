@@ -34,60 +34,60 @@ namespace DotYou.IdentityRegistry
         /// </summary>
         private static readonly IdentityCertificate RootIdentityCertificate =
             new IdentityCertificate(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id",
-                new NameInfo() {GivenName = "You Foundation", Surname = "System User"},
+                new NameInfo() { GivenName = "You Foundation", Surname = "System User" },
                 new CertificateLocation()
                 {
                     CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
                     PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
                 });
-        
+
         public void Initialize()
         {
             IdentityCertificate samwise =
-                new(Guid.NewGuid(), "samwisegamgee.me", new NameInfo() {GivenName = "Samwise", Surname = "Gamgee"},
+                new(Guid.NewGuid(), "samwisegamgee.me", new NameInfo() { GivenName = "Samwise", Surname = "Gamgee" },
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "certificate.cer"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "private.key")
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee_me.crt"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee.key")
                     });
 
             IdentityCertificate frodo =
-                new(Guid.NewGuid(), "frodobaggins.me", new NameInfo() {GivenName = "Frodo", Surname = "Baggins"},
+                new(Guid.NewGuid(), "frodobaggins.me", new NameInfo() { GivenName = "Frodo", Surname = "Baggins" },
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "certificate.cer"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "private.key")
+                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.crt"),
+                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.key")
                     });
 
-            IdentityCertificate gandalf =
-                new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
-                    new CertificateLocation()
-                    {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
-                    });
-            
-            IdentityCertificate todd =
-                new(Guid.NewGuid(), "toddmitchell.me", new NameInfo() {GivenName = "Todd", Surname = "Mitchell"},
-                    new CertificateLocation()
-                    {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
-                    });
-            
-            IdentityCertificate michael =
-                new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
-                    new CertificateLocation()
-                    {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
-                    });
-            
+            // IdentityCertificate gandalf =
+            //     new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
+            //         new CertificateLocation()
+            //         {
+            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //         });
+            //
+            // IdentityCertificate todd =
+            //     new(Guid.NewGuid(), "toddmitchell.me", new NameInfo() {GivenName = "Todd", Surname = "Mitchell"},
+            //         new CertificateLocation()
+            //         {
+            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //         });
+            //
+            // IdentityCertificate michael =
+            //     new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
+            //         new CertificateLocation()
+            //         {
+            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //         });
+            //
 
-            _certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
+            //_certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
             _certificates.Add(samwise.Key, samwise);
             _certificates.Add(frodo.Key, frodo);
-            _certificates.Add(gandalf.Key, gandalf);
+            // _certificates.Add(gandalf.Key, gandalf);
 
             foreach (var c in _certificates.Values)
             {

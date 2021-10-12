@@ -71,18 +71,6 @@
     <None Update="https\local.youfoundation.id\private.key">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="https\samwisegamgee.me\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\frodobaggins.me\certificate.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\frodobaggins.me\fullchain.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\frodobaggins.me\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="https\gandalf.middleearth.life\certificate.cer">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -90,9 +78,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="https\gandalf.middleearth.life\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\samwisegamgee.me\certificate.cer">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="https\youfoundation.id\certificate.cer">
