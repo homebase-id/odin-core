@@ -33,6 +33,30 @@
         <Content Remove="$(SpaRoot)**" />
         <None Remove="$(SpaRoot)**" />
         <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
+        <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
+        <Content Include="https\samwisegamgee.me\samwisegamgee.key">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Remove="https\samwisegamgee.me\samwisegamgee_me.ca-bundle" />
+        <Content Include="https\samwisegamgee.me\samwisegamgee_me.ca-bundle">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Remove="https\samwisegamgee.me\samwisegamgee_me.crt" />
+        <Content Include="https\samwisegamgee.me\samwisegamgee_me.crt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Remove="https\frodobaggins.me\frodobaggins_me.ca-bundle" />
+        <Content Include="https\frodobaggins.me\frodobaggins_me.ca-bundle">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Remove="https\frodobaggins.me\frodobaggins_me.crt" />
+        <Content Include="https\frodobaggins.me\frodobaggins_me.crt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Remove="https\frodobaggins.me\frodobaggins_me.key" />
+        <Content Include="https\frodobaggins.me\frodobaggins_me.key">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
     <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">

@@ -31,6 +31,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("ignored until full update")]
         public async Task FrodoCanLogInAndOutOfHisDigitalIdentityHost()
         {
             DotYouIdentity user = scaffold.Frodo;
@@ -54,6 +55,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("nonce ignored until full update")]
         public async Task FrodoCanGenerateNonce()
         {
             Assert.IsFalse(true, "No longer working");

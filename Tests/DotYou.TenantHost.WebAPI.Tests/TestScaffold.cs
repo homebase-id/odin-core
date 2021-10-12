@@ -111,7 +111,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
         {
             var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token));
+            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
             HttpMessageHandler handler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar

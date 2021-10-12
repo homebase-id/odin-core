@@ -51,7 +51,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             Assert.IsTrue(getResponse.IsSuccessStatusCode, "Failed to retrieve updated name");
             Assert.IsNotNull(getResponse.Content, "No content returned" );
             var storedName = getResponse.Content;
-
+            
             Assert.IsTrue(storedName.Personal == "Frodo");
             Assert.IsTrue(storedName.Surname == "Baggins");
             

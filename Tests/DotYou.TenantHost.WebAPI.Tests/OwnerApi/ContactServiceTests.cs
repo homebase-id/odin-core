@@ -32,6 +32,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("removed contact management")]
         public async Task CanAddAndGetContactByDomain()
         {
             await AddSamToFrodosContacts();
@@ -49,6 +50,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("removed contact management")]
         public async Task CanGetContactList()
         {
             using (var client = scaffold.CreateHttpClient(scaffold.Samwise))
