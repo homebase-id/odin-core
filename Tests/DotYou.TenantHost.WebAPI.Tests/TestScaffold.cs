@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Cryptography;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Admin;
@@ -21,7 +22,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
     {
         private string _folder;
         private IHost _webserver;
-        private Dictionary<string, Guid> tokens = new Dictionary<string, Guid>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, AuthenticationResult> tokens = new Dictionary<string, AuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
 
         IdentityContextRegistry _registry;
 
@@ -81,31 +82,39 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
-            return "cfb35a93-ed47-7701-f4cb-f2fd38e2ba91%7C544251bc-2de4-5fb6-bc92-a0ec981b6203";
-            //might need to decode this to : cfb35a93-ed47-7701-f4cb-f2fd38e2ba91|544251bc-2de4-5fb6-bc92-a0ec981b6203
+            //force set password
 
-            // if (tokens.TryGetValue(identity, out Guid token))
-            // {
-            //     return token;
-            // }
-            
-            // using HttpClient authClient = new();
-            // authClient.BaseAddress = new Uri($"https://{identity}");
-            // var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            
-            string password = "";
-            //
-            // var response = svc.Authenticate(password).ConfigureAwait(false).GetAwaiter().GetResult();
-            //
-            // Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
-            // var result = response.Content;
-            // Assert.NotNull(result, "No authentication result returned");
-            // var newToken = result.Token;
-            // Assert.IsTrue(newToken != Guid.Empty);
-            //
-            // tokens.Add(identity, newToken);
-            // return newToken;
+
+
+            if (tokens.TryGetValue(identity, out var authResult))
+            {
+                return authResult.ToString();
             }
+
+
+            using HttpClient authClient = new();
+            authClient.BaseAddress = new Uri($"https://{identity}");
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+
+            var clientNonce = (await svc.GenerateNonce()).Content;
+            
+            //HACK: need to refactor types and drop the clientnoncepackage
+            var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC);
+            var reply = LoginKeyManager.CalculatePasswordReply("EnSøienØ", nonce);
+
+            var response = await svc.Authenticate(reply);
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+
+            var result = response.Content;
+
+            Assert.NotNull(result, "No authentication result returned");
+            var newToken = result.Token;
+            Assert.IsTrue(newToken != Guid.Empty);
+
+            tokens.Add(identity, newToken);
+            return newToken;
+        }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {

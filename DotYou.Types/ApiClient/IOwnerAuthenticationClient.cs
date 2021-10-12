@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.Cryptography;
 using DotYou.Types.Cryptography;
 using Refit;
 
@@ -22,7 +23,7 @@ namespace DotYou.Types.ApiClient
         Task<ApiResponse<bool>> IsValid(Guid token);
 
         [Get(RootPath + "/nonce")]
-        Task<ApiResponse<ClientNoncePackage>> GenerateNonce();
+        Task<ApiResponse<NonceData>> GenerateNonce();
 
         //TODO: move these to a secrets/provisioning controller
 
