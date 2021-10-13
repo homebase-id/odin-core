@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Web;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.Cryptography;
 using DotYou.TenantHost.Security;
@@ -31,8 +32,8 @@ namespace DotYou.TenantHost.WebAPI.Tests
             this._folder = folder;
         }
 
-        public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
-        public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
+        public DotYouIdentity Frodo = (DotYouIdentity)"frodobaggins.me";
+        public DotYouIdentity Samwise = (DotYouIdentity)"samwisegamgee.me";
 
         [OneTimeSetUp]
         public void RunBeforeAnyTests(bool startWebserver = true)
@@ -82,16 +83,19 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
+            const string password = "EnSøienØ";
+            
             if (tokens.TryGetValue(identity, out var authResult))
             {
                 return authResult.ToString();
             }
 
             var handler = new HttpClientHandler();
-            handler.CookieContainer = new CookieContainer();
+            var jar = new CookieContainer();
+            handler.CookieContainer = jar;
             handler.UseCookies = true;
-            
-            using HttpClient authClient = new();
+
+            using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -101,31 +105,38 @@ namespace DotYou.TenantHost.WebAPI.Tests
             Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
             Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
             var clientSalts = saltResponse.Content;
-            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC);
-            var saltyReply = LoginKeyManager.CalculatePasswordReply("EnSøienØ", saltyNonce);
+            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
+            {
+                Nonce64 = clientSalts.Nonce64
+            };
+            var saltyReply = LoginKeyManager.CalculatePasswordReply(password, saltyNonce);
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
             Assert.IsTrue(newPasswordResponse.Content?.Success, "failed forcing a new password");
-            
+
             Console.WriteLine($"authenticating to {authClient.BaseAddress}");
             var nonceResponse = await svc.GenerateNonce();
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
-            
+
             //HACK: need to refactor types and drop the clientnoncepackage
-            var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC);
-            var reply = LoginKeyManager.CalculatePasswordReply("EnSøienØ", nonce);
+            var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            {
+                Nonce64 = clientNonce.Nonce64
+            };
+            var reply = LoginKeyManager.CalculatePasswordReply(password, nonce);
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
             Assert.IsTrue(response.Content, $"Failed to authenticate {identity}");
 
-            var cookies = handler.CookieContainer.GetCookies(authClient.BaseAddress);
-            var tokenCookie = cookies[DotYouAuthConstants.TokenKey];
+            var cookies = jar.GetCookies(authClient.BaseAddress);
+            var tokenCookie = HttpUtility.UrlDecode(cookies[DotYouAuthConstants.TokenKey]?.Value);
             
-            Assert.IsTrue(AuthenticationResult.TryParse(tokenCookie?.Value, out var result), "invalid authentication cookie returned");
-            
+
+            Assert.IsTrue(AuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
+
             var newToken = result.Token;
             Assert.IsTrue(newToken != Guid.Empty);
             Assert.IsTrue(result.Token2 != Guid.Empty);
@@ -146,7 +157,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
             };
             HttpClient client = new(handler);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
-            
+
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }

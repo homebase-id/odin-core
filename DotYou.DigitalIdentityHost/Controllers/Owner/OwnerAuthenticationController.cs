@@ -61,9 +61,8 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
             try
             {
                 var result = await _authService.Authenticate(package);
-                var value = $"{result.Token}|{result.Token2}";
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
-                Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
+                Response.Cookies.Append(DotYouAuthConstants.TokenKey, result.ToString(), options);
                 return new JsonResult(true);
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
