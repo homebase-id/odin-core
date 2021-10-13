@@ -82,17 +82,33 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
-            //force set password
-            
             if (tokens.TryGetValue(identity, out var authResult))
             {
                 return authResult.ToString();
             }
+
+            var handler = new HttpClientHandler();
+            handler.CookieContainer = new CookieContainer();
+            handler.UseCookies = true;
             
             using HttpClient authClient = new();
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
+            Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
+
+            var saltResponse = await svc.GenerateNewSalts();
+            Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
+            Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
+            var clientSalts = saltResponse.Content;
+            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC);
+            var saltyReply = LoginKeyManager.CalculatePasswordReply("EnSøienØ", saltyNonce);
+
+            var newPasswordResponse = await svc.SetNewPassword(saltyReply);
+            Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
+            Assert.IsTrue(newPasswordResponse.Content?.Success, "failed forcing a new password");
+            
+            Console.WriteLine($"authenticating to {authClient.BaseAddress}");
             var nonceResponse = await svc.GenerateNonce();
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
@@ -100,24 +116,27 @@ namespace DotYou.TenantHost.WebAPI.Tests
             //HACK: need to refactor types and drop the clientnoncepackage
             var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC);
             var reply = LoginKeyManager.CalculatePasswordReply("EnSøienØ", nonce);
-
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+            Assert.IsTrue(response.Content, $"Failed to authenticate {identity}");
 
-            var result = response.Content;
-
-            Assert.NotNull(result, "No authentication result returned");
+            var cookies = handler.CookieContainer.GetCookies(authClient.BaseAddress);
+            var tokenCookie = cookies[DotYouAuthConstants.TokenKey];
+            
+            Assert.IsTrue(AuthenticationResult.TryParse(tokenCookie?.Value, out var result), "invalid authentication cookie returned");
+            
             var newToken = result.Token;
-            Assert.NotNull(result);
             Assert.IsTrue(newToken != Guid.Empty);
             Assert.IsTrue(result.Token2 != Guid.Empty);
+
             tokens.Add(identity, result);
             return result.ToString();
         }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
+            Console.WriteLine("CreateHttpClient");
             var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));

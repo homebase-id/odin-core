@@ -244,6 +244,11 @@ namespace DotYou.DigitalIdentityHost
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.Map("/", async context =>
+                {
+                    await context.Response.WriteAsync("wrinkle");
+                });
+                
                 endpoints.MapControllers();
                 //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
