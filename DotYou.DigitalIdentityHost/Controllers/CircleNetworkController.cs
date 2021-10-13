@@ -40,6 +40,13 @@ namespace DotYou.DigitalIdentityHost.Controllers
             var result = await _circleNetwork.Disconnect((DotYouIdentity)dotYouId);
             return new JsonResult(result);
         }
+        
+        [HttpDelete("{dotYouId}")]
+        public async Task<IActionResult> Delete(string dotYouId)
+        {
+            await _circleNetwork.DeleteConnection((DotYouIdentity)dotYouId);
+            return new JsonResult(true);
+        }
 
         [HttpGet("status/{dotYouId}")]
         public async Task<IActionResult> GetConnectionInfo(string dotYouId)

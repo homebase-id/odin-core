@@ -30,7 +30,7 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task<bool> Unblock(DotYouIdentity dotYouId);
-        
+
         /// <summary>
         /// Gets connections from the system.
         /// </summary>
@@ -51,7 +51,7 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId);
-        
+
         /// <summary>
         /// Determines if the specified dotYouId is connected 
         /// </summary>
@@ -65,14 +65,14 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId);
-        
+
         /// <summary>
         /// Throws an exception if the dotYouId is blocked.
         /// </summary>
         /// <param name="info">The connection info to be checked</param>
         /// <returns></returns>
         void AssertConnectionIsNoneOrValid(ConnectionInfo info);
-        
+
         /// <summary>
         /// Adds the specified dotYouId to your network
         /// </summary>
@@ -80,7 +80,7 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
         Task Connect(string publicKeyCertificate, NameAttribute name);
-        
+
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
@@ -94,5 +94,12 @@ namespace DotYou.Kernel.Services.Circle
         /// <param name="req"></param>
         /// <returns></returns>
         Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req);
+
+        /// <summary>
+        /// Clears any connection regardless of <see cref="ConnectionStatus"/>.
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
+        Task DeleteConnection(DotYouIdentity dotYouId);
     }
 }

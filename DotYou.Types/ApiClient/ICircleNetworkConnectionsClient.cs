@@ -12,17 +12,18 @@ namespace DotYou.Types.ApiClient
         
         [Get(root_path + "/unblock/{dotYouId}")]
         Task<ApiResponse<bool>> Unblock(string dotYouId);
-
         
         [Get(root_path + "/block/{dotYouId}")]
         Task<ApiResponse<bool>> Block(string dotYouId);
-        
-        
+
         [Get(root_path + "/disconnect/{dotYouId}")]
         Task<ApiResponse<bool>> Disconnect(string dotYouId);
 
         [Get(root_path + "/status/{dotYouId}")]
         Task<ApiResponse<ConnectionInfo>> GetStatus(string dotYouId);
+        
+        [Delete(root_path + "/{dotYouId}")]
+        Task<ApiResponse<bool>> Delete(string dotYouId);
 
         [Get(root_path + "/connected")]
         Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(PageOptions pageRequest, bool connectedContactsOnly);

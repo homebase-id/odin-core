@@ -31,7 +31,7 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
-        [Ignore("ignored until full update")]
+        [Ignore("need to update to new auth pattern")]
         public async Task FrodoCanLogInAndOutOfHisDigitalIdentityHost()
         {
             DotYouIdentity user = scaffold.Frodo;
@@ -55,10 +55,9 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
         }
 
         [Test]
-        [Ignore("nonce ignored until full update")]
+        [Ignore("need to update to new auth pattern")]
         public async Task FrodoCanGenerateNonce()
         {
-            Assert.IsFalse(true, "No longer working");
 
             string identity = scaffold.Frodo;
 
@@ -66,24 +65,11 @@ namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
+            
+            
             var response = await svc.GenerateNonce();
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get nonce for {identity}");
-
-            var clientNonce = response.Content;
-
-            PasswordReply clientReply = new PasswordReply()
-            {
-                Nonce64 = clientNonce.Nonce64,
-                // KeK64 = "todo",  XXX the culprit
-                NonceHashedPassword64 = "should be hashed "
-            };
-                
-            var authResponse = await svc.Authenticate(clientReply);
             
-            Assert.IsTrue(authResponse.IsSuccessStatusCode);
-            var authResult = authResponse.Content;
-            
-
         }
 
         // public async void FrodoCanExtendHisAuthenticationTokenLife()

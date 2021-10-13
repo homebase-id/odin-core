@@ -41,6 +41,11 @@ namespace DotYou.Kernel.Services.Circle
             _profileService = profileService;
         }
 
+        public async Task DeleteConnection(DotYouIdentity dotYouId)
+        {
+            WithTenantStorage<ConnectionInfo>(CONNECTIONS, s=>s.Delete(dotYouId));
+        }
+        
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             var info = await this.GetConnectionInfo(dotYouId);
