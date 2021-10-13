@@ -42,7 +42,7 @@ namespace DotYou.DigitalIdentityHost.Controllers
         }
 
         [HttpGet("status/{dotYouId}")]
-        public async Task<IActionResult> Status(string dotYouId)
+        public async Task<IActionResult> GetConnectionInfo(string dotYouId)
         {
             var result = await _circleNetwork.GetConnectionInfo((DotYouIdentity)dotYouId);
             return new JsonResult(result);

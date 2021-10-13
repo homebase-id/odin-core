@@ -1,4 +1,4 @@
-namespace DotYou.Kernel.Services.Circle
+namespace DotYou.Types.Circle
 {
     public enum ConnectionStatus
     {

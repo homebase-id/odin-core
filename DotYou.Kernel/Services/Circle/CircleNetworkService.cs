@@ -12,6 +12,7 @@ using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
+using DotYou.Types.Circle;
 using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
@@ -43,7 +44,7 @@ namespace DotYou.Kernel.Services.Circle
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             var info = await this.GetConnectionInfo(dotYouId);
-            if (null != info && info.Status == ConnectionStatus.Connected)
+            if (info is { Status: ConnectionStatus.Connected })
             {
                 info.Status = ConnectionStatus.None;
                 WithTenantStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));

@@ -1,5 +1,6 @@
 ﻿using DotYou.Types;
 using System.Threading.Tasks;
+using DotYou.Types.Circle;
 using DotYou.Types.DataAttribute;
 
 namespace DotYou.Kernel.Services.Circle

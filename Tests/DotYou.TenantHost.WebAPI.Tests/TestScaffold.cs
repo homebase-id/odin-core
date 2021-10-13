@@ -34,40 +34,51 @@ namespace DotYou.TenantHost.WebAPI.Tests
 
         public DotYouIdentity Frodo = (DotYouIdentity)"frodobaggins.me";
         public DotYouIdentity Samwise = (DotYouIdentity)"samwisegamgee.me";
+        
+        public string TestDataPath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", _folder);
+        public string LogFilePath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoulogs", _folder);
 
         [OneTimeSetUp]
         public void RunBeforeAnyTests(bool startWebserver = true)
         {
-            string testDataPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "dotyoudata", _folder);
-            string logFilePath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "dotyoulogs", _folder);
+            this.DeleteData();
+            this.DeleteLogs();
 
-            if (Directory.Exists(testDataPath))
-            {
-                Console.WriteLine($"Removing data in [{testDataPath}]");
-                Directory.Delete(testDataPath, true);
-            }
-
-            if (Directory.Exists(logFilePath))
-            {
-                Console.WriteLine($"Removing data in [{logFilePath}]");
-                Directory.Delete(logFilePath, true);
-            }
-
-            Directory.CreateDirectory(testDataPath);
-            Directory.CreateDirectory(logFilePath);
-
-            _registry = new IdentityContextRegistry(testDataPath);
+            _registry = new IdentityContextRegistry(TestDataPath);
             _registry.Initialize();
 
             if (startWebserver)
             {
                 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+                Environment.SetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", "1");
                 var args = new string[2];
-                args[0] = testDataPath;
-                args[1] = logFilePath;
+                args[0] = TestDataPath;
+                args[1] = LogFilePath;
                 _webserver = Program.CreateHostBuilder(args).Build();
                 _webserver.Start();
             }
+        }
+
+        public void DeleteData()
+        {
+            if (Directory.Exists(TestDataPath))
+            {
+                Console.WriteLine($"Removing data in [{TestDataPath}]");
+                Directory.Delete(TestDataPath, true);
+            }
+            
+            Directory.CreateDirectory(TestDataPath);
+        }
+        
+        public void DeleteLogs()
+        {
+            if (Directory.Exists(LogFilePath))
+            {
+                Console.WriteLine($"Removing data in [{LogFilePath}]");
+                Directory.Delete(LogFilePath, true);
+            }
+
+            Directory.CreateDirectory(LogFilePath);
         }
 
         [OneTimeTearDown]

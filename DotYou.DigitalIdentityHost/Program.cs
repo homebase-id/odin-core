@@ -1,11 +1,9 @@
 using System;
 using System.IO;
-using System.Security.Authentication;
 using DotYou.DigitalIdentityHost;
 using DotYou.DigitalIdentityHost.IdentityRegistry;
 using DotYou.IdentityRegistry;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,13 +30,24 @@ namespace DotYou.TenantHost
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("Includes-RPC v12");
             CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             Config config = LoadConfig();
+            
+            //HACK: overriding the data and log file paths so the test runner can set the path.  need to overhaul this config loading process
+            if (args.Length >=1)
+            {
+                config.TenantDataRootPath = args[0];
+            }
+
+            if (args.Length == 2)
+            {
+                config.LogFilePath = args[1];
+            }
+            
             Directory.CreateDirectory(config.LogFilePath);
             
             var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";

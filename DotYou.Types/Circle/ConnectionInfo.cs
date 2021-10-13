@@ -1,7 +1,6 @@
 using System;
-using DotYou.Types;
 
-namespace DotYou.Kernel.Services.Circle
+namespace DotYou.Types.Circle
 {
     public class ConnectionInfo: DotYouIdBase
     {

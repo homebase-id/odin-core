@@ -67,7 +67,6 @@ namespace DotYou.DigitalIdentityHost.Controllers
             return new JsonResult(result);
         }
 
-
         [HttpDelete("sent/{recipientDotYouId}")]
         public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
         { 
