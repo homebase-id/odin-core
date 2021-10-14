@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotYou.Kernel.Cryptography;
+using System;
 
 namespace DotYou.Kernel.Services.Admin.Authentication
 {

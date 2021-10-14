@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dawn;
 using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
+using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Circle;
@@ -295,9 +296,15 @@ namespace DotYou.DigitalIdentityHost
             var storage = reg.ResolveStorageConfig(hostname);
 
             var user = httpContext.User;
+
+            //TODO: is there a way to delete the claim's reference to they kek?
+            var kek = user.FindFirstValue(DotYouClaimTypes.LoginKek);
+            SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
+
             var caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
-                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower())
+                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                loginKek: chk
             );
 
             var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);

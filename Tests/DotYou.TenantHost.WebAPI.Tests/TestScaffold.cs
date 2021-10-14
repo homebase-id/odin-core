@@ -23,7 +23,7 @@ namespace DotYou.TenantHost.WebAPI.Tests
     {
         private string _folder;
         private IHost _webserver;
-        private Dictionary<string, AuthenticationResult> tokens = new Dictionary<string, AuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, DotYouAuthenticationResult> tokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
 
         IdentityContextRegistry _registry;
 
@@ -146,11 +146,11 @@ namespace DotYou.TenantHost.WebAPI.Tests
             var tokenCookie = HttpUtility.UrlDecode(cookies[DotYouAuthConstants.TokenKey]?.Value);
             
 
-            Assert.IsTrue(AuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
+            Assert.IsTrue(DotYouAuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
-            var newToken = result.Token;
+            var newToken = result.SessionToken;
             Assert.IsTrue(newToken != Guid.Empty);
-            Assert.IsTrue(result.Token2 != Guid.Empty);
+            Assert.IsTrue(result.ClientHalfKek.IsSet());
 
             tokens.Add(identity, result);
             return result.ToString();

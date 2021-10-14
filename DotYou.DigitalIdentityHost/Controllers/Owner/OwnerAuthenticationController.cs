@@ -45,8 +45,8 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
             try
             {
                 var value = Request.Cookies[DotYouAuthConstants.TokenKey];
-                var result = AuthenticationResult.Parse(value);
-                var isValid = await _authService.IsValidToken(result.Token);
+                var result = DotYouAuthenticationResult.Parse(value);
+                var isValid = await _authService.IsValidToken(result.SessionToken);
                 return new JsonResult(isValid);
             }
             catch
@@ -80,7 +80,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
                
                 //set the cookies like normal to keep the browser logged in.  this will ensure
                 //the user does not have to authenticate across multiple apps
-                var value = $"{deviceAuth.AuthenticationResult.Token}|{deviceAuth.AuthenticationResult.Token2}";
+                var value = $"{deviceAuth.AuthenticationResult.SessionToken}|{deviceAuth.AuthenticationResult.ClientHalfKek}";
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
                 Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
                 
@@ -97,8 +97,8 @@ namespace DotYou.DigitalIdentityHost.Controllers.Owner
         public async Task<IActionResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[DotYouAuthConstants.TokenKey];
-            var result = AuthenticationResult.Parse(value);
-            _authService.ExpireToken(result.Token);
+            var result = DotYouAuthenticationResult.Parse(value);
+            _authService.ExpireToken(result.SessionToken);
             
             Response.Cookies.Delete(DotYouAuthConstants.TokenKey);
             

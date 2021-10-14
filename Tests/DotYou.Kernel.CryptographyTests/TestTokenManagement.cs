@@ -25,7 +25,7 @@ namespace DotYou.Kernel.CryptographyTests
             // validate the encryption keys match up from creation to decryption.
 
             // Pre-requisites
-            var loginKek = YFByteArray.GetRndByteArray(16); // Simulate pre-existing
+            var loginKek = new SecureKey(YFByteArray.GetRndByteArray(16)); // Simulate pre-existing
 
             // Create a new application and link the first client to it
 
@@ -33,20 +33,11 @@ namespace DotYou.Kernel.CryptographyTests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppTokenManager.CreateApplication("chat", loginKek);
+            var appToken = AppRegistrationManager.CreateApplication(loginKek);
 
             // Now create a mapping from a client device/app to the application token above
 
-            // First get the applicationKek
-            var applicationKek = AppTokenManager.MasterGetApplicationKek(appToken, loginKek);
-            var applicationDek = AppTokenManager.MasterGetApplicationDek(appToken, loginKek);
-            var applicationDek2 = AppTokenManager.GetApplicationDek(appToken, applicationKek);
-
-            if (YFByteArray.EquiByteArrayCompare(applicationDek, applicationDek2) == false)
-            {
-                Assert.Fail();
-                return;
-            }
+            var applicationDek = AppRegistrationManager.GetApplicationDekWithLogin(appToken, loginKek);
 
             Assert.Pass();
         }
@@ -56,7 +47,7 @@ namespace DotYou.Kernel.CryptographyTests
         public void TokenBase2Pass()
         {
             // Pre-requisites
-            var loginKek = YFByteArray.GetRndByteArray(16); // Pre-existing
+            var loginKek = new SecureKey(YFByteArray.GetRndByteArray(16)); // Pre-existing
 
             // Create a new application and link the first client to it
 
@@ -64,27 +55,29 @@ namespace DotYou.Kernel.CryptographyTests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppTokenManager.CreateApplication("chat", loginKek);
+            var appToken = AppRegistrationManager.CreateApplication(loginKek);
 
             // Now create a mapping from a client device/app to the application token above
 
-            // First get the applicationKek
-            var applicationKek = AppTokenManager.MasterGetApplicationKek(appToken, loginKek);
+            // First get the application DEK
+            var appDekViaLogin = AppRegistrationManager.GetApplicationDekWithLogin(appToken, loginKek);
 
             // Now create the mapping
-            var (cookie2, clientToken) = AppClientTokenManager.CreateClientToken(appToken.id, applicationKek);
+            // TODO: xxx the id needs to be removed
+            var (halfKey, clientToken) = AppClientTokenManager.CreateClientToken(YFByteArray.GetRndByteArray(16), appDekViaLogin.GetKey());
 
-            var appKek2 = AppClientTokenManager.GetApplicationKek(clientToken, cookie2);
+            // The two cookies / keys to give to the client are:
+            //   clientToken.TokenId ["Token"]
+            //   cookie2             ["Half"]
 
-            if (YFByteArray.EquiByteArrayCompare(applicationKek, appKek2) == false)
+            var appDekViaCookies = AppClientTokenManager.GetApplicationDek(clientToken, halfKey);
+
+            if (YFByteArray.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()) == false)
             {
                 Assert.Fail();
                 return;
             }
 
-            // The two cookies / keys to give to the client are:
-            //   clientToken.TokenId ["Token"]
-            //   cookie2             ["Half"]
         }
 
     }

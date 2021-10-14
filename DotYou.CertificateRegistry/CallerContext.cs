@@ -1,3 +1,4 @@
+using DotYou.Kernel.Cryptography;
 using DotYou.Types;
 
 namespace DotYou.IdentityRegistry
@@ -7,10 +8,13 @@ namespace DotYou.IdentityRegistry
     /// </summary>
     public class CallerContext
     {
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner)
+        private readonly SecureKey _loginKek;
+
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey loginKek)
         {
             this.DotYouId = dotYouId;
-            IsOwner = isOwner;
+            this.IsOwner = isOwner;
+            this._loginKek = loginKek;
         }
 
         /// <summary>
@@ -22,6 +26,16 @@ namespace DotYou.IdentityRegistry
         /// Specifies if the caller to the service is the owner of the DotYouId being acted upon.
         /// </summary>
         public bool IsOwner { get; }
+
+
+        /// <summary>
+        /// Returns the login kek if the owner is logged; otherwise null
+        /// </summary>
+        public SecureKey GetLoginKek()
+        {
+            //TODO: add audit point
+            return this._loginKek;
+        }
 
     }
 }
