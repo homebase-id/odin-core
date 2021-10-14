@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Types.Cryptography;
+using DotYou.Kernel.Cryptography;
 using Refit;
 
 namespace DotYou.Types.ApiClient

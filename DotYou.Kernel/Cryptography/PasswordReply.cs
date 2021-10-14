@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Types.Cryptography
+namespace DotYou.Kernel.Cryptography
 {
     /// <summary>
     /// Holds the values when the client creates a new Digital Identity

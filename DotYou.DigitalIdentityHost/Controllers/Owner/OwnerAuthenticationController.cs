@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
