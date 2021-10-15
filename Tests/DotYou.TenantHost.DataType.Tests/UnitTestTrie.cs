@@ -22,7 +22,7 @@ namespace TrieUnitTest
             {
                 t.AddDomain("local.youfoundation.com", e);
             }
-            catch (EmptyKeyNotAllowed)
+            catch (EmptyKeyNotAllowedException)
             {
                 Assert.Pass();
                 return;
@@ -40,7 +40,7 @@ namespace TrieUnitTest
             {
                 t.AddDomain("", Guid.NewGuid());
             }
-            catch (DomainTooShort)
+            catch (DomainTooShortException)
             {
                 Assert.Pass();
                 return;
@@ -79,7 +79,7 @@ namespace TrieUnitTest
             {
                 t.AddDomain(";.com", Guid.NewGuid());
             }
-            catch (DomainIllegalCharacter)
+            catch (DomainIllegalCharacterException)
             {
                 Assert.Pass();
                 return;
@@ -116,7 +116,7 @@ namespace TrieUnitTest
                 t.AddDomain("local.youfoundation.com", Guid.NewGuid());
                 t.AddDomain("local.youfoundation.com", Guid.NewGuid());
             }
-            catch (DomainHierarchyNotUnique)
+            catch (DomainHierarchyNotUniqueException)
             {
                 Assert.Pass();
                 return;

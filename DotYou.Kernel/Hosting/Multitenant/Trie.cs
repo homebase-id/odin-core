@@ -161,10 +161,10 @@ namespace DotYou.IdentityRegistry
         private void AddName(string sName, T Key)
         {
             if (sName.Length < 1)
-                throw new DomainTooShort();
+                throw new DomainTooShortException();
 
             if (EqualityComparer<T>.Default.Equals(Key, default))
-                throw new EmptyKeyNotAllowed();
+                throw new EmptyKeyNotAllowedException();
 
             // Add the domain name to the Trie - backwards (important)
             //
@@ -180,7 +180,7 @@ namespace DotYou.IdentityRegistry
                 c = m_aTrieMap[sName[i] & 127]; // Map and ignore case
 
                 if (c == 128) // Illegal character
-                    throw new DomainIllegalCharacter();
+                    throw new DomainIllegalCharacterException();
 
                 if (p.NodeArray == null)
                     CreateArray(ref p);
@@ -207,7 +207,7 @@ namespace DotYou.IdentityRegistry
             if (IsDomainUniqueInHierarchy(sName) == false)
             {
                 TrieMutex.ReleaseMutex();
-                throw new DomainHierarchyNotUnique();
+                throw new DomainHierarchyNotUniqueException();
             }
 
             try
@@ -230,7 +230,7 @@ namespace DotYou.IdentityRegistry
         private void RemoveName(string sName)
         {
             if (sName.Length < 1)
-                throw new DomainTooShort();
+                throw new DomainTooShortException();
 
             // Remove the domain name to the Trie - backwards (important)
             //

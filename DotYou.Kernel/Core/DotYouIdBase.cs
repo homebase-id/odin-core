@@ -1,5 +1,4 @@
-﻿using System;
-using DotYou.Types.DataAttribute;
+using System;
 
 namespace DotYou.Types
 {
@@ -22,17 +21,5 @@ namespace DotYou.Types
         /// Specifies the DI address for this Human
         /// </summary>
         public DotYouIdentity DotYouId { get; init; }
-    }
-
-    public class DotYouProfile : DotYouIdBase
-    {
-        public NameAttribute Name { get; init; }
-
-        /// <summary>
-        /// A base64 string of this <see cref="DotYouId"/>'s public key certificate.
-        /// </summary>
-        public string PublicKeyCertificate { get; init; }
-
-        public string AvatarUri { get; init; }
     }
 }

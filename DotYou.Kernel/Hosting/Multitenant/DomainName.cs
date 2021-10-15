@@ -40,16 +40,16 @@ namespace DotYou.IdentityRegistry
                 throw new DomainTooLong(); // Too long
 
             if (domain.Length < 3)
-                throw new DomainTooShort(); // Too short (a.a minimum)
+                throw new DomainTooShortException(); // Too short (a.a minimum)
 
             var labels = domain.Split('.');
 
             if (labels.Length < 2)
-                throw new DomainNeedsTwoLabels(); // Need at least two labels
+                throw new DomainNeedsTwoLabelsException(); // Need at least two labels
 
             for (var i = 0; i < labels.Length; i++)
                 if (ValidLabel(labels[i]) == false)
-                    throw new DomainIllegalCharacter();
+                    throw new DomainIllegalCharacterException();
             // All clear
         }
 
