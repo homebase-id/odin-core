@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using DotYou.Types;
-using InvalidDataException = DotYou.Types.InvalidDataException;
 
 namespace DotYou.IdentityRegistry
 {

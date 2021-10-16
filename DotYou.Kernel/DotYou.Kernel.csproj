@@ -16,9 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DotYou.CertificateRegistry\DotYou.CertificateRegistry.csproj" />
     <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Core\Identity" />
+    <ProjectReference Include="..\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
+    <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
   </ItemGroup>
 </Project>

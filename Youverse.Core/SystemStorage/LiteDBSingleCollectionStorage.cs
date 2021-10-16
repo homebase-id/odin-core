@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using DotYou.Types.Messaging;
 
 namespace DotYou.Kernel.Storage
 {

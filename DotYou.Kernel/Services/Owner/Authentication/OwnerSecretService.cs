@@ -9,7 +9,6 @@ using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
 using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Logging;
-using InvalidDataException = DotYou.Types.InvalidDataException;
 
 namespace DotYou.Kernel.Services.Owner.Authentication
 {
