@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>DotYou.Kernel</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,5 +19,11 @@
     <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
     <ProjectReference Include="..\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
     <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\Contacts" />
+    <Folder Include="Services\Storage" />
+    <Folder Include="Services\Transit" />
   </ItemGroup>
 </Project>

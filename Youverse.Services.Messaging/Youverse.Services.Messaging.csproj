@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <RootNamespace>Youverse.Core.Services</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
+      <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
+    </ItemGroup>
+
+</Project>

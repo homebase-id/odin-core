@@ -5,7 +5,7 @@ using DotYou.Types;
 namespace DotYou.IdentityRegistry
 {
     /// <summary>
-    /// Contains all information required to execute commands in the DotYou.Kernel services.
+    /// Contains all information required to execute commands in the Youverse.Core.Services services.
     /// </summary>
     public class DotYouContext
     {

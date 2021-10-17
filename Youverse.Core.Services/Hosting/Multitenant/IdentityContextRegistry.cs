@@ -10,7 +10,7 @@ namespace DotYou.IdentityRegistry
     /// used to quickly lookup an identity for an incoming request
     /// </summary>
     /// Note: this is marked internal to ensure code running in a given instance 
-    /// of any class in DotYou.Kernel.* cannot access other Identities
+    /// of any class in Youverse.Core.Services.* cannot access other Identities
     public class IdentityContextRegistry : IIdentityContextRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();

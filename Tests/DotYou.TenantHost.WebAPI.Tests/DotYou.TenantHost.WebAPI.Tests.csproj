@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\DotYou.Kernel\DotYou.Kernel.csproj" />
-    <ProjectReference Include="..\..\DotYou.DigitalIdentityHost\DotYou.DigitalIdentityHost.csproj" />
+    <ProjectReference Include="..\..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
+    <ProjectReference Include="..\..\Youverse.Hosting\Youverse.Hosting.csproj" />
     <ProjectReference Include="..\..\DotYou.Types\DotYou.Types.csproj" />
   </ItemGroup>
 

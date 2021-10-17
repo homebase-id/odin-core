@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.Kernel", "DotYou.Kernel\DotYou.Kernel.csproj", "{6BCBC06F-E07B-4952-9A63-832F26B0891B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Services", "Youverse.Core.Services\Youverse.Core.Services.csproj", "{6BCBC06F-E07B-4952-9A63-832F26B0891B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotYou.DigitalIdentityHost", "DotYou.DigitalIdentityHost\DotYou.DigitalIdentityHost.csproj", "{BC28F7AF-BD57-4137-9629-716E5A1DC2E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Hosting", "Youverse.Hosting\Youverse.Hosting.csproj", "{BC28F7AF-BD57-4137-9629-716E5A1DC2E9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A98EA801-5CF3-4550-920B-F48963F4C123}"
 EndProject
@@ -20,6 +20,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core", "Youverse.Core\Youverse.Core.csproj", "{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography", "Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj", "{37FCB7C5-17AF-4515-9F11-F275201504A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Services.Messaging", "Youverse.Services.Messaging\Youverse.Services.Messaging.csproj", "{30F40936-61BE-4AED-85D5-89251153E20A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +61,10 @@ Global
 		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30F40936-61BE-4AED-85D5-89251153E20A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30F40936-61BE-4AED-85D5-89251153E20A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30F40936-61BE-4AED-85D5-89251153E20A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30F40936-61BE-4AED-85D5-89251153E20A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
