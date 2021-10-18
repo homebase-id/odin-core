@@ -1,11 +1,9 @@
-﻿using DotYou.AdminClient.Extensions;
-using DotYou.Kernel.Services.Admin.Authentication;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using Youverse.Core.Cryptography.Data;
 
-
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography.Crypto
 {
     // So it's slightly messy to mix up the version with encrypted and unencrypted private key.
     // Not sure if I should break it into two almost identical classes.

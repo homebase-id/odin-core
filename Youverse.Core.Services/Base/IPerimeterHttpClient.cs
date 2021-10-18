@@ -4,6 +4,8 @@ using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Circle;
 using Refit;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.HttpClient
 {

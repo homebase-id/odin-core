@@ -1,4 +1,4 @@
-namespace DotYou.Kernel.Services.Identity
+namespace Youverse.Core.Util
 {
     public static class CertificateUtils
     {

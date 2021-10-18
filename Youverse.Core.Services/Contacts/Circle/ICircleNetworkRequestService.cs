@@ -2,6 +2,8 @@
 using System.Threading.Tasks;
 using DotYou.Types;
 using DotYou.Types.Circle;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.Services.Circle
 {

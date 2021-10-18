@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Trie
 {
     [Serializable]
     public class DomainTooLong : Exception

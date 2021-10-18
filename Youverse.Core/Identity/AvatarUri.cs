@@ -1,4 +1,4 @@
-﻿namespace DotYou.Types
+﻿namespace Youverse.Core.Identity
 {
     public class AvatarUri
     {

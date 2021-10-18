@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     public class AnniversaryAttribute : BaseAttribute
     {

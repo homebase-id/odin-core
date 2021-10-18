@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Trie
 {
     public class Trie<T> // where T : class
     {

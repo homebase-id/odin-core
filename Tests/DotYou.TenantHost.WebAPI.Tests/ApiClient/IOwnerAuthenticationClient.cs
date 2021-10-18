@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Cryptography;
 using Refit;
+using Youverse.Core;
+using Youverse.Core.Cryptography;
 
 namespace DotYou.Types.ApiClient
 {

@@ -17,6 +17,9 @@ using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Refit;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Util;
 using Youverse.Services.Messaging;
 
 namespace DotYou.Kernel.Services.Messaging.Chat

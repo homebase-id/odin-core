@@ -1,6 +1,6 @@
 using System;
 
-namespace DotYou.Types
+namespace Youverse.Core.Identity
 {
     /// <summary>
     /// Base class for any which need their ID to be based on the <see cref="DotYouIdentity"/>.  This is useful for storage in LiteDB

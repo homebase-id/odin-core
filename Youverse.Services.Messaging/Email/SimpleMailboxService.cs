@@ -4,6 +4,7 @@ using DotYou.IdentityRegistry;
 using DotYou.Types;
 using DotYou.Types.Messaging;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
 
 namespace DotYou.Kernel.Services.Messaging.Email
 {

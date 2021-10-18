@@ -6,6 +6,8 @@ using DotYou.Types;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Messaging
 {

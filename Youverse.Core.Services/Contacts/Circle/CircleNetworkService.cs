@@ -13,9 +13,12 @@ using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Types.Circle;
-using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Util;
 
 namespace DotYou.Kernel.Services.Circle
 {

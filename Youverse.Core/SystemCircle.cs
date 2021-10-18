@@ -1,4 +1,6 @@
-﻿namespace DotYou.Types
+﻿using Youverse.Core.Identity;
+
+namespace Youverse.Core
 {
     /// <summary>
     /// Specifies the nature of the relationship of the contact to this <see cref="DotYouIdentity"/>.

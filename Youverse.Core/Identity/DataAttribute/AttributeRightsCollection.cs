@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     /// <summary>
     /// These access right flags are for attributes. For each actor on an attribute, these

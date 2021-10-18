@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     /// <summary>
     /// Holds the values when the client creates a new Digital Identity

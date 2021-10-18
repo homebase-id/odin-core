@@ -3,12 +3,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Kernel.Storage;
 using DotYou.Types;
-using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.SystemStorage;
 
 /// <summary>
 /// Goals here are that:

@@ -1,9 +1,8 @@
-﻿using DotYou.Types;
-using System;
+﻿using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace DotYou.Kernel.Storage
+namespace Youverse.Core.SystemStorage
 {
     public interface IStorage<T> : IDisposable
     {

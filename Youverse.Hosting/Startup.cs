@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Dawn;
 using DotYou.DigitalIdentityHost.Controllers.Perimeter;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services;
 using DotYou.Kernel.Services.Circle;
@@ -38,6 +37,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
+using Youverse.Core.Util;
 
 namespace DotYou.DigitalIdentityHost
 {

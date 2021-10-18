@@ -1,4 +1,4 @@
-﻿namespace DotYou.Types.DataAttribute
+﻿namespace Youverse.Core.Identity.DataAttribute
 {
     public enum AttributeTypes
     {

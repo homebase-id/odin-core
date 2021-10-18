@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography.Crypto
 {
     public static class CRC32C
     {

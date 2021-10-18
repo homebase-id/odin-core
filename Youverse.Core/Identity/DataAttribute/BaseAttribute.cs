@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     // XXX I'd like the Id and AttrType to be readonly 
     public abstract class BaseAttribute

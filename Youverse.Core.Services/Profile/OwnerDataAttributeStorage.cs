@@ -4,8 +4,9 @@ using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {

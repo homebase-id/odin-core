@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     // A global actor constant... Need to make it 'better' :-)
     // #define ActorEveryone "@_everyone" is my kind of tea for that :oD

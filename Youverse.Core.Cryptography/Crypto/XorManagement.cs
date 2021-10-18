@@ -1,9 +1,4 @@
-﻿using DotYou.AdminClient.Extensions;
-using System;
-using System.Security.Cryptography;
-using System.Text;
-
-namespace DotYou.Kernel.Cryptography
+﻿namespace Youverse.Core.Cryptography.Crypto
 {
     public static class XorManagement
     {

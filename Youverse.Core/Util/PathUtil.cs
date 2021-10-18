@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace DotYou.Types
+namespace Youverse.Core.Util
 {
     public static class PathUtil
     {

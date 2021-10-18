@@ -6,6 +6,8 @@ using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Contacts;
 using DotYou.Types;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.Services.Profile
 {

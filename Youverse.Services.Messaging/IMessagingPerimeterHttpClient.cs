@@ -5,6 +5,7 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using DotYou.Types.Messaging;
 using Refit;
+using Youverse.Core;
 
 namespace Youverse.Services.Messaging
 {

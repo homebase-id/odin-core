@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using DotYou.Types.Circle;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.Messaging
 {

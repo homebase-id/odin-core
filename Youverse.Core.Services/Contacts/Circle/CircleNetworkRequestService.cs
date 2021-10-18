@@ -8,10 +8,11 @@ using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Owner.Data;
 using DotYou.Types;
 using DotYou.Types.Circle;
-using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.Services.Circle
 {

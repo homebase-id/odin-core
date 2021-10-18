@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
-using DotYou.Types.DataAttribute;
 using Refit;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Types.ApiClient
 {

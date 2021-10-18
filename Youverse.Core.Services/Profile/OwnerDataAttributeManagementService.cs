@@ -2,9 +2,10 @@ using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
 using Microsoft.AspNetCore.SignalR.Internal;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {

@@ -6,10 +6,12 @@ using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Circle;
 using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {

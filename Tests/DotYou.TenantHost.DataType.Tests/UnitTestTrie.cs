@@ -2,6 +2,7 @@ using DotYou.TenantHost;
 using NUnit.Framework;
 using System;
 using DotYou.IdentityRegistry;
+using Youverse.Core.Trie;
 
 namespace TrieUnitTest
 {

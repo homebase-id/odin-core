@@ -1,13 +1,11 @@
-﻿using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Types.Cryptography;
+﻿using System;
+using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Newtonsoft.Json;
-using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Text;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     public static class LoginKeyManager
     {

@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using DotYou.Kernel.Services.DataAttribute;
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {

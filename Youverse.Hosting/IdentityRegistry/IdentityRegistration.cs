@@ -1,6 +1,7 @@
 using System;
 using DotYou.Types;
 using MessagePack;
+using Youverse.Core.Util;
 
 namespace DotYou.DigitalIdentityHost.IdentityRegistry
 {

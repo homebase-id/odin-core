@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     /// <summary>
     /// Use this class to store any "secret" byte[] in memory. The secret will

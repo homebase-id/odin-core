@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
-using DotYou.Types.Cryptography;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core.Identity;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {

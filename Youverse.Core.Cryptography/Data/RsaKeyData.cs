@@ -1,7 +1,7 @@
 ﻿
 using System;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace Youverse.Core.Cryptography.Data
 {
     public class RsaKeyData
     {

@@ -6,6 +6,8 @@ using DotYou.TenantHost;
 using DotYou.Types;
 using Grpc.Net.Client;
 using MagicOnion.Client;
+using Youverse.Core;
+using Youverse.Core.Trie;
 
 namespace DotYou.DigitalIdentityHost.IdentityRegistry
 {

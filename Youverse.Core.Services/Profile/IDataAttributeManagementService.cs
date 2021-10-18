@@ -1,7 +1,9 @@
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
 using System;
 using System.Threading.Tasks;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.DataAttribute
 {

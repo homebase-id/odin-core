@@ -3,9 +3,11 @@ using DotYou.Kernel.Services.Authorization;
 using DotYou.Kernel.Services.Owner.Data;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
-using DotYou.Types.DataAttribute;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Owner
 {

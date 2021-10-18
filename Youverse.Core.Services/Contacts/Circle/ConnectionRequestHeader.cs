@@ -1,5 +1,6 @@
 ﻿using System;
 using Newtonsoft.Json;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.Circle
 {

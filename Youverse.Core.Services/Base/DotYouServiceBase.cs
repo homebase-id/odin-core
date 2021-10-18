@@ -1,5 +1,4 @@
-﻿using DotYou.Kernel.Storage;
-using DotYou.Types;
+﻿using DotYou.Types;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Security;
@@ -9,6 +8,9 @@ using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
+using Youverse.Core;
+using Youverse.Core.Identity;
+using Youverse.Core.SystemStorage;
 
 namespace DotYou.Kernel.Services
 {

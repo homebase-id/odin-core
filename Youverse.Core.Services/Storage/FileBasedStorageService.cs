@@ -3,8 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Storage;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.SystemStorage;
 
 namespace DotYou.Kernel.Services.MediaService
 {

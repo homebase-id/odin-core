@@ -1,8 +1,6 @@
-﻿
-using DotYou.Kernel.Cryptography;
-using System;
+﻿using System;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace Youverse.Core.Cryptography.Data
 {
     // This token (table) maps between a client's token cookie 
     // and the AppTokenData table. E.g. imagine two chat clients

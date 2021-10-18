@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.AdminClient.Extensions
+namespace Youverse.Core.Cryptography.Utility
 {
     public static class DateTimeExtensions
     {

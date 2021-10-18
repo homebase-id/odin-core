@@ -1,5 +1,5 @@
 ﻿using System;
-using DotYou.Types.DataAttribute;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Owner.Data
 {

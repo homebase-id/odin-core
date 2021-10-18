@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
-using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
 
 namespace DotYou.Kernel.Services.Owner.Authentication
 {

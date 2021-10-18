@@ -1,15 +1,13 @@
-﻿using DotYou.Types;
-using LiteDB;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using LiteDB;
+using Microsoft.Extensions.Logging;
 
-namespace DotYou.Kernel.Storage
+namespace Youverse.Core.SystemStorage
 {
     //TODO: need to add support for unique keys in the storage
 

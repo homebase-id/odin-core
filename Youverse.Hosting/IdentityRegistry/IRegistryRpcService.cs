@@ -1,5 +1,6 @@
 using DotYou.Types;
 using MagicOnion;
+using Youverse.Core;
 
 namespace DotYou.DigitalIdentityHost.IdentityRegistry
 {

@@ -3,8 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography.Crypto
 {
     /// <summary>
     /// We may want to switch to AES-CTR. Not sure. If we do, AES CTR is not supported by

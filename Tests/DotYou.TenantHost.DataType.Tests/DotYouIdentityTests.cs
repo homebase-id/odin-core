@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.Tests
 {

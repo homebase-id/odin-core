@@ -2,7 +2,7 @@
 using MessagePack;
 using Newtonsoft.Json;
 
-namespace DotYou.Types
+namespace Youverse.Core
 {
 
     /// <summary>

@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
-using DotYou.AdminClient.Extensions;
-using DotYou.Kernel.Services.Admin.Authentication;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Cryptography.Utility;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography.Crypto
 {
     // Unfortunately, the C# class RSACng() is the only class compatible with
     // the javaScript crypto.subtle. We need that compatibility. So either poke

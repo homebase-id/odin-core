@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.Circle
 {

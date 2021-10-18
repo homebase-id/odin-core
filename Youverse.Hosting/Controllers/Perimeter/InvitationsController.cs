@@ -5,6 +5,7 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {

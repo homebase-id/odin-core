@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Types
+namespace Youverse.Core
 {
     /// <summary>
     /// A set of results from a query which is based on a given date range.

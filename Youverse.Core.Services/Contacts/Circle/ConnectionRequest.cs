@@ -1,7 +1,8 @@
 ﻿using System;
 using Dawn;
-using DotYou.Types.DataAttribute;
 using Newtonsoft.Json;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Types.Circle
 {

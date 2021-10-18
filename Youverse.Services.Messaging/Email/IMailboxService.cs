@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using DotYou.Types;
 using DotYou.Types.Messaging;
+using Youverse.Core;
 
 namespace DotYou.Kernel.Services.Messaging.Email
 {

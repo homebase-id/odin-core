@@ -7,6 +7,8 @@ using DotYou.Types;
 using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.DigitalIdentityHost.Controllers
 {

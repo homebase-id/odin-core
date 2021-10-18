@@ -1,4 +1,4 @@
-namespace DotYou.Types
+namespace Youverse.Core.Util
 {
     public static class ValidationUtil
     {

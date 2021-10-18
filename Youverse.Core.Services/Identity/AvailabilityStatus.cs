@@ -1,4 +1,5 @@
 ﻿using System;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.Admin
 {

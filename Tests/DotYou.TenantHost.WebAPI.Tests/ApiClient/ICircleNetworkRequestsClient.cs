@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using DotYou.Types.Circle;
 using Refit;
+using Youverse.Core;
 
 namespace DotYou.Types.ApiClient
 {

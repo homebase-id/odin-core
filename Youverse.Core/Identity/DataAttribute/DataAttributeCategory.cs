@@ -1,6 +1,6 @@
 using System;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     public class DataAttributeCategory
     {

@@ -1,8 +1,7 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Types;
-using DotYou.Types.Cryptography;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 
 namespace DotYou.Kernel.Services.Owner.Authentication
 {

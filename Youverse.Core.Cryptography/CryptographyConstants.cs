@@ -1,4 +1,4 @@
-﻿namespace DotYou.Types.Cryptography
+﻿namespace Youverse.Core.Cryptography
 {
     public static class CryptographyConstants
     {

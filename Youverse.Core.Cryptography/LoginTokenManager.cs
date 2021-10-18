@@ -1,6 +1,6 @@
-﻿using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Types.Cryptography;
-using System;
+﻿using System;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
 
 //
 // After lots of thinking I strongly discourage expiring the login cookie(s).
@@ -21,7 +21,7 @@ using System;
 // enter their password because they get the same annoying dialog once+ per month.
 //
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
 
     public static class LoginTokenManager

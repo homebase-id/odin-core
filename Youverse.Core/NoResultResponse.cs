@@ -1,4 +1,4 @@
-﻿namespace DotYou.Types
+﻿namespace Youverse.Core
 {
     /// <summary>
     /// Result when calling API functions like delete or create which do not require a complex response.

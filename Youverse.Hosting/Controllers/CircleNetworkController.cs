@@ -4,6 +4,8 @@ using DotYou.Kernel.Services.Circle;
 using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.DigitalIdentityHost.Controllers
 {

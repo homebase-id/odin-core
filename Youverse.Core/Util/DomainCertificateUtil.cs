@@ -1,9 +1,9 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Dawn;
-using DotYou.Types;
+using Youverse.Core.Identity;
 
-namespace DotYou.Kernel.Services.Identity
+namespace Youverse.Core.Util
 {
     public class DomainCertificateUtil
     {

@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
-namespace DotYou.Types
+namespace Youverse.Core.Identity
 {
     public class DotYouIdentityConverter : JsonConverter<DotYouIdentity>
     {

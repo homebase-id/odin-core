@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace DotYou.Kernel.Services.Admin.Authentication
+namespace Youverse.Core.Cryptography.Data
 {
     // This class should be stored on the identity
     public class RsaKeyListData

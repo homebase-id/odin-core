@@ -6,6 +6,8 @@ using DotYou.Kernel.Services.MediaService;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.Messaging;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.Services.Messaging.Chat
 {

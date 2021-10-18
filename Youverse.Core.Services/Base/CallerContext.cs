@@ -1,5 +1,6 @@
-using DotYou.Kernel.Cryptography;
 using DotYou.Types;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
 
 namespace DotYou.IdentityRegistry
 {

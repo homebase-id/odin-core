@@ -1,9 +1,9 @@
-﻿using DotYou.AdminClient.Extensions;
-using System;
+﻿using System;
 using System.Text;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Utility;
 
-
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     public class CryptoniteKey
     {

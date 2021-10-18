@@ -1,5 +1,6 @@
-﻿using DotYou.Kernel.Services.Admin.Authentication;
-using System;
+﻿using System;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
 
 //
 // This is the mapping table between a client's cookies and the
@@ -21,7 +22,7 @@ using System;
 //     List<TokenClientAppplicationManager> tokenClientApplicationList;
 //
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     public static class AppClientTokenManager
     {

@@ -1,9 +1,7 @@
-﻿using DotYou.AdminClient.Extensions;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Security.Cryptography;
 
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography
 {
     public class NonceEntry
     {

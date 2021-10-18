@@ -3,6 +3,7 @@ using DotYou.Kernel.Services.Messaging.Email;
 using DotYou.Types;
 using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
 {

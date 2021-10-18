@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Cryptography;
 using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
-using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Cryptography;
 
 namespace DotYou.DigitalIdentityHost.Controllers.Owner
 {

@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Diagnostics.Contracts;
 using System.Text.Json.Serialization;
 using LiteDB;
+using Youverse.Core.Util;
 
-namespace DotYou.Types
+namespace Youverse.Core.Identity
 {
     /// <summary>
     /// Holds the identity for an individual using the dotYou platform

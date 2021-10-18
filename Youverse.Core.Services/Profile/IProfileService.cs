@@ -2,6 +2,8 @@
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using DotYou.Types;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.Services.Contacts
 {

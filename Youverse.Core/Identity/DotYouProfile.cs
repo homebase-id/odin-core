@@ -1,6 +1,6 @@
-﻿using DotYou.Types.DataAttribute;
+﻿using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Types
+namespace Youverse.Core.Identity
 {
     public class DotYouProfile : DotYouIdBase
     {

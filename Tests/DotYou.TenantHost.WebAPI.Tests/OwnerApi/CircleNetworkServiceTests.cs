@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using DotYou.Types.ApiClient;
+using Youverse.Core;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {

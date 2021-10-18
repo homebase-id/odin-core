@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using MessagePack;
 
-namespace DotYou.Types
+namespace Youverse.Core
 {
     [MessagePackObject]
     public class PagedResult<T>

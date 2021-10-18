@@ -4,6 +4,7 @@ using System.Security.Authentication;
 using DotYou.IdentityRegistry;
 using DotYou.Types;
 using Refit;
+using Youverse.Core.Identity;
 
 namespace DotYou.Kernel.HttpClient
 {

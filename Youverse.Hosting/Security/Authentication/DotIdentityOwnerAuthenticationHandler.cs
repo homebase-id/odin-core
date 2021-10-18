@@ -4,8 +4,6 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
-using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.Services.Admin.Authentication;
 using DotYou.Kernel.Services.Identity;
 using DotYou.Kernel.Services.Owner.Authentication;
 using DotYou.Types;

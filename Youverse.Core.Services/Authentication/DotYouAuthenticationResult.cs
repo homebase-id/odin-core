@@ -1,5 +1,5 @@
-﻿using DotYou.Kernel.Cryptography;
-using System;
+﻿using System;
+using Youverse.Core.Cryptography;
 
 namespace DotYou.Types
 {

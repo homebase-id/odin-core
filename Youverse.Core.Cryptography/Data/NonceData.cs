@@ -1,9 +1,7 @@
 ﻿using System;
-using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Types.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 
-
-namespace DotYou.Kernel.Cryptography
+namespace Youverse.Core.Cryptography.Data
 {
     /// <summary>
     /// Holds salts used during a delicate process wherein you need to hash

@@ -7,15 +7,16 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Web;
 using DotYou.IdentityRegistry;
-using DotYou.Kernel.Cryptography;
 using DotYou.TenantHost.Security;
 using DotYou.Types;
 using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
-using DotYou.Types.Cryptography;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Identity;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {

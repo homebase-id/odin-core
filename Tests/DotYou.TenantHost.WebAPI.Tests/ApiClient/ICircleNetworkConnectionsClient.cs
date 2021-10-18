@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using DotYou.Types.Circle;
 using DotYou.Types.Messaging;
 using Refit;
+using Youverse.Core;
+using Youverse.Core.Identity;
 
 namespace DotYou.Types.ApiClient
 {

@@ -2,7 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DotYou.Types
+namespace Youverse.Core.Util
 {
     /// <summary>
     /// Various Utilities for the prototrial

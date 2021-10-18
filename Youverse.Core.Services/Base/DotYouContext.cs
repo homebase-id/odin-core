@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Dawn;
 using DotYou.Types;
+using Youverse.Core.Identity;
 
 namespace DotYou.IdentityRegistry
 {

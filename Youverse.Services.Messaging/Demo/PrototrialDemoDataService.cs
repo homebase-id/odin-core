@@ -6,8 +6,9 @@ using DotYou.Kernel.Services.Contacts;
 using DotYou.Kernel.Services.Owner.Data;
 using DotYou.Types;
 using DotYou.Types.Circle;
-using DotYou.Types.DataAttribute;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 
 namespace DotYou.Kernel.Services.Demo
 {

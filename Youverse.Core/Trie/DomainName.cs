@@ -4,7 +4,7 @@ using System.Net;
 
 //using DnsClient; // https://www.nuget.org/packages/DnsClient/
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Trie
 {
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //

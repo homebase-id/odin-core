@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DotYou.Types.DataAttribute
+namespace Youverse.Core.Identity.DataAttribute
 {
     /// <summary>
     /// Summary description for Class1

@@ -3,11 +3,10 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using DotYou.Kernel.Cryptography;
-using DotYou.Kernel.Services.Admin.Authentication;
-using DotYou.Types.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using NUnit.Framework;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 
 namespace DotYou.Kernel.CryptographyTests
 {
