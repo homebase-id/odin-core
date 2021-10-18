@@ -183,9 +183,9 @@ namespace DotYou.DigitalIdentityHost
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<MessagingService>>();
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
 
-                return new MessagingService(context, logger, hub, fac);
+                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
+                return new MessagingService(context, logger, msgHub, fac);
             });
 
             services.AddScoped<IChatService, ChatService>(svc =>
@@ -197,8 +197,8 @@ namespace DotYou.DigitalIdentityHost
                 var cns = svc.GetRequiredService<ICircleNetworkService>();
                 var ms = svc.GetRequiredService<IStorageService>();
                 
-                var chatHub = svc.GetRequiredService<IHubContext<ChatHub, IChatHub>>();
-                return new ChatService(context, logger, fac, p, cns, chatHub, ms);
+                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
+                return new ChatService(context, logger, fac, p, cns, msgHub, ms);
             });
             
             services.AddScoped<IStorageService, FileBasedStorageService>(svc =>
@@ -262,7 +262,7 @@ namespace DotYou.DigitalIdentityHost
                     o.Transports = HttpTransportType.WebSockets;
                 });
 
-                endpoints.MapHub<ChatHub>("/api/live/chat", o =>
+                endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
                 {
                     //TODO: for #prototrial, i narrowed this to websockets
                     //only so i could disable negotiation from the client

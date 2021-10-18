@@ -17,6 +17,7 @@ using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Refit;
+using Youverse.Services.Messaging;
 
 namespace DotYou.Kernel.Services.Messaging.Chat
 {
@@ -27,14 +28,14 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
         private readonly IProfileService _profileService;
         private readonly ICircleNetworkService _cns;
-        private readonly IHubContext<ChatHub, IChatHub> _chatHub;
+        private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub, IStorageService storageService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<MessagingHub, IMessagingHub> messagingHub, IStorageService storageService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;
-            _chatHub = chatHub;
+            _messagingHub = messagingHub;
             _storageService = storageService;
         }
 
@@ -49,7 +50,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             var tasks = connections.Results.Select(async connectionInfo =>
             {
-                var client = base.CreatePerimeterHttpClient(connectionInfo.DotYouId);
+                var client = base.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(connectionInfo.DotYouId);
                 var response = await client.GetAvailability();
 
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
@@ -104,7 +105,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             Logger.LogDebug($"Media Id: {message.MediaId}");
 
             ApiResponse<NoResultResponse> response;
-            var client = this.CreatePerimeterHttpClient(message.Recipient);
+            var client = this.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(message.Recipient);
             if (message.MediaId == Guid.Empty)
             {
                 response = await client.DeliverChatMessage(encryptedMessage, null, null);
@@ -143,7 +144,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
                 WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
-                await this.ChatHub.NewChatMessageSent(message);
+                await this.MessagingHub.NewChatMessageSent(message);
                 //Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
             }
             else
@@ -188,7 +189,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
 
             WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
-            await this.ChatHub.NewChatMessageReceived(envelope);
+            await this.MessagingHub.NewChatMessageReceived(envelope);
 
             // Console.WriteLine($"ChatHub.NewChatMessageReceived sent to {this.Context.HostDotYouId}");
             // Console.BackgroundColor = ConsoleColor.Black;
@@ -247,9 +248,9 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             return $"{ChatMessageStorageCollection}_{dotYouId.Id.Replace(".", "_")}";
         }
 
-        private IChatHub ChatHub
+        private IMessagingHub MessagingHub
         {
-            get => _chatHub.Clients.User(this.Context.HostDotYouId);
+            get => _messagingHub.Clients.User(this.Context.HostDotYouId);
         }
     }
 }

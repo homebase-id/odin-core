@@ -2,20 +2,24 @@ using System;
 using System.Threading.Tasks;
 using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
+using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Types.Messaging;
 using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Youverse.Services.Messaging;
 
 namespace DotYou.Kernel.Services.Messaging.Email
 {
     public class MessagingService : DotYouServiceBase, IMessagingService
     {
         private IMailboxService _mailbox;
+        private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         
-        public MessagingService(DotYouContext context, ILogger<MessagingService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public MessagingService(DotYouContext context, ILogger<MessagingService> logger, IHubContext<MessagingHub, IMessagingHub> messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
             _mailbox = new SimpleMailboxService(context, "Messages", logger);
+            _messagingHub = messagingHub;
         }
 
         public IMailboxService Mailbox => _mailbox;
@@ -27,7 +31,7 @@ namespace DotYou.Kernel.Services.Messaging.Email
             foreach (var recipient in message.Recipients)
             {
                 //TODO: this creates a lot of httpclients.  need to see how they are disposed
-                var response = await base.CreatePerimeterHttpClient(recipient).DeliverEmail(message);
+                var response = await base.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(recipient).DeliverEmail(message);
                 if (!response.Content.Success)
                 {
                     //TODO: add more info
@@ -46,7 +50,8 @@ namespace DotYou.Kernel.Services.Messaging.Email
             message.Folder = RootMessageFolder.Inbox;
             this.Mailbox.Save(message);
 
-            this.Notify.NewEmailReceived(message);
+            var hub = _messagingHub.Clients.User(this.Context.HostDotYouId);
+            hub.NewEmailReceived(message);
         }
     }
 }

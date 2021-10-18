@@ -2,10 +2,12 @@
 
 namespace DotYou.Types.Messaging
 {
-    public interface IChatHub
+    public interface IMessagingHub
     {
         Task NewChatMessageReceived(ChatMessageEnvelope message);
 
         Task NewChatMessageSent(ChatMessageEnvelope message);
+        
+        Task NewEmailReceived(Message message);
     }
 }

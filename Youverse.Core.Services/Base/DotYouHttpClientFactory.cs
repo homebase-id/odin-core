@@ -21,6 +21,11 @@ namespace DotYou.Kernel.HttpClient
 
         public IPerimeterHttpClient CreateClient(DotYouIdentity dotYouId)
         {
+            return this.CreateClient<IPerimeterHttpClient>(dotYouId);
+        }
+        
+        public T CreateClient<T>(DotYouIdentity dotYouId)
+        {
             Console.WriteLine("CreateClient -> Loading certificate");
             var cert = _context.TenantCertificate.LoadCertificateWithPrivateKey();
 
@@ -38,7 +43,7 @@ namespace DotYou.Kernel.HttpClient
             var client = new System.Net.Http.HttpClient(handler);
             client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
 
-            var ogClient = RestService.For<IPerimeterHttpClient>(client);
+            var ogClient = RestService.For<T>(client);
 
             return ogClient;
         }

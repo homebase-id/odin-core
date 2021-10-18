@@ -51,10 +51,22 @@ namespace DotYou.Kernel.Services
         /// <summary>
         /// Proxy which makes calls to other <see cref="DotYouIdentity"/> servers using a pre-configured HttpClient.
         /// </summary>
-        protected IPerimeterHttpClient CreatePerimeterHttpClient(DotYouIdentity dotYouId)
+        protected internal IPerimeterHttpClient CreatePerimeterHttpClient(DotYouIdentity dotYouId)
         {
             Guard.Argument(_dotYouHttpClientFactory, nameof(_dotYouHttpClientFactory)).NotNull("The derived class did not initialize the http client factory.");
             return _dotYouHttpClientFactory.CreateClient(dotYouId);
+        }
+
+        /// <summary>
+        /// Creates a proxy client of T 
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        protected T CreatePerimeterHttpClient<T>(DotYouIdentity dotYouId)
+        {
+            Guard.Argument(_dotYouHttpClientFactory, nameof(_dotYouHttpClientFactory)).NotNull("The derived class did not initialize the http client factory.");
+            return _dotYouHttpClientFactory.CreateClient<T>(dotYouId);
         }
 
         protected INotificationHub Notify

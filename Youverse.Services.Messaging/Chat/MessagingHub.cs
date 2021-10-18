@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace DotYou.Kernel.Services.Messaging.Chat
 {
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
-    public class ChatHub : Hub<IChatHub>
+    public class MessagingHub : Hub<IMessagingHub>
     {
         public override Task OnConnectedAsync()
         {
