@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 
-namespace DotYou.Kernel.Services.Identity
+namespace Youverse.Core.Services.Authorization
 {
     /// <summary>
     /// List of the Claim types used by YouFoundation

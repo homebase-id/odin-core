@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Messaging.Chat;
-using DotYou.Types;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services;
+using Youverse.Core.Services.Authorization;
+using Youverse.Services.Messaging;
+using Youverse.Services.Messaging.Chat;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Messaging
+namespace Youverse.Hosting.Controllers.Messaging
 {
 
     [Route("api/messages/chat")]

@@ -1,7 +1,7 @@
 using System;
 using Youverse.Core.Identity;
 
-namespace DotYou.Types.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     public class ConnectionInfo: DotYouIdBase
     {

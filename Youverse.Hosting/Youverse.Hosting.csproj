@@ -7,7 +7,6 @@
         <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
         <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
         <IsPackable>false</IsPackable>
-        <RootNamespace>DotYou.DigitalIdentityHost</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup>

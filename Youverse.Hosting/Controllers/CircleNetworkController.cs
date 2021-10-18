@@ -1,13 +1,12 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.DigitalIdentityHost.Controllers
+namespace Youverse.Hosting.Controllers
 {
 
     [ApiController]

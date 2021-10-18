@@ -2,13 +2,11 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.IdentityRegistry;
-using DotYou.Types;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
 
 /// <summary>
@@ -20,7 +18,7 @@ using Youverse.Core.SystemStorage;
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
 /// 
-namespace DotYou.Kernel.Services.Owner.Authentication
+namespace Youverse.Core.Services.Authentication
 {
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)

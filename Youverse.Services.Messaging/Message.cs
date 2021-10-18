@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using DotYou.Types.Circle;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.Types.Messaging
+namespace Youverse.Services.Messaging
 {
     public class Message : IIncomingCertificateMetaData
     {

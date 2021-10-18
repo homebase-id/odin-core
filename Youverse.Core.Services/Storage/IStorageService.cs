@@ -2,7 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 
-namespace DotYou.Kernel.Services.MediaService
+namespace Youverse.Core.Services.Storage
 {
     /// <summary>
     /// Handles the storage, retrieval, and management of media

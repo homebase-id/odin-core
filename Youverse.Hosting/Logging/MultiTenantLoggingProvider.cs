@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace DotYou.TenantHost.Logging
+namespace Youverse.Hosting.Logging
 {
     public sealed class MultiTenantLoggingProvider : ILoggerProvider
     {

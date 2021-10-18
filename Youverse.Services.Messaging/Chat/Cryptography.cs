@@ -1,4 +1,4 @@
-namespace DotYou.Kernel.Services.Messaging.Chat
+namespace Youverse.Services.Messaging.Chat
 {
     public static class Cryptography
     {

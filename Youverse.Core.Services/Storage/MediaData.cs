@@ -1,4 +1,4 @@
-namespace DotYou.Kernel.Services.MediaService
+namespace Youverse.Core.Services.Storage
 {
     public class MediaData : MediaMetaData
     {

@@ -1,9 +1,7 @@
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.DataAttribute;
-using DotYou.Types;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Kernel.Services.Owner.Data
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Enables the owner of a DI to read/write their data attributes  This handles both fixed

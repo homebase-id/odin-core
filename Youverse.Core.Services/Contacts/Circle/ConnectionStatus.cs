@@ -1,4 +1,4 @@
-namespace DotYou.Types.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     public enum ConnectionStatus
     {

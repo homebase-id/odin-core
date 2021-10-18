@@ -2,15 +2,14 @@
 using System.Linq.Expressions;
 using System.Net;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Profile;
 
-namespace DotYou.DigitalIdentityHost.Controllers
+namespace Youverse.Hosting.Controllers
 {
     [ApiController]
     [Route("api/profiles")]

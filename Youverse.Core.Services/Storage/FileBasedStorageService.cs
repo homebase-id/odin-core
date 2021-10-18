@@ -1,12 +1,11 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
-using DotYou.IdentityRegistry;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
 
-namespace DotYou.Kernel.Services.MediaService
+namespace Youverse.Core.Services.Storage
 {
     public class FileBasedStorageService : DotYouServiceBase, IStorageService, IDisposable
     {

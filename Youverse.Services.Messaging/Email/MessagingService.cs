@@ -1,14 +1,11 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Messaging.Chat;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using Youverse.Services.Messaging;
+using Youverse.Core.Services.Base;
+using Youverse.Services.Messaging.Chat;
 
-namespace DotYou.Kernel.Services.Messaging.Email
+namespace Youverse.Services.Messaging.Email
 {
     public class MessagingService : DotYouServiceBase, IMessagingService
     {

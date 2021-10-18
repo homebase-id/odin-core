@@ -1,12 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Types.Circle;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Youverse.Core.Services.Authorization;
 
-namespace DotYou.Kernel.Services
+namespace Youverse.Core.Services.Base
 {
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class NotificationHub : Hub<INotificationHub>

@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using DotYou.Types;
+using Youverse.Core.Services.Identity;
 using Youverse.Core.Trie;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Services.Registry
 {
     /// <summary>
     /// A registry of identities and their context by domain name.  This can be

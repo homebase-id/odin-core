@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Types.Messaging;
 
-namespace DotYou.Kernel.Services.Messaging.Email
+namespace Youverse.Services.Messaging.Email
 {
     public interface IMessagingService
     {

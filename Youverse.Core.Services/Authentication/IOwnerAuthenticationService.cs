@@ -1,10 +1,9 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Types;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 
-namespace DotYou.Kernel.Services.Owner.Authentication
+namespace Youverse.Core.Services.Authentication
 {
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity

@@ -1,9 +1,9 @@
-﻿using System.Security.Claims;
-using Dawn;
-using DotYou.Types;
+﻿using Dawn;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Identity;
+using Youverse.Core.Services.Registry;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Services.Base
 {
     /// <summary>
     /// Contains all information required to execute commands in the Youverse.Core.Services services.

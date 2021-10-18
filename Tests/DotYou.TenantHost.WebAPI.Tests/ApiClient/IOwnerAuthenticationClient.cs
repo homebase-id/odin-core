@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authentication;
 
 namespace DotYou.Types.ApiClient
 {

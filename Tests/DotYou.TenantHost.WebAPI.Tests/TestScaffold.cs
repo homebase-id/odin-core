@@ -6,10 +6,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Web;
-using DotYou.IdentityRegistry;
-using DotYou.TenantHost.Security;
 using DotYou.Types;
-using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -17,6 +14,10 @@ using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Registry;
+using Youverse.Hosting;
+using Youverse.Hosting.Security;
 
 namespace DotYou.TenantHost.WebAPI.Tests
 {

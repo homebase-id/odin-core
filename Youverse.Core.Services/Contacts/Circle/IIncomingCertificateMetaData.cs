@@ -1,9 +1,7 @@
 using System;
-using System.Diagnostics;
-using System.Linq;
 using Youverse.Core.Identity;
 
-namespace DotYou.Types.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     /// <summary>
     /// Metadata describing a message or payload from an external source (i.e another digital identity server or similar)

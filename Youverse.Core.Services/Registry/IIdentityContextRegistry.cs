@@ -1,4 +1,6 @@
-﻿namespace DotYou.IdentityRegistry
+﻿using Youverse.Core.Services.Identity;
+
+namespace Youverse.Core.Services.Registry
 {
     public interface IIdentityContextRegistry
     {

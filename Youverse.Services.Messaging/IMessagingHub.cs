@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace DotYou.Types.Messaging
+namespace Youverse.Services.Messaging
 {
     public interface IMessagingHub
     {

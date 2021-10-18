@@ -1,15 +1,14 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Owner.Data;
-using DotYou.TenantHost.Security;
-using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Profile;
+using Youverse.Hosting.Security;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/identity")]

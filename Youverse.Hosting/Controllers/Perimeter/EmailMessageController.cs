@@ -1,11 +1,11 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Messaging.Email;
-using DotYou.Types;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Services;
+using Youverse.Services.Messaging;
+using Youverse.Services.Messaging.Email;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
+namespace Youverse.Hosting.Controllers.Perimeter
 {
     [ApiController]
     [Route("api/perimeter")]

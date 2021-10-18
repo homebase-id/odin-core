@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.TenantHost.Security.Authentication
+namespace Youverse.Hosting.Security.Authentication
 {
     [Serializable]
     internal class MissingProfileException : Exception

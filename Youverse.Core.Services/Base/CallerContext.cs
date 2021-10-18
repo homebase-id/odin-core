@@ -1,8 +1,7 @@
-using DotYou.Types;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Services.Base
 {
     /// <summary>
     /// Contains information about the DotYouId calling a given service

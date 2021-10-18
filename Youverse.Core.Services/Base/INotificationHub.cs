@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Types.Circle;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.Types.SignalR
+namespace Youverse.Core.Services.Base
 {
     public interface INotificationHub
     {

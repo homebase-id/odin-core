@@ -1,11 +1,10 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Owner.Authentication;
-using DotYou.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
+namespace Youverse.Hosting.Controllers.Perimeter
 {
     
     [ApiController]

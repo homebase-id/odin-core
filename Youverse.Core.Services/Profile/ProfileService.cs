@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Types;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
 
-namespace DotYou.Kernel.Services.Profile
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// <inheritdoc cref="IProfileService"/>

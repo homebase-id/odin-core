@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace DotYou.Kernel.Services.Demo
+namespace Youverse.Services.Messaging.Demo
 {
     /// <summary>
     /// Temporary service used to generate demo data for the prototrial 

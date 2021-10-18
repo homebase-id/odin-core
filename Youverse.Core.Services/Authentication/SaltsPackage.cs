@@ -1,4 +1,4 @@
-namespace DotYou.Types
+namespace Youverse.Core.Services.Authentication
 {
     public sealed class SaltsPackage
     {

@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Dawn;
-using DotYou.Types.Certificate;
+using Youverse.Core.Services.Registry;
 
-namespace DotYou.IdentityRegistry
+namespace Youverse.Core.Services.Identity
 {
     /// <summary>
     /// An IdentityCertificate defines a certificate held by an individual human or organization.

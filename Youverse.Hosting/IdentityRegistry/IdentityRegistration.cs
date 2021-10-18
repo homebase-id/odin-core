@@ -1,9 +1,8 @@
 using System;
-using DotYou.Types;
 using MessagePack;
 using Youverse.Core.Util;
 
-namespace DotYou.DigitalIdentityHost.IdentityRegistry
+namespace Youverse.Hosting.IdentityRegistry
 {
     [MessagePackObject]
     public class IdentityRegistration

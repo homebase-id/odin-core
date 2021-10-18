@@ -1,5 +1,4 @@
 using DotYou.Types;
-using DotYou.Types.Circle;
 using NUnit.Framework;
 using Refit;
 using System;
@@ -11,6 +10,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using DotYou.Types.ApiClient;
 using Youverse.Core;
+using Youverse.Core.Services.Contacts.Circle;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {

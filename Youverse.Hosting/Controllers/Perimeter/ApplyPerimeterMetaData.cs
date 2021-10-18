@@ -1,13 +1,12 @@
 using System;
 using System.Linq;
 using System.Security.Claims;
-using DotYou.Kernel.Services.Identity;
-using DotYou.Types;
-using DotYou.Types.Circle;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
+namespace Youverse.Hosting.Controllers.Perimeter
 {
     /// <summary>
     /// Applies meta data describing the incoming payload (message, invitation, etc.) such as

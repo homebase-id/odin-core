@@ -1,9 +1,8 @@
-﻿using System;
-using Dawn;
+﻿using Dawn;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Types.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     /// <summary>
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 

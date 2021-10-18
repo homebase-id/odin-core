@@ -1,4 +1,4 @@
-namespace DotYou.Types.Admin
+namespace Youverse.Hosting
 {
     public static class DotYouHeaderNames
     {

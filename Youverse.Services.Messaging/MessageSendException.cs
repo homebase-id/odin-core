@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.Types.Messaging
+namespace Youverse.Services.Messaging
 {
     /// <summary>
     /// Specifies the data for a given operation is insufficient or invalid.

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Types.Circle;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services.Contacts.Circle;
 
 namespace DotYou.Types.ApiClient
 {

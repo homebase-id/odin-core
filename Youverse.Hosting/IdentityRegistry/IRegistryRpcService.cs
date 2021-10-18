@@ -1,8 +1,7 @@
-using DotYou.Types;
 using MagicOnion;
 using Youverse.Core;
 
-namespace DotYou.DigitalIdentityHost.IdentityRegistry
+namespace Youverse.Hosting.IdentityRegistry
 {
     //TODO: get this from a library instead
     

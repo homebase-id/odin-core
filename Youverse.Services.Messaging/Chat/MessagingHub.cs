@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Youverse.Core.Services.Authorization;
 
-namespace DotYou.Kernel.Services.Messaging.Chat
+namespace Youverse.Services.Messaging.Chat
 {
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class MessagingHub : Hub<IMessagingHub>

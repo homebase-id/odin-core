@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.Owner.Data;
-using DotYou.Types;
-using DotYou.Types.Circle;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Profile;
 
-namespace DotYou.Kernel.Services.Demo
+namespace Youverse.Services.Messaging.Demo
 {
     public class PrototrialDemoDataService : DotYouServiceBase, IPrototrialDemoDataService
     {

@@ -1,18 +1,12 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.Demo;
-using DotYou.Kernel.Services.Owner.Data;
-using DotYou.TenantHost.Security;
-using DotYou.Types;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Profile;
+using Youverse.Hosting.Security;
+using Youverse.Services.Messaging.Demo;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Demo
+namespace Youverse.Hosting.Controllers.Demo
 {
     [ApiController]
     [Route("api/demodata")]

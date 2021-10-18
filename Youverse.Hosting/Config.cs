@@ -1,7 +1,6 @@
-using DotYou.Types;
 using Youverse.Core.Util;
 
-namespace DotYou.TenantHost
+namespace Youverse.Hosting
 {
     //Instantiated by configuration
     public class Config

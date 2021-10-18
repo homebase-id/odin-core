@@ -1,12 +1,10 @@
 using System;
 using System.Net.Http;
 using System.Security.Authentication;
-using DotYou.IdentityRegistry;
-using DotYou.Types;
 using Refit;
 using Youverse.Core.Identity;
 
-namespace DotYou.Kernel.HttpClient
+namespace Youverse.Core.Services.Base
 {
     /// <summary>
     /// Creates clients for http requests to other digital identity servers

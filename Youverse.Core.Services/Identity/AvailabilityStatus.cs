@@ -1,7 +1,7 @@
 ﻿using System;
 using Youverse.Core.Identity;
 
-namespace DotYou.Types.Admin
+namespace Youverse.Core.Services.Identity
 {
     public class AvailabilityStatus
     {

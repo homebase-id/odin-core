@@ -1,19 +1,13 @@
 using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.DataAttribute;
-using DotYou.Types;
-using DotYou.Types.SignalR;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.Kernel.Services.Owner.Data
+namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeReaderService"/>
     public class OwnerDataAttributeReaderService : DotYouServiceBase, IOwnerDataAttributeReaderService

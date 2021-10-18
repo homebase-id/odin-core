@@ -1,13 +1,9 @@
-using System.IO;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.MediaService;
-using DotYou.Types;
-using DotYou.Types.Circle;
 using Refit;
-using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Contacts.Circle;
 
-namespace DotYou.Kernel.HttpClient
+namespace Youverse.Core.Services.Base
 {
     /// <summary>
     /// Sends outgoing invitations, email messages, and chat messages to other Digital Identities

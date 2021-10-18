@@ -1,11 +1,8 @@
 using System.IO;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.MediaService;
-using DotYou.Types;
-using DotYou.Types.Circle;
-using DotYou.Types.Messaging;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services.Storage;
 
 namespace Youverse.Services.Messaging
 {

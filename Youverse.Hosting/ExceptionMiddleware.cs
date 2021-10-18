@@ -1,15 +1,10 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
-
-namespace DotYou.TenantHost
+namespace Youverse.Hosting
 {
     /// <summary>
     /// Nicked from https://code-maze.com/global-error-handling-aspnetcore/

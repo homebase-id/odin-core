@@ -1,6 +1,6 @@
 using System;
 
-namespace DotYou.Kernel.Services.MediaService
+namespace Youverse.Core.Services.Storage
 {
     public class MediaMetaData
     {

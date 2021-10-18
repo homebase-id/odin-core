@@ -6,23 +6,19 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.MediaService;
-using DotYou.Types;
-using DotYou.Types.Admin;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Identity;
+using Youverse.Core.Services.Profile;
+using Youverse.Core.Services.Storage;
 using Youverse.Core.Util;
-using Youverse.Services.Messaging;
 
-namespace DotYou.Kernel.Services.Messaging.Chat
+namespace Youverse.Services.Messaging.Chat
 {
     public class ChatService : DotYouServiceBase, IChatService
     {

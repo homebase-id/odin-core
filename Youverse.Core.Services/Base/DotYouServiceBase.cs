@@ -1,18 +1,13 @@
-﻿using DotYou.Types;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Security;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
-using Youverse.Core;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.SystemStorage;
 
-namespace DotYou.Kernel.Services
+namespace Youverse.Core.Services.Base
 {
     /// <summary>
     /// Base class for all services offering <see cref="IStorage<T>"/> and 

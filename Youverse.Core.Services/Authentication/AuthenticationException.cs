@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.Kernel.Services.Owner.Authentication
+namespace Youverse.Core.Services.Authentication
 {
     internal class AuthenticationException : Exception
     {

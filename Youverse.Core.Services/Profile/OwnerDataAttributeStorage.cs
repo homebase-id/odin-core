@@ -2,13 +2,11 @@ using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.IdentityRegistry;
-using DotYou.Types;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Base;
 
-namespace DotYou.Kernel.Services.Owner.Data
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Specialized storage for the DI Owner's data attributes.  This does not enforce data

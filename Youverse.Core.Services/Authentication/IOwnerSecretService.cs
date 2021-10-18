@@ -1,9 +1,8 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Types;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 
-namespace DotYou.Kernel.Services.Owner.Authentication
+namespace Youverse.Core.Services.Authentication
 {
     public interface IOwnerSecretService
     {

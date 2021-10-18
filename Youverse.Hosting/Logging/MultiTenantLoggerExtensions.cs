@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Configuration;
 
-namespace DotYou.TenantHost.Logging
+namespace Youverse.Hosting.Logging
 {
     public static class MultiTenantLoggerExtensions
     {

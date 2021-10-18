@@ -1,11 +1,9 @@
 ﻿using System;
 using System.IO;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Contacts;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Services.Profile;
 
-namespace DotYou.DigitalIdentityHost.Controllers
+namespace Youverse.Hosting.Controllers
 {
     [ApiController]
     [Route("api/images")]

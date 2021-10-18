@@ -1,13 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.MediaService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Storage;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Media
+namespace Youverse.Hosting.Controllers.Media
 {
     [ApiController]
     [Route("api/media")]

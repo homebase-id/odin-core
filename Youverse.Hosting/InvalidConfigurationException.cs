@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace DotYou.TenantHost
+namespace Youverse.Hosting
 {
     [Serializable]
     internal class InvalidConfigurationException : Exception

@@ -1,4 +1,4 @@
-﻿namespace DotYou.IdentityRegistry
+﻿namespace Youverse.Core.Services.Registry
 {
     /// <summary>
     /// Configuration for how data is stored.  This can include paths for storing images as well as database connection strings.

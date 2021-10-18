@@ -1,15 +1,14 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.TenantHost;
-using DotYou.Types;
 using Grpc.Net.Client;
 using MagicOnion.Client;
 using Youverse.Core;
+using Youverse.Core.Services.Identity;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Trie;
 
-namespace DotYou.DigitalIdentityHost.IdentityRegistry
+namespace Youverse.Hosting.IdentityRegistry
 {
     public class IdentityRegistryRpc : IIdentityContextRegistry
     {

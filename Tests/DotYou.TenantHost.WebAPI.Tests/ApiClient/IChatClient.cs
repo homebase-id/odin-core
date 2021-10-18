@@ -1,9 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Types.Admin;
-using DotYou.Types.Messaging;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services;
+using Youverse.Core.Services.Identity;
+using Youverse.Services.Messaging;
 
 namespace DotYou.Types.ApiClient
 {

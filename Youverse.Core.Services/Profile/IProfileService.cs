@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using DotYou.Types;
-using Youverse.Core;
 using Youverse.Core.Identity;
 
-namespace DotYou.Kernel.Services.Contacts
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Services for managing profiles about with humans with which I'm connected.

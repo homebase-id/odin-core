@@ -1,7 +1,5 @@
 
-using System.Text.Json.Serialization;
-
-namespace DotYou.Types.Messaging
+namespace Youverse.Services.Messaging
 {
     
     public static class RootMessageFolder

@@ -1,17 +1,15 @@
 using System;
 using System.IO;
-using DotYou.DigitalIdentityHost;
-using DotYou.DigitalIdentityHost.IdentityRegistry;
-using DotYou.IdentityRegistry;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Registry;
+using Youverse.Hosting.IdentityRegistry;
 
-
-namespace DotYou.TenantHost
+namespace Youverse.Hosting
 {
     public class Program
     {

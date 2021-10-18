@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Owner.Authentication;
-using DotYou.TenantHost.Security;
-using DotYou.Types;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authentication;
+using Youverse.Hosting.Security;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/authentication")]

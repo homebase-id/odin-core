@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Types;
-using DotYou.Types.Messaging;
 using Microsoft.Extensions.Logging;
 using Youverse.Core;
+using Youverse.Core.Services.Base;
 
-namespace DotYou.Kernel.Services.Messaging.Email
+namespace Youverse.Services.Messaging.Email
 {
     /// <summary>
     /// Stores messages in the given folder name using LiteDb.

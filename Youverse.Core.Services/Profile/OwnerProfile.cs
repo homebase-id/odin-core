@@ -1,7 +1,7 @@
 ﻿using System;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Kernel.Services.Owner.Data
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Profile information 

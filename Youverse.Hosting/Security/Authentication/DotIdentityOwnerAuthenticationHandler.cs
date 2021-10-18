@@ -4,16 +4,14 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
-using DotYou.Kernel.Services.Identity;
-using DotYou.Kernel.Services.Owner.Authentication;
-using DotYou.Types;
-using DotYou.Types.Admin;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization;
 
-namespace DotYou.TenantHost.Security.Authentication
+namespace Youverse.Hosting.Security.Authentication
 {
     public class DotIdentityOwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {

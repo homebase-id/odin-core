@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Messaging.Email;
-using DotYou.Types;
-using DotYou.Types.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Services;
+using Youverse.Core.Services.Authorization;
+using Youverse.Services.Messaging;
+using Youverse.Services.Messaging.Email;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Messaging
+namespace Youverse.Hosting.Controllers.Messaging
 {
     /// <summary>
     /// Retrieves messages for the Inbox.  Also acts to accept messages 

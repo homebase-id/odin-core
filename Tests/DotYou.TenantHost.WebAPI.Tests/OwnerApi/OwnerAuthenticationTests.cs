@@ -4,11 +4,11 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using DotYou.Types;
-using DotYou.Types.Admin;
 using DotYou.Types.ApiClient;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Identity;
+using Youverse.Hosting;
 
 namespace DotYou.TenantHost.WebAPI.Tests.OwnerApi
 {

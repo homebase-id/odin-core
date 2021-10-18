@@ -1,4 +1,4 @@
-﻿namespace DotYou.TenantHost.Security
+﻿namespace Youverse.Hosting.Security
 {
     public static class DotYouAuthConstants
     {

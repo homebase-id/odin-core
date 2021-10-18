@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Types;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Base;
 
-namespace DotYou.Kernel.Services.Owner.Authentication
+namespace Youverse.Core.Services.Authentication
 {
     public class OwnerSecretService : DotYouServiceBase, IOwnerSecretService
     {
@@ -119,12 +117,5 @@ namespace DotYou.Kernel.Services.Owner.Authentication
 
             LoginKeyManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
-    }
-
-    class RsaKeyStorage
-    {
-        public Guid Id { get; set; }
-
-        public List<RsaKeyData> Keys { get; set; }
     }
 }

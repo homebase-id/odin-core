@@ -1,15 +1,12 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.MediaService;
-using DotYou.Types;
-using DotYou.Types.Admin;
-using DotYou.Types.Messaging;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Identity;
+using Youverse.Core.Services.Storage;
 
-namespace DotYou.Kernel.Services.Messaging.Chat
+namespace Youverse.Services.Messaging.Chat
 {
     public interface IChatService
     {

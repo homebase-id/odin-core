@@ -3,18 +3,13 @@ using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Owner.Data;
-using DotYou.Types;
-using DotYou.Types.Circle;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Profile;
 
-namespace DotYou.Kernel.Services.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     public class CircleNetworkRequestService : DotYouServiceBase, ICircleNetworkRequestService
     {

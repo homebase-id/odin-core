@@ -1,26 +1,18 @@
-﻿using Dawn;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Security;
-using DotYou.Types;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.Identity;
-using DotYou.Types.Circle;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
-using Youverse.Core;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Profile;
 using Youverse.Core.Util;
 
-namespace DotYou.Kernel.Services.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     //Need to consider using the recipient public key instead of the dotyouid
     //meaning i can go to frodo site, click connect and the public ke cert has all i need to

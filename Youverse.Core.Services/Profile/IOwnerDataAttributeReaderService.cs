@@ -1,11 +1,9 @@
 using System;
 using System.Threading.Tasks;
-using DotYou.Types;
-using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Kernel.Services.Owner.Data
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Supports reading data attributes for a DI owner.  Implementations must ensure only the scope

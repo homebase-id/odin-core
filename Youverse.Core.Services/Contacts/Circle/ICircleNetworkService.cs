@@ -1,11 +1,8 @@
-﻿using DotYou.Types;
-using System.Threading.Tasks;
-using DotYou.Types.Circle;
-using Youverse.Core;
+﻿using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Kernel.Services.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     /// <summary>
     /// Establishes connections between individuals

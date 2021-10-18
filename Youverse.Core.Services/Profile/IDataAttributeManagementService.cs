@@ -1,11 +1,9 @@
-using DotYou.Types;
 using System;
 using System.Threading.Tasks;
-using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Kernel.Services.DataAttribute
+namespace Youverse.Core.Services.Profile
 {
     /// <summary>
     /// Enables the definition and management of various data attributes

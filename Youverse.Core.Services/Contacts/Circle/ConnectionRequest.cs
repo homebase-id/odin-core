@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace DotYou.Types.Circle
+namespace Youverse.Core.Services.Contacts.Circle
 {
     public class ConnectionRequest: ConnectionRequestHeader, IIncomingCertificateMetaData
     {

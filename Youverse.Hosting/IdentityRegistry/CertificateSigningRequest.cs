@@ -1,6 +1,6 @@
 using MessagePack;
 
-namespace DotYou.DigitalIdentityHost.IdentityRegistry
+namespace Youverse.Hosting.IdentityRegistry
 {
     [MessagePackObject]
     public class CertificateSigningRequest

@@ -5,26 +5,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Dawn;
-using DotYou.DigitalIdentityHost.Controllers.Perimeter;
-using DotYou.IdentityRegistry;
-using DotYou.Kernel.HttpClient;
-using DotYou.Kernel.Services;
-using DotYou.Kernel.Services.Circle;
-using DotYou.Kernel.Services.Contacts;
-using DotYou.Kernel.Services.Demo;
-using DotYou.Kernel.Services.Identity;
-using DotYou.Kernel.Services.MediaService;
-using DotYou.Kernel.Services.Messaging.Chat;
-using DotYou.Kernel.Services.Messaging.Email;
-using DotYou.Kernel.Services.Owner.Authentication;
-using DotYou.Kernel.Services.Owner.Data;
-using DotYou.Kernel.Services.Profile;
-using DotYou.TenantHost;
-using DotYou.TenantHost.Security;
-using DotYou.TenantHost.Security.Authentication;
-using DotYou.Types;
-using DotYou.Types.Messaging;
-using DotYou.Types.SignalR;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
@@ -39,9 +19,24 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Profile;
+using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Storage;
 using Youverse.Core.Util;
+using Youverse.Hosting.Controllers.Perimeter;
+using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication;
+using Youverse.Services.Messaging;
+using Youverse.Services.Messaging.Chat;
+using Youverse.Services.Messaging.Demo;
+using Youverse.Services.Messaging.Email;
 
-namespace DotYou.DigitalIdentityHost
+namespace Youverse.Hosting
 {
     public class Startup
     {

@@ -1,10 +1,10 @@
 ﻿using System.Threading.Tasks;
-using DotYou.Kernel.Services.Authorization;
-using DotYou.Kernel.Services.Owner.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Profile;
 
-namespace DotYou.DigitalIdentityHost.Controllers.Perimeter
+namespace Youverse.Hosting.Controllers.Perimeter
 {
     /// <summary>
     /// Controller making available the DI owner's profile data based on the level

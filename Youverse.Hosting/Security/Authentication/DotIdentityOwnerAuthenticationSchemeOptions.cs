@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 
-namespace DotYou.TenantHost.Security.Authentication
+namespace Youverse.Hosting.Security.Authentication
 {
     public class DotIdentityOwnerAuthenticationSchemeOptions : AuthenticationSchemeOptions
     {
