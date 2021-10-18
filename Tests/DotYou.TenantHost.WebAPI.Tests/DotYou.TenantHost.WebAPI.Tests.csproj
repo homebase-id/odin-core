@@ -16,7 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     <ProjectReference Include="..\..\Youverse.Hosting\Youverse.Hosting.csproj" />
-    <ProjectReference Include="..\..\DotYou.Types\DotYou.Types.csproj" />
   </ItemGroup>
 
 </Project>

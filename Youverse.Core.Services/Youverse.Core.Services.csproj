@@ -11,12 +11,11 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+    <PackageReference Include="Refit" Version="6.0.38" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotYou.CertificateRegistry\DotYou.CertificateRegistry.csproj" />
-    <ProjectReference Include="..\DotYou.Types\DotYou.Types.csproj" />
     <ProjectReference Include="..\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
     <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
   </ItemGroup>

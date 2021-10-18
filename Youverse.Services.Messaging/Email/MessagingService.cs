@@ -4,7 +4,6 @@ using DotYou.IdentityRegistry;
 using DotYou.Kernel.HttpClient;
 using DotYou.Kernel.Services.Messaging.Chat;
 using DotYou.Types.Messaging;
-using DotYou.Types.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Services.Messaging;
