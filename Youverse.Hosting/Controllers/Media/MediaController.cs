@@ -14,11 +14,11 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)]
     public class MediaController : Controller
     {
-        private readonly IMediaService _mediaService;
+        private readonly IStorageService _storageService;
 
-        public MediaController(IMediaService mediaService)
+        public MediaController(IStorageService storageService)
         {
-            _mediaService = mediaService;
+            _storageService = storageService;
         }
 
         [HttpPost]
@@ -42,7 +42,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
             };
 
             var stream = file.OpenReadStream();
-            await _mediaService.SaveMedia(metaData, stream);
+            await _storageService.SaveMedia(metaData, stream);
             // Console.WriteLine($"{bytes.Length} uploaded");
 
             return new JsonResult(new { id = id });
@@ -52,7 +52,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
         public async Task<IActionResult> StreamMedia(Guid id)
         {
             Console.WriteLine($"Stream media called for id [{id}]");
-            var result = await _mediaService.GetMetaData(id);
+            var result = await _storageService.GetMetaData(id);
             if (null == result)
             {
                 Console.WriteLine($"Meta data not found [{id}]");
@@ -60,7 +60,7 @@ namespace DotYou.DigitalIdentityHost.Controllers.Media
             }
 
             Console.WriteLine($"Mimetype is [{result.MimeType}]");
-            var stream = await _mediaService.GetMediaStream(id);
+            var stream = await _storageService.GetMediaStream(id);
 
             if (stream == null || stream.Length == 0)
             {

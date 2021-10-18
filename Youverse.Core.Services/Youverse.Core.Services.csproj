@@ -22,8 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Services\Contacts" />
-    <Folder Include="Services\Storage" />
-    <Folder Include="Services\Transit" />
+    <Folder Include="Contacts" />
   </ItemGroup>
 </Project>

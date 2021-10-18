@@ -28,14 +28,14 @@ namespace DotYou.Kernel.Services.Messaging.Chat
         private readonly IProfileService _profileService;
         private readonly ICircleNetworkService _cns;
         private readonly IHubContext<ChatHub, IChatHub> _chatHub;
-        private readonly IMediaService _mediaService;
+        private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub, IMediaService mediaService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<ChatHub, IChatHub> chatHub, IStorageService storageService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;
             _chatHub = chatHub;
-            _mediaService = mediaService;
+            _storageService = storageService;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -111,7 +111,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             }
             else
             {
-                MediaMetaData metaData = await _mediaService.GetMetaData(message.MediaId);
+                MediaMetaData metaData = await _storageService.GetMetaData(message.MediaId);
                 
                 if (metaData == null)
                 {
@@ -120,7 +120,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
                 }
                 else
                 {
-                    await using var mediaStream = await _mediaService.GetMediaStream(message.MediaId);
+                    await using var mediaStream = await _storageService.GetMediaStream(message.MediaId);
                     response = await client.DeliverChatMessage(encryptedMessage, metaData, mediaStream);
                 }
             }
@@ -173,7 +173,7 @@ namespace DotYou.Kernel.Services.Messaging.Chat
             {
                 Console.WriteLine($"Message has media of type [{metaData.MimeType}] and length: {mediaStream.Length}");
                 Guard.Argument(metaData.MimeType, nameof(metaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
-                envelope.MediaId = await _mediaService.SaveMedia(metaData, mediaStream, giveNewId: true);
+                envelope.MediaId = await _storageService.SaveMedia(metaData, mediaStream, giveNewId: true);
             }
             
             string collection = GetChatStoragePath(envelope.SenderDotYouId);

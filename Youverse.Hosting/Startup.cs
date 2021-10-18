@@ -195,17 +195,17 @@ namespace DotYou.DigitalIdentityHost
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var p = svc.GetRequiredService<IProfileService>();
                 var cns = svc.GetRequiredService<ICircleNetworkService>();
-                var ms = svc.GetRequiredService<IMediaService>();
+                var ms = svc.GetRequiredService<IStorageService>();
                 
                 var chatHub = svc.GetRequiredService<IHubContext<ChatHub, IChatHub>>();
                 return new ChatService(context, logger, fac, p, cns, chatHub, ms);
             });
             
-            services.AddScoped<IMediaService, FileBasedMediaService>(svc =>
+            services.AddScoped<IStorageService, FileBasedStorageService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<FileBasedMediaService>>();
-                return new FileBasedMediaService(context, logger);
+                var logger = svc.GetRequiredService<ILogger<FileBasedStorageService>>();
+                return new FileBasedStorageService(context, logger);
             });
             
             services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
