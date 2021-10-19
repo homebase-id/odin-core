@@ -36,16 +36,15 @@ namespace Youverse.Core.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] halfCookie, AppClientRegistrationData token) CreateClientToken(byte[] ApplicationId, byte[] ApplicationDek, byte[] sharedSecret = null)
+        public static (byte[] deviceAppToken, AppClientRegistrationData token) CreateClientToken(byte[] appDek, byte[] sharedSecret = null)
         {
             var token = new AppClientRegistrationData
             {
-                deviceApplicationId  = new Guid(ByteArrayUtil.GetRndByteArray(16)),
-                applicationId = new Guid(ApplicationId)
+                deviceApplicationId = new Guid(ByteArrayUtil.GetRndByteArray(16)),
             };
 
-            var halfCookie = ByteArrayUtil.GetRndByteArray(16);
-            token.halfAdek = XorManagement.XorEncrypt(ApplicationDek, halfCookie);
+            var deviceAppToken = ByteArrayUtil.GetRndByteArray(16);
+            token.halfAdek = XorManagement.XorEncrypt(appDek, deviceAppToken);
 
             if (sharedSecret == null)
                 token.SharedSecret = ByteArrayUtil.GetRndByteArray(16);
@@ -56,15 +55,20 @@ namespace Youverse.Core.Cryptography
                 token.SharedSecret = sharedSecret;
             }
 
-            return (halfCookie, token);
+            return (deviceAppToken, token);
         }
 
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetApplicationDek(AppClientRegistrationData clientToken, byte[] cookie2)
+        public static SecureKey GetApplicationDek(AppClientRegistrationData clientToken, byte[] deviceAppToken)
         {
-            return new SecureKey(XorManagement.XorEncrypt(clientToken.halfAdek, cookie2));
+            return GetApplicationDek(clientToken.halfAdek, deviceAppToken);
+        }
+
+        public static SecureKey GetApplicationDek(byte[] halfADek, byte[] deviceAppToken)
+        {
+            return new SecureKey(XorManagement.XorDecrypt(halfADek, deviceAppToken));
         }
     }
 }

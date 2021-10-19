@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -12,18 +13,19 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
     public class AppRegistrationService : DotYouServiceBase, IAppRegistrationService
     {
         private const string AppRegistrationStorageName = "ars";
+        private const string AppDeviceRegistrationStorageName = "adrs";
         private readonly IOwnerAuthenticationService _authenticationService;
 
-        public AppRegistrationService(DotYouContext context, ILogger logger, IOwnerAuthenticationService authenticationService,IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public AppRegistrationService(DotYouContext context, ILogger logger, IOwnerAuthenticationService authenticationService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context,
+            logger, notificationHub, fac)
         {
             this._authenticationService = authenticationService;
         }
 
         public Task<AppRegistration> GetRegistration(Guid applicationId)
         {
-            var result = WithTenantStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a=>a.ApplicationId == applicationId));
+            var result = WithTenantStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
-
         }
 
         public Task GetAppKeyStore()
@@ -34,7 +36,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         public Task RegisterApplication(Guid applicationId, string name)
         {
             AssertCallerIsOwner();
-            
+
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
@@ -52,15 +54,64 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
             WithTenantStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
             return Task.CompletedTask;
-
         }
 
+
+        public async Task<AppDeviceRegistrationReply> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
+        {
+            var savedApp = await this.GetRegistration(applicationId);
+
+            var appEnc = new AppEncryptionKey()
+            {
+                AppIV = savedApp.AppIV,
+                EncryptedAppDeK = savedApp.EncryptedAppDeK
+            };
+
+            var decryptedAppDek = AppRegistrationManager.GetApplicationDekWithLogin(appEnc, this.Context.Caller.GetLoginDek());
+
+            var (deviceAppToken, appRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
+            decryptedAppDek.Wipe();
+
+            //Note: never store deviceAppToken
+
+            var appDeviceReg = new AppDeviceRegistration()
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = applicationId,
+                SharedSecret = sharedSecret,
+                HalfAdek = appRegData.halfAdek,
+                IsRevoked = false
+            };
+
+            this.WithTenantStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
+
+            return new AppDeviceRegistrationReply()
+            {
+                Id = appDeviceReg.Id,
+                DeviceAppToken = deviceAppToken,
+                SharedSecret = sharedSecret
+            };
+        }
+
+        public async Task<AppDeviceRegistration> GetDeviceAppRegistration(Guid deviceRegistrationId)
+        {
+            var appDeviceReg = await WithTenantStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Get(deviceRegistrationId));
+            return appDeviceReg;
+        }
+        
+        public async Task<List<AppDeviceRegistration>> GetDeviceRegistrationList()
+        {
+            // var appDevices = await WithTenantStorageReturnList<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Get(deviceRegistrationId));
+            // return appDevices;
+            throw new NotImplementedException();
+        }
+        
         public void Delete(Guid applicationId, bool purgeAllData = false)
         {
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
             //todo: delete record from system storage
-            
+
             throw new NotImplementedException();
         }
     }

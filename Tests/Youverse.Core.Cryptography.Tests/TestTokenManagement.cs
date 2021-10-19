@@ -62,7 +62,7 @@ namespace Youverse.Core.Cryptography.Tests
             //   clientToken.TokenId ["Token"]
             //   cookie2             ["Half"]
 
-            var appDekViaCookies = AppClientTokenManager.GetApplicationDek(clientToken, halfKey);
+            var appDekViaCookies = AppClientTokenManager.GetApplicationDek(clientToken.halfAdek, halfKey);
 
             if (ByteArrayUtil.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()) == false)
             {

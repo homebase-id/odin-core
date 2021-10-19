@@ -13,15 +13,15 @@ namespace Youverse.Core.Cryptography
         /// Get the Application Dek by means of the LoginKek master key
         /// </summary>
         /// <param name="token">The ApplicationTokenData</param>
-        /// <param name="loginKeK">The master key LoginKek</param>
+        /// <param name="loginDek">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static SecureKey GetApplicationDekWithLogin(AppEncryptionKey token, SecureKey loginKeK)
+        public static SecureKey GetApplicationDekWithLogin(AppEncryptionKey token, SecureKey loginDek)
         {
-            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.EncryptedAppDeK, loginKeK.GetKey(), token.AppIV);
+            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.EncryptedAppDeK, loginDek.GetKey(), token.AppIV);
 
             return new SecureKey(appDek);
         }
-
+        
 
         // On creating a new application, e.g. 'chat' this is done only once:
         //
