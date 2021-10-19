@@ -25,7 +25,7 @@ namespace Youverse.Core.Cryptography
         public static byte[] CalculateNonceSHA256(UInt32 nonce, byte[] secret)
         {
             SHA256Managed hashstring = new SHA256Managed();
-            byte[] hash = hashstring.ComputeHash(YFByteArray.Combine(YFByteArray.UInt32ToBytes(nonce), secret));
+            byte[] hash = hashstring.ComputeHash(ByteArrayUtil.Combine(ByteArrayUtil.UInt32ToBytes(nonce), secret));
 
             return hash;
         }

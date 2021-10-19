@@ -17,7 +17,7 @@ namespace Youverse.Core.Cryptography.Tests
             // validate the encryption keys match up from creation to decryption.
 
             // Pre-requisites
-            var loginKek = new SecureKey(YFByteArray.GetRndByteArray(16)); // Simulate pre-existing
+            var loginKek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Simulate pre-existing
 
             // Create a new application and link the first client to it
 
@@ -25,7 +25,7 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppRegistrationManager.CreateApplication(loginKek);
+            var appToken = AppRegistrationManager.CreateAppKey(loginKek.GetKey());
 
             // Now create a mapping from a client device/app to the application token above
 
@@ -39,7 +39,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void TokenBase2Pass()
         {
             // Pre-requisites
-            var loginKek = new SecureKey(YFByteArray.GetRndByteArray(16)); // Pre-existing
+            var loginDek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Pre-existing
 
             // Create a new application and link the first client to it
 
@@ -47,16 +47,16 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppRegistrationManager.CreateApplication(loginKek);
+            var appToken = AppRegistrationManager.CreateAppKey(loginDek.GetKey());
 
             // Now create a mapping from a client device/app to the application token above
 
             // First get the application DEK
-            var appDekViaLogin = AppRegistrationManager.GetApplicationDekWithLogin(appToken, loginKek);
+            var appDekViaLogin = AppRegistrationManager.GetApplicationDekWithLogin(appToken, loginDek);
 
             // Now create the mapping
             // TODO: xxx the id needs to be removed
-            var (halfKey, clientToken) = AppClientTokenManager.CreateClientToken(YFByteArray.GetRndByteArray(16), appDekViaLogin.GetKey());
+            var (halfKey, clientToken) = AppClientTokenManager.CreateClientToken(ByteArrayUtil.GetRndByteArray(16), appDekViaLogin.GetKey());
 
             // The two cookies / keys to give to the client are:
             //   clientToken.TokenId ["Token"]
@@ -64,7 +64,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             var appDekViaCookies = AppClientTokenManager.GetApplicationDek(clientToken, halfKey);
 
-            if (YFByteArray.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()) == false)
             {
                 Assert.Fail();
                 return;

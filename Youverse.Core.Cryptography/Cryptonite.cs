@@ -34,11 +34,11 @@ namespace Youverse.Core.Cryptography
         /// <returns>A pair of CryptoniteKey and CryptoniteData</returns>
         public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(byte[] data, byte[] KeyKey)
         {
-            var key = YFByteArray.GetRndByteArray(16);
+            var key = ByteArrayUtil.GetRndByteArray(16);
 
             var ck = new CryptoniteKey
             {
-                iv = YFByteArray.GetRndByteArray(16)
+                iv = ByteArrayUtil.GetRndByteArray(16)
             };
 
             var cd = new CryptoniteData
@@ -47,11 +47,11 @@ namespace Youverse.Core.Cryptography
                 payload =  AesCbc.EncryptBytesToBytes_Aes(data, key, ck.iv)
             };
 
-            cd.crc = CRC32C.CalculateCRC32C(0, YFByteArray.UInt64ToBytes(cd.creationtime));
+            cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.UInt64ToBytes(cd.creationtime));
             cd.crc = CRC32C.CalculateCRC32C(cd.crc, cd.payload);
 
             ck.key = AesCbc.EncryptBytesToBytes_Aes(key, KeyKey, ck.iv);
-            YFByteArray.WipeByteArray(key);
+            ByteArrayUtil.WipeByteArray(key);
 
             return (ck, cd);
         }

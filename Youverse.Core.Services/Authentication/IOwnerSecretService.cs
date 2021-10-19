@@ -43,5 +43,12 @@ namespace Youverse.Core.Services.Authentication
         /// <returns></returns>
         Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64);
 
+        /// <summary>
+        /// Returns the encrypted version of the data encryption key.  This is generated when you set
+        /// the initial password
+        /// </summary>
+        /// <returns></returns>
+        Task<SecureKey> GetEncryptedDek();
+
     }
 }

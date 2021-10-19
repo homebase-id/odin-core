@@ -26,24 +26,42 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
 
         }
 
+        public Task GetAppKeyStore()
+        {
+            throw new NotImplementedException();
+        }
+
         public Task RegisterApplication(Guid applicationId, string name)
         {
             AssertCallerIsOwner();
+            
+            //TODO: apps cannot access this method
+            //AssertCallerIsNotApp();
 
-            AppRegistrationData ard = AppRegistrationManager.CreateApplication(this.Context.Caller.GetLoginKek());
+            AppEncryptionKey key = AppRegistrationManager.CreateAppKey(this.Context.Caller.GetLoginDek().GetKey());
 
             var appReg = new AppRegistration()
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
-                Name = name
+                Name = name,
+                AppIV = key.AppIV,
+                EncryptedAppDeK = key.EncryptedAppDeK
             };
-
 
             WithTenantStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
             return Task.CompletedTask;
 
+        }
+
+        public void Delete(Guid applicationId, bool purgeAllData = false)
+        {
+            //TODO: apps cannot access this method
+            //AssertCallerIsNotApp();
+            //todo: delete record from system storage
+            
+            throw new NotImplementedException();
         }
     }
 }

@@ -16,23 +16,23 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void XorPass()
         {
-            byte[] ba1 = YFByteArray.GetRndByteArray(40);
-            byte[] ba2 = YFByteArray.GetRndByteArray(40);
+            byte[] ba1 = ByteArrayUtil.GetRndByteArray(40);
+            byte[] ba2 = ByteArrayUtil.GetRndByteArray(40);
 
-            if (YFByteArray.EquiByteArrayCompare(ba1, ba2))
+            if (ByteArrayUtil.EquiByteArrayCompare(ba1, ba2))
                 Assert.Fail();
 
-            var ra = YFByteArray.EquiByteArrayXor(ba1, ba2);
+            var ra = ByteArrayUtil.EquiByteArrayXor(ba1, ba2);
 
-            if (YFByteArray.EquiByteArrayCompare(ra, ba1))
+            if (ByteArrayUtil.EquiByteArrayCompare(ra, ba1))
                 Assert.Fail();
 
-            if (YFByteArray.EquiByteArrayCompare(ra, ba2))
+            if (ByteArrayUtil.EquiByteArrayCompare(ra, ba2))
                 Assert.Fail();
 
-            var fa = YFByteArray.EquiByteArrayXor(ra, ba2);
+            var fa = ByteArrayUtil.EquiByteArrayXor(ra, ba2);
 
-            if (YFByteArray.EquiByteArrayCompare(fa, ba1))
+            if (ByteArrayUtil.EquiByteArrayCompare(fa, ba1))
                 Assert.Pass();
             else
                 Assert.Fail();
@@ -42,13 +42,13 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void XorMgmtPass()
         {
-            byte[] data = YFByteArray.GetRndByteArray(40);
-            byte[] key = YFByteArray.GetRndByteArray(40);
+            byte[] data = ByteArrayUtil.GetRndByteArray(40);
+            byte[] key = ByteArrayUtil.GetRndByteArray(40);
 
             var cipher = XorManagement.XorEncrypt(data, key);
             var copyData = XorManagement.XorDecrypt(cipher, key);
 
-            if (YFByteArray.EquiByteArrayCompare(data, copyData))
+            if (ByteArrayUtil.EquiByteArrayCompare(data, copyData))
                 Assert.Pass();
             else
                 Assert.Fail();
@@ -57,18 +57,18 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RefreshKeyPass()
         {
-            byte[] oldToken = YFByteArray.GetRndByteArray(40);
-            byte[] key = YFByteArray.GetRndByteArray(40);
+            byte[] oldToken = ByteArrayUtil.GetRndByteArray(40);
+            byte[] key = ByteArrayUtil.GetRndByteArray(40);
 
             var xorKeyOld = XorManagement.XorEncrypt(oldToken, key);
 
-            byte[] newToken = YFByteArray.GetRndByteArray(40);
+            byte[] newToken = ByteArrayUtil.GetRndByteArray(40);
 
             var xorKeyNew = XorManagement.RefreshToken(oldToken, newToken, xorKeyOld);
 
             var copyKey = XorManagement.XorDecrypt(newToken, xorKeyNew);
 
-            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
+            if (ByteArrayUtil.EquiByteArrayCompare(key, copyKey))
                 Assert.Pass();
             else
                 Assert.Fail();
@@ -77,13 +77,13 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void SplitKeyPass()
         {
-            byte[] key = YFByteArray.GetRndByteArray(40);
+            byte[] key = ByteArrayUtil.GetRndByteArray(40);
 
             var (cipher, random)= XorManagement.XorSplitKey(key);
 
             var copyKey = XorManagement.XorDecrypt(cipher, random);
 
-            if (YFByteArray.EquiByteArrayCompare(key, copyKey))
+            if (ByteArrayUtil.EquiByteArrayCompare(key, copyKey))
                 Assert.Pass();
             else
                 Assert.Fail();

@@ -55,7 +55,18 @@ namespace Youverse.Core.Services.Authentication
             WithTenantStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
+        public async Task<SecureKey> GetEncryptedDek()
+        {
+            var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
+            if (null == pk)
+            {
+                throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
+            }
+
+            return new SecureKey(pk.XorEncryptedDek);
+        }
+        
         public async Task<SaltsPackage> GetStoredSalts()
         {
             var pk = await WithTenantStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));

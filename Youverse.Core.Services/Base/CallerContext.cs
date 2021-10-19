@@ -8,13 +8,13 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class CallerContext
     {
-        private readonly SecureKey _loginKek;
+        private readonly SecureKey _loginDek;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey loginKek)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey loginDek)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
-            this._loginKek = loginKek;
+            this._loginDek = loginDek;
         }
 
         /// <summary>
@@ -31,10 +31,10 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>
-        public SecureKey GetLoginKek()
+        public SecureKey GetLoginDek()
         {
             //TODO: add audit point
-            return this._loginKek;
+            return this._loginDek;
         }
 
     }

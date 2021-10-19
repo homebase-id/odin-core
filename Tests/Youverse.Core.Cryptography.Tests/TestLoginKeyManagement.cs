@@ -166,7 +166,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
-            if (YFByteArray.EquiByteArrayCompare(SanityHashPassword, pk.HashPassword) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(SanityHashPassword, pk.HashPassword) == false)
                 Assert.Fail();
 
             Assert.Pass();
@@ -191,7 +191,7 @@ namespace Youverse.Core.Cryptography.Tests
             var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
             LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
 
-            if (YFByteArray.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
                 Assert.Fail();
 
             Assert.Pass();

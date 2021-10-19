@@ -10,7 +10,7 @@
         /// <returns>The XOR'ed key</returns>
         public static byte[] XorEncrypt(byte[] data, byte[] key)
         {
-            return YFByteArray.EquiByteArrayXor(data, key);
+            return ByteArrayUtil.EquiByteArrayXor(data, key);
         }
 
         /// <summary>
@@ -21,7 +21,7 @@
         /// <returns>The secret key</returns>
         public static byte[] XorDecrypt(byte[] ciper, byte[] key)
         {
-            return YFByteArray.EquiByteArrayXor(key, ciper);
+            return ByteArrayUtil.EquiByteArrayXor(key, ciper);
         }
 
 
@@ -37,7 +37,7 @@
         {
             var key = XorManagement.XorDecrypt(oldToken, xorKey);
             var newXorKey = XorManagement.XorEncrypt(newToken, key);
-            YFByteArray.WipeByteArray(key);
+            ByteArrayUtil.WipeByteArray(key);
 
             return newXorKey;
         }
@@ -49,7 +49,7 @@
         /// <returns>The cipher and the random key needed to decrypt the cipher</returns>
         public static (byte[] cipher, byte[] random) XorSplitKey(byte[] key)
         {
-            var rndHalf = YFByteArray.GetRndByteArray(key.Length);
+            var rndHalf = ByteArrayUtil.GetRndByteArray(key.Length);
             var cipher = XorManagement.XorEncrypt(key, rndHalf);
 
             return (cipher, rndHalf);

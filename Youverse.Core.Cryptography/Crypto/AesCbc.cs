@@ -23,11 +23,11 @@ namespace Youverse.Core.Cryptography.Crypto
 
                 var cipher = EncryptBytesToBytes_Aes(testData, key, iv);
 
-                var s = YFByteArray.PrintByteArray(cipher);
+                var s = ByteArrayUtil.PrintByteArray(cipher);
                 Console.WriteLine("Cipher: " + s);
                 var roundtrip = DecryptBytesFromBytes_Aes(cipher, key, iv);
 
-                if (YFByteArray.EquiByteArrayCompare(roundtrip, testData))
+                if (ByteArrayUtil.EquiByteArrayCompare(roundtrip, testData))
                     return true;
                 else
                     return false;

@@ -29,7 +29,7 @@ namespace Youverse.Core.Cryptography.Tests
             var cipher  = RsaKeyManagement.Encrypt(key, data, true);  // Encrypt with public key 
             var decrypt = RsaKeyManagement.Decrypt(key, cipher, false); // Decrypt with private key
 
-            if (YFByteArray.EquiByteArrayCompare(data, decrypt) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
             else
                 Assert.Pass();

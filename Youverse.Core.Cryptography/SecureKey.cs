@@ -40,7 +40,7 @@ namespace Youverse.Core.Cryptography
         public void Wipe()
         {
             if (_key != null)
-                YFByteArray.WipeByteArray(_key);
+                ByteArrayUtil.WipeByteArray(_key);
 
             _key = null;
         }

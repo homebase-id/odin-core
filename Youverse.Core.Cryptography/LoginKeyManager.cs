@@ -22,13 +22,13 @@ namespace Youverse.Core.Cryptography
             var passwordKey = new LoginKeyData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
-                SaltKek      = Convert.FromBase64String(nonce.SaltKek64),
+                SaltKek = Convert.FromBase64String(nonce.SaltKek64),
                 HashPassword = Convert.FromBase64String(HashedPassword64)
             };
 
-            var DeK = YFByteArray.GetRndByteArray(16); // Create the DeK
+            var DeK = ByteArrayUtil.GetRndByteArray(16); // Create the DeK
             passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, Convert.FromBase64String(KeK64));
-            YFByteArray.WipeByteArray(DeK);
+            ByteArrayUtil.WipeByteArray(DeK);
 
             return passwordKey;
         }
@@ -38,12 +38,17 @@ namespace Youverse.Core.Cryptography
         {
             var DeK = GetDek(passwordKey, oldKeK);
             passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, newKeK);
-            YFByteArray.WipeByteArray(DeK);
+            ByteArrayUtil.WipeByteArray(DeK);
         }
 
         public static byte[] GetDek(LoginKeyData passwordKey, byte[] KeK)
         {
-            return XorManagement.XorEncrypt(passwordKey.XorEncryptedDek, KeK);
+            return GetDek(passwordKey.XorEncryptedDek, KeK);
+        }
+
+        public static byte[] GetDek(byte[] xorEncryptedDek, byte[] KeK)
+        {
+            return XorManagement.XorEncrypt(xorEncryptedDek, KeK);
         }
 
         /// <summary>
@@ -56,7 +61,8 @@ namespace Youverse.Core.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
+        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply,
+            RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
@@ -70,7 +76,8 @@ namespace Youverse.Core.Cryptography
 
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(IPasswordReply reply, RsaKeyListData listRsa)
+        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(IPasswordReply reply,
+            RsaKeyListData listRsa)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
@@ -122,7 +129,8 @@ namespace Youverse.Core.Cryptography
 
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
-        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage, IPasswordReply reply, RsaKeyListData listRsa)
+        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
+            IPasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordRSAReply(reply, listRsa);
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
@@ -140,7 +148,7 @@ namespace Youverse.Core.Cryptography
                 CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE);
 
-            if (YFByteArray.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword) == false)
                 throw new Exception("Password mismatch");
         }
 
@@ -159,7 +167,8 @@ namespace Youverse.Core.Cryptography
         }
 
 
-        public static LoginKeyData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage, PasswordReply passwordReply, object reply)
+        public static LoginKeyData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage,
+            PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
         }
@@ -170,19 +179,26 @@ namespace Youverse.Core.Cryptography
 
             pr.Nonce64 = nonce.Nonce64;
 
-            string HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            string KeK64            = Convert.ToBase64String(KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64),      KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(HashedPassword64, Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            string HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
+                Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256,
+                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            string KeK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
+                Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256,
+                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(HashedPassword64,
+                Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,
+                CryptographyConstants.HASH_SIZE));
 
-			//TODO XXX
+            //TODO XXX
             //RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
             //rsa.ImportFromPem(nonce.PublicPem.ToCharArray());
             //pr.crc = RsaKeyManagement.KeyCRC(rsa);
 
-            var data = new {
+            var data = new
+            {
                 hpwd64 = HashedPassword64,
-                kek64  = KeK64,
-                secret = YFByteArray.GetRndByteArray(16)
+                kek64 = KeK64,
+                secret = ByteArrayUtil.GetRndByteArray(16)
             };
             var str = JsonConvert.SerializeObject(data);
 
@@ -196,4 +212,3 @@ namespace Youverse.Core.Cryptography
         }
     }
 }
-

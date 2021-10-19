@@ -40,15 +40,15 @@ namespace Youverse.Core.Cryptography
         {
             var token = new AppClientRegistrationData
             {
-                deviceApplicationId  = new Guid(YFByteArray.GetRndByteArray(16)),
+                deviceApplicationId  = new Guid(ByteArrayUtil.GetRndByteArray(16)),
                 applicationId = new Guid(ApplicationId)
             };
 
-            var halfCookie = YFByteArray.GetRndByteArray(16);
+            var halfCookie = ByteArrayUtil.GetRndByteArray(16);
             token.halfAdek = XorManagement.XorEncrypt(ApplicationDek, halfCookie);
 
             if (sharedSecret == null)
-                token.SharedSecret = YFByteArray.GetRndByteArray(16);
+                token.SharedSecret = ByteArrayUtil.GetRndByteArray(16);
             else
             {
                 if (sharedSecret.Length != 16)

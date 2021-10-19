@@ -61,8 +61,9 @@ namespace Youverse.Hosting.Security.Authentication
 
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set duringf the Startup.ResolveContext method
                     var r = GetAuthenticationResult();
-                    var loginKek = await authService.GetLoginKek(sessionToken, r.ClientHalfKek);
-                    var b64 = Convert.ToBase64String(loginKek.GetKey());
+                    //var loginKek = await authService.GetLoginKek(sessionToken, r.ClientHalfKek);
+                    var loginDek = await authService.GetLoginDek(sessionToken, r.ClientHalfKek);
+                    var b64 = Convert.ToBase64String(loginDek.GetKey());
 
                     var claims = new List<Claim>()
                     {
@@ -70,7 +71,7 @@ namespace Youverse.Hosting.Security.Authentication
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.LoginKek, b64, ClaimValueTypes.String, YouFoundationIssuer)
+                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, YouFoundationIssuer)
                     };
 
                     var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);

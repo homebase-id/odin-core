@@ -25,7 +25,7 @@ namespace Youverse.Core.Cryptography.Tests
             // Hash the user password + user salt
             var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, 100000, 16);
 
-            if (YFByteArray.EquiByteArrayCompare(HashPassword, resultArray))
+            if (ByteArrayUtil.EquiByteArrayCompare(HashPassword, resultArray))
                 Assert.Pass();
             else
                 Assert.Fail();

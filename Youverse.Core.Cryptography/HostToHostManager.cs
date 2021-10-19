@@ -55,8 +55,8 @@ namespace Youverse.Core.Cryptography
             var cryptoheader = new HostToHostCryptoHeader
             {
                 version = 1,
-                key = YFByteArray.GetRndByteArray(16),
-                iv  = YFByteArray.GetRndByteArray(16),
+                key = ByteArrayUtil.GetRndByteArray(16),
+                iv  = ByteArrayUtil.GetRndByteArray(16),
                 keyCrc = CRC32C.CalculateCRC32C(0, publicKey)
             };
 
@@ -178,7 +178,7 @@ namespace Youverse.Core.Cryptography
         public static (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, byte[] recipientPublicKey)
         {
             var crcRecipientPublicEncryptionKey = CRC32C.CalculateCRC32C(0, recipientPublicKey); // A. Calculate with CRC library
-            var randomKey = YFByteArray.GetRndByteArray(16); // B. Generate random encryption key
+            var randomKey = ByteArrayUtil.GetRndByteArray(16); // B. Generate random encryption key
 
             // Q. Aes encrypt the data, and get the iv C.
             var (randomIv, encryptedPayload) = AesCbc.EncryptBytesToBytes_Aes(payload, randomKey);
@@ -195,10 +195,10 @@ namespace Youverse.Core.Cryptography
 
             // New generate the byte[] for the header
             var tempHeader = CreateUnlockHeader(randomKey, randomIv);
-            YFByteArray.WipeByteArray(randomKey);
+            ByteArrayUtil.WipeByteArray(randomKey);
 
             byte[] encryptedHeader = rsaPublic.Encrypt(tempHeader, true);
-            YFByteArray.WipeByteArray(tempHeader);
+            ByteArrayUtil.WipeByteArray(tempHeader);
 
             var rsaHeader = CreateRsaHeader(crcRecipientPublicEncryptionKey, encryptedHeader);
 
@@ -210,7 +210,7 @@ namespace Youverse.Core.Cryptography
         {
             // XXX
             var crcRecipientPublicEncryptionKey = CRC32C.CalculateCRC32C(0, Convert.FromBase64String(recipientPublicKey)); // A. Calculate with CRC library
-            var AesEncryptionKey = YFByteArray.GetRndByteArray(16); // B. Generate random encryption key
+            var AesEncryptionKey = ByteArrayUtil.GetRndByteArray(16); // B. Generate random encryption key
 
             // Q. Aes encrypt the data, and get the iv C.
             var (iv, encryptedPayload) = AesCbc.EncryptBytesToBytes_Aes(data, AesEncryptionKey);
@@ -225,7 +225,7 @@ namespace Youverse.Core.Cryptography
  
             AesEncryptionKey.CopyTo(tempHeader, 0);
             iv.CopyTo(tempHeader, AesEncryptionKey.Length);
-            YFByteArray.WipeByteArray(AesEncryptionKey);
+            ByteArrayUtil.WipeByteArray(AesEncryptionKey);
 
             // Now we got 32 bytes to encrypt with the recipient's public key
             RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider(2048);
@@ -233,7 +233,7 @@ namespace Youverse.Core.Cryptography
             // This bugs me, how can we not first create a random key pair, and then overwrite it
 
             byte[] encryptedHeader = rsaPublic.Encrypt(tempHeader, true);
-            YFByteArray.WipeByteArray(tempHeader);
+            ByteArrayUtil.WipeByteArray(tempHeader);
 
             var finalHeader = new byte[4 + encryptedHeader.Length];
             finalHeader[0] = (byte) ((crcRecipientPublicEncryptionKey & 0xFF000000) >> 24);
@@ -265,7 +265,7 @@ namespace Youverse.Core.Cryptography
             var unlockHeader = rsaPrivate.Decrypt(encryptedUnlockHeader, true);
 
             var (randomKey, randomIv) = ParseUnlockHeader(unlockHeader);
-            YFByteArray.WipeByteArray(unlockHeader);
+            ByteArrayUtil.WipeByteArray(unlockHeader);
 
             //System.Diagnostics.Debug.WriteLine($"Decrypting data:");
             //System.Diagnostics.Debug.WriteLine($"AES Encryption Key {string.Join(", ", decryptionKey)}");
@@ -273,7 +273,7 @@ namespace Youverse.Core.Cryptography
             //System.Diagnostics.Debug.WriteLine($"encrypted data {string.Join(", ", encryptedData)}");
 
             var payload = AesCbc.DecryptBytesFromBytes_Aes(encryptedPayload, randomKey, randomIv);
-            YFByteArray.WipeByteArray(randomKey);
+            ByteArrayUtil.WipeByteArray(randomKey);
 
             return payload;
         }
@@ -309,7 +309,7 @@ namespace Youverse.Core.Cryptography
                 decryptionKey[i] = decryptedHeader[i];
                 iv[i] = decryptedHeader[i + 16];
             }
-            YFByteArray.WipeByteArray(h);
+            ByteArrayUtil.WipeByteArray(h);
 
             //System.Diagnostics.Debug.WriteLine($"Decrypting data:");
             //System.Diagnostics.Debug.WriteLine($"AES Encryption Key {string.Join(", ", decryptionKey)}");
@@ -317,7 +317,7 @@ namespace Youverse.Core.Cryptography
             //System.Diagnostics.Debug.WriteLine($"encrypted data {string.Join(", ", encryptedData)}");
 
             var data = AesCbc.DecryptBytesFromBytes_Aes(encryptedData, decryptionKey, iv);
-            YFByteArray.WipeByteArray(decryptionKey);
+            ByteArrayUtil.WipeByteArray(decryptionKey);
 
             return data;
         }
@@ -353,10 +353,10 @@ namespace Youverse.Core.Cryptography
 
             // Now we have the keys to decrypt the encryptedPayload, let's create a new AES header
             //
-            var randomIv2 = YFByteArray.GetRndByteArray(16);
+            var randomIv2 = ByteArrayUtil.GetRndByteArray(16);
 
             var newEncryptedUnlockHeader = AesCbc.EncryptBytesToBytes_Aes(unlockHeader, sharedSecret, randomIv2);
-            YFByteArray.WipeByteArray(unlockHeader);
+            ByteArrayUtil.WipeByteArray(unlockHeader);
 
             // Assemble the final AES header. 
 
@@ -398,7 +398,7 @@ namespace Youverse.Core.Cryptography
                 decryptionKey[i] = decryptedHeader[i];
                 iv[i] = decryptedHeader[i + 16];
             }
-            YFByteArray.WipeByteArray(h);
+            ByteArrayUtil.WipeByteArray(h);
 
             //System.Diagnostics.Debug.WriteLine($"Decrypting data:");
             //System.Diagnostics.Debug.WriteLine($"AES Encryption Key {string.Join(", ", decryptionKey)}");
@@ -407,7 +407,7 @@ namespace Youverse.Core.Cryptography
 
             var aesEncryptedKey = AesCbc.EncryptBytesToBytes_Aes(decryptionKey, DeK, iv);
 
-            YFByteArray.WipeByteArray(decryptionKey);
+            ByteArrayUtil.WipeByteArray(decryptionKey);
 
             // To later retrieve the key used to encrypt the data to this:
             // var key = AesCbc.DecryptBytesFromBytes_Aes(newHeader, DeK, iv);

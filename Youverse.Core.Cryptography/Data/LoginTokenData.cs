@@ -30,8 +30,8 @@ namespace Youverse.Core.Cryptography.Data
 
         public void Dispose()
         {
-            YFByteArray.WipeByteArray(this.HalfKey);
-            YFByteArray.WipeByteArray(this.SharedSecret);
+            ByteArrayUtil.WipeByteArray(this.HalfKey);
+            ByteArrayUtil.WipeByteArray(this.SharedSecret);
         }
     }
 }

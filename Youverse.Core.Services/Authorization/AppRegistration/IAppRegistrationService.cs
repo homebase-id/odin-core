@@ -9,5 +9,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
 
         Task<AppRegistration> GetRegistration(Guid applicationId);
 
+        //Note: apps will also have their own keystore.  it will store the keys of other apps to which it has access
+        Task GetAppKeyStore();
     }
 }

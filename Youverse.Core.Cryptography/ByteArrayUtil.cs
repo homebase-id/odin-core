@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Youverse.Core.Cryptography
 {
-    public static class YFByteArray
+    public static class ByteArrayUtil
     {
         public static byte[] UInt32ToBytes(UInt32 i)
         {

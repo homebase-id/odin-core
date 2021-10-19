@@ -50,12 +50,12 @@ namespace Youverse.Core.Cryptography
 
             var token = new LoginTokenData
             {
-                Id = YFByteArray.GetRandomCryptoGuid(),
+                Id = ByteArrayUtil.GetRandomCryptoGuid(),
                 SharedSecret = Convert.FromBase64String(sharedsecret64),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
-            var halfCookie = YFByteArray.GetRndByteArray(16);
+            var halfCookie = ByteArrayUtil.GetRndByteArray(16);
             token.HalfKey = XorManagement.XorEncrypt(Convert.FromBase64String(kek64), halfCookie);
 
             return (halfCookie, token);

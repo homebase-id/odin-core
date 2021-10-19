@@ -44,7 +44,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             var testKek = LoginTokenManager.GetLoginKek(loginToken, halfCookie);
 
-            if (YFByteArray.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {
                 Assert.Fail();
                 return;

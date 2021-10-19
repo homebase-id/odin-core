@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Authentication
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
         /// <returns></returns>
-        Task<SecureKey> GetLoginKek(Guid sessionToken, SecureKey clientHalfKek);
-
+        
+        Task<SecureKey> GetLoginDek(Guid sessionToken, SecureKey rClientHalfKek);
     }
 }

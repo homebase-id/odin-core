@@ -13,11 +13,11 @@ namespace Youverse.Core.Cryptography
         /// Get the Application Dek by means of the LoginKek master key
         /// </summary>
         /// <param name="token">The ApplicationTokenData</param>
-        /// <param name="LoginKek">The master key LoginKek</param>
+        /// <param name="loginKeK">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static SecureKey GetApplicationDekWithLogin(AppRegistrationData token, SecureKey LoginKeK)
+        public static SecureKey GetApplicationDekWithLogin(AppEncryptionKey token, SecureKey loginKeK)
         {
-            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.encryptedDek, LoginKeK.GetKey(), token.iv);
+            var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.EncryptedAppDeK, loginKeK.GetKey(), token.AppIV);
 
             return new SecureKey(appDek);
         }
@@ -38,17 +38,18 @@ namespace Youverse.Core.Cryptography
         /// <summary>
         /// Create a new application. This should only be done once for an application, e.g. chat.
         /// </summary>
-        /// <param name="name">Friendly name, not used</param>
-        /// <param name="LoginKeK">The master key which can later be used to retrieve the aDeK or aKeK</param>
+        /// <param name="loginDek">The master key which can later be used to retrieve the appDeK</param>
         /// <returns>A new ApplicationTokenData object</returns>
-        public static AppRegistrationData CreateApplication(SecureKey LoginKeK)
+        public static AppEncryptionKey CreateAppKey(byte[] loginDek)
         {
-            var appDEK = new SecureKey(YFByteArray.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
+            var appDek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
+            
+            var token = new AppEncryptionKey();
 
-            var token = new AppRegistrationData();
+            (token.AppIV, token.EncryptedAppDeK) = AesCbc.EncryptBytesToBytes_Aes(appDek.GetKey(), loginDek);
 
-            (token.iv, token.encryptedDek) = AesCbc.EncryptBytesToBytes_Aes(appDEK.GetKey(), LoginKeK.GetKey());
-
+            appDek.Wipe();
+            
             return token;
         }
     }
