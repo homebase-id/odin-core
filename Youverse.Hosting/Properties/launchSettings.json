@@ -1,6 +1,6 @@
 ﻿{
   "profiles": {
-    "DotYou.DigitalIdentityHost": {
+    "Youverse.Hosting": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": true,
