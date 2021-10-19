@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.Base
 {
@@ -22,5 +23,12 @@ namespace Youverse.Core.Services.Base
 
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();
+        
+        [Multipart]
+        [Post("/data/datastream")]
+        Task<ApiResponse<bool>> DeliverStream(
+            [AliasAs("hdr")] KeyHeader metadata, 
+            [AliasAs("metaData")] StreamPart metaData, 
+            [AliasAs("payload")] StreamPart payload);
     }
 }
