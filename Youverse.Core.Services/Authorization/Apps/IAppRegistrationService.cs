@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Authorization.AppRegistration
+namespace Youverse.Core.Services.Authorization.Apps
 {
     public interface IAppRegistrationService
     {
@@ -78,5 +77,13 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         /// <param name="uniqueDeviceId"></param>
         /// <returns></returns>
         Task RevokeAppDevice(Guid applicationId, byte[] uniqueDeviceId);
+        
+        /// <summary>
+        /// Revokes an specific application on a specific device from accessing this host and its data.
+        /// </summary>
+        /// <param name="applicationId"></param>
+        /// <param name="uniqueDeviceId"></param>
+        /// <returns></returns>
+        Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId);
     }
 }

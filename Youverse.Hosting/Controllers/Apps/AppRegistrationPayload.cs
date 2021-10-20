@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Authorization.AppRegistration
+namespace Youverse.Hosting.Controllers.Apps
 {
     public class AppRegistrationPayload
     {

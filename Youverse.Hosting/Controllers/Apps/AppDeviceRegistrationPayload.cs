@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Apps
 {
     public class AppDeviceRegistrationPayload
     {

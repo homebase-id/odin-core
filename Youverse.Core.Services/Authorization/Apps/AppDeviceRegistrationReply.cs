@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Authorization.AppRegistration
+namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppDeviceRegistrationReply
     {

@@ -22,6 +22,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Profile;
@@ -128,6 +129,16 @@ namespace Youverse.Hosting
                     return new OwnerAuthenticationService(context, logger, ss);
                 });
 
+            services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new AppRegistrationService(context, logger, hub, fac);
+                
+            });
+            
             services.AddScoped<IProfileService, ProfileService>(svc =>
             {
                 var context = ResolveContext(svc);

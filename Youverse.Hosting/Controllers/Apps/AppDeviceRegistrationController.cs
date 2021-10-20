@@ -4,14 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.AppRegistration;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Security;
 
-namespace Youverse.Hosting.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Apps
 {
     [ApiController]
     [Route("/api/admin/apps/devices")]
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class AppDeviceRegistrationController : Controller
     {
         private readonly IAppRegistrationService _appRegistration;
@@ -34,26 +34,35 @@ namespace Youverse.Hosting.Controllers.Owner
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetRegisteredAppDevice(Guid applicationId, string deviceId64)
+        public async Task<IActionResult> GetRegisteredAppDevice([FromQuery] Guid appId, [FromQuery] string deviceId64)
         {
+            //TODO: should all of these fields be returned to the client?
             var uniqueDeviceId = Convert.FromBase64String(deviceId64);
-            var reg = await _appRegistration.GetAppDeviceRegistration(applicationId, uniqueDeviceId);
+            var reg = await _appRegistration.GetAppDeviceRegistration(appId, uniqueDeviceId);
             return new JsonResult(reg);
         }
 
-        [HttpGet("apps/devices")]
-        public async Task<IActionResult> GetRegisteredAppDeviceList(int pageNumber, int pageSize)
+        [HttpGet]
+        public async Task<IActionResult> GetRegisteredAppDeviceList([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             var reg = await _appRegistration.GetRegisteredAppDevices(new PageOptions(pageNumber, pageSize));
             return new JsonResult(reg);
         }
-        
-        [HttpDelete("/{applicationId}/{deviceId64}")]
-        public async Task<IActionResult> RevokeAppDevice(Guid applicationId, string deviceId64)
+
+        [HttpPost("/revoke")]
+        public async Task<NoResultResponse> RevokeAppDevice([FromQuery] Guid appId, [FromQuery] string deviceId64)
         {
             var bytes = Convert.FromBase64String(deviceId64);
-            await _appRegistration.RevokeAppDevice(applicationId, bytes);
-            return new JsonResult(true);
+            await _appRegistration.RevokeAppDevice(appId, bytes);
+            return new NoResultResponse(true);
+        }
+
+        [HttpPost("/allow")]
+        public async Task<NoResultResponse> RemoveAppDeviceRevocation([FromQuery] Guid appId, [FromQuery] string deviceId64)
+        {
+            var bytes = Convert.FromBase64String(deviceId64);
+            await _appRegistration.RemoveAppDeviceRevocation(appId, bytes);
+            return new NoResultResponse(true);
         }
     }
 }

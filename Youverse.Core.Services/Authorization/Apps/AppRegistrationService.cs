@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authorization.AppRegistration
+namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistrationService : DotYouServiceBase, IAppRegistrationService
     {
@@ -44,9 +42,9 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
             return Task.FromResult(appReg.Id);
         }
 
-        public Task<AppRegistration> GetAppRegistration(Guid applicationId)
+        public async Task<AppRegistration> GetAppRegistration(Guid applicationId)
         {
-            var result = WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
+            var result = await WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }
 
@@ -142,6 +140,13 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         {
             var appDevice = await this.GetAppDeviceRegistration(applicationId, uniqueDeviceId);
             appDevice.IsRevoked = true;
+            WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
+        }
+
+        public async Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId)
+        {
+            var appDevice = await this.GetAppDeviceRegistration(applicationId, uniqueDeviceId);
+            appDevice.IsRevoked = false;
             WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
         }
 
