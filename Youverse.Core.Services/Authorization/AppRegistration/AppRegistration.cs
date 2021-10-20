@@ -1,5 +1,4 @@
 ﻿using System;
-using LiteDB;
 
 namespace Youverse.Core.Services.Authorization.AppRegistration
 {
@@ -13,5 +12,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         public byte[] EncryptedAppDeK { get; set; }
 
         public byte[] AppIV { get; set; }
+        
+        public bool IsRevoked { get; set; }
     }
 }

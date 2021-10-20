@@ -1,16 +1,56 @@
 ﻿using System;
+using System.Reflection;
 using NUnit.Framework;
+using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.AppRegistration;
+using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.AppRegistration
 {
     public class AppRegistrationTests
     {
+        private TestScaffold _scaffold;
+        private Guid _applicationid = Guid.Parse(" f499fc5f-1111-1111-1111-bd44a13b7dbd ");
+        private string _appName = "API Tests Sample App";
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            _scaffold = new TestScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            _scaffold.RunAfterAnyTests();
+        }
+
         [Test]
         public async void RegisterNewApp()
         {
+            
+            //Check if Frodo received the request?
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            {
+                var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
+                var payload = new AppRegistrationPayload
+                {
+                    Name = _appName,
+                    ApplicationId = _applicationid
+                };
+                
+                var response = await svc.RegisterApp(payload);
+                
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var savedApp = response.Content;
+   
+            }
+            
             // var appRegSvc = new AppRegistrationService(null, null, null);
             //
             // Guid applicationId = Guid.Parse("9076c849-5217-464f-b294-cb3036fec64e");

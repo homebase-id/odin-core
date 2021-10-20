@@ -29,8 +29,23 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         /// <returns></returns>
         Task RevokeApp(Guid applicationId);
 
+        /// <summary>
+        /// Allows an app that has been revoked
+        /// </summary>
+        /// <param name="applicationId"></param>
+        /// <returns></returns>
+        Task RemoveAppRevocation(Guid applicationId);
+
         //Note: apps will also have their own keystore.  it will store the keys of other apps to which it has access
         Task GetAppKeyStore();
+
+        /// <summary>
+        /// Gets all app registrations for a given device.
+        /// </summary>
+        /// <param name="uniqueDeviceId"></param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<AppDeviceRegistration>> GetAppsByDevice(byte[] uniqueDeviceId, PageOptions pageOptions);
 
         /// <summary>
         /// Registers an application on a given device.  Returns the information required by the device
@@ -47,7 +62,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         /// <param name="applicationId"></param>
         /// <param name="uniqueDeviceId"></param>
         /// <returns></returns>
-        Task<AppDeviceRegistration> GetRegisteredAppDevice(Guid applicationId, byte[] uniqueDeviceId);
+        Task<AppDeviceRegistration> GetAppDeviceRegistration(Guid applicationId, byte[] uniqueDeviceId);
 
         /// <summary>
         /// Gets the list of devices on which an app is registered.
@@ -55,13 +70,6 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
         /// <param name="pageOptions"></param>
         /// <returns></returns>
         Task<PagedResult<AppDeviceRegistration>> GetRegisteredAppDevices(PageOptions pageOptions);
-
-        /// <summary>
-        /// Revokes a device from accessing this host
-        /// </summary>
-        /// <param name="uniqueDeviceId"></param>
-        /// <returns></returns>
-        Task RevokeDevice(byte[] uniqueDeviceId);
 
         /// <summary>
         /// Revokes an specific application on a specific device from accessing this host and its data.
