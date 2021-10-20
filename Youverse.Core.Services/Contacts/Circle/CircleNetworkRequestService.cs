@@ -24,22 +24,22 @@ namespace Youverse.Core.Services.Contacts.Circle
             _cns = cns;
             _mgts = mgts;
 
-            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
-            WithTenantStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
+            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
+            WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
-            var results = await WithTenantStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
+            var results = await WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
 
             return results;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            var results = await WithTenantStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            var results = await WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception("Failed to establish connection request");
             }
 
-            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
+            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             //note: this would occur during the operation verification process
             request.Validate();
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
-            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
+            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
 
             this.Notify.ConnectionRequestReceived(request).Wait();
 
@@ -93,22 +93,22 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
+            var result = await WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
-            var result = await WithTenantStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
+            var result = await WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
 
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
-            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
+            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
+            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
 
             return Task.CompletedTask;
         }
@@ -174,10 +174,10 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
-            WithTenantStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
+            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            WithTenantStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
+            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
 
             return Task.CompletedTask;
         }

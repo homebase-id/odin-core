@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Profile
             // 2 if not in cache - pull from DI and update local cache
             DotYouProfile profile = null;
 
-            profile = await WithTenantStorageReturnSingle<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId));
+            profile = await WithTenantSystemStorageReturnSingle<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId));
 
             if (null != profile)
             {
@@ -55,19 +55,19 @@ namespace Youverse.Core.Services.Profile
 
         public Task Save(DotYouProfile profile)
         {
-            WithTenantStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
+            WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
             return Task.CompletedTask;
         }
 
         public async Task<PagedResult<DotYouProfile>> Find(Expression<Func<DotYouProfile, bool>> predicate, PageOptions req)
         {
-            var results = await WithTenantStorageReturnList<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
+            var results = await WithTenantSystemStorageReturnList<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
             return results;
         }
 
         public Task Delete(DotYouIdentity dotYouId)
         {
-            WithTenantStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
+            WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
             return Task.CompletedTask;
         }
     }

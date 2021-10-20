@@ -20,25 +20,25 @@ namespace Youverse.Services.Messaging.Email
 
         public Task Save(Message message)
         {
-            WithTenantStorage<Message>(FolderName, storage => storage.Save(message));
+            WithTenantSystemStorage<Message>(FolderName, storage => storage.Save(message));
             return Task.CompletedTask;
         }
 
         public async Task<Message> Get(Guid id)
         {
-            return await WithTenantStorageReturnSingle<Message>(FolderName, storage => storage.Get(id));
+            return await WithTenantSystemStorageReturnSingle<Message>(FolderName, storage => storage.Get(id));
         }
 
         public Task<PagedResult<Message>> GetList(string folderPath, PageOptions page)
         {
             
-            var result = WithTenantStorageReturnList<Message>(FolderName, storage => storage.Find(msg=>msg.Folder.StartsWith(folderPath, StringComparison.InvariantCultureIgnoreCase), page));
+            var result = WithTenantSystemStorageReturnList<Message>(FolderName, storage => storage.Find(msg=>msg.Folder.StartsWith(folderPath, StringComparison.InvariantCultureIgnoreCase), page));
             return result;
         }
 
         public Task Delete(Guid id)
         {
-            WithTenantStorage<Message>(FolderName, s => s.Delete(id));
+            WithTenantSystemStorage<Message>(FolderName, s => s.Delete(id));
             return Task.CompletedTask;
         }
 

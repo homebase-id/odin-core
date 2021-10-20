@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.AppRegistration;
 
 namespace Youverse.Hosting.Controllers.Owner

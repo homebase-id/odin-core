@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
 
         public Task<AppRegistration> GetAppRegistration(Guid applicationId)
         {
-            var result = WithTenantStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
+            var result = WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }
 
@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
             var appReg = await this.GetAppRegistration(applicationId);
             if (null != appReg)
             {
-                WithTenantStorage<AppRegistration>(AppRegistrationStorageName, s => s.Delete(appReg.Id));
+                WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Delete(appReg.Id));
             }
 
             //TODO: Send notification?
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
                 EncryptedAppDeK = key.EncryptedAppDeK
             };
 
-            WithTenantStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+            WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
             return Task.FromResult(appReg.Id);
         }
@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
                 IsRevoked = false
             };
 
-            this.WithTenantStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
+            this.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
 
             return new AppDeviceRegistrationReply()
             {
@@ -103,35 +103,35 @@ namespace Youverse.Core.Services.Authorization.AppRegistration
 
         public async Task<AppDeviceRegistration> GetRegisteredAppDevice(Guid applicationId, byte[] uniqueDeviceId)
         {
-            var appDeviceReg = await WithTenantStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId && a.UniqueDeviceId == uniqueDeviceId));
+            var appDeviceReg = await WithTenantSystemStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId && a.UniqueDeviceId == uniqueDeviceId));
             return appDeviceReg;
         }
 
         public async Task<PagedResult<AppDeviceRegistration>> GetRegisteredAppDevices(PageOptions pageOptions)
         {
-            var list = await WithTenantStorageReturnList<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.GetList(pageOptions));
+            var list = await WithTenantSystemStorageReturnList<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.GetList(pageOptions));
             return list;
         }
 
         public async Task RevokeDevice(byte[] uniqueDeviceId)
         {
-            WithTenantStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.DeleteMany(ad => ad.UniqueDeviceId == uniqueDeviceId));
+            WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.DeleteMany(ad => ad.UniqueDeviceId == uniqueDeviceId));
         }
 
         public async Task RevokeAppDevice(Guid applicationId, byte[] uniqueDeviceId)
         {
-            WithTenantStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.DeleteMany(ad => ad.ApplicationId == applicationId && ad.UniqueDeviceId == uniqueDeviceId));
+            WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.DeleteMany(ad => ad.ApplicationId == applicationId && ad.UniqueDeviceId == uniqueDeviceId));
         }
 
         public async Task<PagedResult<AppRegistration>> GetRegisteredApps(PageOptions pageOptions)
         {
-            var apps = await WithTenantStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
+            var apps = await WithTenantSystemStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
             return apps;
         }
 
         public async Task<AppDeviceRegistration> GetDeviceAppRegistration(Guid deviceRegistrationId)
         {
-            var appDeviceReg = await WithTenantStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Get(deviceRegistrationId));
+            var appDeviceReg = await WithTenantSystemStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Get(deviceRegistrationId));
             return appDeviceReg;
         }
 

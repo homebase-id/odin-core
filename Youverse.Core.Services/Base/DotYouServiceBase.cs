@@ -79,7 +79,7 @@ namespace Youverse.Core.Services.Base
             }
         }
         
-        protected void WithTenantStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
+        protected void WithTenantSystemStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
@@ -88,7 +88,7 @@ namespace Youverse.Core.Services.Base
             }
         }
 
-        protected Task<PagedResult<T>> WithTenantStorageReturnList<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<PagedResult<T>>> func)
+        protected Task<PagedResult<T>> WithTenantSystemStorageReturnList<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<PagedResult<T>>> func)
         {
             var cfg = _context.StorageConfig;
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Base
             }
         }
         
-        protected Task<T> WithTenantStorageReturnSingle<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<T>> func)
+        protected Task<T> WithTenantSystemStorageReturnSingle<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<T>> func)
         {
             var cfg = _context.StorageConfig;
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))

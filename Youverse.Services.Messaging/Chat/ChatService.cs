@@ -132,7 +132,7 @@ namespace Youverse.Services.Messaging.Chat
                 Console.WriteLine($"Message successfully sent to {message.Recipient}");
 
                 //upon successful delivery of the message, save our message
-                WithTenantStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
+                WithTenantSystemStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
                 var recent = new RecentChatMessageHeader()
                 {
@@ -141,7 +141,7 @@ namespace Youverse.Services.Messaging.Chat
                     Timestamp = message.ReceivedTimestampMilliseconds
                 };
 
-                WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
+                WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
                 await this.MessagingHub.NewChatMessageSent(message);
                 //Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
@@ -177,7 +177,7 @@ namespace Youverse.Services.Messaging.Chat
             }
             
             string collection = GetChatStoragePath(envelope.SenderDotYouId);
-            WithTenantStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
+            WithTenantSystemStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
 
             var recent = new RecentChatMessageHeader()
             {
@@ -186,7 +186,7 @@ namespace Youverse.Services.Messaging.Chat
                 Timestamp = envelope.ReceivedTimestampMilliseconds
             };
 
-            WithTenantStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
+            WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
             await this.MessagingHub.NewChatMessageReceived(envelope);
 
@@ -199,7 +199,7 @@ namespace Youverse.Services.Messaging.Chat
 
         public async Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions)
         {
-            var page = await WithTenantStorageReturnList<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
+            var page = await WithTenantSystemStorageReturnList<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
 
             //HACK:  need to redesign the storage of chat and/or recent messages
             var grouping = page.Results.GroupBy(h => h.DotYouId, StringComparer.InvariantCultureIgnoreCase);
@@ -220,7 +220,7 @@ namespace Youverse.Services.Messaging.Chat
         public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)
         {
             string collection = GetChatStoragePath(dotYouId);
-            var page = await WithTenantStorageReturnList<ChatMessageEnvelope>(collection, s =>
+            var page = await WithTenantSystemStorageReturnList<ChatMessageEnvelope>(collection, s =>
             {
                 Expression<Func<ChatMessageEnvelope, bool>> predicate = p => (p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds &&
                                                                               p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds);

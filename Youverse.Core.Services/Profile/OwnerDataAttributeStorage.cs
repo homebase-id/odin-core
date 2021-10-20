@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Profile
         public async Task<NameAttribute> GetPrimaryName()
         {
             //Note: the ID for the primary name is a fixed attribute in the system
-            var name = await WithTenantStorageReturnSingle<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Get(NAME_ATTRIBUTE_ID));
+            var name = await WithTenantSystemStorageReturnSingle<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Get(NAME_ATTRIBUTE_ID));
             return name;
         }
 
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Profile
 
             //Note: the ID for the primary name is a fixed attribute in the system
             name.Id = NAME_ATTRIBUTE_ID;
-            WithTenantStorage<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Save(name));
+            WithTenantSystemStorage<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Save(name));
             return Task.CompletedTask;
         }
 
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Profile
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
             Guard.Argument(profile, nameof(profile)).NotNull();
             profile.Id = CONNECTED_PROFILE_ID;
-            WithTenantStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
+            WithTenantSystemStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
@@ -62,62 +62,62 @@ namespace Youverse.Core.Services.Profile
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
             Guard.Argument(profile, nameof(profile)).NotNull();
             profile.Id = PUBLIC_PROFILE_ID;
-            WithTenantStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
+            WithTenantSystemStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
         public async Task<OwnerProfile> GetConnectedProfile()
         {
-            return await WithTenantStorageReturnSingle<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
+            return await WithTenantSystemStorageReturnSingle<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
         }
 
         public async Task<OwnerProfile> GetPublicProfile()
         {
-            return await WithTenantStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
+            return await WithTenantSystemStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
         {
             AssertCallerIsOwner();
-            var results = await WithTenantStorageReturnList<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.GetList(pageOptions));
+            var results = await WithTenantSystemStorageReturnList<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.GetList(pageOptions));
             return results;
         }
 
         public Task SaveCategory(DataAttributeCategory category)
         {
-            WithTenantStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Save(category));
+            WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Save(category));
             return Task.CompletedTask;
         }
 
         public Task DeleteCategory(Guid id)
         {
-            WithTenantStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Delete(id));
+            WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
         public Task SaveAttribute(BaseAttribute attribute)
         {
-            WithTenantStorage<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Save(attribute));
+            WithTenantSystemStorage<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Save(attribute));
             return Task.CompletedTask;
         }
 
         public Task DeleteAttribute(Guid id)
         {
-            WithTenantStorage<DataAttributeCategory>(ATTRIBUTE_STORAGE, s => s.Delete(id));
+            WithTenantSystemStorage<DataAttributeCategory>(ATTRIBUTE_STORAGE, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)
         {
             Expression<Func<BaseAttribute, bool>> predicate = attr => true;
-            var results = await WithTenantStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
+            var results = await WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions, Guid categoryId)
         {
             Expression<Func<BaseAttribute, bool>> predicate = attr => attr.CategoryId == categoryId;
-            var results = await WithTenantStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
+            var results = await WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
         }
     }
