@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Background
             // }
 
             var queue = _serviceProvider.GetRequiredService<OutboxQueueService>();
-            var transferService = _serviceProvider.GetRequiredService<TransferService>();
+            var transferService = _serviceProvider.GetRequiredService<TransitService>();
 
             while (!stoppingToken.IsCancellationRequested)
             {

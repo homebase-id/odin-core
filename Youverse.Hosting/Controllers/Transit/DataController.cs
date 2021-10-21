@@ -15,11 +15,11 @@ namespace DotYouTransit.Controllers
     [Route("data")]
     public class DataController : ControllerBase
     {
-        private readonly TransferService _svc;
+        private readonly TransitService _svc;
 
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public DataController(TransferService svc)
+        public DataController(TransitService svc)
         {
             _svc = svc;
 

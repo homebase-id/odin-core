@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransferService : DotYouServiceBase
+    public class TransitService : DotYouServiceBase, ITransitService
     {
         private class Envelope
         {
@@ -18,13 +19,15 @@ namespace Youverse.Core.Services.Transit
         }
 
 
-        private readonly OutboxQueueService _outboxQueue;
+        private readonly IStorageService _storageService;
+        private readonly IOutboxQueueService _outboxQueue;
         const int InstantSendPayloadThresholdSize = 1024;
         const int InstantSendRecipientCountThreshold = 9;
 
-        public TransferService(DotYouContext context, ILogger logger, OutboxQueueService outboxQueue, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storageService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac ) : base(context, logger, notificationHub, fac)
         {
             _outboxQueue = outboxQueue;
+            _storageService = storageService;
         }
 
         public async Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems)

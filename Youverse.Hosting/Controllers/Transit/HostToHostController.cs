@@ -15,11 +15,11 @@ namespace DotYouTransit.Controllers
     [Route("data")]
     public class HostToHostController : ControllerBase
     {
-        private readonly TransferService _svc;
+        private readonly TransitService _svc;
 
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public HostToHostController(TransferService svc)
+        public HostToHostController(TransitService svc)
         {
             _svc = svc;
 

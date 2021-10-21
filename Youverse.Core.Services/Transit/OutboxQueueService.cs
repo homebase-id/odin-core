@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class OutboxQueueService: DotYouServiceBase
+    public class OutboxQueueService: DotYouServiceBase, IOutboxQueueService
     {
         private readonly Queue<TransferQueueItem> _queue;
         

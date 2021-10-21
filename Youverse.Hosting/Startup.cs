@@ -28,6 +28,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Security;
@@ -44,12 +45,12 @@ namespace Youverse.Hosting
         const string YouFoundationIssuer = "YouFoundation";
 
         public IConfiguration Configuration { get; }
-        
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
-        
+
         public void ConfigureServices(IServiceCollection services)
         {
             var config = this.Configuration.GetSection("Config").Get<Config>();
@@ -68,7 +69,7 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-            
+
             services.AddAuthentication(options =>
                 {
                     options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
@@ -79,7 +80,7 @@ namespace Youverse.Hosting
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
-                    
+
                     //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                     //options.RevocationMode = X509RevocationMode.NoCheck
 
@@ -136,9 +137,8 @@ namespace Youverse.Hosting
                 var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 return new AppRegistrationService(context, logger, hub, fac);
-                
             });
-            
+
             services.AddScoped<IProfileService, ProfileService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -147,7 +147,7 @@ namespace Youverse.Hosting
                 return new ProfileService(context, logger, fac);
             });
 
-            
+
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -157,7 +157,7 @@ namespace Youverse.Hosting
                 var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
                 return new CircleNetworkService(context, profileSvc, logger, hub, fac);
             });
-            
+
             services.AddScoped<ICircleNetworkRequestService, CircleNetworkRequestService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -168,7 +168,7 @@ namespace Youverse.Hosting
                 var mgt = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
                 return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
             });
-            
+
             services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -183,7 +183,6 @@ namespace Youverse.Hosting
                 var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
                 var cn = svc.GetRequiredService<ICircleNetworkService>();
                 return new OwnerDataAttributeReaderService(context, logger, cn);
-
             });
 
             services.AddScoped<IMessagingService, MessagingService>(svc =>
@@ -204,11 +203,11 @@ namespace Youverse.Hosting
                 var p = svc.GetRequiredService<IProfileService>();
                 var cns = svc.GetRequiredService<ICircleNetworkService>();
                 var ms = svc.GetRequiredService<IStorageService>();
-                
+
                 var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
                 return new ChatService(context, logger, fac, p, cns, msgHub, ms);
             });
-            
+
             services.AddScoped<IStorageService, FileBasedStorageService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -216,6 +215,26 @@ namespace Youverse.Hosting
                 return new FileBasedStorageService(context, logger);
             });
             
+            services.AddScoped<IOutboxQueueService, OutboxQueueService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new OutboxQueueService(context, logger, hub, fac);
+            });
+
+            services.AddScoped<ITransitService, TransitService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var ss = svc.GetRequiredService<IStorageService>();
+                var box = svc.GetRequiredService<IOutboxQueueService>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new TransitService(context, logger, box, ss, hub, fac);
+            });
+
             services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -232,7 +251,7 @@ namespace Youverse.Hosting
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env) 
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             this.ConfigureLiteDBSerialization();
 
@@ -257,7 +276,7 @@ namespace Youverse.Hosting
                 // {
                 //     await context.Response.WriteAsync("wrinkle");
                 // });
-                
+
                 endpoints.MapControllers();
                 //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
@@ -310,12 +329,12 @@ namespace Youverse.Hosting
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
 
             var caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 loginDek: chk
             );
 
-            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
+            var context = new DotYouContext((DotYouIdentity)hostname, cert, storage, caller);
             return context;
         }
 
@@ -389,7 +408,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
@@ -399,7 +418,7 @@ namespace Youverse.Hosting
             // BsonMapper.Global.Entity<NoncePackage>()
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }
-        
+
         private void AssertValidConfiguration(Config config)
         {
             Guard.Argument(config, nameof(config)).NotNull();
