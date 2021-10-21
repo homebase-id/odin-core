@@ -61,8 +61,6 @@ namespace Youverse.Hosting.Controllers
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
             return result;
-            
-            
         }
         
         [HttpGet("blocked")]

@@ -9,17 +9,17 @@ using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
 
-namespace DotYouTransit.Controllers
+namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
-    [Route("data")]
-    public class DataController : ControllerBase
+    [Route("/api/transit/client")]
+    public class ClientUploadController : ControllerBase
     {
         private readonly TransitService _svc;
 
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public DataController(TransitService svc)
+        public ClientUploadController(TransitService svc)
         {
             _svc = svc;
 
@@ -29,7 +29,7 @@ namespace DotYouTransit.Controllers
             };
         }
 
-        [HttpPost("send")]
+        [HttpPost("upload")]
         public async Task<IActionResult> SendPayload()
         {
             try

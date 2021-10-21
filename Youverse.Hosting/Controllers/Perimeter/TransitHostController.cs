@@ -9,17 +9,17 @@ using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
 
-namespace DotYouTransit.Controllers
+namespace Youverse.Hosting.Controllers.Perimeter
 {
     [ApiController]
-    [Route("data")]
-    public class HostToHostController : ControllerBase
+    [Route("/api/perimeter/transit/host")]
+    public class TransitHostController : ControllerBase
     {
         private readonly TransitService _svc;
 
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public HostToHostController(TransitService svc)
+        public TransitHostController(TransitService svc)
         {
             _svc = svc;
 
@@ -29,7 +29,7 @@ namespace DotYouTransit.Controllers
             };
         }
         
-        [HttpPost("datastream")]
+        [HttpPost("stream")]
         public async Task<IActionResult> AcceptDataStream()
         {
             string root = $@"\tmp\dotyoutransit\tenants\{HttpContext.Request.Host.Host}\incoming";

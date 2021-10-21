@@ -1,4 +1,4 @@
-namespace DotYouTransit.Controllers
+namespace Youverse.Hosting.Controllers.Transit
 {
     public static class SectionNames
     {
