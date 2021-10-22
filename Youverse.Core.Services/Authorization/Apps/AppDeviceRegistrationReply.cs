@@ -2,14 +2,18 @@ using System;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
+    /// <summary>
+    /// Data sent to client when registering the user of an app on a given device (phone, browser, etc.)
+    /// </summary>
     public class AppDeviceRegistrationReply
     {
-        public Guid Id { get; set; }
+        /// <summary>
+        /// Used to lookup the server half of the app's Dek
+        /// </summary>
+        public Guid Token { get; set; }
         
-        public byte[] DeviceAppToken { get; set; }  // This is half the AppDek
-
-        public byte[] SharedSecret { get; set; } // The secret shared with the client. We need one per client
-
+        public byte[] DeviceAppKey { get; set; }  // This is half the AppDek
+        
 
     }
 }

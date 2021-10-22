@@ -72,6 +72,9 @@ namespace Youverse.Hosting.Tests.Apps
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
 
+                
+                //TODO: rsa encrypt the shared secret
+                
                 var payload = new AppDeviceRegistrationPayload()
                 {
                     ApplicationId = appId,

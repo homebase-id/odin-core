@@ -15,7 +15,7 @@ namespace Youverse.Core.Cryptography
         /// <param name="token">The ApplicationTokenData</param>
         /// <param name="loginDek">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public static SecureKey GetApplicationDekWithLogin(AppEncryptionKey token, SecureKey loginDek)
+        public static SecureKey DecryptAppDekWithLoginDek(AppEncryptionKey token, SecureKey loginDek)
         {
             var appDek = AesCbc.DecryptBytesFromBytes_Aes(token.EncryptedAppDeK, loginDek.GetKey(), token.AppIV);
 
@@ -40,7 +40,7 @@ namespace Youverse.Core.Cryptography
         /// </summary>
         /// <param name="loginDek">The master key which can later be used to retrieve the appDeK</param>
         /// <returns>A new ApplicationTokenData object</returns>
-        public static AppEncryptionKey CreateAppKey(byte[] loginDek)
+        public static AppEncryptionKey CreateAppDek(byte[] loginDek)
         {
             var appDek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
             

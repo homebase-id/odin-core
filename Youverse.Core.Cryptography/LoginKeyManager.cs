@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Newtonsoft.Json;
@@ -18,6 +19,7 @@ namespace Youverse.Core.Cryptography
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
         private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
+        //private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64, out TestEncryptedData testEncryptedData)
         {
             var passwordKey = new LoginKeyData()
             {
@@ -26,9 +28,15 @@ namespace Youverse.Core.Cryptography
                 HashPassword = Convert.FromBase64String(HashedPassword64)
             };
 
-            var DeK = ByteArrayUtil.GetRndByteArray(16); // Create the DeK
-            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, Convert.FromBase64String(KeK64));
-            ByteArrayUtil.WipeByteArray(DeK);
+            var dek = ByteArrayUtil.GetRndByteArray(16); // Create the DeK
+
+            //TODO: can be used to validate the generated dek is a valid key
+            // testEncryptedData = new TestEncryptedData();
+            // (testEncryptedData.Iv, testEncryptedData.CipherText) = AesCbc.EncryptStringToBytes_Aes(testEncryptedData.ClearText, dek);
+
+            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(dek, Convert.FromBase64String(KeK64));
+
+            ByteArrayUtil.WipeByteArray(dek);
 
             return passwordKey;
         }
@@ -61,8 +69,7 @@ namespace Youverse.Core.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply,
-            RsaKeyListData listRsa)
+        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
@@ -70,6 +77,7 @@ namespace Youverse.Core.Cryptography
 
             var passwordKey = LoginKeyManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
 
+            
             return passwordKey;
         }
 

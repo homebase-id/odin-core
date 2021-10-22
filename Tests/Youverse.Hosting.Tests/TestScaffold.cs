@@ -176,6 +176,7 @@ namespace Youverse.Hosting.Tests
                 CookieContainer = cookieJar
             };
             HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 
             client.BaseAddress = new Uri($"https://{identity}");

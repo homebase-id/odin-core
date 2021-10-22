@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            AppEncryptionKey key = AppRegistrationManager.CreateAppKey(this.Context.Caller.GetLoginDek().GetKey());
+            AppEncryptionKey key = AppRegistrationManager.CreateAppDek(this.Context.Caller.GetLoginDek().GetKey());
 
             var appReg = new AppRegistration()
             {
@@ -92,8 +92,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 EncryptedAppDeK = savedApp.EncryptedAppDeK
             };
 
-            var decryptedAppDek = AppRegistrationManager.GetApplicationDekWithLogin(appEnc, this.Context.Caller.GetLoginDek());
-            var (deviceAppToken, appRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
+            var decryptedAppDek = AppRegistrationManager.DecryptAppDekWithLoginDek(appEnc, this.Context.Caller.GetLoginDek());
+            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
             decryptedAppDek.Wipe();
 
             //Note: never store deviceAppToken
@@ -104,7 +104,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                HalfAdek = appRegData.halfAdek,
+                HalfAdek = serverRegData.halfAdek,
                 IsRevoked = false
             };
 
@@ -112,9 +112,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             return new AppDeviceRegistrationReply()
             {
-                Id = appDeviceReg.Id,
-                DeviceAppToken = deviceAppToken,
-                SharedSecret = sharedSecret
+                Token = appDeviceReg.Id,
+                DeviceAppKey = clientAppToken
             };
         }
 

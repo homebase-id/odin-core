@@ -36,7 +36,7 @@ namespace Youverse.Core.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] deviceAppToken, AppClientRegistrationData token) CreateClientToken(byte[] appDek, byte[] sharedSecret = null)
+        public static (byte[] clientAppToken, AppClientRegistrationData serverRegData) CreateClientToken(byte[] appDek, byte[] sharedSecret = null)
         {
             var token = new AppClientRegistrationData
             {
@@ -61,14 +61,14 @@ namespace Youverse.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetApplicationDek(AppClientRegistrationData clientToken, byte[] deviceAppToken)
+        public static SecureKey DecryptAppDekWithClientToken(AppClientRegistrationData clientToken, byte[] serverToken)
         {
-            return GetApplicationDek(clientToken.halfAdek, deviceAppToken);
+            return DecryptAppDekWithClientToken(clientToken.halfAdek, serverToken);
         }
 
-        public static SecureKey GetApplicationDek(byte[] halfADek, byte[] deviceAppToken)
+        public static SecureKey DecryptAppDekWithClientToken(byte[] clientToken, byte[] serverToken)
         {
-            return new SecureKey(XorManagement.XorDecrypt(halfADek, deviceAppToken));
+            return new SecureKey(XorManagement.XorDecrypt(clientToken, serverToken));
         }
     }
 }
