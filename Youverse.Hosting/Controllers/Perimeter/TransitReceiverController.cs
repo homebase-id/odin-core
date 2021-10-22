@@ -4,40 +4,40 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
+using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.Perimeter
 {
+    /// <summary>
+    /// Receives incoming data transfers from other hosts
+    /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    public class TransitHostController : ControllerBase
+    [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
+    public class TransitReceiverController : ControllerBase
     {
-        private readonly TransitService _svc;
+        private readonly ITransitReceiverService _svc;
+        
 
-        private readonly JsonSerializerOptions _jsonOptions;
-
-        public TransitHostController(TransitService svc)
+        public TransitReceiverController(ITransitReceiverService svc)
         {
             _svc = svc;
-
-            _jsonOptions = new JsonSerializerOptions()
-            {
-                PropertyNameCaseInsensitive = true
-            };
         }
-        
+
         [HttpPost("stream")]
-        public async Task<IActionResult> AcceptDataStream()
+        public async Task<NoResultResponse> AcceptDataStream()
         {
             string root = $@"\tmp\dotyoutransit\tenants\{HttpContext.Request.Host.Host}\incoming";
             Directory.CreateDirectory(root);
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                return new JsonResult(new NoResultResponse(false, "Must be Multipart content"));
+                return new NoResultResponse(false, "Must be Multipart content");
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 section = await reader.ReadNextSectionAsync();
             }
 
-            return new JsonResult(new NoResultResponse(true));
+            return new NoResultResponse(true);
         }
 
         private async Task WriteFile(string filePath, Stream stream)

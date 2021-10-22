@@ -40,10 +40,15 @@ namespace Youverse.Hosting
             {
                 config.TenantDataRootPath = args[0];
             }
-
-            if (args.Length == 2)
+            
+            if (args.Length >=2)
             {
-                config.LogFilePath = args[1];
+                config.TempTenantDataRootPath = args[1];
+            }
+            
+            if (args.Length == 3)
+            {
+                config.LogFilePath = args[2];
             }
             
             Directory.CreateDirectory(config.LogFilePath);
@@ -51,7 +56,7 @@ namespace Youverse.Hosting
             var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
             if (useLocalReg)
             {
-                _registry = new IdentityContextRegistry(config.TenantDataRootPath);
+                _registry = new IdentityContextRegistry(config.TenantDataRootPath, config.TempTenantDataRootPath);
             }
             else
             {

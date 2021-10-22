@@ -17,13 +17,18 @@ namespace Youverse.Core.Services.Registry
         private Trie<Guid> _identityMap = new Trie<Guid>();
 
         private string _dataStoragePath;
+        private string _tempDataStoragePath;
 
-        public IdentityContextRegistry(string dataStoragePath)
+        public IdentityContextRegistry(string dataStoragePath, string tempDataStoragePath)
         {
             if (!Directory.Exists(dataStoragePath))
                 throw new InvalidDataException($"Could find or access path at [{dataStoragePath}]");
-
+            
+            if (!Directory.Exists(tempDataStoragePath))
+                throw new InvalidDataException($"Could find or access path at [{tempDataStoragePath}]");
+            
             _dataStoragePath = dataStoragePath;
+            _tempDataStoragePath = tempDataStoragePath;
         }
 
         //temporary until the Trie supports Generics
@@ -117,7 +122,8 @@ namespace Youverse.Core.Services.Registry
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
             var path = Path.Combine(_dataStoragePath, domainName);
-            var result = new TenantStorageConfig(Path.Combine(path, "data"));
+            var tempPath = Path.Combine(_tempDataStoragePath, domainName);
+            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(tempPath, "temp"));
             return result;
         }
     }

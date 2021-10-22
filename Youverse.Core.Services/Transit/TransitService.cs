@@ -15,10 +15,9 @@ namespace Youverse.Core.Services.Transit
         private class Envelope
         {
             public string Recipient { get; set; }
-            public TransferSpec TransferSpec { get; set; }
+            public TransferEnvelope TransferEnvelope { get; set; }
         }
-
-
+        
         private readonly IStorageService _storageService;
         private readonly IOutboxQueueService _outboxQueue;
         const int InstantSendPayloadThresholdSize = 1024;
@@ -35,46 +34,45 @@ namespace Youverse.Core.Services.Transit
             var envelopes = queuedItems.Select(i => new Envelope()
             {
                 Recipient = i.Recipient,
-                TransferSpec = i.TransferSpec
+                TransferEnvelope = i.TransferEnvelope
             });
 
             return await SendBatchNow(envelopes);
         }
 
-        public async Task<TransferResult> SendBatchNow(RecipientList recipients, TransferSpec spec)
+        public async Task<TransferResult> SendBatchNow(RecipientList recipients, TransferEnvelope envelope)
         {
             var envelopes = recipients.Recipients.Select(r => new Envelope()
             {
                 Recipient = r,
-                TransferSpec = spec
+                TransferEnvelope = envelope
             });
 
             return await SendBatchNow(envelopes);
         }
-
-
-        public async Task<TransferResult> StartDataTransfer(RecipientList recipients, TransferSpec spec)
+        
+        public async Task<TransferResult> StartDataTransfer(RecipientList recipients, TransferEnvelope envelope)
         {
-            if (spec.Id == Guid.Empty)
+            if (envelope.Id == Guid.Empty)
             {
                 throw new Exception("Invalid transfer id");
             }
 
             //if payload size is small, try sending now.
-            if (new FileInfo(spec.File.DataFilePath).Length <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
+            if (new FileInfo(envelope.File.DataFilePath).Length <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
             {
                 Console.WriteLine("Length is small, sending now");
-                return await this.SendBatchNow(recipients, spec);
+                return await this.SendBatchNow(recipients, envelope);
             }
 
-            var result = new TransferResult(spec.Id);
+            var result = new TransferResult(envelope.Id);
             Console.WriteLine("Data file is large, putting in queue");
             foreach (var recipient in recipients.Recipients)
             {
                 _outboxQueue.Enqueue(new TransferQueueItem()
                 {
                     Recipient = recipient,
-                    TransferSpec = spec
+                    TransferEnvelope = envelope
                 });
 
                 result.QueuedRecipients.Add(recipient);
@@ -83,9 +81,9 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        public async Task<SendResult> SendNow(string recipient, TransferSpec spec)
+        public async Task<SendResult> SendNow(string recipient, TransferEnvelope envelope)
         {
-            return await this.SendAsync(recipient, spec);
+            return await this.SendAsync(recipient, envelope);
         }
 
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
@@ -95,7 +93,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var envelope in envelopes)
             {
-                tasks.Add(SendAsync(envelope.Recipient, envelope.TransferSpec));
+                tasks.Add(SendAsync(envelope.Recipient, envelope.TransferEnvelope));
             }
 
             await Task.WhenAll(tasks);
@@ -113,7 +111,7 @@ namespace Youverse.Core.Services.Transit
                     var item = new TransferQueueItem()
                     {
                         Recipient = sendResult.Recipient,
-                        TransferSpec = sendResult.TransferSpec,
+                        TransferEnvelope = sendResult.TransferEnvelope,
                     };
 
                     _outboxQueue.EnqueueFailure(item, sendResult.FailureReason.GetValueOrDefault());
@@ -125,10 +123,9 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-
-        private async Task<SendResult> SendAsync(string recipient, TransferSpec spec)
+        private async Task<SendResult> SendAsync(string recipient, TransferEnvelope envelope)
         {
-            RecipientDataTransferProcess proc = new RecipientDataTransferProcess(null, recipient, spec, null);
+            RecipientDataTransferProcess proc = new RecipientDataTransferProcess(null, recipient, envelope, null);
             var sendResult = await proc.Run();
             return sendResult;
         }

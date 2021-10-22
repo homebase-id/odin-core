@@ -1,6 +1,6 @@
-namespace Youverse.Hosting.Controllers.Transit
+namespace Youverse.Core.Services.Transit
 {
-    public static class SectionNames
+    public static class MultipartSectionNames
     {
         public static string Header = "hdr";
         public static string Recipients = "recipients";

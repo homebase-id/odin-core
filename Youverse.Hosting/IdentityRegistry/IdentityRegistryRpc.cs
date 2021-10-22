@@ -28,10 +28,10 @@ namespace Youverse.Hosting.IdentityRegistry
 
             Console.WriteLine("Initializing IdentityRegistryRpc");
             var client = GetClient();
-    
+
             var paging = new PageOptions(1, int.MaxValue);
             var page = await client.GetList(paging);
-            
+
             Console.WriteLine($"Retrieved {page.Results.Count} Identities");
 
             foreach (var ident in page.Results)
@@ -48,7 +48,7 @@ namespace Youverse.Hosting.IdentityRegistry
                 }
             }
         }
-        
+
         public IdentityCertificate ResolveCertificate(string domainName)
         {
             //Console.WriteLine($"Resolving certificate for [{domainName}]");
@@ -65,10 +65,11 @@ namespace Youverse.Hosting.IdentityRegistry
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
             var path = Path.Combine(_config.TenantDataRootPath, domainName);
-            var result = new TenantStorageConfig(Path.Combine(path, "data"));
+            var tempPath = Path.Combine(_config.TempTenantDataRootPath, domainName);
+            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(tempPath, "temp"));
             return result;
         }
-        
+
         private async Task<IdentityCertificate> LazyLoad(string domainName)
         {
             var cert = await GetClient().Get(domainName);
@@ -79,14 +80,14 @@ namespace Youverse.Hosting.IdentityRegistry
             }
 
             var identCert = Map(cert);
-            if(null != identCert)
+            if (null != identCert)
             {
                 _identityMap.AddDomain(identCert.DomainName, identCert);
             }
-            
+
             return identCert;
         }
-        
+
         private IdentityCertificate Map(IdentityRegistration ident)
         {
             var location = new CertificateLocation()

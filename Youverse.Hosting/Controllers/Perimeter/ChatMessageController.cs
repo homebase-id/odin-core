@@ -2,10 +2,12 @@
 using System.IO;
 using System.Threading.Tasks;
 using BrunoZell.ModelBinding;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services;
+using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Storage;
 using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;
@@ -14,6 +16,8 @@ namespace Youverse.Hosting.Controllers.Perimeter
 {
     [ApiController]
     [Route("api/perimeter")]
+    
+    [Authorize(Policy = DotYouPolicyNames.MustBeIdentified)]
     public class ChatMessageController : ControllerBase
     {
         private readonly IChatService _chatService;

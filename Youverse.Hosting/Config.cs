@@ -6,6 +6,7 @@ namespace Youverse.Hosting
     public class Config
     {
         private string _tenantDataRootPath;
+        private string _tempTenantDataRootPath;
         private string _logFilePath;
 
         /// <summary>
@@ -14,12 +15,21 @@ namespace Youverse.Hosting
         public string RegistryServerUri { get; set; }
 
         /// <summary>
-        /// Specifies the root path where tenant data is stored.
+        /// Specifies the root path where permanent tenant data is stored.
         /// </summary>
         public string TenantDataRootPath
         {
             get => _tenantDataRootPath;
             set => _tenantDataRootPath = PathUtil.OsIfy(value);
+        }
+        
+        /// <summary>
+        /// Specifies the root path where permanent tenant data is stored.
+        /// </summary>
+        public string TempTenantDataRootPath
+        {
+            get => _tempTenantDataRootPath;
+            set => _tempTenantDataRootPath = PathUtil.OsIfy(value);
         }
 
         public string LogFilePath

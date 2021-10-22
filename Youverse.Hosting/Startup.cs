@@ -224,6 +224,15 @@ namespace Youverse.Hosting
                 return new OutboxQueueService(context, logger, hub, fac);
             });
 
+            services.AddScoped<IMultipartUploadQueue, MultipartUploadQueue>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
+                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                return new MultipartUploadQueue(context, logger, hub, fac);
+            });
+            
             services.AddScoped<ITransitService, TransitService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -425,11 +434,13 @@ namespace Youverse.Hosting
             Guard.Argument(config.RegistryServerUri, nameof(config.RegistryServerUri)).NotNull().NotEmpty();
             Guard.Argument(Uri.IsWellFormedUriString(config.RegistryServerUri, UriKind.Absolute), nameof(config.RegistryServerUri)).True();
             Guard.Argument(config.TenantDataRootPath, nameof(config.TenantDataRootPath)).NotNull().NotEmpty();
+            Guard.Argument(config.TempTenantDataRootPath, nameof(config.TempTenantDataRootPath)).NotNull().NotEmpty();
         }
 
         private void PrepareEnvironment(Config config)
         {
             Directory.CreateDirectory(config.TenantDataRootPath);
+            Directory.CreateDirectory(config.TempTenantDataRootPath);
         }
     }
 }

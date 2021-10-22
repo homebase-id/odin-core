@@ -2,7 +2,7 @@
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransferSpec
+    public class TransferEnvelope
     {
         public Guid Id { get; set; }
 

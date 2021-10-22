@@ -12,13 +12,13 @@ namespace Youverse.Core.Services.Transit
     public class RecipientDataTransferProcess
     {
         private readonly string _recipient;
-        private readonly TransferSpec _spec;
+        private readonly TransferEnvelope _envelope;
         private readonly TransferResultCallback _callback;
 
-        public RecipientDataTransferProcess(object todoTenantContext, string recipient, TransferSpec spec, TransferResultCallback callback)
+        public RecipientDataTransferProcess(object todoTenantContext, string recipient, TransferEnvelope envelope, TransferResultCallback callback)
         {
             this._recipient = recipient;
-            _spec = spec;
+            _envelope = envelope;
             _callback = callback;
         }
 
@@ -28,10 +28,10 @@ namespace Youverse.Core.Services.Transit
             bool success = false;
             try
             {
-                var recipientHeader = EncryptHeader(_recipient, _spec.Header).ConfigureAwait(false).GetAwaiter().GetResult();
+                var recipientHeader = EncryptHeader(_recipient, _envelope.Header).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                var metaDataStream = new StreamPart(File.Open(_spec.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
-                var payload = new StreamPart(File.Open(_spec.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
+                var metaDataStream = new StreamPart(File.Open(_envelope.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
+                var payload = new StreamPart(File.Open(_envelope.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Transit
                 Success = success,
                 FailureReason = tfr,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                TransferSpec = _spec
+                TransferEnvelope = _envelope
             };
         }
 
@@ -73,9 +73,9 @@ namespace Youverse.Core.Services.Transit
                 throw new Exception("Callback must not be null");
             }
 
-            var recipientHeader = EncryptHeader(_recipient, _spec.Header).ConfigureAwait(false).GetAwaiter().GetResult();
-            var metaDataStream = new StreamPart(File.Open(_spec.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
-            var payload = new StreamPart(File.Open(_spec.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
+            var recipientHeader = EncryptHeader(_recipient, _envelope.Header).ConfigureAwait(false).GetAwaiter().GetResult();
+            var metaDataStream = new StreamPart(File.Open(_envelope.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
+            var payload = new StreamPart(File.Open(_envelope.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
 
             var client = GetHttpClient(_recipient);
             var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();

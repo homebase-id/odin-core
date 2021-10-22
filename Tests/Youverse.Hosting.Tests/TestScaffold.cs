@@ -35,6 +35,7 @@ namespace Youverse.Hosting.Tests
         public DotYouIdentity Samwise = (DotYouIdentity)"samwisegamgee.me";
         
         public string TestDataPath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", _folder);
+        public string TempDataPath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "tempdata", "dotyoudata", _folder);
         public string LogFilePath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoulogs", _folder);
 
         [OneTimeSetUp]
@@ -43,16 +44,17 @@ namespace Youverse.Hosting.Tests
             this.DeleteData();
             this.DeleteLogs();
 
-            _registry = new IdentityContextRegistry(TestDataPath);
+            _registry = new IdentityContextRegistry(TestDataPath, TempDataPath);
             _registry.Initialize();
 
             if (startWebserver)
             {
                 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
                 Environment.SetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", "1");
-                var args = new string[2];
+                var args = new string[3];
                 args[0] = TestDataPath;
-                args[1] = LogFilePath;
+                args[1] = TempDataPath;
+                args[2] = LogFilePath;
                 _webserver = Program.CreateHostBuilder(args).Build();
                 _webserver.Start();
             }
