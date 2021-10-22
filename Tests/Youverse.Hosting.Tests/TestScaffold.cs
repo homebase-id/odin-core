@@ -69,6 +69,14 @@ namespace Youverse.Hosting.Tests
             }
             
             Directory.CreateDirectory(TestDataPath);
+            
+            if (Directory.Exists(TempDataPath))
+            {
+                Console.WriteLine($"Removing data in [{TempDataPath}]");
+                Directory.Delete(TempDataPath, true);
+            }
+            
+            Directory.CreateDirectory(TempDataPath);
         }
         
         public void DeleteLogs()

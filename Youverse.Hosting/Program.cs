@@ -34,25 +34,25 @@ namespace Youverse.Hosting
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             Config config = LoadConfig();
-            
+
             //HACK: overriding the data and log file paths so the test runner can set the path.  need to overhaul this config loading process
-            if (args.Length >=1)
+            if (args.Length >= 1)
             {
                 config.TenantDataRootPath = args[0];
             }
-            
-            if (args.Length >=2)
+
+            if (args.Length >= 2)
             {
                 config.TempTenantDataRootPath = args[1];
             }
-            
+
             if (args.Length == 3)
             {
                 config.LogFilePath = args[2];
             }
-            
+
             Directory.CreateDirectory(config.LogFilePath);
-            
+
             var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
             if (useLocalReg)
             {
@@ -101,7 +101,7 @@ namespace Youverse.Hosting
                                     //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
                                     return true;
                                 };
-                                
+
                                 opts.ServerCertificateSelector = (connectionContext, hostName) =>
                                 {
                                     if (!string.IsNullOrEmpty(hostName))
@@ -115,6 +115,7 @@ namespace Youverse.Hosting
                                             //TODO: add logging or throw exception
                                             Console.WriteLine($"No certificate configured for {hostName}");
                                         }
+
                                         return cert;
                                     }
 
