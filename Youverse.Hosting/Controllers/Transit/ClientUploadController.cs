@@ -16,16 +16,16 @@ namespace Youverse.Hosting.Controllers.Transit
     public class ClientUploadController : ControllerBase
     {
         private readonly ITransitService _svc;
-        private readonly IMultipartUploadQueue _queue;
+        private readonly IMultipartParcelBuilder _parcelBuilder;
 
-        public ClientUploadController(IMultipartUploadQueue queue, ITransitService svc)
+        public ClientUploadController(IMultipartParcelBuilder parcelBuilder, ITransitService svc)
         {
-            _queue = queue;
+            _parcelBuilder = parcelBuilder;
             _svc = svc;
         }
 
-        [HttpPost("upload")]
-        public async Task<IActionResult> SendPayload()
+        [HttpPost("sendparcel")]
+        public async Task<IActionResult> SendParcel()
         {
             try
             {
@@ -38,16 +38,16 @@ namespace Youverse.Hosting.Controllers.Transit
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
                 var section = await reader.ReadNextSectionAsync();
 
-                //Note: the _queue exists so we have a service that holds
+                //Note: the _parcelBuilder exists so we have a service that holds
                 //the logic and routing of tenant-specific data.  We don't
                 //want that in the http controllers
                 
-                var packageId = await _queue.CreatePackage();
+                var packageId = await _parcelBuilder.CreateParcel();
                 bool isComplete = false;
                 while (section != null || !isComplete)
                 {
                     var name = GetSectionName(section.ContentDisposition);
-                    isComplete = await _queue.AcceptPart(packageId, name, section.Body);
+                    isComplete = await _parcelBuilder.AddItem(packageId, name, section.Body);
                     section = await reader.ReadNextSectionAsync();
                 }
 
@@ -57,8 +57,8 @@ namespace Youverse.Hosting.Controllers.Transit
                 }
                 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
-                var package = await _queue.GetPackage(packageId);
-                var result = _svc.StartDataTransfer(package.RecipientList, package.Envelope);
+                var parcel = await _parcelBuilder.GetParcel(packageId);
+                var result = _svc.Send(parcel);
 
                 return new JsonResult(result);
             }

@@ -6,42 +6,45 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class MultipartUploadQueue : DotYouServiceBase, IMultipartUploadQueue
+    public class MultipartParcelBuilder : DotYouServiceBase, IMultipartParcelBuilder
     {
-        private readonly Dictionary<Guid, MultipartPackage> _items;
+        private readonly IStorageService _storageService;
+        private readonly Dictionary<Guid, Parcel> _parcels;
         private int _partCount = 0;
-
-        public MultipartUploadQueue(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
-            : base(context, logger, notificationHub, fac)
+        
+        public MultipartParcelBuilder(DotYouContext context, ILogger logger, IStorageService storageService)
+            : base(context, logger, null, null)
         {
-            _items = new Dictionary<Guid, MultipartPackage>();
+            _storageService = storageService;
+            _parcels = new Dictionary<Guid, Parcel>();
         }
 
-        public Task<Guid> CreatePackage()
+        public Task<Guid> CreateParcel()
         {
             var id = Guid.NewGuid();
-            _items.Add(id, new MultipartPackage(Context.StorageConfig.TempStoragePath));
+            _parcels.Add(id, new Parcel(Context.StorageConfig.TempStoragePath));
             return Task.FromResult(Guid.NewGuid());
         }
 
-        public async Task<bool> AcceptPart(Guid packageId, string name, Stream payload)
+        public async Task<bool> AddItem(Guid packageId, string name, Stream payload)
         {
-            if (!_items.TryGetValue(packageId, out var package))
+            if (!_parcels.TryGetValue(packageId, out var package))
             {
                 throw new Exception("Invalid package ID");
             }
 
             if (string.Equals(name, MultipartSectionNames.Header, StringComparison.InvariantCultureIgnoreCase))
             {
-                var json = await new StreamReader(payload).ReadToEndAsync();
-                package.Envelope.Header = JsonConvert.DeserializeObject<KeyHeader>(json);
+                // var json = await new StreamReader(payload).ReadToEndAsync();
+                // package.YouverseFile.Header = JsonConvert.DeserializeObject<KeyHeader>(json);
+                await WriteFile(package.EncryptedFile.HeaderPath, payload);
                 _partCount++;
             }
-
-            if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
             {
                 //todo: convert to streaming for memory reduction if needed.
                 string json = await new StreamReader(payload).ReadToEndAsync();
@@ -54,31 +57,33 @@ namespace Youverse.Core.Services.Transit
                 package.RecipientList = list;
                 _partCount++;
             }
-
-            if (string.Equals(name, MultipartSectionNames.Metadata, StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(name, MultipartSectionNames.Metadata, StringComparison.InvariantCultureIgnoreCase))
             {
-                
                 //TODO: Optimize not writing this to disk if it's a small payload
-                await WriteFile(package.Envelope.File.MetaDataPath, payload);
+                await WriteFile(package.EncryptedFile.MetaDataPath, payload);
                 _partCount++;
             }
-
-            if (string.Equals(name, MultipartSectionNames.Payload, StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(name, MultipartSectionNames.Payload, StringComparison.InvariantCultureIgnoreCase))
             {
                 //TODO: Optimize not writing this to disk if it's a small payload
-                await WriteFile(package.Envelope.File.DataFilePath, payload);
+                await WriteFile(package.EncryptedFile.DataFilePath, payload);
                 _partCount++;
+            }
+            else
+            {
+                throw new InvalidDataException($"Part name [{name}] not recognized");
             }
 
             return _partCount == 4;
         }
 
-        public async Task<MultipartPackage> GetPackage(Guid packageId)
+        public async Task<Parcel> GetParcel(Guid packageId)
         {
-            if (_items.TryGetValue(packageId, out var package))
+            if (_parcels.TryGetValue(packageId, out var package))
             {
                 return package;
             }
+
             return null;
         }
 

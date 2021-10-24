@@ -116,7 +116,7 @@ namespace Youverse.Hosting
             services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<OwnerSecretService>>();
+                var logger = ResolveLogger<OwnerSecretService>(svc);
                 return new OwnerSecretService(context, logger);
             });
 
@@ -124,37 +124,34 @@ namespace Youverse.Hosting
                 svc =>
                 {
                     var context = ResolveContext(svc);
-                    var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-                    var ss = svc.GetRequiredService<IOwnerSecretService>();
-
-                    return new OwnerAuthenticationService(context, logger, ss);
+                    var logger = ResolveLogger<OwnerAuthenticationService>(svc);
+                    return new OwnerAuthenticationService(context, logger, ResolveOwnerSecretService(svc));
                 });
 
             services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                var logger = ResolveLogger<AppRegistrationService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var hub = ResolveNotificationHub(svc);
                 return new AppRegistrationService(context, logger, hub, fac);
             });
 
             services.AddScoped<IProfileService, ProfileService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var logger = ResolveLogger<ProfileService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
                 return new ProfileService(context, logger, fac);
             });
-
 
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var profileSvc = svc.GetRequiredService<IProfileService>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                var logger = ResolveLogger<CircleNetworkService>(svc);
+                var profileSvc = ResolveProfileService(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var hub = ResolveNotificationHub(svc);
                 return new CircleNetworkService(context, profileSvc, logger, hub, fac);
             });
 
@@ -162,10 +159,10 @@ namespace Youverse.Hosting
             {
                 var context = ResolveContext(svc);
                 var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var cns = svc.GetRequiredService<ICircleNetworkService>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                var mgt = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
+                var cns = ResolveCircleNetworkService(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var hub = ResolveNotificationHub(svc);
+                var mgt = ResolveOwnerDataAttributeManagementService(svc);
                 return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
             });
 
@@ -180,67 +177,66 @@ namespace Youverse.Hosting
             services.AddScoped<IOwnerDataAttributeReaderService, OwnerDataAttributeReaderService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-                var cn = svc.GetRequiredService<ICircleNetworkService>();
+                var logger = ResolveLogger<OwnerDataAttributeReaderService>(svc);
+                var cn = ResolveCircleNetworkService(svc);
                 return new OwnerDataAttributeReaderService(context, logger, cn);
             });
 
             services.AddScoped<IMessagingService, MessagingService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<MessagingService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
+                var logger = ResolveLogger<MessagingService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
 
                 var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
                 return new MessagingService(context, logger, msgHub, fac);
             });
-
-            services.AddScoped<IChatService, ChatService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ChatService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var p = svc.GetRequiredService<IProfileService>();
-                var cns = svc.GetRequiredService<ICircleNetworkService>();
-                var ms = svc.GetRequiredService<IStorageService>();
-
-                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
-                return new ChatService(context, logger, fac, p, cns, msgHub, ms);
-            });
-
+            
             services.AddScoped<IStorageService, FileBasedStorageService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<FileBasedStorageService>>();
+                var logger = ResolveLogger<FileBasedStorageService>(svc);
                 return new FileBasedStorageService(context, logger);
+            });
+            
+            services.AddScoped<IChatService, ChatService>(svc =>
+            {
+                var context = ResolveContext(svc);
+                var logger = ResolveLogger<ChatService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var p = ResolveProfileService(svc);
+                var cns = ResolveCircleNetworkService(svc);
+                var ms = ResolveStorageService(svc);
+
+                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
+                return new ChatService(context, logger, fac, p, cns, msgHub, ms);
             });
             
             services.AddScoped<IOutboxQueueService, OutboxQueueService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                var logger = ResolveLogger<OutboxQueueService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var hub = ResolveNotificationHub(svc);
                 return new OutboxQueueService(context, logger, hub, fac);
             });
 
-            services.AddScoped<IMultipartUploadQueue, MultipartUploadQueue>(svc =>
+            services.AddScoped<IMultipartParcelBuilder, MultipartParcelBuilder>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-                return new MultipartUploadQueue(context, logger, hub, fac);
+                var logger = ResolveLogger<MultipartParcelBuilder>(svc);
+                var storage = ResolveStorageService(svc);
+                return new MultipartParcelBuilder(context, logger, storage);
             });
-            
+
             services.AddScoped<ITransitService, TransitService>(svc =>
             {
                 var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ProfileService>>();
-                var fac = svc.GetRequiredService<DotYouHttpClientFactory>();
-                var ss = svc.GetRequiredService<IStorageService>();
+                var logger = ResolveLogger<TransitService>(svc);
+                var fac = ResolveDotYouHttpClientFactory(svc);
+                var ss = ResolveStorageService(svc);
                 var box = svc.GetRequiredService<IOutboxQueueService>();
-                var hub = svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+                var hub = ResolveNotificationHub(svc);
                 return new TransitService(context, logger, box, ss, hub, fac);
             });
 
@@ -338,12 +334,12 @@ namespace Youverse.Hosting
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
 
             var caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 loginDek: chk
             );
 
-            var context = new DotYouContext((DotYouIdentity)hostname, cert, storage, caller);
+            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
             return context;
         }
 
@@ -417,7 +413,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
@@ -441,6 +437,51 @@ namespace Youverse.Hosting
         {
             Directory.CreateDirectory(config.TenantDataRootPath);
             Directory.CreateDirectory(config.TempTenantDataRootPath);
+        }
+
+        private ILogger<T> ResolveLogger<T>(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<ILogger<T>>();
+        }
+
+        private DotYouHttpClientFactory ResolveDotYouHttpClientFactory(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<DotYouHttpClientFactory>();
+        }
+
+        private IHubContext<NotificationHub, INotificationHub> ResolveNotificationHub(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+        }
+
+        private ICircleNetworkRequestService ResolveCircleNetworkRequestService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<ICircleNetworkRequestService>();
+        }
+
+        private ICircleNetworkService ResolveCircleNetworkService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<ICircleNetworkService>();
+        }
+
+        private IOwnerDataAttributeManagementService ResolveOwnerDataAttributeManagementService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IOwnerDataAttributeManagementService>();
+        }
+
+        private IProfileService ResolveProfileService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IProfileService>();
+        }
+
+        private IStorageService ResolveStorageService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IStorageService>();
+        }
+
+        private IOwnerSecretService ResolveOwnerSecretService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IOwnerSecretService>();
         }
     }
 }

@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit
 
         public TransferFailureReason? FailureReason { get; set; }
 
-        public TransferEnvelope TransferEnvelope { get; set; }
+        public EncryptedFile EncryptedFile { get; set; }
 
         public Int64 Timestamp { get; set; }
     }

@@ -12,10 +12,10 @@ namespace Youverse.Core.Services.Transit
     public class RecipientDataTransferProcess
     {
         private readonly string _recipient;
-        private readonly TransferEnvelope _envelope;
+        private readonly EncryptedFile _envelope;
         private readonly TransferResultCallback _callback;
 
-        public RecipientDataTransferProcess(object todoTenantContext, string recipient, TransferEnvelope envelope, TransferResultCallback callback)
+        public RecipientDataTransferProcess(object todoTenantContext, string recipient, EncryptedFile envelope, TransferResultCallback callback)
         {
             this._recipient = recipient;
             _envelope = envelope;
@@ -28,10 +28,10 @@ namespace Youverse.Core.Services.Transit
             bool success = false;
             try
             {
-                var recipientHeader = EncryptHeader(_recipient, _envelope.Header).ConfigureAwait(false).GetAwaiter().GetResult();
+                var recipientHeader = EncryptHeader(_recipient, await _envelope.GetKeyHeader()).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                var metaDataStream = new StreamPart(File.Open(_envelope.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
-                var payload = new StreamPart(File.Open(_envelope.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
+                var metaDataStream = new StreamPart(File.Open(_envelope.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
+                var payload = new StreamPart(File.Open(_envelope.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
@@ -62,25 +62,25 @@ namespace Youverse.Core.Services.Transit
                 Success = success,
                 FailureReason = tfr,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                TransferEnvelope = _envelope
+                EncryptedFile = _envelope
             };
         }
 
-        public void RunWithCallback()
-        {
-            if (null == _callback)
-            {
-                throw new Exception("Callback must not be null");
-            }
-
-            var recipientHeader = EncryptHeader(_recipient, _envelope.Header).ConfigureAwait(false).GetAwaiter().GetResult();
-            var metaDataStream = new StreamPart(File.Open(_envelope.File.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
-            var payload = new StreamPart(File.Open(_envelope.File.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
-
-            var client = GetHttpClient(_recipient);
-            var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
-            _callback(_recipient, result.IsSuccessStatusCode);
-        }
+        // public void RunWithCallback()
+        // {
+        //     if (null == _callback)
+        //     {
+        //         throw new Exception("Callback must not be null");
+        //     }
+        //
+        //     var recipientHeader = EncryptHeader(_recipient, await _envelope.GetKeyHeader()).ConfigureAwait(false).GetAwaiter().GetResult();
+        //     var metaDataStream = new StreamPart(File.Open(_envelope.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
+        //     var payload = new StreamPart(File.Open(_envelope.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
+        //
+        //     var client = GetHttpClient(_recipient);
+        //     var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+        //     _callback(_recipient, result.IsSuccessStatusCode);
+        // }
 
         private async Task<KeyHeader> EncryptHeader(string recipient, KeyHeader originalHeader)
         {
