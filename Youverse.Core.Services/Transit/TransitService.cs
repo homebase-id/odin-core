@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Refit;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 
@@ -15,18 +17,18 @@ namespace Youverse.Core.Services.Transit
         private class Envelope
         {
             public string Recipient { get; set; }
-            public EncryptedFile EncryptedFile { get; set; }
+            public Guid FileId { get; set; }
         }
-        
-        private readonly IStorageService _storageService;
+
+        private readonly IStorageService _storage;
         private readonly IOutboxQueueService _outboxQueue;
         const int InstantSendPayloadThresholdSize = 1024;
         const int InstantSendRecipientCountThreshold = 9;
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storageService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac ) : base(context, logger, notificationHub, fac)
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _outboxQueue = outboxQueue;
-            _storageService = storageService;
+            _storage = storage;
         }
 
         public async Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems)
@@ -34,48 +36,50 @@ namespace Youverse.Core.Services.Transit
             var envelopes = queuedItems.Select(i => new Envelope()
             {
                 Recipient = i.Recipient,
-                EncryptedFile = i.EncryptedFile
+                FileId = i.FileId
             });
 
             return await SendBatchNow(envelopes);
         }
 
-        public async Task<TransferResult> SendBatchNow(RecipientList recipients, EncryptedFile envelope)
+        public async Task<TransferResult> SendBatchNow(RecipientList recipients, Guid fileId)
         {
             var envelopes = recipients.Recipients.Select(r => new Envelope()
             {
                 Recipient = r,
-                EncryptedFile = envelope
+                FileId = fileId
             });
 
             return await SendBatchNow(envelopes);
         }
-        
+
         public async Task<TransferResult> Send(Parcel parcel)
         {
-            var file = parcel.EncryptedFile;
+            var fileId = parcel.FileId;
             var recipients = parcel.RecipientList;
-            
-            if (file.Id == Guid.Empty)
+
+            if (fileId == Guid.Empty)
             {
-                throw new Exception("Invalid transfer id");
+                throw new Exception("Invalid transfer, no file specified");
             }
+
+            _storage.AssertFileIsValid(fileId);
 
             //if payload size is small, try sending now.
-            if (new FileInfo(file.DataFilePath).Length <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
+            if (await _storage.GetFileSize(fileId) <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
             {
                 Console.WriteLine("Length is small, sending now");
-                return await this.SendBatchNow(recipients, file);
+                return await this.SendBatchNow(recipients, fileId);
             }
 
-            var result = new TransferResult(file.Id);
+            var result = new TransferResult(Guid.NewGuid());
             Console.WriteLine("Data file is large, putting in queue");
             foreach (var recipient in recipients.Recipients)
             {
                 _outboxQueue.Enqueue(new TransferQueueItem()
                 {
                     Recipient = recipient,
-                    EncryptedFile = file
+                    FileId = fileId
                 });
 
                 result.QueuedRecipients.Add(recipient);
@@ -84,9 +88,9 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        public async Task<SendResult> SendNow(string recipient, EncryptedFile envelope)
+        public Task<SendResult> SendNow(string recipient, Guid fileId)
         {
-            return await this.SendAsync(recipient, envelope);
+            throw new NotImplementedException();
         }
 
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
@@ -96,7 +100,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var envelope in envelopes)
             {
-                tasks.Add(SendAsync(envelope.Recipient, envelope.EncryptedFile));
+                tasks.Add(SendAsync(envelope.Recipient, envelope.FileId));
             }
 
             await Task.WhenAll(tasks);
@@ -114,7 +118,7 @@ namespace Youverse.Core.Services.Transit
                     var item = new TransferQueueItem()
                     {
                         Recipient = sendResult.Recipient,
-                        EncryptedFile = sendResult.EncryptedFile,
+                        FileId = sendResult.FileId
                     };
 
                     _outboxQueue.EnqueueFailure(item, sendResult.FailureReason.GetValueOrDefault());
@@ -126,11 +130,50 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        private async Task<SendResult> SendAsync(string recipient, EncryptedFile envelope)
+        private async Task<SendResult> SendAsync(string recipient, Guid fileId)
         {
-            RecipientDataTransferProcess proc = new RecipientDataTransferProcess(null, recipient, envelope, null);
-            var sendResult = await proc.Run();
-            return sendResult;
+            // TransferFailureReason tfr = TransferFailureReason.UnknownError;
+            // bool success = false;
+            // try
+            // {
+            //     var recipientHeader = EncryptHeader(recipient, await.GetKeyHeader()).ConfigureAwait(false).GetAwaiter().GetResult();
+            //
+            //     var metaDataStream = new StreamPart(File.Open(_envelope.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
+            //     var payload = new StreamPart(File.Open(_envelope.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
+            //
+            //     //TODO: add additional error checking for files existing and successfully being opened, etc.
+            //     
+            //     var client = base.CreatePerimeterHttpClient((DotYouIdentity)recipient);
+            //     var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+            //     success = result.IsSuccessStatusCode;
+            //
+            //     //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
+            //     if (!success)
+            //     {
+            //         tfr = TransferFailureReason.RecipientServerError;
+            //     }
+            // }
+            // catch (EncryptionException)
+            // {
+            //     tfr = TransferFailureReason.CouldNotEncrypt;
+            //     //TODO: logging
+            // }
+            // catch (Exception)
+            // {
+            //     tfr = TransferFailureReason.UnknownError;
+            //     //TODO: logging
+            // }
+            //
+            // return new SendResult()
+            // {
+            //     Recipient = recipient,
+            //     Success = success,
+            //     FailureReason = tfr,
+            //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            //     FileId = fileId
+            // };
+
+            return null;
         }
     }
 }

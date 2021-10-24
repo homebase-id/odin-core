@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Transit
         
         public Guid Id { get; set; }
         public string Recipient { get; set; }
-        public EncryptedFile EncryptedFile { get; set; }
+        public Guid FileId { get; set; }
 
         public List<TransferAttempt> Attempts { get; }
     }

@@ -7,13 +7,14 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class Parcel
     {
-        public Parcel(string storageRoot)
+        public Parcel(Guid fileId)
         {
-            EncryptedFile = new EncryptedFile(storageRoot);
+            this.FileId = fileId;
         }
 
         public RecipientList RecipientList { get; set; }
 
-        public EncryptedFile EncryptedFile { get; set; }
+        public Guid FileId { get; set; }
+        
     }
 }

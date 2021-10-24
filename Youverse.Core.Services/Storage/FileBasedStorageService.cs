@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
@@ -10,13 +11,53 @@ namespace Youverse.Core.Services.Storage
     public class FileBasedStorageService : DotYouServiceBase, IStorageService, IDisposable
     {
         private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
-        const string CollectionName = "md";
+        private const int WriteChunkSize = 1024;
+        private const string CollectionName = "md";
         private const string MediaRoot = "media";
 
         public FileBasedStorageService(DotYouContext context, ILogger<FileBasedStorageService> logger) : base(context, logger, null, null)
         {
             string path = Path.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
             _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
+        }
+
+        public Guid CreateId()
+        {
+            //TODO: Create a date-based
+            return Guid.NewGuid();
+        }
+
+        public async Task WritePartStream(Guid id, FilePart filePart, Stream stream)
+        {
+            var buffer = new byte[WriteChunkSize];
+            var bytesRead = 0;
+
+            string filePath = GetFilePath(id, filePart);
+
+            await using var output = new FileStream(filePath, FileMode.Append);
+            do
+            {
+                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                output.Write(buffer, 0, bytesRead);
+            } while (bytesRead > 0);
+        }
+        
+        
+        public Task<Stream> GetFilePartStream(Guid fileId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void AssertFileIsValid(Guid fileId)
+        {
+            //TODO: 
+        }
+
+        public async Task<long> GetFileSize(Guid id)
+        {
+            //TODO: make more effcient by reading metadata or somethign else?
+            var path = GetFilePath(id, FilePart.Payload);
+            return new FileInfo(path).Length;
         }
 
         public async Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false)
@@ -30,7 +71,7 @@ namespace Youverse.Core.Services.Storage
 
             var id = giveNewId ? Guid.NewGuid() : mediaData.Id;
 
-            string path = GetFilePath(id);
+            string path = GetMediaFilePath(id);
 
             if (File.Exists(path))
             {
@@ -65,7 +106,7 @@ namespace Youverse.Core.Services.Storage
 
             var id = giveNewId ? Guid.NewGuid() : metaData.Id;
 
-            string path = GetFilePath(id);
+            string path = GetMediaFilePath(id);
 
             if (File.Exists(path))
             {
@@ -95,7 +136,7 @@ namespace Youverse.Core.Services.Storage
                 return null;
             }
 
-            string path = GetFilePath(id);
+            string path = GetMediaFilePath(id);
             if (File.Exists(path) == false)
             {
                 Console.WriteLine($"Record exists for ID [{id}] but file not found");
@@ -107,7 +148,7 @@ namespace Youverse.Core.Services.Storage
 
             Console.WriteLine($"Path opened at [{path}] with len [{fs.Length}]");
             var bytes = new byte[fs.Length];
-            await fs.ReadAsync(bytes, 0, (int)fs.Length);
+            await fs.ReadAsync(bytes, 0, (int) fs.Length);
 
             return new MediaData()
             {
@@ -125,12 +166,12 @@ namespace Youverse.Core.Services.Storage
         public async Task<Stream> GetMediaStream(Guid id)
         {
             Console.WriteLine($"Streaming media for ID: [{id}]");
-            string path = GetFilePath(id);
+            string path = GetMediaFilePath(id);
             if (File.Exists(path) == false)
             {
                 return null;
             }
-            
+
             return File.OpenRead(path);
         }
 
@@ -139,7 +180,7 @@ namespace Youverse.Core.Services.Storage
             _storage?.Dispose();
         }
 
-        private string GetFilePath(Guid id)
+        private string GetMediaFilePath(Guid id)
         {
             string filename = id.ToString(); //TODO: how to handle extension and mimetype?
             string path = Path.Combine(GetMediaRoot(), filename);
@@ -151,6 +192,11 @@ namespace Youverse.Core.Services.Storage
             string path = Path.Combine(Context.StorageConfig.DataStoragePath, MediaRoot);
             Directory.CreateDirectory(path);
             return path;
+        }
+
+        private string GetFilePath(Guid id, FilePart part)
+        {
+            return Path.Combine(Context.StorageConfig.DataStoragePath, id.ToString(), part.ToString());
         }
     }
 }

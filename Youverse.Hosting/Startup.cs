@@ -9,34 +9,19 @@ using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Profile;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Storage;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
-using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;
-using Youverse.Services.Messaging.Demo;
-using Youverse.Services.Messaging.Email;
 
 namespace Youverse.Hosting
 {
@@ -44,7 +29,7 @@ namespace Youverse.Hosting
     {
         const string YouFoundationIssuer = "YouFoundation";
 
-        public IConfiguration Configuration { get; }
+        private IConfiguration Configuration { get; }
 
         public Startup(IConfiguration configuration)
         {
@@ -105,152 +90,8 @@ namespace Youverse.Hosting
             services.AddMemoryCache();
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
-            services.AddScoped<DotYouHttpClientFactory>(svc =>
-            {
-                var context = ResolveContext(svc);
-                return new DotYouHttpClientFactory(context);
-            });
-
-            //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
-
-            services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<OwnerSecretService>(svc);
-                return new OwnerSecretService(context, logger);
-            });
-
-            services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
-                svc =>
-                {
-                    var context = ResolveContext(svc);
-                    var logger = ResolveLogger<OwnerAuthenticationService>(svc);
-                    return new OwnerAuthenticationService(context, logger, ResolveOwnerSecretService(svc));
-                });
-
-            services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<AppRegistrationService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new AppRegistrationService(context, logger, hub, fac);
-            });
-
-            services.AddScoped<IProfileService, ProfileService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<ProfileService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                return new ProfileService(context, logger, fac);
-            });
-
-            services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<CircleNetworkService>(svc);
-                var profileSvc = ResolveProfileService(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new CircleNetworkService(context, profileSvc, logger, hub, fac);
-            });
-
-            services.AddScoped<ICircleNetworkRequestService, CircleNetworkRequestService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var cns = ResolveCircleNetworkService(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                var mgt = ResolveOwnerDataAttributeManagementService(svc);
-                return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
-            });
-
-            services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-
-                return new OwnerDataAttributeManagementService(context, logger);
-            });
-
-            services.AddScoped<IOwnerDataAttributeReaderService, OwnerDataAttributeReaderService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<OwnerDataAttributeReaderService>(svc);
-                var cn = ResolveCircleNetworkService(svc);
-                return new OwnerDataAttributeReaderService(context, logger, cn);
-            });
-
-            services.AddScoped<IMessagingService, MessagingService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<MessagingService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-
-                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
-                return new MessagingService(context, logger, msgHub, fac);
-            });
+            services.AddYouVerseScopedServices();
             
-            services.AddScoped<IStorageService, FileBasedStorageService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<FileBasedStorageService>(svc);
-                return new FileBasedStorageService(context, logger);
-            });
-            
-            services.AddScoped<IChatService, ChatService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<ChatService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var p = ResolveProfileService(svc);
-                var cns = ResolveCircleNetworkService(svc);
-                var ms = ResolveStorageService(svc);
-
-                var msgHub = svc.GetRequiredService<IHubContext<MessagingHub, IMessagingHub>>();
-                return new ChatService(context, logger, fac, p, cns, msgHub, ms);
-            });
-            
-            services.AddScoped<IOutboxQueueService, OutboxQueueService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<OutboxQueueService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new OutboxQueueService(context, logger, hub, fac);
-            });
-
-            services.AddScoped<IMultipartParcelBuilder, MultipartParcelBuilder>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<MultipartParcelBuilder>(svc);
-                var storage = ResolveStorageService(svc);
-                return new MultipartParcelBuilder(context, logger, storage);
-            });
-
-            services.AddScoped<ITransitService, TransitService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<TransitService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var ss = ResolveStorageService(svc);
-                var box = svc.GetRequiredService<IOutboxQueueService>();
-                var hub = ResolveNotificationHub(svc);
-                return new TransitService(context, logger, box, ss, hub, fac);
-            });
-
-            services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
-            {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<ChatService>>();
-                var cs = svc.GetRequiredService<IProfileService>();
-                var admin = svc.GetRequiredService<IOwnerDataAttributeManagementService>();
-                var cnrs = svc.GetRequiredService<ICircleNetworkRequestService>();
-
-                return new PrototrialDemoDataService(context, logger, cs, admin, cnrs);
-            });
-
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
@@ -313,36 +154,6 @@ namespace Youverse.Hosting
             });
         }
 
-        /// <summary>
-        /// Gets the DotYouContext for the given Service Scope.
-        /// </summary>
-        private DotYouContext ResolveContext(IServiceProvider svc)
-        {
-            var accessor = svc.GetRequiredService<IHttpContextAccessor>();
-            var reg = svc.GetRequiredService<IIdentityContextRegistry>();
-
-            var httpContext = accessor.HttpContext;
-
-            string hostname = httpContext.Request.Host.Host;
-            var cert = reg.ResolveCertificate(hostname);
-            var storage = reg.ResolveStorageConfig(hostname);
-
-            var user = httpContext.User;
-
-            //TODO: is there a way to delete the claim's reference to they kek?
-            var kek = user.FindFirstValue(DotYouClaimTypes.LoginDek);
-            SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
-
-            var caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
-                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                loginDek: chk
-            );
-
-            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
-            return context;
-        }
-
         private Task CertificateValidated(CertificateValidatedContext context)
         {
             //todo: call out to additional service to validate more rules
@@ -352,7 +163,7 @@ namespace Youverse.Hosting
             //lookup name for the individual and add to the claims
 
             bool isTenantOwner = false;
-            var dotYouContext = ResolveContext(context.HttpContext.RequestServices);
+            var dotYouContext = ScopedServicesDependencyInjectionExtensions.ResolveContext(context.HttpContext.RequestServices);
             using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificateWithPrivateKey())
             {
                 //HACK: this is not sufficient for establishing the client and server certificates are the same.
@@ -424,64 +235,19 @@ namespace Youverse.Hosting
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }
 
-        private void AssertValidConfiguration(Config config)
+        private void AssertValidConfiguration(Config cfg)
         {
-            Guard.Argument(config, nameof(config)).NotNull();
-            Guard.Argument(config.RegistryServerUri, nameof(config.RegistryServerUri)).NotNull().NotEmpty();
-            Guard.Argument(Uri.IsWellFormedUriString(config.RegistryServerUri, UriKind.Absolute), nameof(config.RegistryServerUri)).True();
-            Guard.Argument(config.TenantDataRootPath, nameof(config.TenantDataRootPath)).NotNull().NotEmpty();
-            Guard.Argument(config.TempTenantDataRootPath, nameof(config.TempTenantDataRootPath)).NotNull().NotEmpty();
+            Guard.Argument(cfg, nameof(cfg)).NotNull();
+            Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
+            Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();
+            Guard.Argument(cfg.TenantDataRootPath, nameof(cfg.TenantDataRootPath)).NotNull().NotEmpty();
+            Guard.Argument(cfg.TempTenantDataRootPath, nameof(cfg.TempTenantDataRootPath)).NotNull().NotEmpty();
         }
 
-        private void PrepareEnvironment(Config config)
+        private void PrepareEnvironment(Config cfg)
         {
-            Directory.CreateDirectory(config.TenantDataRootPath);
-            Directory.CreateDirectory(config.TempTenantDataRootPath);
-        }
-
-        private ILogger<T> ResolveLogger<T>(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<ILogger<T>>();
-        }
-
-        private DotYouHttpClientFactory ResolveDotYouHttpClientFactory(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<DotYouHttpClientFactory>();
-        }
-
-        private IHubContext<NotificationHub, INotificationHub> ResolveNotificationHub(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
-        }
-
-        private ICircleNetworkRequestService ResolveCircleNetworkRequestService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<ICircleNetworkRequestService>();
-        }
-
-        private ICircleNetworkService ResolveCircleNetworkService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<ICircleNetworkService>();
-        }
-
-        private IOwnerDataAttributeManagementService ResolveOwnerDataAttributeManagementService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<IOwnerDataAttributeManagementService>();
-        }
-
-        private IProfileService ResolveProfileService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<IProfileService>();
-        }
-
-        private IStorageService ResolveStorageService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<IStorageService>();
-        }
-
-        private IOwnerSecretService ResolveOwnerSecretService(IServiceProvider svc)
-        {
-            return svc.GetRequiredService<IOwnerSecretService>();
+            Directory.CreateDirectory(cfg.TenantDataRootPath);
+            Directory.CreateDirectory(cfg.TempTenantDataRootPath);
         }
     }
 }

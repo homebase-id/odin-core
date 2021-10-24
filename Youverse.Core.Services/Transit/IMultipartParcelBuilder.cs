@@ -20,11 +20,11 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Accepts a part of a Multipart stream.  When all required parts are received
         /// </summary>
-        /// <param name="packageId"></param>
+        /// <param name="parcelId"></param>
         /// <param name="name"></param>
         /// <param name="payload"></param>
         /// <returns>True when all parts are received, otherwise false</returns>
-        Task<bool> AddItem(Guid packageId, string name, Stream payload);
+        Task<bool> AddItem(Guid parcelId, string name, Stream payload);
 
         /// <summary>
         /// Gets the <see cref="Parcel"/>
