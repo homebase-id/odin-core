@@ -68,8 +68,7 @@ namespace Youverse.Core.Services.Transit
             }
 
             _storage.AssertFileIsValid(fileId);
-
-
+            
             //if payload size is small, try sending now.
             if (await _storage.GetFileSize(fileId) <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
             {
@@ -137,8 +136,12 @@ namespace Youverse.Core.Services.Transit
             try
             {
                 var originalHeader = await _storage.GetKeyHeader(fileId);
-                var profile = await _profileService.Get((DotYouIdentity)recipient);
-                var recipientPublicKey = Convert.FromBase64String(profile.PublicKeyCertificate);
+                var recipientPublicKey = await _profileService.GetPublicKeyForKeyHeader((DotYouIdentity) recipient);
+
+                if (null == recipientPublicKey)
+                {
+                    tfr = TransferFailureReason.CouldNotRetrieveRecipientPublicKey;
+                }
                 
                 var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey);
                 var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", "metadata");

@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Profile
             //maybe this should be a call from the cache
             var client = this.CreatePerimeterHttpClient(dotYouId);
             var response = await client.GetProfile();
-            
+
             if (response.IsSuccessStatusCode && response.Content != null)
             {
                 profile = response.Content;
@@ -51,6 +51,20 @@ namespace Youverse.Core.Services.Profile
             }
 
             return null;
+        }
+
+        public async Task<byte[]> GetPublicKeyForKeyHeader(DotYouIdentity dotYouId, bool forceRefresh = false)
+        {
+            //TODO: optimize by reading a dictionary cache
+            
+            var profile = await this.Get(dotYouId);
+
+            if (profile == null)
+            {
+                return null;
+            }
+
+            return string.IsNullOrEmpty(profile.PublicKeyCertificate) ? null : Convert.FromBase64String(profile.PublicKeyCertificate);
         }
 
         public Task Save(DotYouProfile profile)
