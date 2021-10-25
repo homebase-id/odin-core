@@ -7,6 +7,7 @@ namespace Youverse.Core.Services.Transit
     public interface ITransitService
     {
         Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems);
+        
         Task<TransferResult> SendBatchNow(RecipientList recipients, Guid fileId);
 
         /// <summary>
@@ -14,7 +15,5 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <returns></returns>
         Task<TransferResult> Send(Parcel parcel);
-
-        Task<SendResult> SendNow(string recipient, Guid fileId);
     }
 }

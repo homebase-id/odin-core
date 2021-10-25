@@ -9,13 +9,13 @@ using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class MultipartParcelBuilder : DotYouServiceBase, IMultipartParcelBuilder
+    public class MultipartParcelStorageWriter : DotYouServiceBase, IMultipartParcelStorageWriter
     {
         private readonly IStorageService _storageService;
         private readonly Dictionary<Guid, Parcel> _parcels;
         private int _partCount = 0;
 
-        public MultipartParcelBuilder(DotYouContext context, ILogger logger, IStorageService storageService)
+        public MultipartParcelStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService)
             : base(context, logger, null, null)
         {
             _storageService = storageService;

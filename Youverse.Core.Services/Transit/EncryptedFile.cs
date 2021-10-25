@@ -31,20 +31,6 @@ namespace Youverse.Core.Services.Transit
         public string MetaDataPath => Path.Combine(_fileRoot, this.MetadataFileName);
         public string DataFilePath => Path.Combine(_fileRoot, this.DataFileName);
         public string HeaderPath => Path.Combine(_fileRoot, this.HeaderFileName);
-
-        /// <summary>
-        /// Returns an instance of the KeyHeader from disk.
-        /// </summary>
-        /// <returns></returns>
-        public async Task<KeyHeader> GetKeyHeader()
-        {
-            if (null == _keyHeader)
-            {
-                var json = await File.OpenText(this.HeaderPath).ReadToEndAsync();
-                _keyHeader = JsonConvert.DeserializeObject<KeyHeader>(json);
-            }
-
-            return _keyHeader;
-        }
+        
     }
 }

@@ -49,63 +49,63 @@ namespace Youverse.Hosting
 
             services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<OwnerSecretService>(svc);
-                return new OwnerSecretService(context, logger);
+                return new OwnerSecretService(
+                    ResolveContext(svc),
+                    ResolveLogger<OwnerSecretService>(svc));
             });
 
             services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
                 svc =>
                 {
-                    var context = ResolveContext(svc);
-                    var logger = ResolveLogger<OwnerAuthenticationService>(svc);
-                    return new OwnerAuthenticationService(context, logger, ResolveOwnerSecretService(svc));
+                    return new OwnerAuthenticationService(
+                        ResolveContext(svc),
+                        ResolveLogger<OwnerAuthenticationService>(svc),
+                        ResolveOwnerSecretService(svc));
                 });
 
             services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<AppRegistrationService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new AppRegistrationService(context, logger, hub, fac);
+                return new AppRegistrationService(
+                    ResolveContext(svc),
+                    ResolveLogger<AppRegistrationService>(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc));
             });
 
             services.AddScoped<IProfileService, ProfileService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<ProfileService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                return new ProfileService(context, logger, fac);
+                return new ProfileService(
+                    ResolveContext(svc),
+                    ResolveLogger<ProfileService>(svc),
+                    ResolveDotYouHttpClientFactory(svc));
             });
 
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<CircleNetworkService>(svc);
-                var profileSvc = ResolveProfileService(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new CircleNetworkService(context, profileSvc, logger, hub, fac);
+                return new CircleNetworkService(
+                    ResolveContext(svc),
+                    ResolveProfileService(svc),
+                    ResolveLogger<CircleNetworkService>(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc));
             });
 
             services.AddScoped<ICircleNetworkRequestService, CircleNetworkRequestService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<CircleNetworkService>>();
-                var cns = ResolveCircleNetworkService(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                var mgt = ResolveOwnerDataAttributeManagementService(svc);
-                return new CircleNetworkRequestService(context, cns, logger, hub, fac, mgt);
+                return new CircleNetworkRequestService(
+                    ResolveContext(svc),
+                    ResolveCircleNetworkService(svc),
+                    ResolveLogger<CircleNetworkRequestService>(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc),
+                    ResolveOwnerDataAttributeManagementService(svc));
             });
 
             services.AddScoped<IOwnerDataAttributeManagementService, OwnerDataAttributeManagementService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = svc.GetRequiredService<ILogger<OwnerAuthenticationService>>();
-
-                return new OwnerDataAttributeManagementService(context, logger);
+                return new OwnerDataAttributeManagementService(
+                    ResolveContext(svc),
+                    ResolveLogger<OwnerDataAttributeManagementService>(svc));
             });
 
             services.AddScoped<IOwnerDataAttributeReaderService, OwnerDataAttributeReaderService>(svc =>
@@ -146,32 +146,35 @@ namespace Youverse.Hosting
                 return new ChatService(context, logger, fac, p, cns, msgHub, ms);
             });
 
+            services.AddScoped<IEncryptionService, EncryptionService>(svc => { return new EncryptionService(ResolveContext(svc), ResolveLogger<TransitService>(svc)); });
+
             services.AddScoped<IOutboxQueueService, OutboxQueueService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<OutboxQueueService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var hub = ResolveNotificationHub(svc);
-                return new OutboxQueueService(context, logger, hub, fac);
+                return new OutboxQueueService(
+                    ResolveContext(svc),
+                    ResolveLogger<OutboxQueueService>(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc));
             });
 
-            services.AddScoped<IMultipartParcelBuilder, MultipartParcelBuilder>(svc =>
+            services.AddScoped<IMultipartParcelStorageWriter, MultipartParcelStorageWriter>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<MultipartParcelBuilder>(svc);
-                var storage = ResolveStorageService(svc);
-                return new MultipartParcelBuilder(context, logger, storage);
+                return new MultipartParcelStorageWriter(
+                    ResolveContext(svc),
+                    ResolveLogger<MultipartParcelStorageWriter>(svc),
+                    ResolveStorageService(svc));
             });
 
             services.AddScoped<ITransitService, TransitService>(svc =>
             {
-                var context = ResolveContext(svc);
-                var logger = ResolveLogger<TransitService>(svc);
-                var fac = ResolveDotYouHttpClientFactory(svc);
-                var ss = ResolveStorageService(svc);
-                var box = svc.GetRequiredService<IOutboxQueueService>();
-                var hub = ResolveNotificationHub(svc);
-                return new TransitService(context, logger, box, ss, hub, fac);
+                return new TransitService(
+                    ResolveContext(svc),
+                    ResolveLogger<TransitService>(svc),
+                    svc.GetRequiredService<IOutboxQueueService>(),
+                    ResolveStorageService(svc),
+                    ResolveEncryptionService(svc), ResolveProfileService(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc));
             });
 
             services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
@@ -186,7 +189,7 @@ namespace Youverse.Hosting
             });
         }
 
-        
+
         /// <summary>
         /// Gets the DotYouContext for the given Service Scope.
         /// </summary>
@@ -208,16 +211,16 @@ namespace Youverse.Hosting
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
 
             var caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 loginDek: chk
             );
 
-            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
+            var context = new DotYouContext((DotYouIdentity)hostname, cert, storage, caller);
             return context;
         }
 
-        
+
         private static ILogger<T> ResolveLogger<T>(IServiceProvider svc)
         {
             return svc.GetRequiredService<ILogger<T>>();
@@ -231,6 +234,11 @@ namespace Youverse.Hosting
         private static IHubContext<NotificationHub, INotificationHub> ResolveNotificationHub(IServiceProvider svc)
         {
             return svc.GetRequiredService<IHubContext<NotificationHub, INotificationHub>>();
+        }
+
+        private static IEncryptionService ResolveEncryptionService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<IEncryptionService>();
         }
 
         private static ICircleNetworkRequestService ResolveCircleNetworkRequestService(IServiceProvider svc)

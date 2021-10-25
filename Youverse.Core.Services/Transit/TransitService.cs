@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
@@ -22,13 +22,17 @@ namespace Youverse.Core.Services.Transit
 
         private readonly IStorageService _storage;
         private readonly IOutboxQueueService _outboxQueue;
+        private readonly IEncryptionService _encryption;
+        private readonly IProfileService _profileService;
         const int InstantSendPayloadThresholdSize = 1024;
         const int InstantSendRecipientCountThreshold = 9;
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService profileService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _outboxQueue = outboxQueue;
             _storage = storage;
+            _encryption = encryptionSvc;
+            _profileService = profileService;
         }
 
         public async Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems)
@@ -65,6 +69,7 @@ namespace Youverse.Core.Services.Transit
 
             _storage.AssertFileIsValid(fileId);
 
+
             //if payload size is small, try sending now.
             if (await _storage.GetFileSize(fileId) <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
             {
@@ -86,11 +91,6 @@ namespace Youverse.Core.Services.Transit
             }
 
             return result;
-        }
-
-        public Task<SendResult> SendNow(string recipient, Guid fileId)
-        {
-            throw new NotImplementedException();
         }
 
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
@@ -132,48 +132,49 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<SendResult> SendAsync(string recipient, Guid fileId)
         {
-            // TransferFailureReason tfr = TransferFailureReason.UnknownError;
-            // bool success = false;
-            // try
-            // {
-            //     var recipientHeader = EncryptHeader(recipient, await.GetKeyHeader()).ConfigureAwait(false).GetAwaiter().GetResult();
-            //
-            //     var metaDataStream = new StreamPart(File.Open(_envelope.MetaDataPath, FileMode.Open), "metadata.encrypted", "application/json", "metadata");
-            //     var payload = new StreamPart(File.Open(_envelope.DataFilePath, FileMode.Open), "payload.encrypted", "application/x-binary", "payload");
-            //
-            //     //TODO: add additional error checking for files existing and successfully being opened, etc.
-            //     
-            //     var client = base.CreatePerimeterHttpClient((DotYouIdentity)recipient);
-            //     var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
-            //     success = result.IsSuccessStatusCode;
-            //
-            //     //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
-            //     if (!success)
-            //     {
-            //         tfr = TransferFailureReason.RecipientServerError;
-            //     }
-            // }
-            // catch (EncryptionException)
-            // {
-            //     tfr = TransferFailureReason.CouldNotEncrypt;
-            //     //TODO: logging
-            // }
-            // catch (Exception)
-            // {
-            //     tfr = TransferFailureReason.UnknownError;
-            //     //TODO: logging
-            // }
-            //
-            // return new SendResult()
-            // {
-            //     Recipient = recipient,
-            //     Success = success,
-            //     FailureReason = tfr,
-            //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            //     FileId = fileId
-            // };
+            TransferFailureReason tfr = TransferFailureReason.UnknownError;
+            bool success = false;
+            try
+            {
+                var originalHeader = await _storage.GetKeyHeader(fileId);
+                var profile = await _profileService.Get((DotYouIdentity)recipient);
+                var recipientPublicKey = Convert.FromBase64String(profile.PublicKeyCertificate);
+                
+                var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey);
+                var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", "metadata");
+                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", "payload");
 
-            return null;
+                //TODO: add additional error checking for files existing and successfully being opened, etc.
+
+                var client = base.CreatePerimeterHttpClient((DotYouIdentity)recipient);
+                var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                success = result.IsSuccessStatusCode;
+
+                //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
+                if (!success)
+                {
+                    tfr = TransferFailureReason.RecipientServerError;
+                }
+            }
+            catch (EncryptionException)
+            {
+                tfr = TransferFailureReason.CouldNotEncrypt;
+                //TODO: logging
+            }
+            catch (Exception)
+            {
+                tfr = TransferFailureReason.UnknownError;
+                //TODO: logging
+            }
+
+            return new SendResult()
+            {
+                Recipient = recipient,
+                Success = success,
+                FailureReason = tfr,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                FileId = fileId
+            };
         }
     }
 }

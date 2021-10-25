@@ -8,7 +8,10 @@ namespace Youverse.Core.Services.Transit
         public string EncryptedKey64 { get; set; }
         
         //key1, key 2, RSA, Shared Secret
-        public byte[] GetKeyBytes { get; set; }
+        public byte[] GetKeyBytes()
+        {
+            return new byte[1];
+        }
     }
     
 }

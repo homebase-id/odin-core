@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ICircleNetworkService _cns;
         private readonly IOwnerDataAttributeManagementService _mgts;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
         {
             _cns = cns;
             _mgts = mgts;

@@ -16,11 +16,11 @@ namespace Youverse.Hosting.Controllers.Transit
     public class ClientUploadController : ControllerBase
     {
         private readonly ITransitService _svc;
-        private readonly IMultipartParcelBuilder _parcelBuilder;
+        private readonly IMultipartParcelStorageWriter _parcelStorageWriter;
 
-        public ClientUploadController(IMultipartParcelBuilder parcelBuilder, ITransitService svc)
+        public ClientUploadController(IMultipartParcelStorageWriter parcelStorageWriter, ITransitService svc)
         {
-            _parcelBuilder = parcelBuilder;
+            _parcelStorageWriter = parcelStorageWriter;
             _svc = svc;
         }
 
@@ -42,12 +42,12 @@ namespace Youverse.Hosting.Controllers.Transit
                 //the logic and routing of tenant-specific data.  We don't
                 //want that in the http controllers
                 
-                var packageId = await _parcelBuilder.CreateParcel();
+                var packageId = await _parcelStorageWriter.CreateParcel();
                 bool isComplete = false;
                 while (section != null || !isComplete)
                 {
                     var name = GetSectionName(section.ContentDisposition);
-                    isComplete = await _parcelBuilder.AddItem(packageId, name, section.Body);
+                    isComplete = await _parcelStorageWriter.AddItem(packageId, name, section.Body);
                     section = await reader.ReadNextSectionAsync();
                 }
 
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Controllers.Transit
                 }
                 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
-                var parcel = await _parcelBuilder.GetParcel(packageId);
+                var parcel = await _parcelStorageWriter.GetParcel(packageId);
                 var result = _svc.Send(parcel);
 
                 return new JsonResult(result);

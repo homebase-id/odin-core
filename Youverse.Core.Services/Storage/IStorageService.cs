@@ -32,7 +32,22 @@ namespace Youverse.Core.Services.Storage
         Task<MediaMetaData> GetMetaData(Guid id);
 
         Task<Stream> GetMediaStream(Guid id);
-        Task<Stream> GetFilePartStream(Guid fileId);
+        
+        /// <summary>
+        /// Gets a read stream for the given <see cref="FilePart"/>
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <param name="filePart"></param>
+        /// <returns></returns>
+        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart);
+        
+
+        /// <summary>
+        /// Returns the <see cref="KeyHeader"/> for a given file.
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <returns></returns>
+        Task<KeyHeader> GetKeyHeader(Guid fileId);
         
         /// <summary>
         /// Ensures there is a valid file available for the given Id.

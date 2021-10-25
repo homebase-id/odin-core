@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit
     /// scenarios where large uploads take time before all parts are ready to be processed (i.e. it bundles multipart
     /// uploads into into a <see cref="Transfer"/>
     /// </summary>
-    public interface IMultipartParcelBuilder
+    public interface IMultipartParcelStorageWriter
     {
         /// <summary>
         /// Prepares an item to be collected and returns an Id you will use to send parts of an upload as they are received.

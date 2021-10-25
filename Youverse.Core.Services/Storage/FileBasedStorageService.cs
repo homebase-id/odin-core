@@ -1,9 +1,12 @@
 using System;
 using System.IO;
 using System.Security.Principal;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Storage
@@ -42,10 +45,15 @@ namespace Youverse.Core.Services.Storage
             } while (bytesRead > 0);
         }
         
-        
-        public Task<Stream> GetFilePartStream(Guid fileId)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
-            throw new NotImplementedException();
+            return Task.FromResult((Stream)File.OpenRead(GetFilePath(fileId, filePart)));
+        }
+
+        public async Task<KeyHeader> GetKeyHeader(Guid fileId)
+        {
+            using var stream = File.OpenText(GetFilePath(fileId, FilePart.Header));
+            return JsonConvert.DeserializeObject<KeyHeader>(await stream.ReadToEndAsync());
         }
 
         public void AssertFileIsValid(Guid fileId)
@@ -55,7 +63,7 @@ namespace Youverse.Core.Services.Storage
 
         public async Task<long> GetFileSize(Guid id)
         {
-            //TODO: make more effcient by reading metadata or somethign else?
+            //TODO: make more efficient by reading metadata or something else?
             var path = GetFilePath(id, FilePart.Payload);
             return new FileInfo(path).Length;
         }
