@@ -48,8 +48,6 @@ namespace Youverse.Core.SystemStorage
                 ReadOnly = false
             });
             _collectionName = collectionName;
-            
-            
         }
 
         public Task<PagedResult<T>> GetList(PageOptions req)
@@ -152,7 +150,20 @@ namespace Youverse.Core.SystemStorage
         public Task Save(T item)
         {
             var col = GetCollection();
-            var id = col.Upsert(item);
+            try
+            {
+                var id = col.Upsert(item);
+            }
+            catch (LiteDB.LiteException lex)
+            {
+                if (lex.ErrorCode == 110)
+                {
+                    throw new UniqueIndexException(lex.Message);
+                }
+
+                throw;
+            }
+
             return Task.CompletedTask;
         }
 
@@ -162,7 +173,7 @@ namespace Youverse.Core.SystemStorage
             var success = col.Delete(id);
             return Task.FromResult(success);
         }
-        
+
         public Task<int> DeleteMany(Expression<Func<T, bool>> predicate)
         {
             var col = GetCollection();
@@ -175,6 +186,13 @@ namespace Youverse.Core.SystemStorage
             var col = GetCollection();
             int count = col.DeleteAll();
             return Task.FromResult(count);
+        }
+
+        public Task EnsureIndex<K>(Expression<Func<T, K>> keySelector, bool unique = false)
+        {
+            var col = GetCollection();
+            col.EnsureIndex(keySelector, unique);
+            return Task.CompletedTask;
         }
 
         private ILiteCollection<T> GetCollection()
@@ -190,13 +208,6 @@ namespace Youverse.Core.SystemStorage
                 _logger.LogDebug($"Disposing of {_collectionName} litedb instance");
                 _db.Dispose();
             }
-        }
-
-        public Task EnsureIndex<K>(Expression<Func<T, K>> keySelector, bool unique = false)
-        {
-            var col = GetCollection();
-            col.EnsureIndex(keySelector, unique);
-            return Task.CompletedTask;
         }
     }
 }
