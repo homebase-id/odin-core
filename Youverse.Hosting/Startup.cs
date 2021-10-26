@@ -17,6 +17,7 @@ using Microsoft.Extensions.Hosting;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Transit.Background;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Security;
@@ -91,7 +92,8 @@ namespace Youverse.Hosting
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
             services.AddYouVerseScopedServices();
-            
+            services.AddHostedService<BackgroundOutboxTransferService>();
+                        
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }

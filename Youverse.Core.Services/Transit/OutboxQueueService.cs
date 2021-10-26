@@ -50,13 +50,16 @@ namespace Youverse.Core.Services.Transit
 
         public IEnumerable<TransferQueueItem> GetNextBatch()
         {
-            //TODO: add in batch processing
-            var item = _queue.Dequeue();
-            if (null != item)
+            if (_queue.Count > 0)
             {
-                return new List<TransferQueueItem>(new[] { item }).AsEnumerable();
+                //TODO: add in batch processing
+                var item = _queue.Dequeue();
+                if (null != item)
+                {
+                    return new List<TransferQueueItem>(new[] { item }).AsEnumerable();
+                }
             }
-    
+
             return Array.Empty<TransferQueueItem>();
         }
 

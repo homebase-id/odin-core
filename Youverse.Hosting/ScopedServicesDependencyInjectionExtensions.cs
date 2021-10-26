@@ -199,7 +199,6 @@ namespace Youverse.Hosting
             var reg = svc.GetRequiredService<IIdentityContextRegistry>();
 
             var httpContext = accessor.HttpContext;
-
             string hostname = httpContext.Request.Host.Host;
             var cert = reg.ResolveCertificate(hostname);
             var storage = reg.ResolveStorageConfig(hostname);

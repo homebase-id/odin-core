@@ -3,15 +3,19 @@ using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
+using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Security;
 
 namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
     [Route("/api/transit/client")]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class ClientUploadController : ControllerBase
     {
         private readonly ITransitService _svc;

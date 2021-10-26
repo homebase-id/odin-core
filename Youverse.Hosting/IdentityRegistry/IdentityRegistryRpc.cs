@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Grpc.Net.Client;
@@ -14,11 +15,13 @@ namespace Youverse.Hosting.IdentityRegistry
     {
         private readonly Config _config;
         private readonly Trie<IdentityCertificate> _identityMap;
+        private readonly List<string> _tempDomains = new();
 
         public IdentityRegistryRpc(Config config)
         {
             _config = config;
             _identityMap = new Trie<IdentityCertificate>();
+            
         }
 
         public async void Initialize()
@@ -39,8 +42,7 @@ namespace Youverse.Hosting.IdentityRegistry
                 Console.WriteLine($"Mapping {ident.DomainName} to cert");
                 try
                 {
-                    IdentityCertificate identCert = Map(ident);
-                    _identityMap.AddDomain(ident.DomainName, identCert);
+                    this.CacheDomain(ident);
                 }
                 catch (Exception e)
                 {
@@ -70,6 +72,20 @@ namespace Youverse.Hosting.IdentityRegistry
             return result;
         }
 
+        public IEnumerable<string> GetDomains()
+        {
+            return _tempDomains;
+        }
+
+        private IdentityCertificate CacheDomain(IdentityRegistration ident)
+        {
+            IdentityCertificate identCert = Map(ident);
+            _identityMap.AddDomain(ident.DomainName, identCert);
+            _tempDomains.Add(ident.DomainName);
+
+            return identCert;
+        }
+        
         private async Task<IdentityCertificate> LazyLoad(string domainName)
         {
             var cert = await GetClient().Get(domainName);
@@ -79,13 +95,7 @@ namespace Youverse.Hosting.IdentityRegistry
                 return null;
             }
 
-            var identCert = Map(cert);
-            if (null != identCert)
-            {
-                _identityMap.AddDomain(identCert.DomainName, identCert);
-            }
-
-            return identCert;
+            return CacheDomain(cert);
         }
 
         private IdentityCertificate Map(IdentityRegistration ident)
@@ -99,7 +109,8 @@ namespace Youverse.Hosting.IdentityRegistry
             var identCert = new IdentityCertificate(ident.DomainKey, ident.DomainName, null, location);
             return identCert;
         }
-
+        
+        
         private IRegistryRpcService GetClient()
         {
             var channel = GrpcChannel.ForAddress(_config.RegistryServerUri);

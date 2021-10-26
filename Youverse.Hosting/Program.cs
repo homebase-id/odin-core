@@ -52,6 +52,8 @@ namespace Youverse.Hosting
             }
 
             Directory.CreateDirectory(config.LogFilePath);
+            Directory.CreateDirectory(config.TenantDataRootPath);
+            Directory.CreateDirectory(config.TempTenantDataRootPath);
 
             var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
             if (useLocalReg)

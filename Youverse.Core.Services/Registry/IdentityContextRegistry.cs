@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Services.Identity;
@@ -15,6 +16,7 @@ namespace Youverse.Core.Services.Registry
     public class IdentityContextRegistry : IIdentityContextRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
+        private List<string> _tempDomains = new();
 
         private string _dataStoragePath;
         private string _tempDataStoragePath;
@@ -23,10 +25,10 @@ namespace Youverse.Core.Services.Registry
         {
             if (!Directory.Exists(dataStoragePath))
                 throw new InvalidDataException($"Could find or access path at [{dataStoragePath}]");
-            
+
             if (!Directory.Exists(tempDataStoragePath))
                 throw new InvalidDataException($"Could find or access path at [{tempDataStoragePath}]");
-            
+
             _dataStoragePath = dataStoragePath;
             _tempDataStoragePath = tempDataStoragePath;
         }
@@ -97,11 +99,10 @@ namespace Youverse.Core.Services.Registry
 
             foreach (var c in _certificates.Values)
             {
-                Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
-                _identityMap.AddDomain(c.DomainName, c.Key);
+                this.CacheDomain(c);
             }
         }
-
+        
         public IdentityCertificate ResolveCertificate(string domainName)
         {
             var key = _identityMap.LookupName(domainName);
@@ -125,6 +126,18 @@ namespace Youverse.Core.Services.Registry
             var tempPath = Path.Combine(_tempDataStoragePath, domainName);
             var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(tempPath, "temp"));
             return result;
+        }
+
+        public IEnumerable<string> GetDomains()
+        {
+            return _tempDomains;
+        }
+        
+        private void CacheDomain(IdentityCertificate c)
+        {
+            Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
+            _identityMap.AddDomain(c.DomainName, c.Key);
+            _tempDomains.Add(c.DomainName);
         }
     }
 }
