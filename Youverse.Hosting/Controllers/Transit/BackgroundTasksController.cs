@@ -17,9 +17,9 @@ namespace Youverse.Hosting.Controllers.Transit
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
-    [Route("/api/transit/background")]
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Route("/api/transit/background/stoke")]
     //TODO: need to add a certificate for the system to make calls into itself
+    //[Authorize(Policy = DotYouPolicyNames.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]
     public class BackgroundTasksController : ControllerBase
     {
         private readonly ITransitService _transit;
@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.Transit
             _outbox = outbox;
         }
 
-        [HttpPost("stoke")]
+        [HttpPost]
         public async Task<IActionResult> SendParcel()
         {
             //Console.WriteLine($"{HttpContext.Request.Host.Host} as been stoked!");
