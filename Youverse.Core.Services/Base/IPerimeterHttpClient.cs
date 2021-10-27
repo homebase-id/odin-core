@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Base
         
         [Multipart]
         [Post("/data/datastream")]
-        Task<ApiResponse<bool>> DeliverStream(
+        Task<ApiResponse<bool>> SendHostToHost(
             [AliasAs("hdr")] KeyHeader metadata, 
             [AliasAs("metaData")] StreamPart metaData, 
             [AliasAs("payload")] StreamPart payload);

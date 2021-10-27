@@ -150,7 +150,7 @@ namespace Youverse.Core.Services.Transit
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
                 var client = base.CreatePerimeterHttpClient((DotYouIdentity)recipient);
-                var result = client.DeliverStream(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                var result = client.SendHostToHost(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
                 //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)

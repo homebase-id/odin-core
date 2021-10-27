@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Transit
             return Task.FromResult(parcelId);
         }
 
-        public async Task<bool> AddItem(Guid parcelId, string name, Stream payload)
+        public async Task<bool> AddItem(Guid parcelId, string name, Stream data)
         {
             if (!_parcels.TryGetValue(parcelId, out var parcel))
             {
@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Transit
             if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
             {
                 //todo: convert to streaming for memory reduction if needed.
-                string json = await new StreamReader(payload).ReadToEndAsync();
+                string json = await new StreamReader(data).ReadToEndAsync();
                 var list = JsonConvert.DeserializeObject<RecipientList>(json);
                 if (list?.Recipients?.Length <= 0)
                 {
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Transit
                     throw new InvalidDataException($"Part name [{name}] not recognized");
                 }
 
-                await _storageService.WritePartStream(parcel.FileId, filePart, payload);
+                await _storageService.WritePartStream(parcel.FileId, filePart, data);
                 _partCount++;
             }
 

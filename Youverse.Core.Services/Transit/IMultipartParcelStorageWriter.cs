@@ -22,9 +22,9 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="parcelId"></param>
         /// <param name="name"></param>
-        /// <param name="payload"></param>
+        /// <param name="data"></param>
         /// <returns>True when all parts are received, otherwise false</returns>
-        Task<bool> AddItem(Guid parcelId, string name, Stream payload);
+        Task<bool> AddItem(Guid parcelId, string name, Stream data);
 
         /// <summary>
         /// Gets the <see cref="Parcel"/>

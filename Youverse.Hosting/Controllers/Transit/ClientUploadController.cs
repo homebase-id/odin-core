@@ -27,6 +27,15 @@ namespace Youverse.Hosting.Controllers.Transit
             _svc = svc;
         }
 
+        /// <summary>
+        /// Accepts a multipart upload.  The 'name' parameter in the upload must be specified.  The following parts are required:
+        ///
+        /// name: "recipients": an encrypted list of recipients in json format. { recipients:["recipient1", "recipient2"] } 
+        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of oct 27, 2021)
+        /// name: "payload": the encrypted payload of data
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidDataException"></exception>
         [HttpPost("sendparcel")]
         public async Task<IActionResult> SendParcel()
         {
@@ -44,7 +53,7 @@ namespace Youverse.Hosting.Controllers.Transit
                 //Note: the _parcelBuilder exists so we have a service that holds
                 //the logic and routing of tenant-specific data.  We don't
                 //want that in the http controllers
-                
+
                 var packageId = await _parcelStorageWriter.CreateParcel();
                 bool isComplete = false;
                 while (section != null || !isComplete)
@@ -58,10 +67,10 @@ namespace Youverse.Hosting.Controllers.Transit
                 {
                     throw new InvalidDataException("Upload does not contain all required parts.");
                 }
-                
+
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
                 var parcel = await _parcelStorageWriter.GetParcel(packageId);
-                var result = _svc.Send(parcel);
+                var result = await _svc.Send(parcel);
 
                 return new JsonResult(result);
             }

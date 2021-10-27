@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
@@ -9,7 +10,7 @@ using Youverse.Hosting.Tests.Apps;
 
 namespace Youverse.Hosting.Tests.Transit
 {
-    public class TransitTests
+    public class TransitHostToHostTests
     {
         private TestScaffold _scaffold;
 
@@ -27,18 +28,18 @@ namespace Youverse.Hosting.Tests.Transit
             _scaffold.RunAfterAnyTests();
         }
         
-
         [Test]
         public async Task TransferDataToHost()
         {
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ITransitTestHttpClient>(client);
-                var revokeResponse = await svc.SendHostToHost();
+                var response = await svc.SendHostToHost();
                 
-                Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode);
                 
             }
         }
+        
     }
 }

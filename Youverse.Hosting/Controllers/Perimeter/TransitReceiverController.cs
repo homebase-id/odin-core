@@ -68,20 +68,6 @@ namespace Youverse.Hosting.Controllers.Perimeter
             return new NoResultResponse(true);
         }
 
-        private async Task WriteFile(string filePath, Stream stream)
-        {
-            const int chunkSize = 1024;
-            var buffer = new byte[chunkSize];
-            var bytesRead = 0;
-
-            await using var output = new FileStream(filePath, FileMode.Append);
-            do
-            {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                output.Write(buffer, 0, bytesRead);
-            } while (bytesRead > 0);
-        }
-
         private static bool IsMultipartContentType(string contentType)
         {
             return
