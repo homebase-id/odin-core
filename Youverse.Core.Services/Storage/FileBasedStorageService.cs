@@ -44,7 +44,12 @@ namespace Youverse.Core.Services.Storage
                 output.Write(buffer, 0, bytesRead);
             } while (bytesRead > 0);
         }
-        
+
+        public Task WriteKeyHeader(Guid id, Stream stream)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             return Task.FromResult((Stream)File.OpenRead(GetFilePath(fileId, filePart)));

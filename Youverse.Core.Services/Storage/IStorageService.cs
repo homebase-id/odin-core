@@ -17,9 +17,11 @@ namespace Youverse.Core.Services.Storage
         Guid CreateId();
         
         /// <summary>
-        /// Writes a stream for a given file and part to the configured provider
+        /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>
         Task WritePartStream(Guid id, FilePart filePart, Stream stream);
+        
+        Task WriteKeyHeader(Guid id, Stream stream);
 
         Task<long> GetFileSize(Guid id);
         
