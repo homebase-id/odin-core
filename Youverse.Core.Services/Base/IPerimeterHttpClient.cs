@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Base
         Task<ApiResponse<DotYouProfile>> GetProfile();
         
         [Multipart]
-        [Post("/data/datastream")]
+        [Post("/api/perimeter/transit/host/stream")]
         Task<ApiResponse<bool>> SendHostToHost(
             [AliasAs("hdr")] KeyHeader metadata, 
             [AliasAs("metaData")] StreamPart metaData, 

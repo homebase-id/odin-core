@@ -13,19 +13,21 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly IStorageService _storageService;
         private readonly Dictionary<Guid, Parcel> _parcels;
-        private int _partCount = 0;
+        private readonly Dictionary<Guid, int> _partCounts;
 
         public MultipartParcelStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService)
             : base(context, logger, null, null)
         {
             _storageService = storageService;
             _parcels = new Dictionary<Guid, Parcel>();
+            _partCounts = new Dictionary<Guid, int>();
         }
 
         public Task<Guid> CreateParcel()
         {
             var parcelId = Guid.NewGuid();
             _parcels.Add(parcelId, new Parcel(_storageService.CreateId()));
+            _partCounts.Add(parcelId, 0);
             return Task.FromResult(parcelId);
         }
 
@@ -33,7 +35,7 @@ namespace Youverse.Core.Services.Transit
         {
             if (!_parcels.TryGetValue(parcelId, out var parcel))
             {
-                throw new Exception("Invalid package ID");
+                throw new Exception("Invalid parcel ID");
             }
 
             if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
@@ -47,7 +49,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 parcel.RecipientList = list;
-                _partCount++;
+                _partCounts[parcelId]++;
             }
             else
             {
@@ -57,10 +59,10 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 await _storageService.WritePartStream(parcel.FileId, filePart, data);
-                _partCount++;
+                _partCounts[parcelId]++;
             }
 
-            return _partCount == 4;
+            return _partCounts[parcelId] == 4;
         }
 
         public async Task<Parcel> GetParcel(Guid packageId)

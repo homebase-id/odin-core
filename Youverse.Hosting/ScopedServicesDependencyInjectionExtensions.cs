@@ -15,6 +15,7 @@ using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;
 using Youverse.Services.Messaging.Demo;
@@ -172,9 +173,29 @@ namespace Youverse.Hosting
                     ResolveLogger<TransitService>(svc),
                     svc.GetRequiredService<IOutboxQueueService>(),
                     ResolveStorageService(svc),
-                    ResolveEncryptionService(svc), ResolveProfileService(svc),
+                    ResolveEncryptionService(svc), 
+                    ResolveProfileService(svc),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
+            });
+
+            services.AddScoped<ITransitQuarantineService, TransitQuarantineService>(svc =>
+            {
+                return new TransitQuarantineService(
+                    ResolveContext(svc),
+                    ResolveLogger<TransitQuarantineService>(svc),
+                    ResolveStorageService(svc)
+                );
+            });
+
+            services.AddScoped<ITransitPerimeterService, TransitPerimeterService>(svc =>
+            {
+                return new TransitPerimeterService(
+                    ResolveContext(svc),
+                    ResolveLogger<TransitPerimeterService>(svc),
+                    svc.GetRequiredService<ITransitService>(),
+                    svc.GetRequiredService<ITransitQuarantineService>()
+                );
             });
 
             services.AddScoped<IPrototrialDemoDataService, PrototrialDemoDataService>(svc =>
@@ -188,7 +209,6 @@ namespace Youverse.Hosting
                 return new PrototrialDemoDataService(context, logger, cs, admin, cnrs);
             });
         }
-
 
         /// <summary>
         /// Gets the DotYouContext for the given Service Scope.
@@ -210,12 +230,12 @@ namespace Youverse.Hosting
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
 
             var caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 loginDek: chk
             );
 
-            var context = new DotYouContext((DotYouIdentity)hostname, cert, storage, caller);
+            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
             return context;
         }
 

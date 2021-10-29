@@ -18,13 +18,13 @@ namespace Youverse.Hosting.Controllers.Transit
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class ClientUploadController : ControllerBase
     {
-        private readonly ITransitService _svc;
+        private readonly ITransitService _transitService;
         private readonly IMultipartParcelStorageWriter _parcelStorageWriter;
 
-        public ClientUploadController(IMultipartParcelStorageWriter parcelStorageWriter, ITransitService svc)
+        public ClientUploadController(IMultipartParcelStorageWriter parcelStorageWriter, ITransitService transitService)
         {
             _parcelStorageWriter = parcelStorageWriter;
-            _svc = svc;
+            _transitService = transitService;
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Controllers.Transit
 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
                 var parcel = await _parcelStorageWriter.GetParcel(packageId);
-                var result = await _svc.Send(parcel);
+                var result = await _transitService.Send(parcel);
 
                 return new JsonResult(result);
             }
