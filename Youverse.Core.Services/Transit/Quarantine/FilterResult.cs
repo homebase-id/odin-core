@@ -1,20 +1,24 @@
+using System;
+
 namespace Youverse.Core.Services.Transit.Quarantine
 {
-    public class AddPartResponse
+    /// <summary>
+    /// Resulting information from filtering a set of data
+    /// </summary>
+    public class FilterResult
     {
-         
+        /// <summary>
+        /// The Id of the filter sending this response
+        /// </summary>
+        public Guid FilterId { get; set; }
+        
+        /// <summary>
+        /// The action recommended by the filter
+        /// </summary>
+        public FilterAction Recommendation { get; set; }
+        
+        public string Message { get; set; }
     }
     
-    public enum FilterResult
-    {
-        /// <summary>
-        /// Specifies handling the file part was ok and we should continue receiving the other file parts
-        /// </summary>
-        ShouldContinue = 2,
-
-        /// <summary>
-        /// Specifies you should abort receiving the file as it is considered dangerous
-        /// </summary>
-        ShouldAbortDangerousPayload = 3
-    }
+    
 }

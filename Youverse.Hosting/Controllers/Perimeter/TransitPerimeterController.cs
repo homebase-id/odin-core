@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -31,7 +30,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
         }
 
         [HttpPost("stream")]
-        public async Task<DataStreamResponse> AcceptDataStream()
+        public async Task<IActionResult> AcceptDataStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -49,29 +48,24 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 var name = GetSectionName(section.ContentDisposition);
                 var part = GetFilePart(name);
 
-                var handlerResponse = await _perimeterService.AddPart(fileId, part, section.Body);
-                //if (handlerResponse == FilterResult.ShouldAbortDangerousPayload)
-                // {
-                //     //TODO:does this abort also kill the response?
-                //     HttpContext.Abort();
-                //     return new DataStreamResponse()
-                //     {
-                //         Success = AcceptDataStreamReason.AbortedDangerousPayload
-                //     };
-                // }
+                var response = await _perimeterService.FilterPart(fileId, part, section.Body);
+                if (response.FilterAction == FilterAction.Reject)
+                {
+                    HttpContext.Abort(); //TODO:does this abort also kill the response?
+                    throw new InvalidDataException("Transmission Aborted");
+                }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            if (!_perimeterService.IsFileComplete(fileId))
+            if (!_perimeterService.IsFileValid(fileId))
             {
                 throw new InvalidDataException("Upload does not contain all required parts.");
             }
 
-            return new DataStreamResponse()
-            {
-                Success = AcceptDataStreamReason.Success
-            };
+            var result = await _perimeterService.GetFinalFilterResult(fileId);
+
+            return new JsonResult(result);
         }
 
         private static bool IsMultipartContentType(string contentType)
@@ -124,28 +118,5 @@ namespace Youverse.Hosting.Controllers.Perimeter
 
             return GetSectionName(contentDisposition);
         }
-    }
-
-    /// <summary>
-    /// Response used to describe the result of transferring a data stream between two hosts.
-    /// </summary>
-    public class DataStreamResponse
-    {
-        /// <summary>
-        /// Specifies if the transfer was successfully received
-        /// </summary>
-        public AcceptDataStreamReason Success { get; set; }
-
-        /// <summary>
-        /// Additional details on the reason the data was quarantined
-        /// </summary>
-        public string QuarantinedReason { get; set; }
-    }
-
-    public enum AcceptDataStreamReason
-    {
-        Success = 1,
-        QuarantinedPayload = 2,
-        AbortedDangerousPayload = 2,
     }
 }

@@ -15,6 +15,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Applies the configured filters to an incoming transfer.  If all filters pass, the
         /// item is handed to the transit service for further processing; otherwise it is quarantined
         /// </summary>
-        Task<FilterResponse> ApplyFilters(FilePart part, Stream data);
+        Task<CollectiveFilterResult> ApplyFilters(FilePart part, Stream data);
+
+        /// <summary>
+        /// Writes the stream to a quarantined location
+        /// </summary>
+        /// <param name="part"></param>
+        /// <param name="data"></param>
+        Task Quarantine(FilePart part, Stream data);
+        
     }
 }
