@@ -21,7 +21,10 @@ namespace Youverse.Core.Tests.SystemStorageTests
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _rootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", folder);
 
-            Directory.Delete(_rootPath, true);
+            if (Directory.Exists(_rootPath))
+            {
+                Directory.Delete(_rootPath, true);
+            }
         }
 
         [SetUp]
