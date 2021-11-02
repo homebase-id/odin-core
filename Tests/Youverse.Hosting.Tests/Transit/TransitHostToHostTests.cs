@@ -29,6 +29,7 @@ namespace Youverse.Hosting.Tests.Transit
         }
         
         [Test]
+        [Ignore("wip")]
         public async Task TransferDataToHost()
         {
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))

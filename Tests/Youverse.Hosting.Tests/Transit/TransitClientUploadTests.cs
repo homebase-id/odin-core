@@ -28,6 +28,7 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
         [Test(Description = "Test a transfer where no data is queued")]
+        [Ignore("wip")]
         public async Task TestInstantTransfer()
         {
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
