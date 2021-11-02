@@ -32,8 +32,8 @@ namespace Youverse.Hosting.Controllers.Apps
             return new JsonResult(reg);
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetRegisteredAppDevice([FromQuery] Guid appId, [FromQuery] string deviceId64)
+        [HttpGet("{appId}")]
+        public async Task<IActionResult> GetRegisteredAppDevice(Guid appId, [FromQuery] string deviceId64)
         {
             //TODO: should all of these fields be returned to the client?
             var uniqueDeviceId = Convert.FromBase64String(deviceId64);

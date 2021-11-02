@@ -53,7 +53,14 @@ namespace Youverse.Core.Services.Transit.Background
 
             foreach (var timer in _timers)
             {
-                timer.Value.Change(Timeout.Infinite, 0);
+                try
+                {
+                    timer.Value.Change(Timeout.Infinite, 0);
+                }
+                catch (ObjectDisposedException)
+                {
+                    //gulp.  yuck!
+                }
             }
 
             return Task.CompletedTask;

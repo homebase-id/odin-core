@@ -31,8 +31,8 @@ namespace Youverse.Hosting.Tests.Apps
         [Post(RootPath + "/devices")]
         Task<ApiResponse<AppDeviceRegistrationReply>> RegisterAppOnDevice([Body] AppDeviceRegistrationPayload appDeviceRegistration);
 
-        [Get(RootPath + "/devices")]
-        Task<ApiResponse<AppDeviceRegistration>> GetRegisteredAppDevice([Query] Guid appId, [Query] string deviceId64);
+        [Get(RootPath + "/devices/{appId}")]
+        Task<ApiResponse<AppDeviceRegistration>> GetRegisteredAppDevice(Guid appId, [Query] string deviceId64);
 
         [Get(RootPath + "/devices")]
         Task<ApiResponse<PagedResult<AppDeviceRegistration>>> GetRegisteredAppDeviceList([Query] int pageNumber, [Query] int pageSize);

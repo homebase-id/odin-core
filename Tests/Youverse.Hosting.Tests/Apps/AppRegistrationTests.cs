@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Tests.Apps
                 Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
 
                 //Assert.IsTrue(savedAppDevice.HalfAdek); ???
-                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.SharedSecret) == payload.DeviceId64);
+                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.SharedSecret) == payload.SharedSecret64);
                 Assert.IsTrue(Convert.ToBase64String(savedAppDevice.UniqueDeviceId) == payload.DeviceId64); //note: i suppose, this is kind of a hackish way to compare the byte arrays 
             }
         }
