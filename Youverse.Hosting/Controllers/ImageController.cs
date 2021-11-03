@@ -2,6 +2,7 @@
 using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Profile;
+using Youverse.Core.Util;
 
 namespace Youverse.Hosting.Controllers
 {
@@ -25,12 +26,12 @@ namespace Youverse.Hosting.Controllers
             //return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
             
             string root = $"wwwroot";
-            string file = Path.Combine(root,"samples", $"{identifier}.jpg");
+            string file = PathUtil.Combine(root,"samples", $"{identifier}.jpg");
             string type = "image/jpeg";
             if (!System.IO.File.Exists(file))
             {
                 //file = $"{root}{Path.PathSeparator}assets{Path.PathSeparator}unknown.png";
-                file = Path.Combine(root, "assets","unknown.png");
+                file = PathUtil.Combine(root, "assets","unknown.png");
                 type = "image/png";
             }
 

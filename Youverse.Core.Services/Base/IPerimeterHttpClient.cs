@@ -1,8 +1,8 @@
+using System;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.Base
 {
@@ -11,6 +11,7 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     
     //TODO: need to evaluate if we want other apps to use these methods.
+    [Obsolete("Need to replace all calls with Transit subsystem")]
     public interface IPerimeterHttpClient
     {
         private const string RootPath = "/api/perimeter";
@@ -23,12 +24,5 @@ namespace Youverse.Core.Services.Base
 
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();
-        
-        [Multipart]
-        [Post("/api/perimeter/transit/host/stream")]
-        Task<ApiResponse<bool>> SendHostToHost(
-            [AliasAs("hdr")] KeyHeader metadata, 
-            [AliasAs("metaData")] StreamPart metaData, 
-            [AliasAs("payload")] StreamPart payload);
     }
 }

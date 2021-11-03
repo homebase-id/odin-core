@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Apps;
 using Youverse.Hosting.Tests.Apps;
 
@@ -32,14 +33,14 @@ namespace Youverse.Hosting.Tests.Transit
         [Ignore("wip")]
         public async Task TransferDataToHost()
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
-            {
-                var svc = RestService.For<ITransitTestHttpClient>(client);
-                var response = await svc.SendHostToHost();
-                
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                
-            }
+            // using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            // {
+            //     var svc = RestService.For<ITransitHostToHostHttpClient>(client);
+            //     var response = await svc.SendHostToHost();
+            //     
+            //     Assert.IsTrue(response.IsSuccessStatusCode);
+            //     
+            // }
         }
         
     }

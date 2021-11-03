@@ -13,6 +13,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Util;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Tests.ApiClient;
 
@@ -31,12 +32,12 @@ namespace Youverse.Hosting.Tests
             this._folder = folder;
         }
 
-        public DotYouIdentity Frodo = (DotYouIdentity)"frodobaggins.me";
-        public DotYouIdentity Samwise = (DotYouIdentity)"samwisegamgee.me";
-        
-        public string TestDataPath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", _folder);
-        public string TempDataPath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "tempdata", "dotyoudata", _folder);
-        public string LogFilePath => Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoulogs", _folder);
+        public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
+        public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
+
+        public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
+        public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
+        public string LogFilePath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
 
         [OneTimeSetUp]
         public void RunBeforeAnyTests(bool startWebserver = true)
@@ -67,18 +68,18 @@ namespace Youverse.Hosting.Tests
                 Console.WriteLine($"Removing data in [{TestDataPath}]");
                 Directory.Delete(TestDataPath, true);
             }
-            
+
             Directory.CreateDirectory(TestDataPath);
-            
+
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
                 Directory.Delete(TempDataPath, true);
             }
-            
+
             Directory.CreateDirectory(TempDataPath);
         }
-        
+
         public void DeleteLogs()
         {
             if (Directory.Exists(LogFilePath))
@@ -104,7 +105,7 @@ namespace Youverse.Hosting.Tests
         private async Task<string> EnsureAuthToken(DotYouIdentity identity)
         {
             const string password = "EnSøienØ";
-            
+
             if (tokens.TryGetValue(identity, out var authResult))
             {
                 return authResult.ToString();
@@ -153,7 +154,7 @@ namespace Youverse.Hosting.Tests
 
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[DotYouAuthConstants.TokenKey]?.Value);
-            
+
 
             Assert.IsTrue(DotYouAuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
@@ -165,17 +166,29 @@ namespace Youverse.Hosting.Tests
             return result.ToString();
         }
 
-        public HttpClient CreateHttpClient(DotYouIdentity identity)
+
+        //Note: ignoreAuth flag added for testing on mac Until we support RSACng
+        public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false)
         {
             Console.WriteLine("CreateHttpClient");
-            var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
-            HttpMessageHandler handler = new HttpClientHandler()
+
+            HttpClient client;
+            if (ignoreAuth)
             {
-                CookieContainer = cookieJar
-            };
-            HttpClient client = new(handler);
+                client = new();
+            }
+            else
+            {
+                var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+                var cookieJar = new CookieContainer();
+                cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
+                HttpMessageHandler handler = new HttpClientHandler()
+                {
+                    CookieContainer = cookieJar
+                };
+                client = new(handler);
+            }
+            
             client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -28,9 +29,9 @@ namespace Youverse.Core.Services.Transit
         public string DataFileName => this.Id + ".data";
         public string HeaderFileName => this.Id + ".hdr";
 
-        public string MetaDataPath => Path.Combine(_fileRoot, this.MetadataFileName);
-        public string DataFilePath => Path.Combine(_fileRoot, this.DataFileName);
-        public string HeaderPath => Path.Combine(_fileRoot, this.HeaderFileName);
+        public string MetaDataPath => PathUtil.Combine(_fileRoot, this.MetadataFileName);
+        public string DataFilePath => PathUtil.Combine(_fileRoot, this.DataFileName);
+        public string HeaderPath => PathUtil.Combine(_fileRoot, this.HeaderFileName);
         
     }
 }

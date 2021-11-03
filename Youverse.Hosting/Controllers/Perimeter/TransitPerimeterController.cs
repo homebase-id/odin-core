@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
         }
 
         [HttpPost("stream")]
-        public async Task<IActionResult> AcceptDataStream()
+        public async Task<IActionResult> AcceptHostToHostTransfer()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {

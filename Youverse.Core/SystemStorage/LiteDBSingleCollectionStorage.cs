@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using LiteDB;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.SystemStorage
 {
@@ -37,7 +38,7 @@ namespace Youverse.Core.SystemStorage
                 Directory.CreateDirectory(_dbPath);
             }
 
-            string finalPath = Path.Combine(_dbPath, $"{collectionName}.db");
+            string finalPath = PathUtil.Combine(_dbPath, $"{collectionName}.db");
             logger.LogDebug($"Database path is [{finalPath}]");
 
             //_db = new LiteDatabase(finalPath);

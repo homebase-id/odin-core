@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Services.Identity;
 using Youverse.Core.Trie;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
 {
@@ -45,8 +46,8 @@ namespace Youverse.Core.Services.Registry
                 new NameInfo() { GivenName = "You Foundation", Surname = "System User" },
                 new CertificateLocation()
                 {
-                    CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
-                    PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
+                    CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "certificate.cer"),
+                    PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "youfoundation.id", "private.key")
                 });
 
         public void Initialize()
@@ -55,40 +56,40 @@ namespace Youverse.Core.Services.Registry
                 new(Guid.NewGuid(), "samwisegamgee.me", new NameInfo() { GivenName = "Samwise", Surname = "Gamgee" },
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee_me.crt"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee.key")
+                        CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee_me.crt"),
+                        PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee.key")
                     });
 
             IdentityCertificate frodo =
                 new(Guid.NewGuid(), "frodobaggins.me", new NameInfo() { GivenName = "Frodo", Surname = "Baggins" },
                     new CertificateLocation()
                     {
-                        CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.crt"),
-                        PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.key")
+                        CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.crt"),
+                        PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.key")
                     });
 
             // IdentityCertificate gandalf =
             //     new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
             //         new CertificateLocation()
             //         {
-            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //             CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
             //         });
             //
             // IdentityCertificate todd =
             //     new(Guid.NewGuid(), "toddmitchell.me", new NameInfo() {GivenName = "Todd", Surname = "Mitchell"},
             //         new CertificateLocation()
             //         {
-            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //             CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
             //         });
             //
             // IdentityCertificate michael =
             //     new(Guid.NewGuid(), "gandalf.middleearth.life", new NameInfo() {GivenName = "Gandalf", Surname = "teh White"},
             //         new CertificateLocation()
             //         {
-            //             CertificatePath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
-            //             PrivateKeyPath = Path.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
+            //             CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "certificate.cer"),
+            //             PrivateKeyPath = PathUtil.Combine(Environment.CurrentDirectory, "https", "gandalf.middleearth.life", "private.key")
             //         });
             //
 
@@ -122,9 +123,9 @@ namespace Youverse.Core.Services.Registry
 
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
-            var path = Path.Combine(_dataStoragePath, domainName);
-            var tempPath = Path.Combine(_tempDataStoragePath, domainName);
-            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(tempPath, "temp"));
+            var path = PathUtil.Combine(_dataStoragePath, domainName);
+            var tempPath = PathUtil.Combine(_tempDataStoragePath, domainName);
+            var result = new TenantStorageConfig(PathUtil.Combine(path, "data"), PathUtil.Combine(tempPath, "temp"));
             return result;
         }
 

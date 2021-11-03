@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.SystemStorage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Tests.SystemStorageTests
 {
@@ -19,7 +20,7 @@ namespace Youverse.Core.Tests.SystemStorageTests
         public void OneTimeSetup()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _rootPath = Path.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", folder);
+            _rootPath = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), @"tmp", "testsdata", "dotyoudata", folder);
 
             if (Directory.Exists(_rootPath))
             {
@@ -42,7 +43,7 @@ namespace Youverse.Core.Tests.SystemStorageTests
         {
             string collectionName = FixName(MethodBase.GetCurrentMethod().DeclaringType.Name);
             ;
-            string folder = Path.Combine(_rootPath, collectionName);
+            string folder = PathUtil.Combine(_rootPath, collectionName);
             IStorage<TestClass> storage = new LiteDBSingleCollectionStorage<TestClass>(_logger, folder, collectionName);
 
             var item = new TestClass()
@@ -63,7 +64,7 @@ namespace Youverse.Core.Tests.SystemStorageTests
         public async Task CanGetObjectBySecondaryNonUniqueIndex()
         {
             string collectionName = FixName(MethodBase.GetCurrentMethod().DeclaringType.Name);
-            string folder = Path.Combine(_rootPath, collectionName);
+            string folder = PathUtil.Combine(_rootPath, collectionName);
             IStorage<TestClass> storage = new LiteDBSingleCollectionStorage<TestClass>(_logger, folder, collectionName);
 
             await storage.EnsureIndex(key => key.Title, unique: false);
@@ -97,7 +98,7 @@ namespace Youverse.Core.Tests.SystemStorageTests
         public async Task CanGetObjectBySecondaryUniqueIndex()
         {
             string collectionName = FixName(MethodBase.GetCurrentMethod().DeclaringType.Name);
-            string folder = Path.Combine(_rootPath, collectionName);
+            string folder = PathUtil.Combine(_rootPath, collectionName);
             IStorage<TestClass> storage = new LiteDBSingleCollectionStorage<TestClass>(_logger, folder, collectionName);
 
             await storage.EnsureIndex(key => key.Title, unique: true);

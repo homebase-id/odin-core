@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Background
             var reg = _serviceProvider.GetRequiredService<IIdentityContextRegistry>();
 
             InitializeHttpClient();
-
+            
             foreach (var domain in reg.GetDomains())
             {
                 var b = new UriBuilder()
@@ -38,7 +38,9 @@ namespace Youverse.Core.Services.Transit.Background
                     Scheme = "https",
                     Host = domain,
                 };
-                var t = new Timer(StokeOutbox, b.Uri, TimeSpan.Zero, TimeSpan.FromSeconds(12));
+                
+                //Note: important to wait a few seconds for the rest of the system to start before running the stoker
+                var t = new Timer(StokeOutbox, b.Uri, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(12));
                 _timers.Add((DotYouIdentity)domain, t);
                 Console.WriteLine($"Added timer for domain {domain}");
             }

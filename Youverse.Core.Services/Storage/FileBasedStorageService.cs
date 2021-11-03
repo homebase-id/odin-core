@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.SystemStorage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Storage
 {
@@ -20,7 +22,7 @@ namespace Youverse.Core.Services.Storage
 
         public FileBasedStorageService(DotYouContext context, ILogger<FileBasedStorageService> logger) : base(context, logger, null, null)
         {
-            string path = Path.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
+            string path = PathUtil.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
             _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
         }
 
@@ -35,7 +37,7 @@ namespace Youverse.Core.Services.Storage
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 
-            string filePath = GetFilePath(id, filePart);
+            string filePath = GetFilePath(id, filePart, true);
 
             await using var output = new FileStream(filePath, FileMode.Append);
             do
@@ -52,7 +54,7 @@ namespace Youverse.Core.Services.Storage
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
-            return Task.FromResult((Stream)File.OpenRead(GetFilePath(fileId, filePart)));
+            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart)));
         }
 
         public async Task<KeyHeader> GetKeyHeader(Guid fileId)
@@ -196,20 +198,27 @@ namespace Youverse.Core.Services.Storage
         private string GetMediaFilePath(Guid id)
         {
             string filename = id.ToString(); //TODO: how to handle extension and mimetype?
-            string path = Path.Combine(GetMediaRoot(), filename);
+            string path = PathUtil.Combine(GetMediaRoot(), filename);
             return path;
         }
 
         private string GetMediaRoot()
         {
-            string path = Path.Combine(Context.StorageConfig.DataStoragePath, MediaRoot);
+            string path = PathUtil.Combine(Context.StorageConfig.DataStoragePath, MediaRoot);
             Directory.CreateDirectory(path);
             return path;
         }
 
-        private string GetFilePath(Guid id, FilePart part)
+        private string GetFilePath(Guid id, FilePart part, bool ensureExists = false)
         {
-            return Path.Combine(Context.StorageConfig.DataStoragePath, id.ToString(), part.ToString());
+            string dir = PathUtil.Combine(Context.StorageConfig.DataStoragePath, id.ToString());
+
+            if (ensureExists)
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            return PathUtil.Combine(dir, part.ToString());
         }
     }
 }

@@ -8,6 +8,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Trie;
+using Youverse.Core.Util;
 
 namespace Youverse.Hosting.IdentityRegistry
 {
@@ -66,9 +67,9 @@ namespace Youverse.Hosting.IdentityRegistry
 
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
-            var path = Path.Combine(_config.TenantDataRootPath, domainName);
-            var tempPath = Path.Combine(_config.TempTenantDataRootPath, domainName);
-            var result = new TenantStorageConfig(Path.Combine(path, "data"), Path.Combine(tempPath, "temp"));
+            var path = PathUtil.Combine(_config.TenantDataRootPath, domainName);
+            var tempPath = PathUtil.Combine(_config.TempTenantDataRootPath, domainName);
+            var result = new TenantStorageConfig(PathUtil.Combine(path, "data"), PathUtil.Combine(tempPath, "temp"));
             return result;
         }
 

@@ -15,5 +15,10 @@ namespace Youverse.Core.Util
             char target = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? '/' : '\\';
             return path.Replace(target, Path.DirectorySeparatorChar);
         }
+
+        public static string Combine(params string[] paths)
+        {
+            return OsIfy(Path.Combine(paths));
+        }
     }
 }

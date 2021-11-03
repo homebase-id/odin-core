@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Util;
 using Youverse.Hosting.IdentityRegistry;
 
 namespace Youverse.Hosting
@@ -73,7 +74,7 @@ namespace Youverse.Hosting
                 {
                     logConfig.ClearProviders();
                     logConfig.AddConsole();
-                    logConfig.AddFile(Path.Combine(config.LogFilePath, "app_{0:yyyy}-{0:MM}-{0:dd}.log"), opts =>
+                    logConfig.AddFile(PathUtil.Combine(config.LogFilePath, "app_{0:yyyy}-{0:MM}-{0:dd}.log"), opts =>
                     {
                         opts.FormatLogEntry = entry => $"{entry.LogName}:{entry.EventId}\t{entry.Message}\nException: {entry.Exception}";
                         opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);

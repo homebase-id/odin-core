@@ -28,22 +28,21 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
         [Test(Description = "Test a transfer where no data is queued")]
-        [Ignore("wip")]
         public async Task TestInstantTransfer()
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            var sentMessage = GetSmallChatMessage();
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, true))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
 
                 var recipientList = new RecipientList {Recipients = new string[] {_scaffold.Frodo}};
-                var message = GetSmallChatMessage();
                 var response = await transitSvc.SendClientToHost(
                     recipientList,
-                    message.KeyHeader,
-                    message.GetMetadataStreamPart(),
-                    message.GetPayloadStreamPart());
+                    sentMessage.KeyHeader,
+                    sentMessage.GetMetadataStreamPart(),
+                    sentMessage.GetPayloadStreamPart());
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
@@ -52,16 +51,34 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.QueuedRecipients.Count == 0);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.Count == 1);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.First() == _scaffold.Frodo);
-
-
-                //test that frodo received it. How??
-                /*
-                 *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
-                 * but in the case when you're not online.. and sign in.. the signalr notificatino won't due because it's an 'online thing only'
-                 * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
-                 * 
-                 */
             }
+
+            // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
+            {
+                var expectedMessage = sentMessage;
+
+                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                
+                //TODO: does this hit the audit log to see?
+                // yes - this way we can check that a recent file was received?
+                //
+
+            }
+            
+            //test that frodo received it. How??
+                
+            //I guess I need an api that says give me all transfers from a given DI
+            // so in this case I could ge that transfer and compare the file contents?
+            //this api is needed for everyting - so yea. let's do that
+                
+                
+            /*
+             *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
+             * but in the case when you're not online.. and sign in.. the signalr notificatino won't due because it's an 'online thing only'
+             * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
+             * 
+             */
         }
 
         private KeyHeader EncryptKeyHeader()
