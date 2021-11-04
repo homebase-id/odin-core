@@ -40,7 +40,7 @@ namespace Youverse.Hosting
             {
                 throw new ArgumentNullException(nameof(services));
             }
-            
+
             services.AddScoped<DotYouHttpClientFactory>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -167,11 +167,18 @@ namespace Youverse.Hosting
                     ResolveStorageService(svc));
             });
 
+            services.AddScoped<ITransitAuditReaderService, LiteDbTransitAuditReaderService>(svc =>
+            {
+                return new LiteDbTransitAuditReaderService(
+                    ResolveContext(svc),
+                    ResolveLogger<LiteDbTransitAuditReaderService>(svc));
+            });
+
             services.AddScoped<ITransitAuditWriterService, LiteDbTransitAuditWriterService>(svc =>
             {
                 return new LiteDbTransitAuditWriterService(
-                    ResolveContext(svc), 
-                    ResolveLogger<ITransitAuditWriterService>(svc));
+                    ResolveContext(svc),
+                    ResolveLogger<LiteDbTransitAuditWriterService>(svc));
             });
 
             services.AddScoped<ITransitService, TransitService>(svc =>
@@ -205,7 +212,8 @@ namespace Youverse.Hosting
                     ResolveLogger<TransitPerimeterService>(svc),
                     ResolveTransitAuditService(svc),
                     svc.GetRequiredService<ITransitService>(),
-                    svc.GetRequiredService<ITransitQuarantineService>()
+                    svc.GetRequiredService<ITransitQuarantineService>(),
+                    ResolveStorageService(svc)
                 );
             });
 

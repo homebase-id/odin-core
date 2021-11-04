@@ -7,7 +7,9 @@ namespace Youverse.Core
     /// </summary>
     public class DateRangeOffset
     {
-        public DateRangeOffset() { }
+        public DateRangeOffset()
+        {
+        }
 
         /// <summary>
         /// Initializes new instance with the specified start and end dates
@@ -19,7 +21,7 @@ namespace Youverse.Core
             this.StartDateTimeOffsetSeconds = start.ToUnixTimeSeconds();
             this.EndDateTimeOffsetSeconds = end.ToUnixTimeSeconds();
         }
-        
+
         /// <summary>
         /// The start DateTimeOffset in unix epoc seconds 
         /// </summary>
@@ -29,5 +31,15 @@ namespace Youverse.Core
         /// The end DateTimeOffset in unix epoc seconds
         /// </summary>
         public Int64 EndDateTimeOffsetSeconds { get; set; }
+
+        public bool IsBetween(Int64 timestamp, bool inclusive = true)
+        {
+            if (inclusive)
+            { 
+                return timestamp >= this.StartDateTimeOffsetSeconds && timestamp <= this.EndDateTimeOffsetSeconds;
+            }
+            
+            return timestamp > this.StartDateTimeOffsetSeconds && timestamp < this.EndDateTimeOffsetSeconds;
+        }
     }
 }

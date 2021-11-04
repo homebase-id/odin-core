@@ -51,6 +51,10 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.QueuedRecipients.Count == 0);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.Count == 1);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.First() == _scaffold.Frodo);
+                
+                //TODO: determine if we should check outgoing audit to show it was sent
+                // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
+                // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
@@ -59,25 +63,26 @@ namespace Youverse.Hosting.Tests.Transit
                 var expectedMessage = sentMessage;
 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
                 
+                Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
+                // var x = recentAuditResponse.Content.Results.FirstOrDefault(entry=>entry.EventId == (int))
+                // Assert;
+                //we should see audit entries 
                 //TODO: does this hit the audit log to see?
                 // yes - this way we can check that a recent file was received?
                 //
 
             }
             
-            //test that frodo received it. How??
-                
             //I guess I need an api that says give me all transfers from a given DI
             // so in this case I could ge that transfer and compare the file contents?
-            //this api is needed for everyting - so yea. let's do that
-                
-                
+            //this api is needed for everything - so yea. let's do that
+            
             /*
              *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
-             * but in the case when you're not online.. and sign in.. the signalr notificatino won't due because it's an 'online thing only'
+             * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
              * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
-             * 
              */
         }
 

@@ -101,13 +101,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
         }
 
         private readonly ITransitService _transitService;
+        private readonly IStorageService _fileStorage;
         private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
 
-        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService) : base(context, logger, auditWriter, null, null)
+        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService, IStorageService fileStorage) : base(context, logger, auditWriter, null, null)
         {
             _transitService = transitService;
             _quarantineService = quarantineService;
+            _fileStorage = fileStorage;
             _fileTrackers = new Dictionary<Guid, FileTracker>();
         }
 
@@ -118,7 +120,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return id;
         }
 
-        public async Task<AddPartResponse> FilterPart(Guid fileId, FilePart part, Stream data)
+        public async Task<AddPartResponse> FilterFilePart(Guid fileId, FilePart part, Stream data)
         {
             var tracker = GetTrackerOrFail(fileId);
 
@@ -211,8 +213,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             data.Position = 0;
             tracker.SetAccepted(part);
-
-            //where to store?
+            
+            //write the part to long term storage but it will not be complete or accessible until we
+            //tell the transit service to complete the transfer
+            
+            //_fileStorage.WritePartStream()
+            //_transitService.Accept(tracker.Id);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()

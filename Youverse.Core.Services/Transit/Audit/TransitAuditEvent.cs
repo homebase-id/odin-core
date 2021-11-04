@@ -5,26 +5,26 @@ namespace Youverse.Core.Services.Transit.Audit
         /// <summary>
         /// Indicates a filter was applied to the data.
         /// </summary>
-        FilterApplied,
-        
+        FilterApplied = 10,
+
         /// <summary>
         /// Indicates when all filters were applied
         /// </summary>
-        AllFiltersApplied,
-        
+        AllFiltersApplied = 20,
+
         /// <summary>
         /// Indicates a transfer was accepted
         /// </summary>
-        Accepted,
-        
+        Accepted = 30,
+
         /// <summary>
         /// Indicates a transfer was quarantined.
         /// </summary>
-        Quarantined,
-        
+        Quarantined = 50,
+
         /// <summary>
         /// Indicates a transfer was rejected
         /// </summary>
-        Rejected
+        Rejected = 80
     }
 }

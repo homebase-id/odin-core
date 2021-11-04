@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -15,5 +17,11 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <returns></returns>
         Task<TransferResult> Send(Parcel parcel);
+
+        /// <summary>
+        /// Accepts a transfer as complete and valid.
+        /// </summary>
+        /// <param name="trackerId"></param>
+        void Accept(Guid trackerId);
     }
 }

@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
     public interface ITransitPerimeterService
     {
         /// <summary>
-        /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="FilterPart"/>
+        /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="FilterFilePart"/>
         /// </summary>
         /// <returns></returns>
         Task<Guid> CreateFileTracker();
@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Filters, Triages, and distributes the incoming payload the right handler
         /// </summary>
         /// <returns></returns>
-        Task<AddPartResponse> FilterPart(Guid fileId, FilePart part, Stream data);
+        Task<AddPartResponse> FilterFilePart(Guid fileId, FilePart part, Stream data);
 
         /// <summary>
         /// Indicates if the file has all required parts and all parts are valid

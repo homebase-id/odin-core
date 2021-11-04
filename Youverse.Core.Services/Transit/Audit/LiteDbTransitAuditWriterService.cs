@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -9,29 +9,53 @@ namespace Youverse.Core.Services.Transit.Audit
 {
     public class LiteDbTransitAuditWriterService : DotYouServiceBase, ITransitAuditWriterService
     {
-        private const string AuditCollectionName = "TransitAudit";
+
         public LiteDbTransitAuditWriterService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
         {
-        }
-        
-        public void WriteEvent(Guid fileTrackerId, TransitAuditEvent auditEvent)
-        {
-            //var sender = this.Context.Caller.DotYouId;
-
-            throw new NotImplementedException();
-        }
-
-        public void WriteFilterEvent(Guid fileTrackerId, TransitAuditEvent auditEvent, Guid filterId, FilterAction recommendation)
-        {
-            //var sender = this.Context.Caller.DotYouId;
-
-            throw new NotImplementedException();
         }
 
         public async Task<Guid> CreateAuditTrackerId()
         {
-            //var sender = this.Context.Caller.DotYouId;
-            throw new NotImplementedException();
+            //TODO: determine if i want to create a primary collection mapping sender to their trackers or just rely on the long list written by WriteEvent
+            var id = Guid.NewGuid();
+            var sender = this.Context.Caller.DotYouId;
+
+            return id;
+        }
+
+        public void WriteEvent(Guid trackerId, TransitAuditEvent auditEvent)
+        {
+            var entry = new TransitAuditEntry()
+            {
+                Id = trackerId,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Sender = this.Context.Caller.DotYouId,
+                EventId = (int) auditEvent,
+            };
+
+            StoreEntry(entry);
+        }
+
+        public void WriteFilterEvent(Guid trackerId, TransitAuditEvent auditEvent, Guid filterId, FilterAction recommendation)
+        {
+            Guard.Argument(filterId, nameof(filterId)).NotEqual(Guid.Empty);
+
+            var entry = new TransitAuditEntry()
+            {
+                Id = trackerId,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Sender = this.Context.Caller.DotYouId,
+                EventId = (int) auditEvent,
+                FilterId = filterId,
+                FilterRecommendation = recommendation,
+            };
+
+            StoreEntry(entry);
+        }
+
+        private void StoreEntry(TransitAuditEntry entry)
+        {
+            WithTenantSystemStorage<TransitAuditEntry>(AuditConstants.AuditCollectionName, s => s.Save(entry));
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Refit;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
@@ -91,6 +92,11 @@ namespace Youverse.Core.Services.Transit
             }
 
             return result;
+        }
+
+        public void Accept(Guid trackerId)
+        {
+            throw new NotImplementedException();
         }
 
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)

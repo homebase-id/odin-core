@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 var name = GetSectionName(section.ContentDisposition);
                 var part = GetFilePart(name);
 
-                var response = await _perimeterService.FilterPart(trackerId, part, section.Body);
+                var response = await _perimeterService.FilterFilePart(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)
                 {
                     HttpContext.Abort(); //TODO:does this abort also kill the response?
