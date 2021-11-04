@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Refit;
@@ -10,19 +11,22 @@ namespace Youverse.Core.Services.Transit.Quarantine
     /// </summary>
     public interface ITransitQuarantineService
     {
-
         /// <summary>
         /// Applies the configured filters to an incoming transfer.  If all filters pass, the
         /// item is handed to the transit service for further processing; otherwise it is quarantined
         /// </summary>
-        Task<CollectiveFilterResult> ApplyFilters(FilePart part, Stream data);
+        /// <param name="trackerId">The Id used when auditing the result of each filtered applied to the incoming transfer</param>
+        /// <param name="part"></param>
+        /// <param name="data"></param>
+        Task<CollectiveFilterResult> ApplyFilters(Guid trackerId, FilePart part, Stream data);
 
         /// <summary>
         /// Writes the stream to a quarantined location
         /// </summary>
+        /// <param name="trackerId">The Id used when auditing an incoming transfer</param>
         /// <param name="part"></param>
         /// <param name="data"></param>
-        Task Quarantine(FilePart part, Stream data);
+        Task Quarantine(Guid trackerId, FilePart part, Stream data);
         
     }
 }

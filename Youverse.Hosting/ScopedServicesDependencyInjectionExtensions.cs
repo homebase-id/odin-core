@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,7 @@ using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;
@@ -38,8 +40,7 @@ namespace Youverse.Hosting
             {
                 throw new ArgumentNullException(nameof(services));
             }
-
-
+            
             services.AddScoped<DotYouHttpClientFactory>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -166,6 +167,13 @@ namespace Youverse.Hosting
                     ResolveStorageService(svc));
             });
 
+            services.AddScoped<ITransitAuditWriterService, LiteDbTransitAuditWriterService>(svc =>
+            {
+                return new LiteDbTransitAuditWriterService(
+                    ResolveContext(svc), 
+                    ResolveLogger<ITransitAuditWriterService>(svc));
+            });
+
             services.AddScoped<ITransitService, TransitService>(svc =>
             {
                 return new TransitService(
@@ -173,8 +181,9 @@ namespace Youverse.Hosting
                     ResolveLogger<TransitService>(svc),
                     svc.GetRequiredService<IOutboxQueueService>(),
                     ResolveStorageService(svc),
-                    ResolveEncryptionService(svc), 
+                    ResolveEncryptionService(svc),
                     ResolveProfileService(svc),
+                    ResolveTransitAuditService(svc),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });
@@ -184,7 +193,8 @@ namespace Youverse.Hosting
                 return new TransitQuarantineService(
                     ResolveContext(svc),
                     ResolveLogger<TransitQuarantineService>(svc),
-                    ResolveStorageService(svc)
+                    ResolveStorageService(svc),
+                    ResolveTransitAuditService(svc)
                 );
             });
 
@@ -193,6 +203,7 @@ namespace Youverse.Hosting
                 return new TransitPerimeterService(
                     ResolveContext(svc),
                     ResolveLogger<TransitPerimeterService>(svc),
+                    ResolveTransitAuditService(svc),
                     svc.GetRequiredService<ITransitService>(),
                     svc.GetRequiredService<ITransitQuarantineService>()
                 );
@@ -239,7 +250,6 @@ namespace Youverse.Hosting
             return context;
         }
 
-
         private static ILogger<T> ResolveLogger<T>(IServiceProvider svc)
         {
             return svc.GetRequiredService<ILogger<T>>();
@@ -278,6 +288,11 @@ namespace Youverse.Hosting
         private static IProfileService ResolveProfileService(IServiceProvider svc)
         {
             return svc.GetRequiredService<IProfileService>();
+        }
+
+        private static ITransitAuditWriterService ResolveTransitAuditService(IServiceProvider svc)
+        {
+            return svc.GetRequiredService<ITransitAuditWriterService>();
         }
 
         private static IStorageService ResolveStorageService(IServiceProvider svc)

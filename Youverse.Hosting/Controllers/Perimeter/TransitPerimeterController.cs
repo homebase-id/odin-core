@@ -41,14 +41,14 @@ namespace Youverse.Hosting.Controllers.Perimeter
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
 
-            var fileId = await _perimeterService.StartIncomingFile();
+            var trackerId = await _perimeterService.CreateFileTracker();
 
             while (section != null)
             {
                 var name = GetSectionName(section.ContentDisposition);
                 var part = GetFilePart(name);
 
-                var response = await _perimeterService.FilterPart(fileId, part, section.Body);
+                var response = await _perimeterService.FilterPart(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)
                 {
                     HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -58,12 +58,12 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 section = await reader.ReadNextSectionAsync();
             }
 
-            if (!_perimeterService.IsFileValid(fileId))
+            if (!_perimeterService.IsFileValid(trackerId))
             {
                 throw new InvalidDataException("Upload does not contain all required parts.");
             }
 
-            var result = await _perimeterService.GetFinalFilterResult(fileId);
+            var result = await _perimeterService.GetFinalFilterResult(trackerId);
 
             return new JsonResult(result);
         }

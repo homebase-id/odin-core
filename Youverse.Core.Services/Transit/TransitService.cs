@@ -1,18 +1,19 @@
-﻿using System;
+﻿using Refit;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransitService : DotYouServiceBase, ITransitService
+    public class TransitService : TransitServiceBase, ITransitService
     {
         private class Envelope
         {
@@ -27,7 +28,7 @@ namespace Youverse.Core.Services.Transit
         const int InstantSendPayloadThresholdSize = 1024;
         const int InstantSendRecipientCountThreshold = 9;
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService profileService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService profileService, ITransitAuditWriterService auditWriter,  IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
             _outboxQueue = outboxQueue;
             _storage = storage;

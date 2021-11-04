@@ -5,19 +5,20 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
-    public class TransitQuarantineService : DotYouServiceBase, ITransitQuarantineService
+    public class TransitQuarantineService : TransitServiceBase, ITransitQuarantineService
     {
         private readonly IStorageService _storage;
 
-        public TransitQuarantineService(DotYouContext context, ILogger logger, IStorageService storage) : base(context, logger, null, null)
+        public TransitQuarantineService(DotYouContext context, ILogger logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(context, logger, auditWriter, null, null)
         {
             _storage = storage;
         }
 
-        public async Task<CollectiveFilterResult> ApplyFilters(FilePart part, Stream data)
+        public async Task<CollectiveFilterResult> ApplyFilters(Guid trackerId, FilePart part, Stream data)
         {
             //TODO: when this has the full set of filters
             // applied, we need to spawn into multiple
@@ -34,11 +35,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 Sender = this.Context.Caller.DotYouId
             };
-            
+
             //TODO: this should be executed in parallel
             foreach (var filter in filters)
             {
                 var result = await filter.Apply(context, part, data);
+                this.AuditWriter.WriteFilterEvent(trackerId, TransitAuditEvent.FilterApplied, filter.Id, result.Recommendation);
 
                 //TODO: here we can check additional aspects of the filter to
                 //determine if we want to immediately follow it's recommendation.
@@ -52,15 +54,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 }
             }
 
+            //TODO should we add the CollectiveFilterResult here?
+            this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.AllFiltersApplied);
+
             return new CollectiveFilterResult()
             {
                 Code = FinalFilterAction.Accepted,
                 Message = ""
             };
         }
-
-        public async Task Quarantine(FilePart part, Stream data)
+        
+        public async Task Quarantine(Guid trackerId, FilePart part, Stream data)
         {
+            this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Quarantined);
             throw new System.NotImplementedException();
         }
     }

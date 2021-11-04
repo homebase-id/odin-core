@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="FilterPart"/>
         /// </summary>
         /// <returns></returns>
-        Task<Guid> StartIncomingFile();
+        Task<Guid> CreateFileTracker();
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler

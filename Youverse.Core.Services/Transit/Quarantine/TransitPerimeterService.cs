@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
-    public class TransitPerimeterService : DotYouServiceBase, ITransitPerimeterService
+    public class TransitPerimeterService : TransitServiceBase, ITransitPerimeterService
     {
         private struct PartState
         {
@@ -44,8 +46,16 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
         }
 
-        private class FileMarker
+        private class FileTracker
         {
+            public FileTracker(Guid id)
+            {
+                Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
+                this.Id = id;
+            }
+
+            public Guid Id { get; init; }
+
             public PartState HeaderState;
             public PartState MetadataState;
             public PartState PayloadState;
@@ -91,63 +101,63 @@ namespace Youverse.Core.Services.Transit.Quarantine
         }
 
         private readonly ITransitService _transitService;
-        private readonly IDictionary<Guid, FileMarker> _fileMarkers;
+        private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
 
-        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitService transitService, ITransitQuarantineService quarantineService) : base(context, logger, null, null)
+        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService) : base(context, logger, auditWriter, null, null)
         {
             _transitService = transitService;
             _quarantineService = quarantineService;
-            _fileMarkers = new Dictionary<Guid, FileMarker>();
+            _fileTrackers = new Dictionary<Guid, FileTracker>();
         }
 
-        public Task<Guid> StartIncomingFile()
+        public async Task<Guid> CreateFileTracker()
         {
-            var id = Guid.NewGuid();
-            _fileMarkers.Add(id, new FileMarker());
-            return Task.FromResult(id);
+            var id = await this.AuditWriter.CreateAuditTrackerId();
+            _fileTrackers.Add(id, new FileTracker(id));
+            return id;
         }
 
         public async Task<AddPartResponse> FilterPart(Guid fileId, FilePart part, Stream data)
         {
-            var marker = GetMarkerOrFail(fileId);
+            var tracker = GetTrackerOrFail(fileId);
 
-            if (marker.HasAcquiredRejectedPart())
+            if (tracker.HasAcquiredRejectedPart())
             {
                 throw new InvalidDataException("Corresponding part has been rejected");
             }
 
-            if (marker.HasAcquiredQuarantinedPart())
+            if (tracker.HasAcquiredQuarantinedPart())
             {
                 //quarantine the rest
-                return await QuarantinePart(marker, part, data);
+                return await QuarantinePart(tracker, part, data);
             }
 
-            var filterResponse = await _quarantineService.ApplyFilters(part, data);
+            var filterResponse = await _quarantineService.ApplyFilters(tracker.Id, part, data);
 
             switch (filterResponse.Code)
             {
                 case FinalFilterAction.Accepted:
-                    return await AcceptPart(marker, part, data);
+                    return await AcceptPart(tracker, part, data);
 
                 case FinalFilterAction.QuarantinedPayload:
                 case FinalFilterAction.QuarantinedSenderNotConnected:
-                    return await QuarantinePart(marker, part, data);
+                    return await QuarantinePart(tracker, part, data);
 
                 case FinalFilterAction.Rejected:
                 default:
-                    return RejectPart(marker, part, data);
+                    return RejectPart(tracker, part, data);
             }
         }
 
         public bool IsFileValid(Guid fileId)
         {
-            return _fileMarkers[fileId].IsCompleteAndValid();
+            return _fileTrackers[fileId].IsCompleteAndValid();
         }
 
         public Task<CollectiveFilterResult> GetFinalFilterResult(Guid fileId)
         {
-            var marker = GetMarkerOrFail(fileId);
+            var marker = GetTrackerOrFail(fileId);
 
             //so the final result will be either it was quarantined or accepted
             //if it was quarantined, we we want to say why so the sender can be told
@@ -168,9 +178,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return Task.FromResult(result);
         }
 
-        private FileMarker GetMarkerOrFail(Guid fileId)
+        private FileTracker GetTrackerOrFail(Guid fileId)
         {
-            if (!_fileMarkers.TryGetValue(fileId, out var marker))
+            if (!_fileTrackers.TryGetValue(fileId, out var marker))
             {
                 throw new InvalidDataException("Invalid file Id");
             }
@@ -178,8 +188,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return marker;
         }
 
-        private AddPartResponse RejectPart(FileMarker marker, FilePart part, Stream data)
+        private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
+            this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
             return new AddPartResponse()
             {
@@ -187,19 +198,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
             };
         }
 
-        private async Task<AddPartResponse> QuarantinePart(FileMarker marker, FilePart part, Stream data)
+        private async Task<AddPartResponse> QuarantinePart(FileTracker tracker, FilePart part, Stream data)
         {
-            await _quarantineService.Quarantine(part, data);
+            await _quarantineService.Quarantine(tracker.Id, part, data);
             return new AddPartResponse()
             {
                 FilterAction = FilterAction.Quarantine,
             };
         }
 
-        private async Task<AddPartResponse> AcceptPart(FileMarker marker, FilePart part, Stream data)
+        private async Task<AddPartResponse> AcceptPart(FileTracker tracker, FilePart part, Stream data)
         {
             data.Position = 0;
-            marker.SetAccepted(part);
+            tracker.SetAccepted(part);
 
             //where to store?
 
