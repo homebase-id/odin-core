@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Hosting.Tests.Transit
 {
@@ -37,7 +38,7 @@ namespace Youverse.Hosting.Tests.Transit
 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
 
-                var recipientList = new RecipientList {Recipients = new string[] {_scaffold.Frodo}};
+                var recipientList = new RecipientList { Recipients = new string[] { _scaffold.Frodo } };
                 var response = await transitSvc.SendClientToHost(
                     recipientList,
                     sentMessage.KeyHeader,
@@ -51,7 +52,7 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.QueuedRecipients.Count == 0);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.Count == 1);
                 Assert.IsTrue(transferResult.SuccessfulRecipients.First() == _scaffold.Frodo);
-                
+
                 //TODO: determine if we should check outgoing audit to show it was sent
                 // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
                 // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
@@ -60,25 +61,23 @@ namespace Youverse.Hosting.Tests.Transit
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
             {
+                //TODO: query for the message to see if 
+
                 var expectedMessage = sentMessage;
 
+                //Check audit 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
-                
-                Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-                // var x = recentAuditResponse.Content.Results.FirstOrDefault(entry=>entry.EventId == (int))
-                // Assert;
-                //we should see audit entries 
-                //TODO: does this hit the audit log to see?
-                // yes - this way we can check that a recent file was received?
-                //
 
+                Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
+                var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int)TransitAuditEvent.Accepted);
+                Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
             }
-            
+
             //I guess I need an api that says give me all transfers from a given DI
             // so in this case I could ge that transfer and compare the file contents?
             //this api is needed for everything - so yea. let's do that
-            
+
             /*
              *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
              * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'

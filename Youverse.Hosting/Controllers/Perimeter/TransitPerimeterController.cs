@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 throw new InvalidDataException("Upload does not contain all required parts.");
             }
 
-            var result = await _perimeterService.GetFinalFilterResult(trackerId);
+            var result = await _perimeterService.FinalizeTransfer(trackerId);
 
             return new JsonResult(result);
         }

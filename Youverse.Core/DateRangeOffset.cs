@@ -18,28 +18,28 @@ namespace Youverse.Core
         /// <param name="end"></param>
         public DateRangeOffset(DateTimeOffset start, DateTimeOffset end)
         {
-            this.StartDateTimeOffsetSeconds = start.ToUnixTimeSeconds();
-            this.EndDateTimeOffsetSeconds = end.ToUnixTimeSeconds();
+            this.StartDateTimeOffsetMilliseconds = start.ToUnixTimeMilliseconds();
+            this.EndDateTimeOffsetMilliseconds = end.ToUnixTimeMilliseconds();
         }
 
         /// <summary>
         /// The start DateTimeOffset in unix epoc seconds 
         /// </summary>
-        public Int64 StartDateTimeOffsetSeconds { get; set; }
+        public Int64 StartDateTimeOffsetMilliseconds { get; set; }
 
         /// <summary>
         /// The end DateTimeOffset in unix epoc seconds
         /// </summary>
-        public Int64 EndDateTimeOffsetSeconds { get; set; }
+        public Int64 EndDateTimeOffsetMilliseconds { get; set; }
 
-        public bool IsBetween(Int64 timestamp, bool inclusive = true)
+        public bool IsBetween(Int64 timestamp, bool inclusive)
         {
             if (inclusive)
             { 
-                return timestamp >= this.StartDateTimeOffsetSeconds && timestamp <= this.EndDateTimeOffsetSeconds;
+                return timestamp >= this.StartDateTimeOffsetMilliseconds && timestamp <= this.EndDateTimeOffsetMilliseconds;
             }
             
-            return timestamp > this.StartDateTimeOffsetSeconds && timestamp < this.EndDateTimeOffsetSeconds;
+            return timestamp > this.StartDateTimeOffsetMilliseconds && timestamp < this.EndDateTimeOffsetMilliseconds;
         }
     }
 }

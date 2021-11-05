@@ -32,9 +32,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         bool IsFileValid(Guid fileId);
         
         /// <summary>
-        /// Gets the final result after filters applied to all incoming parts of the file
+        /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
         /// <param name="fileId"></param>
-        Task<CollectiveFilterResult> GetFinalFilterResult(Guid fileId);
+        Task<CollectiveFilterResult> FinalizeTransfer(Guid fileId);
     }
 }

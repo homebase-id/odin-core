@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -8,8 +9,8 @@ namespace Youverse.Core.Services.Transit
         private const string HostRootEndpoint = "/api/perimeter/transit/host";
         
         [Multipart]
-        [Post(HostRootEndpoint)]
-        Task<ApiResponse<bool>> SendHostToHost(
+        [Post(HostRootEndpoint + "/stream")]
+        Task<ApiResponse<CollectiveFilterResult>> SendHostToHost(
             [AliasAs("header")] KeyHeader metadata, 
             [AliasAs("metaData")] StreamPart metaData, 
             [AliasAs("payload")] StreamPart payload);

@@ -17,6 +17,13 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<KeyHeader> Encrypt(KeyHeader originalHeader, byte[] publicKey)
         {
+            //TODO: implement this correctly
+            return new KeyHeader()
+            {
+                Id = Guid.NewGuid(),
+                EncryptedKey64 = Convert.ToBase64String(new byte[] { 1, 1, 2, 3 })
+            };
+
             var key = new RsaKeyData()
             {
                 publicKey = publicKey

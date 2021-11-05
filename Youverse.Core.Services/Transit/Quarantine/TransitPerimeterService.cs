@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
+using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
@@ -157,9 +158,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return _fileTrackers[fileId].IsCompleteAndValid();
         }
 
-        public Task<CollectiveFilterResult> GetFinalFilterResult(Guid fileId)
+        public Task<CollectiveFilterResult> FinalizeTransfer(Guid trackerId)
         {
-            var marker = GetTrackerOrFail(fileId);
+            var marker = GetTrackerOrFail(trackerId);
 
             //so the final result will be either it was quarantined or accepted
             //if it was quarantined, we we want to say why so the sender can be told
@@ -176,7 +177,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 Code = FinalFilterAction.Accepted,
                 Message = ""
             };
-
+            
+            AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
             return Task.FromResult(result);
         }
 
