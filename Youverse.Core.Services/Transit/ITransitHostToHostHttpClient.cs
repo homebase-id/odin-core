@@ -7,12 +7,16 @@ namespace Youverse.Core.Services.Transit
     public interface ITransitHostToHostHttpClient
     {
         private const string HostRootEndpoint = "/api/perimeter/transit/host";
-        
+
         [Multipart]
         [Post(HostRootEndpoint + "/stream")]
         Task<ApiResponse<CollectiveFilterResult>> SendHostToHost(
-            [AliasAs("header")] KeyHeader metadata, 
-            [AliasAs("metaData")] StreamPart metaData, 
+            [AliasAs("header")] EncryptedKeyHeader metadata,
+            [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
+
+
+        [Get(HostRootEndpoint + "/tpk")]
+        Task<ApiResponse<TransitPublicKey>> GetTransitPublicKey();
     }
 }

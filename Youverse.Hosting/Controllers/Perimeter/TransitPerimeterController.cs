@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
             _quarantineService = quarantineService;
         }
 
-        [HttpGet]
+        [HttpGet("tpk")]
         public async Task<IActionResult> GetTransitPublicKey()
         {
             var key = _perimeterService.GetTransitPublicKey();

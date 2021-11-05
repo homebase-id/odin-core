@@ -241,11 +241,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return new TransitPublicKey
             {
                 PublicKey = key.publicKey,
-                Expiration = key.expiration
+                Expiration = key.expiration,
+                Crc = key.crc32c
             };
         }
-
-        public async Task<RsaKeyListData> GenerateRsaKeyList()
+        
+        private async Task<RsaKeyListData> GenerateRsaKeyList()
         {
             //HACK: need to refactor this when storage is rebuilt 
             const int MAX_KEYS = 4; //leave this size 
@@ -256,9 +257,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
             WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             return rsaKeyList;
         }
-
-
-        public async Task<RsaKeyListData> GetRsaKeyList()
+        
+        private async Task<RsaKeyListData> GetRsaKeyList()
         {
             var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
 

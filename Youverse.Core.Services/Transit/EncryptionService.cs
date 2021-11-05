@@ -15,33 +15,33 @@ namespace Youverse.Core.Services.Transit
         {
         }
 
-        public async Task<KeyHeader> Encrypt(KeyHeader originalHeader, byte[] publicKey)
+        public async Task<EncryptedKeyHeader> Encrypt(EncryptedKeyHeader originalHeader, byte[] publicKey)
         {
             //TODO: implement this correctly
-            return new KeyHeader()
+            return new EncryptedKeyHeader()
             {
-                Id = Guid.NewGuid(),
-                EncryptedKey64 = Convert.ToBase64String(new byte[] { 1, 1, 2, 3 })
+                Type = EncryptionType.Aes,
+                Data = new byte[] { 1, 1, 2, 3 }
             };
 
-            var key = new RsaKeyData()
-            {
-                publicKey = publicKey
-            };
-
-            var data = originalHeader.GetKeyBytes();
-            var encryptedData = RsaKeyManagement.Encrypt(key, data, true);
-
-            return new KeyHeader()
-            {
-                Id = Guid.NewGuid(),
-                EncryptedKey64 = Convert.ToBase64String(encryptedData)
-            };
+            // var key = new RsaKeyData()
+            // {
+            //     publicKey = publicKey
+            // };
+            //
+            // var data = originalHeader.GetKeyBytes();
+            // var encryptedData = RsaKeyManagement.Encrypt(key, data, true);
+            //
+            // return new EncryptedKeyHeader()
+            // {
+            //     Id = Guid.NewGuid(),
+            //     AesKey = Convert.ToBase64String(encryptedData)
+            // };
         }
 
-        public async Task<IDictionary<DotYouIdentity, KeyHeader>> Encrypt(KeyHeader originalHeader, IDictionary<DotYouIdentity, byte[]> recipientPublicKeys)
+        public async Task<IDictionary<DotYouIdentity, EncryptedKeyHeader>> Encrypt(EncryptedKeyHeader originalHeader, IDictionary<DotYouIdentity, byte[]> recipientPublicKeys)
         {
-            var results = new Dictionary<DotYouIdentity, KeyHeader>();
+            var results = new Dictionary<DotYouIdentity, EncryptedKeyHeader>();
 
             foreach (var kvp in recipientPublicKeys)
             {

@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit
     public class EncryptedFile
     {
         private string _fileRoot;
-        private KeyHeader _keyHeader;
+        private EncryptedKeyHeader _encryptedKeyHeader;
 
         public EncryptedFile(string fileRoot)
         {

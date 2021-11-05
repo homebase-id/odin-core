@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Profile
 {
@@ -52,20 +53,7 @@ namespace Youverse.Core.Services.Profile
 
             return null;
         }
-
-        public async Task<byte[]> GetPublicKeyForKeyHeader(DotYouIdentity dotYouId, bool forceRefresh = false)
-        {
-            //TODO: optimize by reading a dictionary cache
-            
-            var profile = await this.Get(dotYouId);
-
-            if (profile == null)
-            {
-                return null;
-            }
-
-            return string.IsNullOrEmpty(profile.SslPublicKeyCertificate) ? null : Convert.FromBase64String(profile.SslPublicKeyCertificate);
-        }
+        
 
         public Task Save(DotYouProfile profile)
         {

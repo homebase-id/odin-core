@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Profile
 {
@@ -17,14 +18,6 @@ namespace Youverse.Core.Services.Profile
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task<DotYouProfile> Get(DotYouIdentity dotYouId);
-
-        /// <summary>
-        /// Gets the public key used for encrypting the key header when transmitting data.
-        /// </summary>
-        /// <param name="dotYouId"></param>
-        /// <param name="forceRefresh">If true, the <param name="dotYouId">dotYouId</param> server will be queried to get the latest Key Header public key</param>
-        /// <returns>The public key if available, otherwise null</returns>
-        Task<byte[]> GetPublicKeyForKeyHeader(DotYouIdentity dotYouId, bool forceRefresh = false);
 
         /// <summary>
         /// Upserts a profile into the system.

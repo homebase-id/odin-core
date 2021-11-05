@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace Youverse.Core.Cryptography.Utility
+namespace Youverse.Core
 {
     public static class DateTimeExtensions
     {
-        public static UInt64 UnixTime()
+        public static UInt64 UnixTimeSeconds()
         {
-            return (UInt64) DateTimeOffset.Now.ToUnixTimeSeconds();
+            return (UInt64) DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         }
 
         /// <summary>

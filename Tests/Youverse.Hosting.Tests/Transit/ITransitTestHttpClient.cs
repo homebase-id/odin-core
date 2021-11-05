@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Tests.Transit
         [Post(ClientRootEndpoint + "/sendparcel")]
         Task<ApiResponse<TransferResult>> SendClientToHost(
             [AliasAs("recipients")] RecipientList recipientList,
-            [AliasAs("header")] KeyHeader metadata,
+            [AliasAs("header")] EncryptedKeyHeader metadata,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 

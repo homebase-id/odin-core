@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Tests.Transit
                 var recipientList = new RecipientList { Recipients = new string[] { _scaffold.Frodo } };
                 var response = await transitSvc.SendClientToHost(
                     recipientList,
-                    sentMessage.KeyHeader,
+                    sentMessage.EncryptedKeyHeader,
                     sentMessage.GetMetadataStreamPart(),
                     sentMessage.GetPayloadStreamPart());
 
@@ -88,14 +88,13 @@ namespace Youverse.Hosting.Tests.Transit
              */
         }
 
-        private KeyHeader EncryptKeyHeader()
+        private EncryptedKeyHeader EncryptKeyHeader()
         {
             //var publicKey = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
 
-            var key = new KeyHeader()
+            var key = new EncryptedKeyHeader()
             {
-                Id = Guid.NewGuid(),
-                EncryptedKey64 = ""
+                AesKey = new byte[]();
             };
 
             return key;
@@ -106,7 +105,7 @@ namespace Youverse.Hosting.Tests.Transit
             var tp = new TestPayload();
 
             tp.Id = Guid.NewGuid();
-            tp.KeyHeader = EncryptKeyHeader();
+            tp.EncryptedKeyHeader = EncryptKeyHeader();
             tp.Metadata = Stream.Null;
             tp.Payload = Stream.Null;
 

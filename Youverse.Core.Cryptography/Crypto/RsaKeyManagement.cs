@@ -2,7 +2,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Cryptography.Utility;
 
 namespace Youverse.Core.Cryptography.Crypto
 {
@@ -39,7 +38,7 @@ namespace Youverse.Core.Cryptography.Crypto
             rsa.publicKey  = rsaGenKeys.ExportSubjectPublicKeyInfo();  // Be JS crypto.subtle compatible
 
             rsa.crc32c = KeyCRC(rsa);
-            rsa.instantiated = DateTimeExtensions.UnixTime();
+            rsa.instantiated = DateTimeExtensions.UnixTimeSeconds();
             rsa.expiration = rsa.instantiated + (UInt64)hours * 3600+ (UInt64)minutes*60+(UInt64)seconds;
 
             if (rsa.expiration <= rsa.instantiated)
@@ -88,7 +87,7 @@ namespace Youverse.Core.Cryptography.Crypto
         // Not expired, it's still good (it may be overdue for a refresh)
         public static bool IsValid(RsaKeyData key)
         {
-            UInt64 t = DateTimeExtensions.UnixTime();
+            UInt64 t = DateTimeExtensions.UnixTimeSeconds();
             if (t <= key.expiration)
                 return true;
             else
@@ -98,7 +97,7 @@ namespace Youverse.Core.Cryptography.Crypto
 
         public static bool IsExpired(RsaKeyData key)
         {
-            UInt64 t = DateTimeExtensions.UnixTime();
+            UInt64 t = DateTimeExtensions.UnixTimeSeconds();
             if (t > key.expiration)
                 return true;
             else
@@ -110,7 +109,7 @@ namespace Youverse.Core.Cryptography.Crypto
         // then the key is considered dead and will be removed
         public static bool IsDead(RsaKeyData key)
         {
-            UInt64 t = DateTimeExtensions.UnixTime();
+            UInt64 t = DateTimeExtensions.UnixTimeSeconds();
             UInt64 d = Math.Min(2 * (key.expiration - key.instantiated), 3600*24) + key.instantiated;
 
             if (t > d)

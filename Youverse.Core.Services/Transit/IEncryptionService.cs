@@ -10,17 +10,17 @@ namespace Youverse.Core.Services.Transit
     public interface IEncryptionService
     {
         /// <summary>
-        /// Returns a new <see cref="KeyHeader"/> encrypted using <param name="publicKey"></param> and contents of the <param name="originalHeader"></param>
+        /// Returns a new <see cref="EncryptedKeyHeader"/> encrypted using <param name="publicKey"></param> and contents of the <param name="originalHeader"></param>
         /// </summary>
         /// <param name="originalHeader"></param>
         /// <param name="publicKey"></param>
         /// <returns>A KeyHeader encrypted using the  <param name="publicKey"></param>.
-        Task<KeyHeader> Encrypt(KeyHeader originalHeader, byte[] publicKey);
+        Task<EncryptedKeyHeader> Encrypt(EncryptedKeyHeader originalHeader, byte[] publicKey);
 
         /// <summary>
         /// Encrypts the <param name="originalHeader">origin KeyHeader</param> using the <param name="recipientPublicKeys">batch</param>
         /// </summary>
-        /// <returns>A dictionary of <see cref="KeyHeader"/>s by recipient</returns>
-        Task<IDictionary<DotYouIdentity, KeyHeader>> Encrypt(KeyHeader originalHeader, IDictionary<DotYouIdentity, byte[]> recipientPublicKeys);
+        /// <returns>A dictionary of <see cref="EncryptedKeyHeader"/>s by recipient</returns>
+        Task<IDictionary<DotYouIdentity, EncryptedKeyHeader>> Encrypt(EncryptedKeyHeader originalHeader, IDictionary<DotYouIdentity, byte[]> recipientPublicKeys);
     }
 }

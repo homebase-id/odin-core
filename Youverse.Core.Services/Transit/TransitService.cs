@@ -25,16 +25,19 @@ namespace Youverse.Core.Services.Transit
         private readonly IStorageService _storage;
         private readonly IOutboxQueueService _outboxQueue;
         private readonly IEncryptionService _encryption;
-        private readonly IProfileService _profileService;
+        private readonly IProfileService _contactService;
         const int InstantSendPayloadThresholdSize = 1024;
         const int InstantSendRecipientCountThreshold = 9;
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService profileService, ITransitAuditWriterService auditWriter,  IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
+        private const string RecipientTransitPublicKeyCache = "rtpkc";
+
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService contactService, ITransitAuditWriterService auditWriter,
+            IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
             _outboxQueue = outboxQueue;
             _storage = storage;
             _encryption = encryptionSvc;
-            _profileService = profileService;
+            _contactService = contactService;
         }
 
         public async Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems)
@@ -70,7 +73,7 @@ namespace Youverse.Core.Services.Transit
             }
 
             _storage.AssertFileIsValid(fileId);
-            
+
             //if payload size is small, try sending now.
             if (await _storage.GetFileSize(fileId) <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
             {
@@ -143,21 +146,22 @@ namespace Youverse.Core.Services.Transit
             bool success = false;
             try
             {
+                
                 var originalHeader = await _storage.GetKeyHeader(fileId);
-                var recipientPublicKey = await _profileService.GetPublicKeyForKeyHeader((DotYouIdentity) recipient);
+                var recipientPublicKey = await GetRecipientTransitPublicKey((DotYouIdentity) recipient);
 
                 if (null == recipientPublicKey)
                 {
-                    tfr = TransferFailureReason.CouldNotRetrieveRecipientPublicKey;
+                    tfr = TransferFailureReason.TransitPublicKeyInvalid;
                 }
-                
+
                 var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey);
                 var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", "metadata");
                 var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", "payload");
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>((DotYouIdentity)recipient);
+                var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>((DotYouIdentity) recipient);
                 var result = client.SendHostToHost(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
@@ -186,6 +190,28 @@ namespace Youverse.Core.Services.Transit
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 FileId = fileId
             };
+        }
+
+        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient)
+        {
+            //TODO: optimize by reading a dictionary cache
+            var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
+
+            if (tpk == null || !tpk.IsValid())
+            {
+                var svc = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
+                var tpkResponse = await svc.GetTransitPublicKey();
+
+                if (tpkResponse.Content != null && (!tpkResponse.IsSuccessStatusCode || !tpkResponse.Content.IsValid()))
+                {
+                    this.Logger.LogWarning("Transit public key is invalid");
+                    return null;
+                }
+                
+                tpk = tpkResponse.Content;
+            }
+
+            return tpk;
         }
     }
 }

@@ -21,7 +21,6 @@ namespace Youverse.Core.Services.Storage
         /// </summary>
         Task WritePartStream(Guid id, FilePart filePart, Stream stream);
         
-        Task WriteKeyHeader(Guid id, Stream stream);
 
         Task<long> GetFileSize(Guid id);
         
@@ -45,11 +44,11 @@ namespace Youverse.Core.Services.Storage
         
 
         /// <summary>
-        /// Returns the <see cref="KeyHeader"/> for a given file.
+        /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
-        Task<KeyHeader> GetKeyHeader(Guid fileId);
+        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId);
         
         /// <summary>
         /// Ensures there is a valid file available for the given Id.

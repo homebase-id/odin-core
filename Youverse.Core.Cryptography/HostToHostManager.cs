@@ -3,7 +3,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Utility;
 
 namespace Youverse.Core.Cryptography
 {
@@ -63,7 +62,7 @@ namespace Youverse.Core.Cryptography
             var payload = new HostToHostPayload
             {
                 crc = 0,
-                creationtime = DateTimeExtensions.UnixTime(),
+                creationtime = DateTimeExtensions.UnixTimeSeconds(),
                 payload = Encoding.UTF8.GetBytes(message)
             };
 

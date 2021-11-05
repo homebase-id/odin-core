@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
 
         /// <summary>
-        /// Returns the public key to be used for encrypting the <see cref="KeyHeader"/> during data transfer
+        /// Returns the public key to be used for encrypting the <see cref="EncryptedKeyHeader"/> during data transfer
         /// </summary>
         /// <returns></returns>
         Task<TransitPublicKey> GetTransitPublicKey();

@@ -6,7 +6,7 @@
         /// <summary>
         /// Could not get the recipient's public key from their DI server. 
         /// </summary>
-        CouldNotRetrieveRecipientPublicKey = 5,
+        TransitPublicKeyInvalid = 5,
         
         /// <summary>
         /// Indicates the recipients public key was rejected when transfer the data.

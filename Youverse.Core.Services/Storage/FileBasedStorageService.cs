@@ -47,20 +47,24 @@ namespace Youverse.Core.Services.Storage
             } while (bytesRead > 0);
         }
 
-        public Task WriteKeyHeader(Guid id, Stream stream)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart)));
         }
 
-        public async Task<KeyHeader> GetKeyHeader(Guid fileId)
+        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId)
         {
-            using var stream = File.OpenText(GetFilePath(fileId, FilePart.Header));
-            return JsonConvert.DeserializeObject<KeyHeader>(await stream.ReadToEndAsync());
+            using var stream = File.Open(GetFilePath(fileId, FilePart.Header), FileMode.Open, FileAccess.Read);
+            var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            
+            var ekh = new EncryptedKeyHeader()
+            {
+                Type = EncryptionType.Aes,
+                Data = ms.ToArray()
+            };
+
+            return ekh;
         }
 
         public void AssertFileIsValid(Guid fileId)
@@ -68,7 +72,7 @@ namespace Youverse.Core.Services.Storage
             string header = GetFilePath(fileId, FilePart.Header);
             string metadata = GetFilePath(fileId, FilePart.Metadata);
             string payload = GetFilePath(fileId, FilePart.Payload);
-            
+
             if (!File.Exists(header) || !File.Exists(metadata) || !File.Exists(payload))
             {
                 throw new Exception("File does not contain all parts");
@@ -80,20 +84,20 @@ namespace Youverse.Core.Services.Storage
             string header = GetFilePath(fileId, FilePart.Header);
             if (File.Exists(header))
             {
-                File.Delete(header);    
+                File.Delete(header);
             }
-            
+
             string metadata = GetFilePath(fileId, FilePart.Metadata);
             if (File.Exists(metadata))
             {
-                File.Delete(metadata);    
+                File.Delete(metadata);
             }
-            
+
             string payload = GetFilePath(fileId, FilePart.Payload);
 
             if (File.Exists(payload))
             {
-                File.Delete(payload);    
+                File.Delete(payload);
             }
 
             return Task.CompletedTask;

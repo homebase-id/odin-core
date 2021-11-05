@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Text;
 using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Utility;
 
 namespace Youverse.Core.Cryptography
 {
@@ -43,7 +42,7 @@ namespace Youverse.Core.Cryptography
 
             var cd = new CryptoniteData
             {
-                creationtime = DateTimeExtensions.UnixTime(),
+                creationtime = DateTimeExtensions.UnixTimeSeconds(),
                 payload =  AesCbc.EncryptBytesToBytes_Aes(data, key, ck.iv)
             };
 
