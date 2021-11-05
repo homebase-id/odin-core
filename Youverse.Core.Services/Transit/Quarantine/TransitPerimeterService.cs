@@ -56,6 +56,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             public Guid Id { get; init; }
+            public Guid? FileId { get; set; }
 
             public PartState HeaderState;
             public PartState MetadataState;
@@ -98,6 +99,22 @@ namespace Youverse.Core.Services.Transit.Quarantine
             public bool IsCompleteAndValid()
             {
                 return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
+            }
+
+            /// <summary>
+            /// Sets the FileId to be used when storing the file
+            /// </summary>
+            /// <param name="id"></param>
+            public void SetFileId(Guid id)
+            {
+                Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
+
+                if (FileId.HasValue)
+                {
+                    throw new Exception("FileId is already set");
+                }
+
+                FileId = id;
             }
         }
 
@@ -160,33 +177,56 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public Task<CollectiveFilterResult> FinalizeTransfer(Guid trackerId)
         {
-            var marker = GetTrackerOrFail(trackerId);
+            var tracker = GetTrackerOrFail(trackerId);
 
-            //so the final result will be either it was quarantined or accepted
-            //if it was quarantined, we we want to say why so the sender can be told
-            //how do i know which filter quarantined it?? i suppose that's the questiln
-
-            //i woudl rather have the filter give a reason that maps to the system rather than know which filter
-            //did the quarantining..  if there is a custom message the fitler can maybe send back a string.
-
-            //so i need a global set of codes in transit that must be returned by a fitler
-
-            //TODO: 
-            var result = new CollectiveFilterResult()
+            if (tracker.IsCompleteAndValid())
             {
-                Code = FinalFilterAction.Accepted,
-                Message = ""
-            };
-            
-            AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
-            return Task.FromResult(result);
+                _transitService.Accept(tracker.Id, tracker.FileId.GetValueOrDefault());
+
+                var result = new CollectiveFilterResult()
+                {
+                    Code = FinalFilterAction.Accepted,
+                    Message = ""
+                };
+                
+                return Task.FromResult(result);
+            }
+
+            if (tracker.HasAcquiredQuarantinedPart())
+            {
+                //TODO: how do i know which filter quarantined it??
+
+                //_quarantineService.QuarantinePart(trackerId);
+
+                var result = new CollectiveFilterResult()
+                {
+                    Code = FinalFilterAction.QuarantinedPayload,
+                    Message = ""
+                };
+                
+                return Task.FromResult(result);
+            }
+
+            if (tracker.HasAcquiredRejectedPart())
+            {
+                var result = new CollectiveFilterResult()
+                {
+                    Code = FinalFilterAction.Rejected,
+                    Message = ""
+                };
+                
+                AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Rejected);
+                return Task.FromResult(result);
+            }
+
+            throw new Exception("Unhandled error");
         }
 
-        private FileTracker GetTrackerOrFail(Guid fileId)
+        private FileTracker GetTrackerOrFail(Guid trackerId)
         {
-            if (!_fileTrackers.TryGetValue(fileId, out var marker))
+            if (!_fileTrackers.TryGetValue(trackerId, out var marker))
             {
-                throw new InvalidDataException("Invalid file Id");
+                throw new InvalidDataException("Invalid tracker Id");
             }
 
             return marker;
@@ -194,6 +234,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
+            //remove all other file parts
+            _fileStorage.Delete(tracker.FileId.GetValueOrDefault());
+            
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
             return new AddPartResponse()
@@ -204,7 +247,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         private async Task<AddPartResponse> QuarantinePart(FileTracker tracker, FilePart part, Stream data)
         {
-            await _quarantineService.Quarantine(tracker.Id, part, data);
+            //TODO: move all other file parts to quarantine.
+            
+            await _quarantineService.QuarantinePart(tracker.Id, part, data);
             return new AddPartResponse()
             {
                 FilterAction = FilterAction.Quarantine,
@@ -215,12 +260,16 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             data.Position = 0;
             tracker.SetAccepted(part);
-            
+
             //write the part to long term storage but it will not be complete or accessible until we
             //tell the transit service to complete the transfer
-            
-            //_fileStorage.WritePartStream()
-            //_transitService.Accept(tracker.Id);
+
+            if(!tracker.FileId.HasValue)
+            {
+                tracker.SetFileId(_fileStorage.CreateId());
+            }
+
+            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()

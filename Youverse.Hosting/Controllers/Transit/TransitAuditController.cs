@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
     [Route("/api/transit/audit")]
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class TransitAuditController : ControllerBase
     {
         private readonly ITransitAuditReaderService _audit;

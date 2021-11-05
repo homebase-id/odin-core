@@ -16,7 +16,7 @@ namespace Youverse.Hosting.Controllers.Transit
     [ApiController]
     [Route("/api/transit/client")]
     //HACK: add back when when bouncy castle is in place
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class ClientUploadController : ControllerBase
     {
         private readonly ITransitService _transitService;

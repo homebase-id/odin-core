@@ -64,6 +64,11 @@ namespace Youverse.Hosting.Controllers.Perimeter
             }
 
             var result = await _perimeterService.FinalizeTransfer(trackerId);
+            if (result.Code == FinalFilterAction.Rejected)
+            {
+                HttpContext.Abort(); //TODO:does this abort also kill the response?
+                throw new InvalidDataException("Transmission Aborted");
+            }
 
             return new JsonResult(result);
         }

@@ -64,10 +64,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
             };
         }
         
-        public async Task Quarantine(Guid trackerId, FilePart part, Stream data)
+        public async Task QuarantinePart(Guid trackerId, FilePart part, Stream data)
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Quarantined);
             throw new System.NotImplementedException();
+        }
+
+        public Task Quarantine(Guid fileId)
+        {
+            throw new NotImplementedException();
         }
     }
 }

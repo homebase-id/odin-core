@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task TestInstantTransfer()
         {
             var sentMessage = GetSmallChatMessage();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -67,16 +67,19 @@ namespace Youverse.Hosting.Tests.Transit
 
                 //Check audit 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
-                var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
+                var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
 
                 Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
                 var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int)TransitAuditEvent.Accepted);
                 Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
+                
+                //I guess I need an api that says give me all transfers from a given DI
+                // so in this case I could ge that transfer and compare the file contents?
+                //this api is needed for everything - so yea. let's do that
+                
             }
 
-            //I guess I need an api that says give me all transfers from a given DI
-            // so in this case I could ge that transfer and compare the file contents?
-            //this api is needed for everything - so yea. let's do that
+
 
             /*
              *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received

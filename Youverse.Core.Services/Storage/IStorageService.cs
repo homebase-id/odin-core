@@ -57,5 +57,12 @@ namespace Youverse.Core.Services.Storage
         /// <param name="fileId"></param>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
         void AssertFileIsValid(Guid fileId);
+
+        /// <summary>
+        /// Deletes all parts matching <param name="fileId"></param>
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <returns></returns>
+        Task Delete(Guid fileId);
     }
 }

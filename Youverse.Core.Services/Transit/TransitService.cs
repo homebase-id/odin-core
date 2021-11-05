@@ -94,8 +94,9 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        public void Accept(Guid trackerId)
+        public void Accept(Guid trackerId, Guid fileId)
         {
+            this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
             throw new NotImplementedException();
         }
 

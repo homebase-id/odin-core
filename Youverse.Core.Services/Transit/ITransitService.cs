@@ -21,7 +21,8 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Accepts a transfer as complete and valid.
         /// </summary>
-        /// <param name="trackerId"></param>
-        void Accept(Guid trackerId);
+        /// <param name="trackerId">The trackerId to be used during auditing</param>
+        /// <param name="fileId">The file Id in storage</param>
+        void Accept(Guid trackerId, Guid fileId);
     }
 }

@@ -65,7 +65,38 @@ namespace Youverse.Core.Services.Storage
 
         public void AssertFileIsValid(Guid fileId)
         {
-            //TODO: 
+            string header = GetFilePath(fileId, FilePart.Header);
+            string metadata = GetFilePath(fileId, FilePart.Metadata);
+            string payload = GetFilePath(fileId, FilePart.Payload);
+            
+            if (!File.Exists(header) || !File.Exists(metadata) || !File.Exists(payload))
+            {
+                throw new Exception("File does not contain all parts");
+            }
+        }
+
+        public Task Delete(Guid fileId)
+        {
+            string header = GetFilePath(fileId, FilePart.Header);
+            if (File.Exists(header))
+            {
+                File.Delete(header);    
+            }
+            
+            string metadata = GetFilePath(fileId, FilePart.Metadata);
+            if (File.Exists(metadata))
+            {
+                File.Delete(metadata);    
+            }
+            
+            string payload = GetFilePath(fileId, FilePart.Payload);
+
+            if (File.Exists(payload))
+            {
+                File.Delete(payload);    
+            }
+
+            return Task.CompletedTask;
         }
 
         public async Task<long> GetFileSize(Guid id)

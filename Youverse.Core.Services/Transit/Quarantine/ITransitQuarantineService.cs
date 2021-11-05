@@ -26,7 +26,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <param name="trackerId">The Id used when auditing an incoming transfer</param>
         /// <param name="part"></param>
         /// <param name="data"></param>
-        Task Quarantine(Guid trackerId, FilePart part, Stream data);
-        
+        Task QuarantinePart(Guid trackerId, FilePart part, Stream data);
+
+
+        /// <summary>
+        /// Quarantines the specified file
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <returns></returns>
+        Task Quarantine(Guid fileId);
     }
 }

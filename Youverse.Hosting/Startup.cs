@@ -92,7 +92,7 @@ namespace Youverse.Hosting
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
             services.AddYouVerseScopedServices();
-            services.AddHostedService<BackgroundOutboxTransferService>();
+            //services.AddHostedService<BackgroundOutboxTransferService>();
                         
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
