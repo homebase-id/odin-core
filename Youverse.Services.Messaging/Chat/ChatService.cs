@@ -80,7 +80,7 @@ namespace Youverse.Services.Messaging.Chat
             //look up recipient's public key from contacts
             var contact = await _profileService.Get(message.Recipient);
 
-            if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.PublicKeyCertificate))
+            if (null == contact || ValidationUtil.IsNullEmptyOrWhitespace(contact.SslPublicKeyCertificate))
             {
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }

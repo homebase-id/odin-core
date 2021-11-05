@@ -202,7 +202,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             {
                 Name = name,
                 DotYouId = cert.DotYouId,
-                PublicKeyCertificate = publicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
+                SslPublicKeyCertificate = publicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
             };
 
             await _profileService.Save(contact);

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
@@ -118,12 +121,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
         }
 
+        private readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
+        private readonly string RSA_KEY_STORAGE = "transitrks";
         private readonly ITransitService _transitService;
         private readonly IStorageService _fileStorage;
         private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
 
-        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService, IStorageService fileStorage) : base(context, logger, auditWriter, null, null)
+        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService, IStorageService fileStorage) : base(context,
+            logger, auditWriter, null, null)
         {
             _transitService = transitService;
             _quarantineService = quarantineService;
@@ -188,7 +194,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                     Code = FinalFilterAction.Accepted,
                     Message = ""
                 };
-                
+
                 return Task.FromResult(result);
             }
 
@@ -203,7 +209,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                     Code = FinalFilterAction.QuarantinedPayload,
                     Message = ""
                 };
-                
+
                 return Task.FromResult(result);
             }
 
@@ -214,12 +220,54 @@ namespace Youverse.Core.Services.Transit.Quarantine
                     Code = FinalFilterAction.Rejected,
                     Message = ""
                 };
-                
+
                 AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Rejected);
                 return Task.FromResult(result);
             }
 
             throw new Exception("Unhandled error");
+        }
+
+        public async Task<TransitPublicKey> GetTransitPublicKey()
+        {
+            var rsaKeyList = await this.GetRsaKeyList();
+            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
+
+            if (keyListWasUpdated)
+            {
+                WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            }
+            
+            return new TransitPublicKey
+            {
+                PublicKey = key.publicKey,
+                Expiration = key.expiration
+            };
+        }
+
+        public async Task<RsaKeyListData> GenerateRsaKeyList()
+        {
+            //HACK: need to refactor this when storage is rebuilt 
+            const int MAX_KEYS = 4; //leave this size 
+
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
+            rsaKeyList.Id = RSA_KEY_STORAGE_ID;
+
+            WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            return rsaKeyList;
+        }
+
+
+        public async Task<RsaKeyListData> GetRsaKeyList()
+        {
+            var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
+
+            if (result == null)
+            {
+                return await this.GenerateRsaKeyList();
+            }
+
+            return result;
         }
 
         private FileTracker GetTrackerOrFail(Guid trackerId)
@@ -236,7 +284,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             //remove all other file parts
             _fileStorage.Delete(tracker.FileId.GetValueOrDefault());
-            
+
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
             return new AddPartResponse()
@@ -248,7 +296,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private async Task<AddPartResponse> QuarantinePart(FileTracker tracker, FilePart part, Stream data)
         {
             //TODO: move all other file parts to quarantine.
-            
+
             await _quarantineService.QuarantinePart(tracker.Id, part, data);
             return new AddPartResponse()
             {
@@ -264,7 +312,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //write the part to long term storage but it will not be complete or accessible until we
             //tell the transit service to complete the transfer
 
-            if(!tracker.FileId.HasValue)
+            if (!tracker.FileId.HasValue)
             {
                 tracker.SetFileId(_fileStorage.CreateId());
             }

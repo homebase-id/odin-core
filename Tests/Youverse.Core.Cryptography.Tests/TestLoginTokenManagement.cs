@@ -31,7 +31,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             var listRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             
-            NonceData nonce = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(listRsa));
+            NonceData nonce = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref listRsa, out var _));
 
             // Pre-requisites, using the salt values from a fresh generated random Nonce
             var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);

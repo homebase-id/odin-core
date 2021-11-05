@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Profile
                 return null;
             }
 
-            return string.IsNullOrEmpty(profile.PublicKeyCertificate) ? null : Convert.FromBase64String(profile.PublicKeyCertificate);
+            return string.IsNullOrEmpty(profile.SslPublicKeyCertificate) ? null : Convert.FromBase64String(profile.SslPublicKeyCertificate);
         }
 
         public Task Save(DotYouProfile profile)

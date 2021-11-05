@@ -60,23 +60,29 @@ namespace Youverse.Core.Cryptography.Crypto
 
             listRsa.ListRSA.Insert(0, rsa);
             if (listRsa.ListRSA.Count > listRsa.MaxKeys)
-                listRsa.ListRSA.RemoveAt(listRsa.ListRSA.Count-1); // Remove last
+                listRsa.ListRSA.RemoveAt(listRsa.ListRSA.Count - 1); // Remove last
         }
 
 
-        public static RsaKeyData GetCurrentKey(RsaKeyListData listRsa)
+        public static RsaKeyData GetCurrentKey(ref RsaKeyListData listRsa, out bool wasUpdated)
         {
+            wasUpdated = false;
+            
             if (listRsa.ListRSA == null)
                 throw new Exception("List shouldn't be null");
 
             if (RsaKeyManagement.IsDead(listRsa.ListRSA[0]))
             {
-                listRsa.ListRSA.RemoveAt(0);  // Remove First
+                listRsa.ListRSA.RemoveAt(0); // Remove First
                 GenerateNewKey(listRsa, DefaultKeyHours);
+                wasUpdated = true;
             }
 
             if (listRsa.ListRSA.Count < 1)
+            {
                 GenerateNewKey(listRsa, DefaultKeyHours);
+                wasUpdated = true;
+            }
 
             return listRsa.ListRSA[0]; // First
         }
@@ -126,13 +132,13 @@ namespace Youverse.Core.Cryptography.Crypto
 
         public static UInt64 GetExpiration(RsaKeyListData listRsa)
         {
-            return GetCurrentKey(listRsa).expiration;
+            return GetCurrentKey(ref listRsa, out var _).expiration;
         }
 
 
         public static string GetCurrentPublicKeyPem(RsaKeyListData listRsa)
         {
-            return RsaKeyManagement.publicPem(GetCurrentKey(listRsa));
+            return RsaKeyManagement.publicPem(GetCurrentKey(ref listRsa, out var _));
         }
 
         public static RSACng FindKeyPublic(RsaKeyListData listRsa, UInt32 publicKeyCrc)

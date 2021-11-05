@@ -36,5 +36,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// </summary>
         /// <param name="fileId"></param>
         Task<CollectiveFilterResult> FinalizeTransfer(Guid fileId);
+
+
+        /// <summary>
+        /// Returns the public key to be used for encrypting the <see cref="KeyHeader"/> during data transfer
+        /// </summary>
+        /// <returns></returns>
+        Task<TransitPublicKey> GetTransitPublicKey();
     }
 }

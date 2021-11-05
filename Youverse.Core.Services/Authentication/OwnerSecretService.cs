@@ -27,11 +27,12 @@ namespace Youverse.Core.Services.Authentication
         /// <returns></returns>
         public async Task<NonceData> GenerateNewSalts()
         {
-            //HACK: this will be moved to the overall provisioning process
-            await this.GenerateRsaKeyList();
-            var rsa = await this.GetRsaKeyList();
-
-            var key = RsaKeyListManagement.GetCurrentKey(rsa);
+            var rsaKeyList = await this.GetRsaKeyList();
+            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
+            if (keyListWasUpdated)
+            {
+                WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            }
             
             var nonce = NonceData.NewRandomNonce(key);
             WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
@@ -83,39 +84,27 @@ namespace Youverse.Core.Services.Authentication
             };
         }
 
-        public Task GenerateRsaKeyList()
+        public async Task<RsaKeyListData> GenerateRsaKeyList()
         {
-            //HACK: need to refactor this when storage is rebuilt 
             const int MAX_KEYS = 2; //leave this size 
 
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
-            var keys = rsaKeyList.ListRSA.ToArray();
-                
-            //HACK : mapping to ensure storage works 
-            var storage = new RsaKeyStorage()
-            {
-                Id = rsaKeyList.Id,
-                Keys = new List<RsaKeyData>(keys)
-            };
 
-            WithTenantSystemStorage<RsaKeyStorage>(RSA_KEY_STORAGE, s => s.Save(storage));
-            return Task.CompletedTask;
+            WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            return rsaKeyList;
         }
 
         public async Task<RsaKeyListData> GetRsaKeyList()
         {
-            var result = await WithTenantSystemStorageReturnSingle<RsaKeyStorage>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
+            var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
             
-            //HACK CONVERT from storage
-            RsaKeyListData converted = new RsaKeyListData()
+            if (result == null)
             {
-                Id = result.Id,
-                MaxKeys = result.Keys.Count,
-                ListRSA = new List<RsaKeyData>(result.Keys)
-            };
-
-            return converted;
+                return await this.GenerateRsaKeyList();
+            }
+            
+            return result;
         }
 
         // Given the client's nonce and nonceHash, load the identitys passwordKey info

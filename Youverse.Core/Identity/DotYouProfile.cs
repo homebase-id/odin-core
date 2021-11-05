@@ -9,7 +9,7 @@ namespace Youverse.Core.Identity
         /// <summary>
         /// A base64 string of this <see cref="DotYouId"/>'s public key certificate.
         /// </summary>
-        public string PublicKeyCertificate { get; init; }
+        public string SslPublicKeyCertificate { get; init; }
 
         public string AvatarUri { get; init; }
     }

@@ -40,7 +40,13 @@ namespace Youverse.Core.Services.Authentication
 
             var rsa = await _secretService.GetRsaKeyList();
 
-            var key = RsaKeyListManagement.GetCurrentKey(rsa);
+            var key = RsaKeyListManagement.GetCurrentKey(ref rsa, out var keyListWasUpdated);
+
+            if (keyListWasUpdated)
+            {
+                
+            }
+            
             var publicKey = RsaKeyManagement.publicPem(key);
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);

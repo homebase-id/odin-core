@@ -24,7 +24,7 @@ namespace Youverse.Core.Cryptography.Tests
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
             // Client requests a noncePackage from the server (after password is entered)
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref hostRsa, out var _));
 
             // Client calculates the passwordReply based on the password and noncePackage
             var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np);
@@ -136,7 +136,7 @@ namespace Youverse.Core.Cryptography.Tests
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref hostRsa, out var _));
 
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
@@ -156,7 +156,7 @@ namespace Youverse.Core.Cryptography.Tests
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref hostRsa, out var _));
 
             // Sanity Values
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
@@ -180,7 +180,7 @@ namespace Youverse.Core.Cryptography.Tests
             // Generate Host RSA key 
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref hostRsa, out var _));
 
             np.SaltPassword64 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 12, 13, 14, 15, 16 });
             np.SaltKek64      = Convert.ToBase64String(new byte[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 });
