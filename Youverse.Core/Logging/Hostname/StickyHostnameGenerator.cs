@@ -4,7 +4,7 @@
     {
         public string Generate()
         {
-            return "localhost";
+            return "null";
         }
     }
 }
