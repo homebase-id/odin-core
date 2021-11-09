@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Logging.CorrelationId;
 
-namespace Youverse.Hosting.Logging
+namespace Youverse.Hosting.Middleware.Logging
 {
     public class CorrelationIdMiddleware
     {

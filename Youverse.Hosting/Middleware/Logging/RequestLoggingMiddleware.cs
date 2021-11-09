@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Hosting.Logging
+namespace Youverse.Hosting.Middleware.Logging
 {
     public class RequestLoggingMiddleware
     {

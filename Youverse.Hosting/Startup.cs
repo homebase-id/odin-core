@@ -20,10 +20,13 @@ using Youverse.Core.Identity;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Transit.Background;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Logging;
+using Youverse.Hosting.Middleware;
+using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
 using Youverse.Services.Messaging.Chat;
@@ -43,8 +46,7 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            Log.Debug("We don't have access to ILogger yet");
-            services.AddSingleton<ICorrelationContext, CorrelationContext>();
+            services.AddLoggingServices();
             
             var config = this.Configuration.GetSection("Config").Get<Config>();
             AssertValidConfiguration(config);
@@ -108,10 +110,7 @@ namespace Youverse.Hosting
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
-            logger.LogDebug("Environment: {Env}", env.EnvironmentName);
-            
-            app.UseMiddleware<CorrelationIdMiddleware>();
-            app.UseMiddleware<RequestLoggingMiddleware>();
+            app.UseLoggingMiddleware();
             
             this.ConfigureLiteDBSerialization();
 
