@@ -7,7 +7,7 @@ namespace Youverse.Hosting.Middleware.Logging
     {
         public static IApplicationBuilder UseLoggingMiddleware(this IApplicationBuilder app)
         {
-            app.UseMiddleware<EnrichLogWithHostNameMiddleware>();
+            app.UseMiddleware<StickyHostnameMiddleware>();
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseMiddleware<RequestLoggingMiddleware>();
 

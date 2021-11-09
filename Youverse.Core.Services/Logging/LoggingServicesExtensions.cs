@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Logging.CorrelationId;
+using Youverse.Core.Logging.Hostname;
 
 namespace Youverse.Core.Services.Logging
 {
@@ -10,6 +11,8 @@ namespace Youverse.Core.Services.Logging
         {
             services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
             services.AddSingleton<ICorrelationContext, CorrelationContext>();
+            services.AddSingleton<IStickyHostnameGenerator, StickyHostnameGenerator>();
+            services.AddSingleton<IStickyHostname, StickyHostname>();
             return services;
         }
     }

@@ -11,6 +11,8 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
+using Youverse.Core.Logging.Hostname;
+using Youverse.Core.Logging.Hostname.Serilog;
 using Youverse.Core.Services.Registry;
 using Youverse.Hosting.IdentityRegistry;
 
@@ -18,7 +20,7 @@ namespace Youverse.Hosting
 {
     public static class Program
     {
-        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {HostName} {Message:lj}{NewLine}{Exception}";
+        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
         private static IIdentityContextRegistry _registry;
 
@@ -104,6 +106,7 @@ namespace Youverse.Hosting
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                     .Enrich.FromLogContext()
+                    .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                     .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
                     .WriteTo.Async(sink => 
