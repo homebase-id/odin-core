@@ -21,13 +21,15 @@ namespace Youverse.Hosting
     public static class Program
     {
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
-        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
+        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate; 
         private static IIdentityContextRegistry _registry;
 
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
+                .Enrich.WithHostname(new StickyHostnameGenerator())
+                .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
                 .CreateBootstrapLogger();
             
