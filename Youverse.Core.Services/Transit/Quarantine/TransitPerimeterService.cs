@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
@@ -144,7 +143,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return id;
         }
 
-        public async Task<AddPartResponse> FilterFilePart(Guid fileId, FilePart part, Stream data)
+        public async Task<AddPartResponse> ApplyFirstStageFilterToPart(Guid fileId, FilePart part, Stream data)
         {
             var tracker = GetTrackerOrFail(fileId);
 
@@ -159,7 +158,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 return await QuarantinePart(tracker, part, data);
             }
 
-            var filterResponse = await _quarantineService.ApplyFilters(tracker.Id, part, data);
+            var filterResponse = await _quarantineService.ApplyFirstStageFilters(tracker.Id, part, data);
 
             switch (filterResponse.Code)
             {

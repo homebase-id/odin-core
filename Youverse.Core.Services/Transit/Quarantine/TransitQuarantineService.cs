@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
+using Youverse.Core.Services.Transit.Quarantine.Filter;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
@@ -18,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _storage = storage;
         }
 
-        public async Task<CollectiveFilterResult> ApplyFilters(Guid trackerId, FilePart part, Stream data)
+        public async Task<CollectiveFilterResult> ApplyFirstStageFilters(Guid trackerId, FilePart part, Stream data)
         {
             //TODO: when this has the full set of filters
             // applied, we need to spawn into multiple
@@ -28,12 +29,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //TODO: will need to come from a configuration list
             var filters = new List<ITransitStreamFilter>()
             {
-                new MustBeConnectedContactFilter()
+                new MustBeConnectedContactFilter(),
+                new IsAppAllowedFilter()
             };
 
             var context = new FilterContext()
             {
-                Sender = this.Context.Caller.DotYouId
+                Sender = this.Context.Caller.DotYouId,
+                AppId = ???
             };
 
             //TODO: this should be executed in parallel

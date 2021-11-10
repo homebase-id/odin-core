@@ -146,7 +146,6 @@ namespace Youverse.Core.Services.Transit
             bool success = false;
             try
             {
-                
                 var originalHeader = await _storage.GetKeyHeader(fileId);
                 var recipientPublicKey = await GetRecipientTransitPublicKey((DotYouIdentity) recipient);
 

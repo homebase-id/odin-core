@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
             var key = _perimeterService.GetTransitPublicKey();
             return new JsonResult(key);
         }
-            
+
         [HttpPost("stream")]
         public async Task<IActionResult> AcceptHostToHostTransfer()
         {
@@ -48,6 +48,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
 
+            var expectedFilePart = GetNextExpectedFilePart(null);
             var trackerId = await _perimeterService.CreateFileTracker();
 
             while (section != null)
@@ -55,7 +56,17 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 var name = GetSectionName(section.ContentDisposition);
                 var part = GetFilePart(name);
 
-                var response = await _perimeterService.FilterFilePart(trackerId, part, section.Body);
+                if (null == expectedFilePart)
+                {
+                    throw new InvalidDataException("Multipart - provided part is not expected");
+                }
+
+                if (part != expectedFilePart)
+                {
+                    throw new InvalidDataException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
+                }
+                
+                var response = await _perimeterService.ApplyFirstStageFilterToPart(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)
                 {
                     HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -63,6 +74,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 }
 
                 section = await reader.ReadNextSectionAsync();
+                expectedFilePart = GetNextExpectedFilePart(null);
             }
 
             if (!_perimeterService.IsFileValid(trackerId))
@@ -78,6 +90,26 @@ namespace Youverse.Hosting.Controllers.Perimeter
             }
 
             return new JsonResult(result);
+        }
+
+        private FilePart? GetNextExpectedFilePart(FilePart? part)
+        {
+            if (!part.HasValue)
+            {
+                return FilePart.Header;
+            }
+
+            switch (part.GetValueOrDefault())
+            {
+                case FilePart.Header:
+                    return FilePart.Metadata;
+                case FilePart.Metadata:
+                    return FilePart.Payload;
+                case FilePart.Payload:
+                    return null;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         private static bool IsMultipartContentType(string contentType)

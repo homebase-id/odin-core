@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Storage;
 
-namespace Youverse.Core.Services.Transit.Quarantine
+namespace Youverse.Core.Services.Transit.Quarantine.Filter
 {
     public class MustBeConnectedContactFilter : ITransitStreamFilter
     {
