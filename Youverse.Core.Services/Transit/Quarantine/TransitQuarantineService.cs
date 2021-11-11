@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var filters = new List<ITransitStreamFilter>()
             {
                 new MustBeConnectedContactFilter(),
-                new IsAppAllowedFilter()
+                new IsAppAllowedFilter() //TODO: remove from here.  it is not optional
             };
 
             var context = new FilterContext()
