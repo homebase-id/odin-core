@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.Transit
                     tfr = TransferFailureReason.TransitPublicKeyInvalid;
                 }
 
-                var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey);
+                var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey.PublicKey);
                 var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", "metadata");
                 var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", "payload");
 

@@ -29,14 +29,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //TODO: will need to come from a configuration list
             var filters = new List<ITransitStreamFilter>()
             {
-                new MustBeConnectedContactFilter(),
-                new IsAppAllowedFilter() //TODO: remove from here.  it is not optional
+                new MustBeConnectedContactFilter()
             };
 
             var context = new FilterContext()
             {
                 Sender = this.Context.Caller.DotYouId,
-                AppId = ???
+                AppId = ""
             };
 
             //TODO: this should be executed in parallel

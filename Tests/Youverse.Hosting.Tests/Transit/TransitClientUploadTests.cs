@@ -94,7 +94,8 @@ namespace Youverse.Hosting.Tests.Transit
 
             var key = new EncryptedKeyHeader()
             {
-                AesKey = new byte[]();
+                Type = EncryptionType.Aes,
+                Data = new byte[10]
             };
 
             return key;

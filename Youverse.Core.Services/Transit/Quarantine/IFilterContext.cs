@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// The Application Id sending the transfer
         /// </summary>
-        Guid AppId { get; set; }
+        string AppId { get; init; }
 
         //TODO: what else is needed here?
     }

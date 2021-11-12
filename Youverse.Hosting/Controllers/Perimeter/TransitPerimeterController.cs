@@ -43,6 +43,8 @@ namespace Youverse.Hosting.Controllers.Perimeter
             {
                 throw new InvalidDataException("Data is not multi-part content");
             }
+            
+            //TODO: support for validating the app id is specified and this host has authorized the app
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
