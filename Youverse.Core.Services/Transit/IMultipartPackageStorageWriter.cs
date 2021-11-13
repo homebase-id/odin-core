@@ -9,28 +9,28 @@ namespace Youverse.Core.Services.Transit
     /// scenarios where large uploads take time before all parts are ready to be processed (i.e. it bundles multipart
     /// uploads into into a <see cref="Transfer"/>
     /// </summary>
-    public interface IMultipartParcelStorageWriter
+    public interface IMultipartPackageStorageWriter
     {
         /// <summary>
         /// Prepares an item to be collected and returns an Id you will use to send parts of an upload as they are received.
         /// </summary>
         /// <returns></returns>
-        Task<Guid> CreateParcel();
+        Task<Guid> CreatePackage();
 
         /// <summary>
         /// Accepts a part of a Multipart stream.  When all required parts are received
         /// </summary>
-        /// <param name="parcelId"></param>
+        /// <param name="pkgId"></param>
         /// <param name="name"></param>
         /// <param name="data"></param>
         /// <returns>True when all parts are received, otherwise false</returns>
-        Task<bool> AddItem(Guid parcelId, string name, Stream data);
+        Task<bool> AddItem(Guid pkgId, string name, Stream data);
 
         /// <summary>
-        /// Gets the <see cref="Parcel"/>
+        /// Gets the <see cref="UploadPackage"/>
         /// </summary>
         /// <param name="packageId"></param>
         /// <returns></returns>
-        Task<Parcel> GetParcel(Guid packageId);
+        Task<UploadPackage> GetPackage(Guid packageId);
     }
 }

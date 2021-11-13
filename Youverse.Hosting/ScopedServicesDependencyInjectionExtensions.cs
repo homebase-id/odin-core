@@ -134,7 +134,8 @@ namespace Youverse.Hosting
                 var logger = ResolveLogger<FileBasedStorageService>(svc);
                 return new FileBasedStorageService(context, logger);
             });
-
+            
+            
             services.AddScoped<IChatService, ChatService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -159,11 +160,11 @@ namespace Youverse.Hosting
                     ResolveDotYouHttpClientFactory(svc));
             });
 
-            services.AddScoped<IMultipartParcelStorageWriter, MultipartParcelStorageWriter>(svc =>
+            services.AddScoped<IMultipartPackageStorageWriter, MultipartPackageStorageWriter>(svc =>
             {
-                return new MultipartParcelStorageWriter(
+                return new MultipartPackageStorageWriter(
                     ResolveContext(svc),
-                    ResolveLogger<MultipartParcelStorageWriter>(svc),
+                    ResolveLogger<MultipartPackageStorageWriter>(svc),
                     ResolveStorageService(svc));
             });
 

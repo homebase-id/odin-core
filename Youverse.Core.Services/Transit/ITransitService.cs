@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Transit
         /// Sends an envelope to a list of recipients.  TODO: document the default behavior for how this decides send priority
         /// </summary>
         /// <returns></returns>
-        Task<TransferResult> Send(Parcel parcel);
+        Task<TransferResult> Send(UploadPackage uploadPackage);
 
         /// <summary>
         /// Accepts a transfer as complete and valid.

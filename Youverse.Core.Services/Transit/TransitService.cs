@@ -62,10 +62,10 @@ namespace Youverse.Core.Services.Transit
             return await SendBatchNow(envelopes);
         }
 
-        public async Task<TransferResult> Send(Parcel parcel)
+        public async Task<TransferResult> Send(UploadPackage uploadPackage)
         {
-            var fileId = parcel.FileId;
-            var recipients = parcel.RecipientList;
+            var fileId = uploadPackage.FileId;
+            var recipients = uploadPackage.RecipientList;
 
             if (fileId == Guid.Empty)
             {

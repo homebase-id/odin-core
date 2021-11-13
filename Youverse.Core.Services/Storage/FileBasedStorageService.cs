@@ -1,18 +1,20 @@
 using System;
 using System.IO;
-using System.Security.Principal;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Storage
 {
+    public enum StorageType
+    {
+        Temporary = 1,
+        LongTerm = 2
+    }
+
     public class FileBasedStorageService : DotYouServiceBase, IStorageService, IDisposable
     {
         private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
@@ -32,12 +34,12 @@ namespace Youverse.Core.Services.Storage
             return Guid.NewGuid();
         }
 
-        public async Task WritePartStream(Guid id, FilePart filePart, Stream stream)
+        public async Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageType storageType = StorageType.LongTerm)
         {
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 
-            string filePath = GetFilePath(id, filePart, true);
+            string filePath = GetFilePath(id, filePart, storageType, true);
 
             await using var output = new FileStream(filePath, FileMode.Append);
             do
@@ -47,17 +49,17 @@ namespace Youverse.Core.Services.Storage
             } while (bytesRead > 0);
         }
 
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageType storageType = StorageType.LongTerm)
         {
-            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart)));
+            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart,storageType)));
         }
 
-        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId)
+        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageType storageType = StorageType.LongTerm)
         {
-            using var stream = File.Open(GetFilePath(fileId, FilePart.Header), FileMode.Open, FileAccess.Read);
+            using var stream = File.Open(GetFilePath(fileId, FilePart.Header,storageType), FileMode.Open, FileAccess.Read);
             var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
-            
+
             var ekh = new EncryptedKeyHeader()
             {
                 Type = EncryptionType.Aes,
@@ -67,11 +69,11 @@ namespace Youverse.Core.Services.Storage
             return ekh;
         }
 
-        public void AssertFileIsValid(Guid fileId)
+        public void AssertFileIsValid(Guid fileId, StorageType storageType = StorageType.LongTerm)
         {
-            string header = GetFilePath(fileId, FilePart.Header);
-            string metadata = GetFilePath(fileId, FilePart.Metadata);
-            string payload = GetFilePath(fileId, FilePart.Payload);
+            string header = GetFilePath(fileId, FilePart.Header,storageType);
+            string metadata = GetFilePath(fileId, FilePart.Metadata,storageType);
+            string payload = GetFilePath(fileId, FilePart.Payload,storageType);
 
             if (!File.Exists(header) || !File.Exists(metadata) || !File.Exists(payload))
             {
@@ -79,21 +81,21 @@ namespace Youverse.Core.Services.Storage
             }
         }
 
-        public Task Delete(Guid fileId)
+        public Task Delete(Guid fileId, StorageType storageType = StorageType.LongTerm)
         {
-            string header = GetFilePath(fileId, FilePart.Header);
+            string header = GetFilePath(fileId, FilePart.Header,storageType);
             if (File.Exists(header))
             {
                 File.Delete(header);
             }
 
-            string metadata = GetFilePath(fileId, FilePart.Metadata);
+            string metadata = GetFilePath(fileId, FilePart.Metadata,storageType);
             if (File.Exists(metadata))
             {
                 File.Delete(metadata);
             }
 
-            string payload = GetFilePath(fileId, FilePart.Payload);
+            string payload = GetFilePath(fileId, FilePart.Payload,storageType);
 
             if (File.Exists(payload))
             {
@@ -103,10 +105,20 @@ namespace Youverse.Core.Services.Storage
             return Task.CompletedTask;
         }
 
-        public async Task<long> GetFileSize(Guid id)
+        public Task MoveToLongTerm(Guid fileId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MoveToTemp(Guid fileId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<long> GetFileSize(Guid id, StorageType storageType = StorageType.LongTerm)
         {
             //TODO: make more efficient by reading metadata or something else?
-            var path = GetFilePath(id, FilePart.Payload);
+            var path = GetFilePath(id, FilePart.Payload,storageType);
             return new FileInfo(path).Length;
         }
 
@@ -145,7 +157,7 @@ namespace Youverse.Core.Services.Storage
             return id;
         }
 
-        public async Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false)
+        public async Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false, StorageType storageType = StorageType.LongTerm)
         {
             Logger.LogDebug($"SaveMedia - Stream Edition called - size: {stream.Length}");
 
@@ -208,12 +220,12 @@ namespace Youverse.Core.Services.Storage
             };
         }
 
-        public async Task<MediaMetaData> GetMetaData(Guid id)
+        public async Task<MediaMetaData> GetMetaData(Guid id, StorageType storageType = StorageType.LongTerm)
         {
             return await _storage.Get(id);
         }
 
-        public async Task<Stream> GetMediaStream(Guid id)
+        public async Task<Stream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm)
         {
             Console.WriteLine($"Streaming media for ID: [{id}]");
             string path = GetMediaFilePath(id);
@@ -244,9 +256,10 @@ namespace Youverse.Core.Services.Storage
             return path;
         }
 
-        private string GetFilePath(Guid id, FilePart part, bool ensureExists = false)
+        private string GetFilePath(Guid id, FilePart part, StorageType storageType, bool ensureExists = false)
         {
-            string dir = PathUtil.Combine(Context.StorageConfig.DataStoragePath, id.ToString());
+            var path = storageType == StorageType.Temporary ? Context.StorageConfig.TempStoragePath : Context.StorageConfig.DataStoragePath;
+            string dir = PathUtil.Combine(path, id.ToString());
 
             if (ensureExists)
             {

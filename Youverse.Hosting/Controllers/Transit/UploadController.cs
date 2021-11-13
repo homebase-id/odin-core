@@ -20,11 +20,11 @@ namespace Youverse.Hosting.Controllers.Transit
     public class UploadController : ControllerBase
     {
         private readonly ITransitService _transitService;
-        private readonly IMultipartParcelStorageWriter _parcelStorageWriter;
+        private readonly IMultipartPackageStorageWriter _packageStorageWriter;
 
-        public UploadController(IMultipartParcelStorageWriter parcelStorageWriter, ITransitService transitService)
+        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService)
         {
-            _parcelStorageWriter = parcelStorageWriter;
+            _packageStorageWriter = packageStorageWriter;
             _transitService = transitService;
         }
 
@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.Transit
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
         [HttpPost("sendparcel")]
-        public async Task<IActionResult> SendParcel()
+        public async Task<IActionResult> SendPackage()
         {
             try
             {
@@ -61,12 +61,12 @@ namespace Youverse.Hosting.Controllers.Transit
                 //the logic and routing of tenant-specific data.  We don't
                 //want that in the http controllers
 
-                var packageId = await _parcelStorageWriter.CreateParcel();
+                var packageId = await _packageStorageWriter.CreatePackage();
                 bool isComplete = false;
                 while (section != null || !isComplete)
                 {
                     var name = GetSectionName(section.ContentDisposition);
-                    isComplete = await _parcelStorageWriter.AddItem(packageId, name, section.Body);
+                    isComplete = await _packageStorageWriter.AddItem(packageId, name, section.Body);
                     section = await reader.ReadNextSectionAsync();
                 }
 
@@ -76,8 +76,8 @@ namespace Youverse.Hosting.Controllers.Transit
                 }
 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
-                var parcel = await _parcelStorageWriter.GetParcel(packageId);
-                var result = await _transitService.Send(parcel);
+                var package = await _packageStorageWriter.GetPackage(packageId);
+                var result = await _transitService.Send(package);
 
                 return new JsonResult(result);
             }
