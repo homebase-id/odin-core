@@ -22,6 +22,7 @@ using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;
 using Youverse.Services.Messaging.Demo;
 using Youverse.Services.Messaging.Email;
+using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Hosting
 {
@@ -165,7 +166,8 @@ namespace Youverse.Hosting
                 return new MultipartPackageStorageWriter(
                     ResolveContext(svc),
                     ResolveLogger<MultipartPackageStorageWriter>(svc),
-                    ResolveStorageService(svc));
+                    ResolveStorageService(svc),
+                    ResolveEncryptionService(svc));
             });
 
             services.AddScoped<ITransitAuditReaderService, LiteDbTransitAuditReaderService>(svc =>
@@ -255,7 +257,11 @@ namespace Youverse.Hosting
                 loginDek: chk
             );
 
-            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller);
+            //TODO: load with correct app shared key 
+            var bytes = Guid.Empty.ToByteArray();
+            var app = new AppContext(new SecureKey(bytes));
+                
+            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller, app);
             return context;
         }
 

@@ -10,16 +10,18 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class DotYouContext
     {
-        public DotYouContext(DotYouIdentity hostDotYouId, IdentityCertificate tenantCertificate, TenantStorageConfig storageConfig, CallerContext caller)
+        public DotYouContext(DotYouIdentity hostDotYouId, IdentityCertificate tenantCertificate, TenantStorageConfig storageConfig, CallerContext caller, AppContext app)
         {
             Guard.Argument(hostDotYouId.Id, nameof(hostDotYouId)).NotNull().NotEmpty();
             Guard.Argument(tenantCertificate, nameof(tenantCertificate)).NotNull();
             Guard.Argument(storageConfig, nameof(storageConfig)).NotNull();
             Guard.Argument(caller, nameof(caller)).NotNull();
+            Guard.Argument(app, nameof(app)).NotNull();
 
             this.HostDotYouId = hostDotYouId;
             this.StorageConfig = storageConfig;
             this.Caller = caller;
+            this.AppContext = app;
             this.TenantCertificate = tenantCertificate;
         }
 
@@ -39,5 +41,7 @@ namespace Youverse.Core.Services.Base
         public TenantStorageConfig StorageConfig { get; }
 
         public CallerContext Caller { get; }
+        
+        public AppContext AppContext { get;  }
     }
 }

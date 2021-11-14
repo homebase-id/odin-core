@@ -36,6 +36,5 @@ namespace Youverse.Core.Services.Base
             //TODO: add audit point
             return this._loginDek;
         }
-
     }
 }

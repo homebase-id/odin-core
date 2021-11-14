@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
@@ -50,6 +51,13 @@ namespace Youverse.Core.Services.Transit
             }
 
             return results;
+        }
+
+        public SecureKey KeyTransfer(byte[] transferEncryptedKeyHeader)
+        {
+            //var appSs = base.Context.AppContext.GetSharedSecret().GetKey();
+            var bytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
+            return new SecureKey(bytes);
         }
     }
 }

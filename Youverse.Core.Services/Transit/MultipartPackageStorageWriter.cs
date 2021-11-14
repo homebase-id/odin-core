@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 
@@ -11,14 +12,16 @@ namespace Youverse.Core.Services.Transit
 {
     public class MultipartPackageStorageWriter : DotYouServiceBase, IMultipartPackageStorageWriter
     {
+        private readonly IEncryptionService _encryptionService;
         private readonly IStorageService _storageService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService, IEncryptionService encryptionService)
             : base(context, logger, null, null)
         {
             _storageService = storageService;
+            _encryptionService = encryptionService;
             _packages = new Dictionary<Guid, UploadPackage>();
             _partCounts = new Dictionary<Guid, int>();
         }
@@ -35,7 +38,7 @@ namespace Youverse.Core.Services.Transit
         {
             if (!_packages.TryGetValue(pkgId, out var pkg))
             {
-                throw new Exception("Invalid parcel ID");
+                throw new Exception("Invalid package ID");
             }
 
             if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
@@ -51,20 +54,28 @@ namespace Youverse.Core.Services.Transit
                 pkg.RecipientList = list;
                 _partCounts[pkgId]++;
             }
-            else if(string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
             {
                 //TODO: originally we planned to write this key directly to storage
-//                string b64 = await new StreamReader(data).ReadToEndAsync();
-//                pkg.TransferEncryptedKeyHeader = Convert.FromBase64String(b64);
+                string b64 = await new StreamReader(data).ReadToEndAsync();
+                var transferKeyHeader = Convert.FromBase64String(b64);
+                SecureKey encryptedKeyHeader = _encryptionService.KeyTransfer(transferKeyHeader);
 
-//                await _storageService.WritePartStream(pkg.FileId, filePart, data, StorageType.Temporary);
-//                _partCounts[pkgId]++;
+                var ms = new MemoryStream(encryptedKeyHeader.GetKey());
+                await _storageService.WritePartStream(pkg.FileId, FilePart.Header, ms, StorageType.Temporary);
+                await ms.DisposeAsync();
+                _partCounts[pkgId]++;
             }
             else
             {
                 if (!Enum.TryParse<FilePart>(name, true, out var filePart))
                 {
                     throw new InvalidDataException($"Part name [{name}] not recognized");
+                }
+
+                if (filePart == FilePart.Header)
+                {
+                    throw new InvalidDataException($"This header cannot be uploaded from client.  Use {MultipartSectionNames.TransferEncryptedKeyHeader} instead.");
                 }
 
                 await _storageService.WritePartStream(pkg.FileId, filePart, data, StorageType.Temporary);

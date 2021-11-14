@@ -14,8 +14,6 @@ namespace Youverse.Core.Services.Transit
 
         public RecipientList RecipientList { get; set; }
         
-        public byte[] TransferEncryptedKeyHeader { get; set; }
-
         public Guid FileId { get; set; }
         
     }
