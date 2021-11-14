@@ -12,10 +12,10 @@ namespace Youverse.Hosting.Tests.Transit
         private const string AuditRootEndpoint = "/api/transit/audit";
 
         [Multipart]
-        [Post(ClientRootEndpoint + "/sendparcel")]
+        [Post(ClientRootEndpoint + "/sendpackage")]
         Task<ApiResponse<TransferResult>> SendClientToHost(
             [AliasAs("recipients")] RecipientList recipientList,
-            [AliasAs("header")] EncryptedKeyHeader metadata,
+            [AliasAs("tekh")] string transferEncryptedKeyHeader64,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 

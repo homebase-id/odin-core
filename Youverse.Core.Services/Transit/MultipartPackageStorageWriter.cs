@@ -59,11 +59,13 @@ namespace Youverse.Core.Services.Transit
                 //TODO: originally we planned to write this key directly to storage
                 string b64 = await new StreamReader(data).ReadToEndAsync();
                 var transferKeyHeader = Convert.FromBase64String(b64);
-                SecureKey encryptedKeyHeader = _encryptionService.KeyTransfer(transferKeyHeader);
+                SecureKey encryptedKeyHeader = _encryptionService.ReEncryptKeyHeader(transferKeyHeader);
 
                 var ms = new MemoryStream(encryptedKeyHeader.GetKey());
                 await _storageService.WritePartStream(pkg.FileId, FilePart.Header, ms, StorageType.Temporary);
                 await ms.DisposeAsync();
+                encryptedKeyHeader.Wipe();
+                
                 _partCounts[pkgId]++;
             }
             else

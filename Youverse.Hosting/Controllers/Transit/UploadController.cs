@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.Transit
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
-        [HttpPost("sendparcel")]
+        [HttpPost("SendPackage")]
         public async Task<IActionResult> SendPackage()
         {
             try
@@ -47,17 +47,11 @@ namespace Youverse.Hosting.Controllers.Transit
                     throw new InvalidDataException("Data is not multi-part content");
                 }
                 
-                //fail if no TransferEncryptedKeyHeader
-                
-                //Storage service needs to create the EncryptedKeyHeader
-                // Need to create EncryptedKeyHeader from TransferEncryptedKeyHeader
-                //requires AppSharedSecret.
-
                 var boundary = GetBoundary(HttpContext.Request.ContentType);
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
                 var section = await reader.ReadNextSectionAsync();
 
-                //Note: the _parcelStorageWriter exists so we have a service that holds
+                //Note: the _packageStorageWriter exists so we have a service that holds
                 //the logic and routing of tenant-specific data.  We don't
                 //want that in the http controllers
 
