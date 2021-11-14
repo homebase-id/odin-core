@@ -135,8 +135,8 @@ namespace Youverse.Hosting
                 var logger = ResolveLogger<FileBasedStorageService>(svc);
                 return new FileBasedStorageService(context, logger);
             });
-            
-            
+
+
             services.AddScoped<IChatService, ChatService>(svc =>
             {
                 var context = ResolveContext(svc);
@@ -184,6 +184,13 @@ namespace Youverse.Hosting
                     ResolveLogger<LiteDbTransitAuditWriterService>(svc));
             });
 
+            services.AddScoped<ITransitKeyEncryptionQueueService, TransitKeyEncryptionQueueService>(svc =>
+            {
+                return new TransitKeyEncryptionQueueService(
+                    ResolveContext(svc),
+                    ResolveLogger<ITransitKeyEncryptionQueueService>(svc));
+            });
+
             services.AddScoped<ITransitService, TransitService>(svc =>
             {
                 return new TransitService(
@@ -192,7 +199,7 @@ namespace Youverse.Hosting
                     svc.GetRequiredService<IOutboxQueueService>(),
                     ResolveStorageService(svc),
                     ResolveEncryptionService(svc),
-                    ResolveProfileService(svc),
+                    svc.GetRequiredService<ITransitKeyEncryptionQueueService>(),
                     ResolveTransitAuditService(svc),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
@@ -258,10 +265,14 @@ namespace Youverse.Hosting
             );
 
             //TODO: load with correct app shared key 
-            var bytes = Guid.Empty.ToByteArray();
-            var app = new AppContext(new SecureKey(bytes));
-                
+
+            var appEncryptionKey = new SecureKey(Guid.Empty.ToByteArray());
+            var sharedSecretKey = new SecureKey(Guid.Empty.ToByteArray());
+            var appId = user.FindFirstValue(DotYouClaimTypes.AppId);
+            var deviceUid = user.FindFirstValue(DotYouClaimTypes.DeviceUid);
+            var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey);
             var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller, app);
+
             return context;
         }
 

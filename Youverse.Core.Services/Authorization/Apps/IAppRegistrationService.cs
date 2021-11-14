@@ -86,4 +86,4 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId);
     }
-}
+}   

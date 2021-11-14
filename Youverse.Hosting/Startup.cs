@@ -93,7 +93,7 @@ namespace Youverse.Hosting
 
             services.AddYouVerseScopedServices();
             //services.AddHostedService<BackgroundOutboxTransferService>();
-                        
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
@@ -182,12 +182,22 @@ namespace Youverse.Hosting
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
+            //TODO: this needs to be moved to a central location so certificate auth can use it too
+            string appId = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
+            string deviceUid = context.HttpContext.Request.Headers[DotYouHeaderNames.DeviceUid];
+
+            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
+            Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
+            
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
+
+                new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, YouFoundationIssuer),
 
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
                 new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)

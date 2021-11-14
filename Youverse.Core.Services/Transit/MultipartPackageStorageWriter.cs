@@ -56,10 +56,9 @@ namespace Youverse.Core.Services.Transit
             }
             else if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
             {
-                //TODO: originally we planned to write this key directly to storage
                 string b64 = await new StreamReader(data).ReadToEndAsync();
                 var transferKeyHeader = Convert.FromBase64String(b64);
-                SecureKey encryptedKeyHeader = _encryptionService.ReEncryptKeyHeader(transferKeyHeader);
+                SecureKey encryptedKeyHeader = _encryptionService.ConvertTransferKeyHeader(transferKeyHeader);
 
                 var ms = new MemoryStream(encryptedKeyHeader.GetKey());
                 await _storageService.WritePartStream(pkg.FileId, FilePart.Header, ms, StorageType.Temporary);

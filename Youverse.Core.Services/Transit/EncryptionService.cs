@@ -53,9 +53,10 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        public SecureKey ReEncryptKeyHeader(byte[] transferEncryptedKeyHeader)
+        public SecureKey ConvertTransferKeyHeader(byte[] transferEncryptedKeyHeader)
         {
-            //var appSs = base.Context.AppContext.GetSharedSecret().GetKey();
+            var sharedSecret = base.Context.AppContext.GetSharedSecret().GetKey();
+            //TODO: call decryption suing sharedSecret 
             var bytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
             return new SecureKey(bytes);
         }

@@ -12,18 +12,18 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class OutboxQueueService: DotYouServiceBase, IOutboxQueueService
     {
-        private readonly Queue<TransferQueueItem> _queue;
+        private readonly Queue<OutboxQueueItem> _queue;
         
         public OutboxQueueService(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
-            _queue = new Queue<TransferQueueItem>();
+            _queue = new Queue<OutboxQueueItem>();
         }
 
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
         /// <param name="item"></param>
-        public void Enqueue(TransferQueueItem item)
+        public void Enqueue(OutboxQueueItem item)
         {
             if (!_queue.Contains(item))
             {
@@ -31,10 +31,18 @@ namespace Youverse.Core.Services.Transit
             }
         }
 
+        public void Enqueue(IEnumerable<OutboxQueueItem> items)
+        {
+            foreach (var item in items)
+            {
+                this.Enqueue(item);
+            }
+        }
+
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public void EnqueueFailure(TransferQueueItem item, TransferFailureReason reason)
+        public void EnqueueFailure(OutboxQueueItem item, TransferFailureReason reason)
         {
             //TODO: check all other fields on the item;
             
@@ -48,7 +56,7 @@ namespace Youverse.Core.Services.Transit
             Enqueue(item);
         }
 
-        public IEnumerable<TransferQueueItem> GetNextBatch()
+        public IEnumerable<OutboxQueueItem> GetNextBatch()
         {
             if (_queue.Count > 0)
             {
@@ -56,18 +64,18 @@ namespace Youverse.Core.Services.Transit
                 var item = _queue.Dequeue();
                 if (null != item)
                 {
-                    return new List<TransferQueueItem>(new[] { item }).AsEnumerable();
+                    return new List<OutboxQueueItem>(new[] { item }).AsEnumerable();
                 }
             }
 
-            return Array.Empty<TransferQueueItem>();
+            return Array.Empty<OutboxQueueItem>();
         }
 
         /// <summary>
         /// Gets all the items currently in the queue w/o making changes to it 
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<TransferQueueItem> GetPendingItems()
+        public IEnumerable<OutboxQueueItem> GetPendingItems()
         {
             return _queue.ToArray();
         }

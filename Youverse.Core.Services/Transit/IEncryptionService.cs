@@ -29,6 +29,6 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="transferEncryptedKeyHeader"></param>
         /// <returns></returns>
-        SecureKey ReEncryptKeyHeader(byte[] transferEncryptedKeyHeader);
+        SecureKey ConvertTransferKeyHeader(byte[] transferEncryptedKeyHeader);
     }
 }

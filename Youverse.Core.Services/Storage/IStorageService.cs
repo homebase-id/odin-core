@@ -41,6 +41,13 @@ namespace Youverse.Core.Services.Storage
         /// <returns></returns>
         Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageType storageType = StorageType.LongTerm);
         
+        /// <summary>
+        /// Get the <see cref="StorageType"/> for the specified  <param name="fileId"></param>
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <returns></returns>
+        Task<StorageType> GetStorageType(Guid fileId);
+        
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.

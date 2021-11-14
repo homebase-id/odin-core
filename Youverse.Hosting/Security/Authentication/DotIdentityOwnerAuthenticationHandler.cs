@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
+using Dawn;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -54,14 +55,14 @@ namespace Youverse.Hosting.Security.Authentication
 
                 if (await authService.IsValidToken(sessionToken))
                 {
+                    var (appId, deviceUid) = ValidateDeviceApp();
+                    
                     //TODO: this needs to be pulled from context rather than the domain
-
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
 
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set duringf the Startup.ResolveContext method
                     var r = GetAuthenticationResult();
-                    //var loginKek = await authService.GetLoginKek(sessionToken, r.ClientHalfKek);
                     var loginDek = await authService.GetLoginDek(sessionToken, r.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
@@ -71,7 +72,9 @@ namespace Youverse.Hosting.Security.Authentication
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, YouFoundationIssuer)
+                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, YouFoundationIssuer)
                     };
 
                     var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);
@@ -90,6 +93,24 @@ namespace Youverse.Hosting.Security.Authentication
             }
 
             return AuthenticateResult.Fail("Invalid or missing token");
+        }
+
+        /// <summary>
+        /// Validates the deviceUid and the appid for this request.  If valid, returns the appId and deviceUid
+        /// </summary>
+        /// <returns></returns>
+        private (string appId, string deviceUid) ValidateDeviceApp()
+        {
+            //TODO: this needs to be moved to a central location so certificate auth can use it too
+            string appId = Context.Request.Headers[DotYouHeaderNames.AppId];
+            string deviceUid = Context.Request.Headers[DotYouHeaderNames.DeviceUid];
+
+            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
+            Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
+            
+            //TODO call to app service to validate 
+            
+            return (appId, deviceUid);
         }
 
         private DotYouAuthenticationResult GetAuthenticationResult()

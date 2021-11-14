@@ -4,6 +4,10 @@ namespace Youverse.Core
 {
     public static class DateTimeExtensions
     {
+        public static UInt64 UnixTimeMilliseconds()
+        {
+            return (UInt64) DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
         public static UInt64 UnixTimeSeconds()
         {
             return (UInt64) DateTimeOffset.UtcNow.ToUnixTimeSeconds();

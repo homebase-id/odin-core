@@ -8,6 +8,10 @@ namespace Youverse.Core.Services.Authorization
     public static class DotYouClaimTypes
     {
         public static string LoginDek = "https://schemas.youfoundation.id/2021/3/identity/LoginToken";
+        
+        public static string AppId = "https://schemas.youfoundation.id/2021/11/apps/AppId";
+        
+        public static string DeviceUid = "https://schemas.youfoundation.id/2021/11/apps/DeviceUid";
 
         /// <summary>
         /// Indicates the current <see cref="ClaimsPrincipal"/> owns this identity website

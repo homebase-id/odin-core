@@ -1,14 +1,12 @@
 ﻿using Refit;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
 
@@ -23,76 +21,50 @@ namespace Youverse.Core.Services.Transit
         }
 
         private readonly IStorageService _storage;
-        private readonly IOutboxQueueService _outboxQueue;
+        private readonly IOutboxQueueService _outboxQueueService;
         private readonly IEncryptionService _encryption;
-        private readonly IProfileService _contactService;
-        const int InstantSendPayloadThresholdSize = 1024;
-        const int InstantSendRecipientCountThreshold = 9;
+        private readonly ITransitKeyEncryptionQueueService _transitKeyEncryptionQueueService;
 
+        private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueue, IStorageService storage, IEncryptionService encryptionSvc, IProfileService contactService, ITransitAuditWriterService auditWriter,
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueueService, IStorageService storage, IEncryptionService encryptionSvc, ITransitKeyEncryptionQueueService transitKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
             IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
-            _outboxQueue = outboxQueue;
+            _outboxQueueService = outboxQueueService;
             _storage = storage;
             _encryption = encryptionSvc;
-            _contactService = contactService;
+            _transitKeyEncryptionQueueService = transitKeyEncryptionQueueService;
         }
 
-        public async Task<TransferResult> SendBatchNow(IEnumerable<TransferQueueItem> queuedItems)
+        public async Task<TransferResult> Send(UploadPackage package)
         {
-            var envelopes = queuedItems.Select(i => new Envelope()
-            {
-                Recipient = i.Recipient,
-                FileId = i.FileId
-            });
+            _storage.AssertFileIsValid(package.FileId, StorageType.Unknown);
 
-            return await SendBatchNow(envelopes);
-        }
-
-        public async Task<TransferResult> SendBatchNow(RecipientList recipients, Guid fileId)
-        {
-            var envelopes = recipients.Recipients.Select(r => new Envelope()
+            var storageType = await _storage.GetStorageType(package.FileId);
+            if (storageType == StorageType.Temporary)
             {
+                await _storage.MoveToLongTerm(package.FileId);
+            }
+
+            //a transfer per recipient is added to the outbox queue since there is a background process
+            //that will pick up the items and attempt to send.
+            _outboxQueueService.Enqueue(package.RecipientList.Recipients.Select(r => new OutboxQueueItem()
+            {
+                FileId = package.FileId,
                 Recipient = r,
-                FileId = fileId
-            });
+            }));
 
-            return await SendBatchNow(envelopes);
-        }
 
-        public async Task<TransferResult> Send(UploadPackage uploadPackage)
-        {
-            var fileId = uploadPackage.FileId;
-            var recipients = uploadPackage.RecipientList;
+            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
+            //will read the transfer key during the background send process
+            var keyStatus = await this.PrepareTransferKeys(package);
 
-            if (fileId == Guid.Empty)
+            var result = new TransferResult()
             {
-                throw new Exception("Invalid transfer, no file specified");
-            }
-
-            _storage.AssertFileIsValid(fileId);
-
-            //if payload size is small, try sending now.
-            if (await _storage.GetFileSize(fileId) <= InstantSendPayloadThresholdSize || recipients.Recipients.Length < InstantSendRecipientCountThreshold)
-            {
-                Console.WriteLine("Length is small, sending now");
-                return await this.SendBatchNow(recipients, fileId);
-            }
-
-            var result = new TransferResult(Guid.NewGuid());
-            Console.WriteLine("Data file is large, putting in queue");
-            foreach (var recipient in recipients.Recipients)
-            {
-                _outboxQueue.Enqueue(new TransferQueueItem()
-                {
-                    Recipient = recipient,
-                    FileId = fileId
-                });
-
-                result.QueuedRecipients.Add(recipient);
-            }
+                FileId = package.FileId,
+                RecipientStatus = keyStatus
+            };
 
             return result;
         }
@@ -103,9 +75,83 @@ namespace Youverse.Core.Services.Transit
             throw new NotImplementedException();
         }
 
+        private async Task<Dictionary<DotYouIdentity, TransferStatus>> PrepareTransferKeys(UploadPackage package)
+        {
+            var results = new Dictionary<DotYouIdentity, TransferStatus>();
+            var encryptedKeyHeader = await _storage.GetKeyHeader(package.FileId);
+
+            foreach (var recipient in package.RecipientList.Recipients)
+            {
+                try
+                {
+                    //TODO: decide if we should lookup if not cached or just drop in the 
+                    var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfNotCached: true);
+                    if (null == recipientPublicKey)
+                    {
+                        AddToTransitKeyEncryptionQueue(recipient, package);
+                        results.Add(recipient, TransferStatus.AwaitingTransferKey);
+                    }
+
+                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey, encryptedKeyHeader);
+
+                    var item = new RecipientTransferKeyHeaderItem()
+                    {
+                        Recipient = recipient,
+                        Header = header,
+                        FileId = package.FileId
+                    };
+
+                    results.Add(recipient, TransferStatus.TransferKeyCreated);
+                    this.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
+                }
+                catch (Exception e)
+                {
+                    AddToTransitKeyEncryptionQueue(recipient, package);
+                    results.Add(recipient, TransferStatus.AwaitingTransferKey);
+                }
+            }
+
+            return results;
+        }
+
+        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(TransitPublicKey recipientPublicKey, EncryptedKeyHeader encryptedKeyHeader)
+        {
+            /*
+             :Decrypt the __EncryptedKeyHeader__ to get the __KeyHeader__ using the __AppEncryptionKey__;
+             :Re-encrypt a copy of the __KeyHeader__ using the __RecipientTransitPublicKey__
+                 Result is __EncryptedRecipientTransferKeyHeader__;
+             :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
+            */
+            var appEncryptionKey = this.Context.AppContext.GetAppEncryptionKey();
+
+            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
+            var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
+            {
+                EncryptionVersion = 1,
+                Data = encryptedBytes
+            };
+
+            return encryptedTransferKey;
+        }
+
+        private void AddToTransitKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
+        {
+            var now = DateTimeExtensions.UnixTimeMilliseconds();
+            var item = new TransitKeyEncryptionQueueItem()
+            {
+                FileId = package.FileId,
+                AppId = Context.AppContext.AppId,
+                Recipient = recipient,
+                FirstAddedTimestampMs = now,
+                Attempts = 1,
+                LastAttemptTimestampMs = now
+            };
+            _transitKeyEncryptionQueueService.Enqueue(item);
+        }
+
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
         {
-            var result = new TransferResult(Guid.NewGuid());
+            var result = new TransferResult();
             var tasks = new List<Task<SendResult>>();
 
             foreach (var envelope in envelopes)
@@ -118,23 +164,23 @@ namespace Youverse.Core.Services.Transit
             //build results
             tasks.ForEach(task =>
             {
-                var sendResult = task.Result;
-                if (sendResult.Success)
-                {
-                    result.SuccessfulRecipients.Add(sendResult.Recipient);
-                }
-                else
-                {
-                    var item = new TransferQueueItem()
-                    {
-                        Recipient = sendResult.Recipient,
-                        FileId = sendResult.FileId
-                    };
-
-                    _outboxQueue.EnqueueFailure(item, sendResult.FailureReason.GetValueOrDefault());
-
-                    result.QueuedRecipients.Add(sendResult.Recipient);
-                }
+                // var sendResult = task.Result;
+                // if (sendResult.Success)
+                // {
+                //     result.SuccessfulRecipients.Add(sendResult.Recipient);
+                // }
+                // else
+                // {
+                //     var item = new OutboxQueueItem()
+                //     {
+                //         Recipient = sendResult.Recipient,
+                //         FileId = sendResult.FileId
+                //     };
+                //
+                //     _outboxQueueService.EnqueueFailure(item, sendResult.FailureReason.GetValueOrDefault());
+                //
+                //     result.QueuedRecipients.Add(sendResult.Recipient);
+                // }
             });
 
             return result;
@@ -146,22 +192,29 @@ namespace Youverse.Core.Services.Transit
             bool success = false;
             try
             {
-                var originalHeader = await _storage.GetKeyHeader(fileId);
-                var recipientPublicKey = await GetRecipientTransitPublicKey((DotYouIdentity) recipient);
+                //look up transfer key
 
-                if (null == recipientPublicKey)
+                EncryptedRecipientTransferKeyHeader transferKeyHeader = await this.GetTransferKeyFromCache(recipient, fileId);
+                if (null == transferKeyHeader)
                 {
-                    tfr = TransferFailureReason.TransitPublicKeyInvalid;
+                    return new SendResult()
+                    {
+                        Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                        Recipient = recipient,
+                        Success = false,
+                        FailureReason = TransferFailureReason.EncryptedTransferKeyNotAvailable,
+                        FileId = fileId
+                    };
                 }
 
-                var recipientHeader = await _encryption.Encrypt(originalHeader, recipientPublicKey.PublicKey);
-                var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", "metadata");
-                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", "payload");
+
+                var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
+                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
                 var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>((DotYouIdentity) recipient);
-                var result = client.SendHostToHost(recipientHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
                 //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
@@ -186,17 +239,24 @@ namespace Youverse.Core.Services.Transit
                 Recipient = recipient,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 FileId = fileId
             };
         }
 
-        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient)
+        private async Task<EncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, Guid fileId)
+        {
+            var item = await this.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.FileId == fileId));
+            return item?.Header;
+        }
+
+        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfNotCached = true)
         {
             //TODO: optimize by reading a dictionary cache
             var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 
-            if (tpk == null || !tpk.IsValid())
+
+            if ((tpk == null || !tpk.IsValid()) && lookupIfNotCached)
             {
                 var svc = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
                 var tpkResponse = await svc.GetTransitPublicKey();
@@ -206,11 +266,29 @@ namespace Youverse.Core.Services.Transit
                     this.Logger.LogWarning("Transit public key is invalid");
                     return null;
                 }
-                
+
                 tpk = tpkResponse.Content;
             }
 
             return tpk;
         }
+    }
+
+
+    /// <summary>
+    /// The encrypted version of the KeyHeader for a given recipient
+    /// which as been encrypted using the RecipientTransitPublicKey
+    /// </summary>
+    public class EncryptedRecipientTransferKeyHeader
+    {
+        public int EncryptionVersion { get; set; }
+        public byte[] Data { get; set; }
+    }
+
+    public class RecipientTransferKeyHeaderItem
+    {
+        public Guid FileId { get; set; }
+        public DotYouIdentity Recipient { get; set; }
+        public EncryptedRecipientTransferKeyHeader Header { get; set; }
     }
 }

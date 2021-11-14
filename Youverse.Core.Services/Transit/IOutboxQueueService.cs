@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -8,19 +9,21 @@ namespace Youverse.Core.Services.Transit
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
         /// <param name="item"></param>
-        void Enqueue(TransferQueueItem item);
+        void Enqueue(OutboxQueueItem item);
+        
+        void Enqueue(IEnumerable<OutboxQueueItem> items);
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        void EnqueueFailure(TransferQueueItem item, TransferFailureReason reason);
+        void EnqueueFailure(OutboxQueueItem item, TransferFailureReason reason);
 
-        IEnumerable<TransferQueueItem> GetNextBatch();
+        IEnumerable<OutboxQueueItem> GetNextBatch();
 
         /// <summary>
         /// Gets all the items currently in the queue w/o making changes to it 
         /// </summary>
         /// <returns></returns>
-        IEnumerable<TransferQueueItem> GetPendingItems();
+        IEnumerable<OutboxQueueItem> GetPendingItems();
     }
 }

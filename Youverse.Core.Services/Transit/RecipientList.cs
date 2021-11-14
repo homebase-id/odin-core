@@ -1,7 +1,9 @@
+using Youverse.Core.Identity;
+
 namespace Youverse.Core.Services.Transit
 {
    public class RecipientList
    { 
-      public string[] Recipients { get; set; }
+      public DotYouIdentity[] Recipients { get; set; }
    }
 }

@@ -49,6 +49,8 @@ namespace Youverse.Hosting.Controllers.Transit
                 
                 var boundary = GetBoundary(HttpContext.Request.ContentType);
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+                //NOTE: the first section MUST BE the app id so we can validate it
                 var section = await reader.ReadNextSectionAsync();
 
                 //Note: the _packageStorageWriter exists so we have a service that holds
@@ -71,9 +73,9 @@ namespace Youverse.Hosting.Controllers.Transit
 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
                 var package = await _packageStorageWriter.GetPackage(packageId);
-                var result = await _transitService.Send(package);
+                var status = await _transitService.Send(package);
 
-                return new JsonResult(result);
+                return new JsonResult(status);
             }
             catch (InvalidDataException e)
             {

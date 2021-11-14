@@ -40,7 +40,8 @@ namespace Youverse.Hosting.Controllers.Transit
                 //TODO: not sure I should return a detailed result here.
                 //pick up the files from the outbox
                 var batch = _outbox.GetNextBatch();
-                var result = await _transit.SendBatchNow(batch);
+                //var result = await _transit.SendBatchNow(batch);
+                var result = new object();
                 return new JsonResult(result);
             }
             catch (InvalidDataException e)
