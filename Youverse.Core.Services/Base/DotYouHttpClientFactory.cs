@@ -41,6 +41,7 @@ namespace Youverse.Core.Services.Base
             
             var client = new System.Net.Http.HttpClient(handler);
             client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, _context.AppContext.AppId);
 
             var ogClient = RestService.For<T>(client);
 

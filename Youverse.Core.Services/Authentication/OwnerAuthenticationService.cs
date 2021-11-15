@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Authentication
     public class OwnerAuthenticationService : DotYouServiceBase, IOwnerAuthenticationService
     {
         private readonly IOwnerSecretService _secretService;
-        private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
+        // private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
         private const string AUTH_TOKEN_COLLECTION = "tko";
 
         public OwnerAuthenticationService(DotYouContext context, ILogger logger, IOwnerSecretService secretService) : base(context, logger, null, null)

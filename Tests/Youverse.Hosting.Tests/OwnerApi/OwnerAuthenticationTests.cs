@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi

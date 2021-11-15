@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting.Security.Authentication
 {
@@ -62,7 +63,7 @@ namespace Youverse.Hosting.Security.Authentication
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
 
-                    //TODO: we need to avoid using a claim to hold the login kek.  it should just be set duringf the Startup.ResolveContext method
+                    //TODO: we need to avoid using a claim to hold the login kek.  it should just be set during the Startup.ResolveContext method
                     var r = GetAuthenticationResult();
                     var loginDek = await authService.GetLoginDek(sessionToken, r?.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());

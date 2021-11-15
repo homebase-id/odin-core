@@ -29,5 +29,20 @@ namespace Youverse.Hosting.Tests.Transit
             _scaffold.RunAfterAnyTests();
         }
 
+
+        [Test]
+        public void CanGetTransitPublicKeyFromRecipient()
+        {
+            Assert.Inconclusive("TODO");
+        }
+
+        [Test]
+        public void MissingTransitPublicKeyWillBeAddedToTransitKeyEncryptionQueue()
+        {
+            //AddToTransitKeyEncryptionQueue
+            Assert.Inconclusive("TODO");
+        }
+
+        
     }
 }

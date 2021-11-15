@@ -23,18 +23,18 @@ namespace Youverse.Core.Services.Transit
         private readonly IStorageService _storage;
         private readonly IOutboxQueueService _outboxQueueService;
         private readonly IEncryptionService _encryption;
-        private readonly ITransitKeyEncryptionQueueService _transitKeyEncryptionQueueService;
+        private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
 
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueueService, IStorageService storage, IEncryptionService encryptionSvc, ITransitKeyEncryptionQueueService transitKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
+        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueueService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
             IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
             _outboxQueueService = outboxQueueService;
             _storage = storage;
             _encryption = encryptionSvc;
-            _transitKeyEncryptionQueueService = transitKeyEncryptionQueueService;
+            _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
         }
 
         public async Task<TransferResult> Send(UploadPackage package)
@@ -75,20 +75,20 @@ namespace Youverse.Core.Services.Transit
             throw new NotImplementedException();
         }
 
-        private async Task<Dictionary<DotYouIdentity, TransferStatus>> PrepareTransferKeys(UploadPackage package)
+        private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
         {
-            var results = new Dictionary<DotYouIdentity, TransferStatus>();
+            var results = new Dictionary<string, TransferStatus>();
             var encryptedKeyHeader = await _storage.GetKeyHeader(package.FileId);
 
             foreach (var recipient in package.RecipientList.Recipients)
             {
                 try
                 {
-                    //TODO: decide if we should lookup if not cached or just drop in the 
+                    //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
                     var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfNotCached: true);
                     if (null == recipientPublicKey)
                     {
-                        AddToTransitKeyEncryptionQueue(recipient, package);
+                        AddToTransferKeyEncryptionQueue(recipient, package);
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
                     }
 
@@ -104,9 +104,9 @@ namespace Youverse.Core.Services.Transit
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
                     this.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    AddToTransitKeyEncryptionQueue(recipient, package);
+                    AddToTransferKeyEncryptionQueue(recipient, package);
                     results.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }
             }
@@ -134,7 +134,7 @@ namespace Youverse.Core.Services.Transit
             return encryptedTransferKey;
         }
 
-        private void AddToTransitKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
+        private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
         {
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
@@ -146,7 +146,8 @@ namespace Youverse.Core.Services.Transit
                 Attempts = 1,
                 LastAttemptTimestampMs = now
             };
-            _transitKeyEncryptionQueueService.Enqueue(item);
+            
+            _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
         private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
@@ -255,7 +256,6 @@ namespace Youverse.Core.Services.Transit
             //TODO: optimize by reading a dictionary cache
             var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 
-
             if ((tpk == null || !tpk.IsValid()) && lookupIfNotCached)
             {
                 var svc = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
@@ -268,6 +268,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 tpk = tpkResponse.Content;
+                WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s=>s.Save(tpk));
             }
 
             return tpk;

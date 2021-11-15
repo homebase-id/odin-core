@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Storage
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageType storageType = StorageType.LongTerm)
         {
-            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart, storageType)));
+            return Task.FromResult((Stream)File.OpenRead(GetFilePath(fileId, filePart, storageType)));
         }
 
         public Task<StorageType> GetStorageType(Guid fileId)
@@ -60,7 +60,7 @@ namespace Youverse.Core.Services.Storage
                 return Task.FromResult(StorageType.LongTerm);
             }
 
-            var tempPath = GetFilePath(fileId, FilePart.Header, StorageType.LongTerm);
+            var tempPath = GetFilePath(fileId, FilePart.Header, StorageType.Temporary);
             if (File.Exists(tempPath))
             {
                 return Task.FromResult(StorageType.Temporary);
@@ -98,7 +98,7 @@ namespace Youverse.Core.Services.Storage
                 {
                     return;
                 }
-                
+
                 if (IsFileValid(fileId, StorageType.Temporary))
                 {
                     return;
@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Storage
         }
 
         private bool IsFileValid(Guid fileId, StorageType storageType)
-        {  
+        {
             string header = GetFilePath(fileId, FilePart.Header, storageType);
             string metadata = GetFilePath(fileId, FilePart.Metadata, storageType);
             string payload = GetFilePath(fileId, FilePart.Payload, storageType);
@@ -146,12 +146,32 @@ namespace Youverse.Core.Services.Storage
 
         public Task MoveToLongTerm(Guid fileId)
         {
-            throw new NotImplementedException();
+            AssertFileIsValid(fileId, StorageType.Temporary);
+
+            var parts = Enum.GetNames<FilePart>();
+            foreach (var p in parts)
+            {
+                FilePart part = Enum.Parse<FilePart>(p);
+                var source = GetFilePath(fileId, part, StorageType.Temporary);
+                var dest = GetFilePath(fileId, part, StorageType.LongTerm, ensureExists: true);
+                File.Move(source, dest);
+            }
+
+            return Task.CompletedTask;
         }
 
         public Task MoveToTemp(Guid fileId)
         {
-            throw new NotImplementedException();
+            var parts = Enum.GetNames<FilePart>();
+            foreach (var p in parts)
+            {
+                FilePart part = Enum.Parse<FilePart>(p);
+                var source = GetFilePath(fileId, part, StorageType.LongTerm);
+                var dest = GetFilePath(fileId, part, StorageType.Temporary, ensureExists: true);
+                File.Move(source, dest);
+            }
+
+            return Task.CompletedTask;
         }
 
         public async Task<long> GetFileSize(Guid id, StorageType storageType = StorageType.LongTerm)
@@ -249,7 +269,7 @@ namespace Youverse.Core.Services.Storage
 
             Console.WriteLine($"Path opened at [{path}] with len [{fs.Length}]");
             var bytes = new byte[fs.Length];
-            await fs.ReadAsync(bytes, 0, (int) fs.Length);
+            await fs.ReadAsync(bytes, 0, (int)fs.Length);
 
             return new MediaData()
             {
@@ -264,7 +284,7 @@ namespace Youverse.Core.Services.Storage
             return await _storage.Get(id);
         }
 
-        public async Task<Stream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm)
+        public Task<FileStream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm)
         {
             Console.WriteLine($"Streaming media for ID: [{id}]");
             string path = GetMediaFilePath(id);
@@ -273,7 +293,7 @@ namespace Youverse.Core.Services.Storage
                 return null;
             }
 
-            return File.OpenRead(path);
+            return Task.FromResult(File.OpenRead(path));
         }
 
         public void Dispose()
@@ -297,7 +317,7 @@ namespace Youverse.Core.Services.Storage
 
         private string GetFilePath(Guid id, FilePart part, StorageType storageType, bool ensureExists = false)
         {
-            var path = storageType == StorageType.Temporary ? Context.StorageConfig.TempStoragePath : Context.StorageConfig.DataStoragePath;
+            string path = GetStorageRoot(storageType);
             string dir = PathUtil.Combine(path, id.ToString());
 
             if (ensureExists)
@@ -306,6 +326,12 @@ namespace Youverse.Core.Services.Storage
             }
 
             return PathUtil.Combine(dir, part.ToString());
+        }
+
+        private string GetStorageRoot(StorageType storageType)
+        {
+            var path = storageType == StorageType.Temporary ? Context.StorageConfig.TempStoragePath : Context.StorageConfig.DataStoragePath;
+            return path;
         }
     }
 }

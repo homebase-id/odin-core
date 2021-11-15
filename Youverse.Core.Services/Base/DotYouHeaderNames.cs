@@ -1,4 +1,4 @@
-namespace Youverse.Hosting
+namespace Youverse.Core.Services.Base
 {
     public static class DotYouHeaderNames
     {

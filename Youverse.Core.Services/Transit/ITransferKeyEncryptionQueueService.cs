@@ -6,7 +6,10 @@ using Youverse.Core.Services.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    public interface ITransitKeyEncryptionQueueService
+    /// <summary>
+    /// Holds the queue of transfer items that need to be encrypted when the app key is available
+    /// </summary>
+    public interface ITransferKeyEncryptionQueueService
     {
         /// <summary>
         /// Adds an <see cref="TransitKeyEncryptionQueueItem"/> to be processed.

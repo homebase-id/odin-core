@@ -15,8 +15,8 @@ namespace Youverse.Core.Services.Base
 
         public AppContext(string appId, string deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret)
         {
-            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
-            Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
+            // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
+            // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
 
             this._appId = appId;
             this._appEncryptionKey = appEncryptionKey;

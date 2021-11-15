@@ -184,10 +184,8 @@ namespace Youverse.Hosting
 
             //TODO: this needs to be moved to a central location so certificate auth can use it too
             string appId = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
-            string deviceUid = context.HttpContext.Request.Headers[DotYouHeaderNames.DeviceUid];
 
             Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
-            Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
             
             var claims = new[]
             {
@@ -195,10 +193,8 @@ namespace Youverse.Hosting
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-
                 new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, YouFoundationIssuer),
-
+                
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
                 new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
             };

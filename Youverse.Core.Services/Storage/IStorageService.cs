@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Storage
 
         Task<MediaMetaData> GetMetaData(Guid id, StorageType storageType = StorageType.LongTerm);
 
-        Task<Stream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm);
+        Task<FileStream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm);
         
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>

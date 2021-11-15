@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task TestBasicTransfer()
         {
             var sentMessage = GetSmallChatMessage();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -55,6 +55,11 @@ namespace Youverse.Hosting.Tests.Transit
 
                 Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
 
+                //TODO: how do i check the outbox queue
+                
+                //TODO: How do i check the transfer key was populates?
+                
+                
                 //TODO: determine if we should check outgoing audit to show it was sent
                 // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
                 // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);

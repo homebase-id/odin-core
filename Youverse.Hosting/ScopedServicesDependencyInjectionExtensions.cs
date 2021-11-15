@@ -65,6 +65,16 @@ namespace Youverse.Hosting
                         ResolveLogger<OwnerAuthenticationService>(svc),
                         ResolveOwnerSecretService(svc));
                 });
+            
+            
+            services.AddScoped<IProfileService, ProfileService>(svc =>
+            {
+                return new ProfileService(
+                    ResolveContext(svc),
+                    ResolveLogger<ProfileService>(svc),
+                    ResolveDotYouHttpClientFactory(svc));
+            });
+            
 
             services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
             {
@@ -74,14 +84,7 @@ namespace Youverse.Hosting
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });
-
-            services.AddScoped<IProfileService, ProfileService>(svc =>
-            {
-                return new ProfileService(
-                    ResolveContext(svc),
-                    ResolveLogger<ProfileService>(svc),
-                    ResolveDotYouHttpClientFactory(svc));
-            });
+            
 
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
@@ -184,11 +187,11 @@ namespace Youverse.Hosting
                     ResolveLogger<LiteDbTransitAuditWriterService>(svc));
             });
 
-            services.AddScoped<ITransitKeyEncryptionQueueService, TransitKeyEncryptionQueueService>(svc =>
+            services.AddScoped<ITransferKeyEncryptionQueueService, TransferKeyEncryptionQueueService>(svc =>
             {
-                return new TransitKeyEncryptionQueueService(
+                return new TransferKeyEncryptionQueueService(
                     ResolveContext(svc),
-                    ResolveLogger<ITransitKeyEncryptionQueueService>(svc));
+                    ResolveLogger<ITransferKeyEncryptionQueueService>(svc));
             });
 
             services.AddScoped<ITransitService, TransitService>(svc =>
@@ -199,7 +202,7 @@ namespace Youverse.Hosting
                     svc.GetRequiredService<IOutboxQueueService>(),
                     ResolveStorageService(svc),
                     ResolveEncryptionService(svc),
-                    svc.GetRequiredService<ITransitKeyEncryptionQueueService>(),
+                    svc.GetRequiredService<ITransferKeyEncryptionQueueService>(),
                     ResolveTransitAuditService(svc),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));

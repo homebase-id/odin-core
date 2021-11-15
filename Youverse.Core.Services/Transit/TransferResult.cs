@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit
     public class TransferResult
     {
         public Guid FileId { get; set; }
-        public Dictionary<DotYouIdentity, TransferStatus> RecipientStatus { get; set; }
+        public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
     }
 
     public enum TransferStatus
