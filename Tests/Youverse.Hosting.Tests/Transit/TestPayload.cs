@@ -8,7 +8,6 @@ namespace Youverse.Hosting.Tests.Transit
     public class TestPayload
     {
         public Guid Id { get; set; }
-        //public EncryptedKeyHeader EncryptedKeyHeader { get; set; }
         public string TransferEncryptedKeyHeader { get; set; }
         public Stream Metadata { get; set; }
         public Stream Payload { get; set; }

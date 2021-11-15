@@ -29,17 +29,17 @@ namespace Youverse.Hosting.Tests.Transit
             _scaffold.RunAfterAnyTests();
         }
 
-        [Test(Description = "Test a transfer where no data is queued")]
-        public async Task TestInstantTransfer()
+        [Test(Description = "Test basic transfer")]
+        public async Task TestBasicTransfer()
         {
             var sentMessage = GetSmallChatMessage();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, true))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
 
-                var recipientList = new RecipientList { Recipients = new DotYouIdentity[] { _scaffold.Frodo } };
+                var recipientList = new RecipientList {Recipients = new[] {_scaffold.Frodo}};
                 var response = await transitSvc.SendClientToHost(
                     recipientList,
                     sentMessage.TransferEncryptedKeyHeader,
@@ -48,11 +48,12 @@ namespace Youverse.Hosting.Tests.Transit
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
-
                 Assert.IsNotNull(transferResult);
-                // Assert.IsTrue(transferResult.QueuedRecipients.Count == 0);
-                // Assert.IsTrue(transferResult.SuccessfulRecipients.Count == 1);
-                // Assert.IsTrue(transferResult.SuccessfulRecipients.First() == _scaffold.Frodo);
+                Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
+                Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
+                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
+
+                Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
 
                 //TODO: determine if we should check outgoing audit to show it was sent
                 // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
@@ -71,15 +72,13 @@ namespace Youverse.Hosting.Tests.Transit
                 var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
 
                 Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-                var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int)TransitAuditEvent.Accepted);
+                var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int) TransitAuditEvent.Accepted);
                 Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
-                
+
                 //I guess I need an api that says give me all transfers from a given DI
                 // so in this case I could ge that transfer and compare the file contents?
                 //this api is needed for everything - so yea. let's do that
-                
             }
-
 
 
             /*
@@ -92,15 +91,13 @@ namespace Youverse.Hosting.Tests.Transit
         private TestPayload GetSmallChatMessage()
         {
             var tp = new TestPayload();
-            
+
             tp.Id = Guid.NewGuid();
 
             var data = Guid.Empty.ToByteArray();
             tp.TransferEncryptedKeyHeader = Convert.ToBase64String(data);
-
             tp.Metadata = Stream.Null;
             tp.Payload = Stream.Null;
-
             return tp;
         }
     }

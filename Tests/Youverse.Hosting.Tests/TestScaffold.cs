@@ -189,6 +189,8 @@ namespace Youverse.Hosting.Tests
                 client = new(handler);
             }
             
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, "WebApiTests");
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, "WebApiTestsDevice");
             client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 
