@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
@@ -63,7 +64,7 @@ namespace Youverse.Hosting.Security.Authentication
 
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set duringf the Startup.ResolveContext method
                     var r = GetAuthenticationResult();
-                    var loginDek = await authService.GetLoginDek(sessionToken, r.ClientHalfKek);
+                    var loginDek = await authService.GetLoginDek(sessionToken, r?.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
                     var claims = new List<Claim>()
@@ -113,7 +114,7 @@ namespace Youverse.Hosting.Security.Authentication
             return (appId, deviceUid);
         }
 
-        private DotYouAuthenticationResult GetAuthenticationResult()
+        private DotYouAuthenticationResult? GetAuthenticationResult()
         {
             DotYouAuthenticationResult result;
             var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];

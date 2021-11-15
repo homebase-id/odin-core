@@ -24,9 +24,9 @@ namespace Youverse.Hosting.Controllers.Transit
         {
             _svc = svc;
         }
-        
+
         [HttpGet]
-        public async Task<IActionResult> GetUnprocessedItems(int pageNumber, int pageSize)
+        public Task<JsonResult> GetUnprocessedItems(int pageNumber, int pageSize)
         {
             try
             {
@@ -34,9 +34,8 @@ namespace Youverse.Hosting.Controllers.Transit
             }
             catch (InvalidDataException e)
             {
-                return new JsonResult(new NoResultResponse(false, e.Message));
+                return Task.FromResult<JsonResult>(new JsonResult(new NoResultResponse(false, e.Message)));
             }
         }
-
     }
 }

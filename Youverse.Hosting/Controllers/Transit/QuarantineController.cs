@@ -25,9 +25,9 @@ namespace Youverse.Hosting.Controllers.Transit
         {
             _svc = svc;
         }
-        
+
         [HttpGet]
-        public async Task<IActionResult> GetQuarantinedItems(int pageNumber, int pageSize)
+        public Task<JsonResult> GetQuarantinedItems(int pageNumber, int pageSize)
         {
             try
             {
@@ -35,9 +35,8 @@ namespace Youverse.Hosting.Controllers.Transit
             }
             catch (InvalidDataException e)
             {
-                return new JsonResult(new NoResultResponse(false, e.Message));
+                return Task.FromResult(new JsonResult(new NoResultResponse(false, e.Message)));
             }
         }
-
     }
 }

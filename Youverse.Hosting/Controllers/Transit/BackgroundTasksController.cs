@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.Transit
         }
 
         [HttpPost]
-        public async Task<IActionResult> SendParcel()
+        public Task<JsonResult> SendParcel()
         {
             //Console.WriteLine($"{HttpContext.Request.Host.Host} as been stoked!");
             try
@@ -42,11 +42,11 @@ namespace Youverse.Hosting.Controllers.Transit
                 var batch = _outbox.GetNextBatch();
                 //var result = await _transit.SendBatchNow(batch);
                 var result = new object();
-                return new JsonResult(result);
+                return Task.FromResult(new JsonResult(result));
             }
             catch (InvalidDataException e)
             {
-                return new JsonResult(new NoResultResponse(false, e.Message));
+                return Task.FromResult(new JsonResult(new NoResultResponse(false, e.Message)));
             }
         }
     }

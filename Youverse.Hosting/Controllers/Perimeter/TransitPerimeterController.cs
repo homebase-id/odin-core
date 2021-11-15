@@ -30,10 +30,10 @@ namespace Youverse.Hosting.Controllers.Perimeter
         }
 
         [HttpGet("tpk")]
-        public async Task<IActionResult> GetTransitPublicKey()
+        public Task<JsonResult> GetTransitPublicKey()
         {
             var key = _perimeterService.GetTransitPublicKey();
-            return new JsonResult(key);
+            return Task.FromResult(new JsonResult(key));
         }
 
         [HttpPost("stream")]
@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
             {
                 throw new InvalidDataException("Data is not multi-part content");
             }
-            
+
             //TODO: support for validating the app id is specified and this host has authorized the app
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 {
                     throw new InvalidDataException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
                 }
-                
+
                 //TODO: determine if the filter needs to decide if its result should be sent back to the sender
                 var response = await _perimeterService.ApplyFirstStageFilterToPart(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)

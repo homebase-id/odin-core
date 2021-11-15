@@ -28,20 +28,6 @@ namespace Youverse.Hosting.Tests.Transit
         {
             _scaffold.RunAfterAnyTests();
         }
-        
-        [Test]
-        [Ignore("wip")]
-        public async Task TransferDataToHost()
-        {
-            // using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
-            // {
-            //     var svc = RestService.For<ITransitHostToHostHttpClient>(client);
-            //     var response = await svc.SendHostToHost();
-            //     
-            //     Assert.IsTrue(response.IsSuccessStatusCode);
-            //     
-            // }
-        }
-        
+
     }
 }

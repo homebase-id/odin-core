@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Controllers.Owner
         }
 
         [HttpGet("logout")]
-        public async Task<IActionResult> ExpireCookieBasedToken()
+        public Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[DotYouAuthConstants.TokenKey];
             var result = DotYouAuthenticationResult.Parse(value);
@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Controllers.Owner
             
             Response.Cookies.Delete(DotYouAuthConstants.TokenKey);
             
-            return new JsonResult(true);
+            return Task.FromResult(new JsonResult(true));
         }
 
         [HttpPost("extend")]

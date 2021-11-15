@@ -12,16 +12,17 @@ namespace Youverse.Hosting.Controllers.Perimeter
     public class EmailMessageController : ControllerBase
     {
         IMessagingService _messagingService;
+
         public EmailMessageController(IMessagingService messagingService)
         {
             _messagingService = messagingService;
         }
 
         [HttpPost("email")]
-        public async Task<IActionResult> ReceiveIncomingEmailMessage([FromBody] Message message)
+        public Task<JsonResult> ReceiveIncomingEmailMessage([FromBody] Message message)
         {
             _messagingService.RouteIncomingMessage(message);
-            return new JsonResult(new NoResultResponse(true));
+            return Task.FromResult(new JsonResult(new NoResultResponse(true)));
         }
     }
 }
