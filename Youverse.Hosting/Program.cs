@@ -110,7 +110,8 @@ namespace Youverse.Hosting
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
+                    .WriteTo.Async(sink =>
+                        sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink => 
                         sink.RollingFile(Path.Combine(config.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)
                     ) 
