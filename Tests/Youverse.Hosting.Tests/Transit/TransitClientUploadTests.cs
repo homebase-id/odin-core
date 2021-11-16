@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Tests.Transit
 
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
 
-                var recipientList = new RecipientList {Recipients = new[] {_scaffold.Frodo}};
+                var recipientList = new RecipientList { Recipients = new[] { _scaffold.Frodo } };
                 var response = await transitSvc.SendClientToHost(
                     recipientList,
                     sentMessage.TransferEncryptedKeyHeader,
@@ -56,34 +56,38 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
 
                 //TODO: how do i check the outbox queue
-                
+
                 //TODO: How do i check the transfer key was populates?
-                
-                
+
+                //TODO: how do i check Pending Transfer Queue?
+
+                //try to hold out for the background job to process
+                System.Threading.Thread.Sleep(2 * 1000);
+
                 //TODO: determine if we should check outgoing audit to show it was sent
                 // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
                 // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
-            {
-                //TODO: query for the message to see if 
-
-                var expectedMessage = sentMessage;
-
-                //Check audit 
-                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
-                var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
-
-                Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-                var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int) TransitAuditEvent.Accepted);
-                Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
-
-                //I guess I need an api that says give me all transfers from a given DI
-                // so in this case I could ge that transfer and compare the file contents?
-                //this api is needed for everything - so yea. let's do that
-            }
+            // using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
+            // {
+            //     //TODO: query for the message to see if 
+            //
+            //     var expectedMessage = sentMessage;
+            //
+            //     //Check audit 
+            //     var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+            //     var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
+            //
+            //     Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
+            //     var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int) TransitAuditEvent.Accepted);
+            //     Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
+            //
+            //     //I guess I need an api that says give me all transfers from a given DI
+            //     // so in this case I could ge that transfer and compare the file contents?
+            //     //this api is needed for everything - so yea. let's do that
+            // }
 
 
             /*

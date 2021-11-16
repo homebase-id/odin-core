@@ -112,8 +112,10 @@ namespace Youverse.Hosting
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
             //TODO: this service is one of the only singletons because it's used by the 
-            services.AddSingleton<IPendingTransfersQueueService, PendingTransfersQueueService>();
             services.AddYouVerseScopedServices();
+            
+            services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
+
 
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });

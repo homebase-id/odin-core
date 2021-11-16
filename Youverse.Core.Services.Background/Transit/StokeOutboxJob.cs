@@ -15,9 +15,9 @@ namespace Youverse.Core.Services.Workers.Transit
     {
         private HttpClient _client;
         private readonly ILogger<StokeOutboxJob> _logger;
-        private readonly IPendingTransfersQueueService _pendingTransfers;
+        private readonly IPendingTransfersService _pendingTransfers;
 
-        public StokeOutboxJob(ILogger<StokeOutboxJob> logger, IPendingTransfersQueueService pendingTransfers)
+        public StokeOutboxJob(ILogger<StokeOutboxJob> logger, IPendingTransfersService pendingTransfers)
         {
             _logger = logger;
             _pendingTransfers = pendingTransfers;
@@ -29,12 +29,12 @@ namespace Youverse.Core.Services.Workers.Transit
 
             _logger.LogInformation("Send Payload Job running now");
             var senders = _pendingTransfers.GetSenders();
-            foreach(var senderItem in senders)
+            foreach(var sender in senders)
             {
                 var b = new UriBuilder()
                 {
                     Scheme =  "https",
-                    Host = senderItem.Sender,
+                    Host = sender,
                 };
                 
                 StokeOutbox(b.Uri);
@@ -60,6 +60,7 @@ namespace Youverse.Core.Services.Workers.Transit
         {
             var withPath = new Uri((Uri) uri, "/api/transit/background/stoke");
             _logger.LogInformation($"Stoke running for {withPath.ToString()}");
+            Console.WriteLine($"Stoke running for {withPath.ToString()}");
             var request = new HttpRequestMessage(HttpMethod.Post, withPath);
             var response = _client.Send(request);
 

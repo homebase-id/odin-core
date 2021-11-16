@@ -12,10 +12,12 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class OutboxQueueService: DotYouServiceBase, IOutboxQueueService
     {
+        private readonly IPendingTransfersService _pendingTransfers; 
         private readonly Queue<OutboxQueueItem> _queue;
         
-        public OutboxQueueService(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OutboxQueueService(DotYouContext context, ILogger logger, IPendingTransfersService pendingTransfers, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
+            _pendingTransfers = pendingTransfers;
             _queue = new Queue<OutboxQueueItem>();
         }
 
@@ -28,6 +30,7 @@ namespace Youverse.Core.Services.Transit
             if (!_queue.Contains(item))
             {
                 _queue.Enqueue(item);
+                _pendingTransfers.EnsureSenderIsPending(this.Context.HostDotYouId);
             }
         }
 

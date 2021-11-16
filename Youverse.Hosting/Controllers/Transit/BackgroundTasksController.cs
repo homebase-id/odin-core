@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
@@ -22,13 +23,15 @@ namespace Youverse.Hosting.Controllers.Transit
     //[Authorize(Policy = DotYouPolicyNames.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]
     public class BackgroundTasksController : ControllerBase
     {
+        private readonly ILogger<BackgroundTasksController> _logger;
         private readonly ITransitService _transit;
         private readonly IOutboxQueueService _outbox;
 
-        public BackgroundTasksController(ITransitService transit, IOutboxQueueService outbox)
+        public BackgroundTasksController(ITransitService transit, IOutboxQueueService outbox, ILogger<BackgroundTasksController> logger)
         {
             _transit = transit;
             _outbox = outbox;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -41,6 +44,9 @@ namespace Youverse.Hosting.Controllers.Transit
                 //pick up the files from the outbox
                 var batch = _outbox.GetNextBatch();
                 //var result = await _transit.SendBatchNow(batch);
+                _logger.LogInformation($"Sending {batch.Count()} items from background controller");
+                
+                
                 var result = new object();
                 return Task.FromResult(new JsonResult(result));
             }

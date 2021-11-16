@@ -159,6 +159,7 @@ namespace Youverse.Hosting
                 return new OutboxQueueService(
                     ResolveContext(svc),
                     ResolveLogger<OutboxQueueService>(svc),
+                    svc.GetRequiredService<IPendingTransfersService>(),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });

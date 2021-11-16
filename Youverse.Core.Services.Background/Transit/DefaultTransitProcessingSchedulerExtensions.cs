@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Workers.Transit
                 config.WithSimpleSchedule(schedule =>
                     schedule
                         .WithRepeatCount(100)
-                        .WithInterval(TimeSpan.FromSeconds(30))
+                        .WithInterval(TimeSpan.FromSeconds(5))
                         .WithMisfireHandlingInstructionNextWithRemainingCount());
             });
         }
