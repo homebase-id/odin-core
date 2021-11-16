@@ -3,6 +3,40 @@ using System;
 
 namespace Youverse.Core.Cryptography.Data
 {
+    public class RsaPublicKeyData
+    {
+        public byte[] publicKey { get; set; }
+        public UInt32 crc32c { get; set; }       // The CRC32C of the public key
+        public UInt64 expiration { get; set; }   // Time when this key expires
+    }
+
+    public class RsaPrivateKeyData
+    {
+        public byte[] privateKey { get; set; }
+        public UInt64 instantiated { get; set; } // Time when this key was created
+    }
+
+    public class RsaFullKeyData : RsaPublicKeyData
+    {
+        public RsaPrivateKeyData privateKeyData;
+    }
+
+    // Encrypted private key below here
+
+    public class RsaPrivateKeyEncryptedData
+    {
+        public byte[] encryptedPrivateKey { get; set; }
+        public UInt64 instantiated { get; set; } // UTC time when this key was created
+        public byte[] iv { get; set; }           // The IV used for encrypting this key
+    }
+
+
+    public class RsaFullKeyEncryptedData : RsaPublicKeyData
+    {
+        public RsaPrivateKeyEncryptedData encryptedPrivateKeyData;
+    }
+
+
     public class RsaKeyData
     {
         // public byte[] publicKey;
