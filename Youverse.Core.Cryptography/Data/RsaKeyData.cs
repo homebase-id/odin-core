@@ -12,8 +12,8 @@ namespace Youverse.Core.Cryptography.Data
 
     public class RsaPrivateKeyData
     {
-        public byte[] privateKey { get; set; }
-        public UInt64 instantiated { get; set; } // Time when this key was created
+        public SecureKey privateKey { get; set; }
+        public UInt64 createdTimeStamp { get; set; } // Time when this key was created
     }
 
     public class RsaFullKeyData : RsaPublicKeyData
@@ -26,7 +26,7 @@ namespace Youverse.Core.Cryptography.Data
     public class RsaPrivateKeyEncryptedData
     {
         public byte[] encryptedPrivateKey { get; set; }
-        public UInt64 instantiated { get; set; } // UTC time when this key was created
+        public UInt64 createdTimeStamp { get; set; } // UTC time when this key was created
         public byte[] iv { get; set; }           // The IV used for encrypting this key
     }
 
