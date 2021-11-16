@@ -4,7 +4,6 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Xml.Serialization;
 using Dawn;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -19,7 +18,7 @@ using Quartz;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Transit.Background;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
@@ -112,8 +111,9 @@ namespace Youverse.Hosting
             services.AddMemoryCache();
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
+            //TODO: this service is one of the only singletons because it's used by the 
+            services.AddSingleton<IPendingTransfersQueueService, PendingTransfersQueueService>();
             services.AddYouVerseScopedServices();
-            //services.AddHostedService<BackgroundOutboxTransferService>();
 
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });

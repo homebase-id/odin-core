@@ -10,8 +10,8 @@ namespace Youverse.Core.Services.Workers.Transit
     {
         public static void UseDefaultTransitSchedule(this IServiceCollectionQuartzConfigurator quartz)
         {
-            var jobKey = new JobKey(nameof(SendPayloadJob), "Transit");
-            quartz.AddJob<SendPayloadJob>(options => { options.WithIdentity(jobKey); });
+            var jobKey = new JobKey(nameof(StokeOutboxJob), "Transit");
+            quartz.AddJob<StokeOutboxJob>(options => { options.WithIdentity(jobKey); });
             
             var triggerKey = new TriggerKey(jobKey.Name + "-trigger");
             quartz.AddTrigger(config =>

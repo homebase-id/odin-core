@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Transit
 {
+    /// <summary>
+    /// Items in the outbox for a given tenant
+    /// </summary>
     public interface IOutboxQueueService
     {
         /// <summary>
