@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Dawn;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -14,10 +15,12 @@ using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Quartz;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Background;
+using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Security;
@@ -42,6 +45,24 @@ namespace Youverse.Hosting
             var config = this.Configuration.GetSection("Config").Get<Config>();
             AssertValidConfiguration(config);
             PrepareEnvironment(config);
+
+            services.AddQuartz(q =>
+            {
+                //lets use use our normal DI setup
+                q.UseMicrosoftDependencyInjectionJobFactory();
+                // q.UseDedicatedThreadPool(options =>
+                // {
+                //     options.MaxConcurrency = 10; //TODO: good idea?
+                // });
+            
+                q.UseDefaultTransitSchedule();
+            });
+            
+            services.AddQuartzServer(options =>
+            {
+                //options.StartDelay = TimeSpan.FromSeconds(30);
+                options.WaitForJobsToComplete = true;
+            });
 
             services.AddControllers(config =>
                 {
@@ -186,7 +207,7 @@ namespace Youverse.Hosting
             string appId = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
 
             Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
-            
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
@@ -194,7 +215,7 @@ namespace Youverse.Hosting
                 new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
-                
+
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
                 new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
             };

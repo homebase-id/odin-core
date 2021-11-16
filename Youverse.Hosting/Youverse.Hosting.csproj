@@ -14,6 +14,7 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <ProjectReference Include="..\Youverse.Core.Services.Background\Youverse.Core.Services.Background.csproj" />
     <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     <ProjectReference Include="..\Youverse.Services.Messaging\Youverse.Services.Messaging.csproj" />
   </ItemGroup>
@@ -27,6 +28,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="5.0.8" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="5.0.1" />
     <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
+    <PackageReference Include="Quartz.AspNetCore" Version="3.3.3" />
   </ItemGroup>
 
   <ItemGroup>
