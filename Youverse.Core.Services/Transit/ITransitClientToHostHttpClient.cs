@@ -1,12 +1,10 @@
 ﻿using System.Threading.Tasks;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Audit;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Core.Services.Transit
 {
-    public interface ITransitTestHttpClient
+    public interface ITransitClientToHostHttpClient
     {
         private const string ClientRootEndpoint = "/api/transit/client";
         private const string AuditRootEndpoint = "/api/transit/audit";
@@ -19,6 +17,8 @@ namespace Youverse.Hosting.Tests.Transit
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 
+        [Post("/api/transit/background/outbox/process")]
+        Task<ApiResponse<TransferResult>> ProcessOutbox();
 
         [Get(AuditRootEndpoint + "/recent")]
         Task<ApiResponse<PagedResult<TransitAuditEntry>>> GetRecentAuditEntries(int seconds, int pageNumber, int pageSize);

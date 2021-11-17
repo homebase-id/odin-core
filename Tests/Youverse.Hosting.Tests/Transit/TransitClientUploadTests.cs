@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.Transit
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
-                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var transitSvc = RestService.For<ITransitClientToHostHttpClient>(client);
 
                 var recipientList = new RecipientList { Recipients = new[] { _scaffold.Frodo } };
                 var response = await transitSvc.SendClientToHost(
