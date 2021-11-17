@@ -7,13 +7,14 @@ namespace Youverse.Core.Services.Transit
     public interface ITransitService
     {
         /// <summary>
-        /// Sends an envelope to a list of recipients.  TODO: document the default behavior for how this decides send priority
+        /// Prepares to transfer an <see cref="UploadPackage"/> by generating Recipient Transfer Keys and
+        /// placing the transfer <see cref="IOutboxService"/>.
         /// </summary>
         /// <returns></returns>
-        Task<TransferResult> Send(UploadPackage package);
+        Task<TransferResult> PrepareTransfer(UploadPackage package);
 
         /// <summary>
-        /// Accepts a transfer as complete and valid.
+        /// Accepts an incoming transfer as complete and valid.
         /// </summary>
         /// <param name="trackerId">The trackerId to be used during auditing</param>
         /// <param name="fileId">The file Id in storage</param>

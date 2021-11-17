@@ -154,11 +154,11 @@ namespace Youverse.Hosting
 
             services.AddScoped<IEncryptionService, EncryptionService>(svc => { return new EncryptionService(ResolveContext(svc), ResolveLogger<TransitService>(svc)); });
 
-            services.AddScoped<IOutboxQueueService, OutboxQueueService>(svc =>
+            services.AddScoped<IOutboxService, OutboxService>(svc =>
             {
-                return new OutboxQueueService(
+                return new OutboxService(
                     ResolveContext(svc),
-                    ResolveLogger<OutboxQueueService>(svc),
+                    ResolveLogger<OutboxService>(svc),
                     svc.GetRequiredService<IPendingTransfersService>(),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
@@ -199,7 +199,7 @@ namespace Youverse.Hosting
                 return new TransitService(
                     ResolveContext(svc),
                     ResolveLogger<TransitService>(svc),
-                    svc.GetRequiredService<IOutboxQueueService>(),
+                    svc.GetRequiredService<IOutboxService>(),
                     ResolveStorageService(svc),
                     ResolveEncryptionService(svc),
                     svc.GetRequiredService<ITransferKeyEncryptionQueueService>(),

@@ -19,6 +19,20 @@ namespace Youverse.Core.Services.Transit
         /// Indicates the transfer is waiting to have an <see cref="EncryptedRecipientTransferKeyHeader"/> created
         /// </summary>
         AwaitingTransferKey = 1,
-        TransferKeyCreated = 3
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        TransferKeyCreated = 3,
+        
+        /// <summary>
+        /// Indicates the transfer was successfully delivered.
+        /// </summary>
+        Delivered = 5,
+        
+        /// <summary>
+        /// Specifies there was a failure to send the transfer and it will be retried.
+        /// </summary>
+        PendingRetry = 8
     }
 }

@@ -25,9 +25,9 @@ namespace Youverse.Hosting.Controllers.Transit
     {
         private readonly ILogger<BackgroundTasksController> _logger;
         private readonly ITransitService _transit;
-        private readonly IOutboxQueueService _outbox;
+        private readonly IOutboxService _outbox;
 
-        public BackgroundTasksController(ITransitService transit, IOutboxQueueService outbox, ILogger<BackgroundTasksController> logger)
+        public BackgroundTasksController(ITransitService transit, IOutboxService outbox, ILogger<BackgroundTasksController> logger)
         {
             _transit = transit;
             _outbox = outbox;
@@ -35,24 +35,22 @@ namespace Youverse.Hosting.Controllers.Transit
         }
 
         [HttpPost]
-        public Task<JsonResult> SendParcel()
+        public async Task<JsonResult> SendParcel()
         {
-            //Console.WriteLine($"{HttpContext.Request.Host.Host} as been stoked!");
             try
             {
                 //TODO: not sure I should return a detailed result here.
                 //pick up the files from the outbox
-                var batch = _outbox.GetNextBatch();
+                //var batch = _outbox.GetNextBatch();
+                var batch = await _outbox.GetPendingItems(PageOptions.Default);
                 //var result = await _transit.SendBatchNow(batch);
-                _logger.LogInformation($"Sending {batch.Count()} items from background controller");
-                
-                
-                var result = new object();
-                return Task.FromResult(new JsonResult(result));
+                _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
+
+                return new JsonResult(new NoResultResponse(true, ""));
             }
             catch (InvalidDataException e)
             {
-                return Task.FromResult(new JsonResult(new NoResultResponse(false, e.Message)));
+                return new JsonResult(new NoResultResponse(false, e.Message));
             }
         }
     }

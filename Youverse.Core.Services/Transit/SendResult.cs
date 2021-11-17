@@ -1,10 +1,11 @@
 ﻿using System;
+using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Transit
 {
     public class SendResult
     {
-        public string Recipient { get; set; }
+        public DotYouIdentity Recipient { get; set; }
         public bool Success { get; set; }
 
         public TransferFailureReason? FailureReason { get; set; }

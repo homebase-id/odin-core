@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Controllers.Transit
 
                 //TODO: need to decide if some other mechanism starts the data transfer for queued items
                 var package = await _packageStorageWriter.GetPackage(packageId);
-                var status = await _transitService.Send(package);
+                var status = await _transitService.PrepareTransfer(package);
 
                 return new JsonResult(status);
             }

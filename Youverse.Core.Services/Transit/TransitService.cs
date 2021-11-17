@@ -14,30 +14,24 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitService : TransitServiceBase, ITransitService
     {
-        private class Envelope
-        {
-            public string Recipient { get; set; }
-            public Guid FileId { get; set; }
-        }
-
         private readonly IStorageService _storage;
-        private readonly IOutboxQueueService _outboxQueueService;
+        private readonly IOutboxService _outboxService;
         private readonly IEncryptionService _encryption;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
 
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxQueueService outboxQueueService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
+        public TransitService(DotYouContext context, ILogger logger, IOutboxService outboxService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
             IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
-            _outboxQueueService = outboxQueueService;
+            _outboxService = outboxService;
             _storage = storage;
             _encryption = encryptionSvc;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
         }
 
-        public async Task<TransferResult> Send(UploadPackage package)
+        public async Task<TransferResult> PrepareTransfer(UploadPackage package)
         {
             _storage.AssertFileIsValid(package.FileId, StorageType.Unknown);
 
@@ -49,12 +43,11 @@ namespace Youverse.Core.Services.Transit
 
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
-            _outboxQueueService.Enqueue(package.RecipientList.Recipients.Select(r => new OutboxQueueItem()
+            await _outboxService.Add(package.RecipientList.Recipients.Select(r => new OutboxItem()
             {
                 FileId = package.FileId,
                 Recipient = r,
             }));
-
 
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
@@ -146,18 +139,18 @@ namespace Youverse.Core.Services.Transit
                 Attempts = 1,
                 LastAttemptTimestampMs = now
             };
-            
+
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        private async Task<TransferResult> SendBatchNow(IEnumerable<Envelope> envelopes)
+        public async Task<TransferResult> SendBatchNow(IEnumerable<OutboxItem> items)
         {
             var result = new TransferResult();
             var tasks = new List<Task<SendResult>>();
 
-            foreach (var envelope in envelopes)
+            foreach (var item in items)
             {
-                tasks.Add(SendAsync(envelope.Recipient, envelope.FileId));
+                tasks.Add(SendAsync(item.Recipient, item.FileId));
             }
 
             await Task.WhenAll(tasks);
@@ -165,29 +158,29 @@ namespace Youverse.Core.Services.Transit
             //build results
             tasks.ForEach(task =>
             {
-                // var sendResult = task.Result;
-                // if (sendResult.Success)
-                // {
-                //     result.SuccessfulRecipients.Add(sendResult.Recipient);
-                // }
-                // else
-                // {
-                //     var item = new OutboxQueueItem()
-                //     {
-                //         Recipient = sendResult.Recipient,
-                //         FileId = sendResult.FileId
-                //     };
-                //
-                //     _outboxQueueService.EnqueueFailure(item, sendResult.FailureReason.GetValueOrDefault());
-                //
-                //     result.QueuedRecipients.Add(sendResult.Recipient);
-                // }
+                var sendResult = task.Result;
+                if (sendResult.Success)
+                {
+                    result.RecipientStatus.Add(sendResult.Recipient, TransferStatus.Delivered);
+                    _outboxService.Remove(sendResult.Recipient, sendResult.FileId);
+                }
+                else
+                {
+                    var item = new OutboxItem()
+                    {
+                        Recipient = sendResult.Recipient,
+                        FileId = sendResult.FileId
+                    };
+
+                    _outboxService.Add(item, sendResult.FailureReason.GetValueOrDefault());
+                    result.RecipientStatus.Add(sendResult.Recipient, TransferStatus.PendingRetry);
+                }
             });
 
             return result;
         }
 
-        private async Task<SendResult> SendAsync(string recipient, Guid fileId)
+        private async Task<SendResult> SendAsync(DotYouIdentity recipient, Guid fileId)
         {
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
@@ -208,13 +201,12 @@ namespace Youverse.Core.Services.Transit
                     };
                 }
 
-
                 var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
                 var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>((DotYouIdentity) recipient);
+                var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
                 var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
@@ -268,7 +260,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 tpk = tpkResponse.Content;
-                WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s=>s.Save(tpk));
+                WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Save(tpk));
             }
 
             return tpk;
