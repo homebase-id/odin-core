@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit
         /// <param name="name"></param>
         /// <param name="data"></param>
         /// <returns>True when all parts are received, otherwise false</returns>
-        Task<bool> AddItem(Guid pkgId, string name, Stream data);
+        Task<bool> AddPart(Guid pkgId, string name, Stream data);
 
         /// <summary>
         /// Gets the <see cref="UploadPackage"/>

@@ -4,6 +4,7 @@ using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.SystemStorage;
@@ -72,16 +73,25 @@ namespace Youverse.Core.Services.Storage
         public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageType storageType = StorageType.LongTerm)
         {
             using var stream = File.Open(GetFilePath(fileId, FilePart.Header, storageType), FileMode.Open, FileAccess.Read);
-            var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
+            var json = await new StreamReader(stream).ReadToEndAsync();
+            var ekh  = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
 
-            var ekh = new EncryptedKeyHeader()
-            {
-                Type = EncryptionType.Aes,
-                Data = ms.ToArray()
-            };
+            // var ekh = new EncryptedKeyHeader()
+            // {
+            //     EncryptionVersion = 1,
+            //     Iv = 
+            //     Type = EncryptionType.Aes,
+            //     Data = ms.ToArray()
+            // };
 
             return ekh;
+        }
+
+        public async Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader, StorageType storageType = StorageType.LongTerm)
+        {
+            var json = JsonConvert.SerializeObject(keyHeader);
+            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+            await this.WritePartStream(fileId, FilePart.Header, stream, storageType);
         }
 
         public void AssertFileIsValid(Guid fileId, StorageType storageType = StorageType.LongTerm)
@@ -154,9 +164,9 @@ namespace Youverse.Core.Services.Storage
                 FilePart part = Enum.Parse<FilePart>(p);
                 var source = GetFilePath(fileId, part, StorageType.Temporary);
                 var dest = GetFilePath(fileId, part, StorageType.LongTerm, ensureExists: true);
-                
+
                 File.Move(source, dest);
-                
+
                 Logger.LogInformation($"File Moved to {dest}");
             }
 

@@ -1,13 +1,12 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Identity;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Hosting.Tests.Transit
 {
@@ -29,22 +28,72 @@ namespace Youverse.Hosting.Tests.Transit
             _scaffold.RunAfterAnyTests();
         }
 
+
+        public Stream GetEncryptedStream(string data, KeyHeader keyHeader)
+        {
+            var cipher = Core.Cryptography.Crypto.AesCbc.EncryptBytesToBytes_Aes(
+                data: System.Text.Encoding.UTF8.GetBytes(data),
+                key: keyHeader.AesKey.GetKey(),
+                iv: keyHeader.Iv);
+
+            return new MemoryStream(cipher);
+        }
+
+        public Stream GetAppSharedSecretEncryptedStream(string data, byte[] iv, byte[] key)
+        {
+            var cipher = Core.Cryptography.Crypto.AesCbc.EncryptBytesToBytes_Aes(
+                data: System.Text.Encoding.UTF8.GetBytes(data),
+                key: key,
+                iv: iv);
+
+            return new MemoryStream(cipher);
+        }
+
+
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var sentMessage = GetSmallChatMessage();
+            var appSharedSecret = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
+
+            var keyHeader = new KeyHeader()
+            {
+                Iv = Guid.Empty.ToByteArray(), //ByteArrayUtil.GetRndByteArray(16),
+                AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
+            };
+
+            var metadataJson = "{metadata:true, message:'pie on sky}";
+            var metaDataCipher = GetEncryptedStream(metadataJson, keyHeader);
+
+            var payloadJson = "{payload:true, image:'b64 data'}";
+            var payloadCipher = GetEncryptedStream(payloadJson, keyHeader);
+
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, appSharedSecret.GetKey());
+
+            var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
+            var encryptedKeyHeaderStream = new MemoryStream(b);
+
+            var recipientList = new RecipientList { Recipients = new[] { _scaffold.Frodo } };
+            var recipientJson = JsonConvert.SerializeObject(recipientList);
+
+            var x = JsonConvert.DeserializeObject<RecipientList>(recipientJson);
+
+            var recipientCipher = GetAppSharedSecretEncryptedStream(recipientJson, ekh.Iv, appSharedSecret.GetKey());
+
+            keyHeader.AesKey.Wipe();
+            appSharedSecret.Wipe();
+
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
                 var transitSvc = RestService.For<ITransitClientToHostHttpClient>(client);
 
-                var recipientList = new RecipientList { Recipients = new[] { _scaffold.Frodo } };
                 var response = await transitSvc.SendClientToHost(
-                    recipientList,
-                    sentMessage.TransferEncryptedKeyHeader,
-                    sentMessage.GetMetadataStreamPart(),
-                    sentMessage.GetPayloadStreamPart());
+                    new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
+                    new StreamPart(recipientCipher, "recipientlist.encrypted", "application/json", "recipients"),
+                    new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
+
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
@@ -95,19 +144,6 @@ namespace Youverse.Hosting.Tests.Transit
              * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
              * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
              */
-        }
-
-        private TestPayload GetSmallChatMessage()
-        {
-            var tp = new TestPayload();
-
-            tp.Id = Guid.NewGuid();
-
-            var data = Guid.Empty.ToByteArray();
-            tp.TransferEncryptedKeyHeader = Convert.ToBase64String(data);
-            tp.Metadata = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{metadata:true, message:'pie on sky}"));
-            tp.Payload = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{payload:true, image:'b64 data'}"));
-            return tp;
         }
     }
 }

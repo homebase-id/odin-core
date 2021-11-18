@@ -61,8 +61,9 @@ namespace Youverse.Hosting.Controllers.Transit
                 bool isComplete = false;
                 while (section != null || !isComplete)
                 {
-                    var name = GetSectionName(section.ContentDisposition);
-                    isComplete = await _packageStorageWriter.AddItem(packageId, name, section.Body);
+                    var partName = GetSectionName(section.ContentDisposition);
+                    var partStream = section.Body;
+                    isComplete = await _packageStorageWriter.AddPart(packageId, partName, partStream);
                     section = await reader.ReadNextSectionAsync();
                 }
 
@@ -70,8 +71,7 @@ namespace Youverse.Hosting.Controllers.Transit
                 {
                     throw new InvalidDataException("Upload does not contain all required parts.");
                 }
-
-                //TODO: need to decide if some other mechanism starts the data transfer for queued items
+                
                 var package = await _packageStorageWriter.GetPackage(packageId);
                 var status = await _transitService.PrepareTransfer(package);
 

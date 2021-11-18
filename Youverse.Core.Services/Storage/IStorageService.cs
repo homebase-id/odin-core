@@ -15,14 +15,14 @@ namespace Youverse.Core.Services.Storage
         /// </summary>
         /// <returns></returns>
         Guid CreateId();
-        
+
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>
         Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageType storageType = StorageType.LongTerm);
 
         Task<long> GetFileSize(Guid id, StorageType storageType = StorageType.LongTerm);
-        
+
         Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false);
 
         Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false, StorageType storageType = StorageType.LongTerm);
@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Storage
         Task<MediaMetaData> GetMetaData(Guid id, StorageType storageType = StorageType.LongTerm);
 
         Task<FileStream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm);
-        
+
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
@@ -40,14 +40,14 @@ namespace Youverse.Core.Services.Storage
         /// <param name="filePart"></param>
         /// <returns></returns>
         Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageType storageType = StorageType.LongTerm);
-        
+
         /// <summary>
         /// Get the <see cref="StorageType"/> for the specified  <param name="fileId"></param>
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task<StorageType> GetStorageType(Guid fileId);
-        
+
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Storage
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageType storageType = StorageType.LongTerm);
-        
+
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
@@ -83,5 +83,7 @@ namespace Youverse.Core.Services.Storage
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task MoveToTemp(Guid fileId);
+
+        Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageType storageType = StorageType.LongTerm);
     }
 }

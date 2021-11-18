@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 
@@ -16,6 +20,8 @@ namespace Youverse.Core.Services.Transit
         private readonly IStorageService _storageService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
+
+        private byte[] initializationVector;
 
         public MultipartPackageStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService, IEncryptionService encryptionService)
             : base(context, logger, null, null)
@@ -34,17 +40,38 @@ namespace Youverse.Core.Services.Transit
             return Task.FromResult(pkgId);
         }
 
-        public async Task<bool> AddItem(Guid pkgId, string name, Stream data)
+        public async Task<bool> AddPart(Guid pkgId, string name, Stream data)
         {
             if (!_packages.TryGetValue(pkgId, out var pkg))
             {
                 throw new Exception("Invalid package ID");
             }
 
-            if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
+            if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
+            {
+                var encryptedKeyHeader = await _encryptionService.ConvertTransferKeyHeaderStream(data);
+
+                initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
+
+                await _storageService.WriteKeyHeader(pkg.FileId, encryptedKeyHeader, StorageType.Temporary);
+                _partCounts[pkgId]++;
+            }
+            else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
             {
                 //todo: convert to streaming for memory reduction if needed.
-                string json = await new StreamReader(data).ReadToEndAsync();
+                if (null == initializationVector)
+                {
+                    throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
+                }
+                
+                byte[] encryptedBytes;
+                await using (var ms = new MemoryStream())
+                {
+                    await data.CopyToAsync(ms);
+                    encryptedBytes = ms.ToArray();
+                }
+
+                var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this.Context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
                 var list = JsonConvert.DeserializeObject<RecipientList>(json);
                 if (list?.Recipients?.Length <= 0)
                 {
@@ -52,19 +79,6 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 pkg.RecipientList = list;
-                _partCounts[pkgId]++;
-            }
-            else if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
-            {
-                string b64 = await new StreamReader(data).ReadToEndAsync();
-                var transferKeyHeader = Convert.FromBase64String(b64);
-                SecureKey encryptedKeyHeader = _encryptionService.ConvertTransferKeyHeader(transferKeyHeader);
-
-                var ms = new MemoryStream(encryptedKeyHeader.GetKey());
-                await _storageService.WritePartStream(pkg.FileId, FilePart.Header, ms, StorageType.Temporary);
-                await ms.DisposeAsync();
-                encryptedKeyHeader.Wipe();
-                
                 _partCounts[pkgId]++;
             }
             else

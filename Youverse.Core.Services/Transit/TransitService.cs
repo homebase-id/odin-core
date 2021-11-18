@@ -41,6 +41,14 @@ namespace Youverse.Core.Services.Transit
                 await _storage.MoveToLongTerm(package.FileId);
             }
 
+            //TODO: consider if the recipient transfer key header should go directly in the outbox
+            
+
+            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
+            //will read the transfer key during the background send process
+            var keyStatus = await this.PrepareTransferKeys(package);
+            
+            
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
             await _outboxService.Add(package.RecipientList.Recipients.Select(r => new OutboxItem()
@@ -48,11 +56,8 @@ namespace Youverse.Core.Services.Transit
                 FileId = package.FileId,
                 Recipient = r,
             }));
-
-            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
-            //will read the transfer key during the background send process
-            var keyStatus = await this.PrepareTransferKeys(package);
-
+            
+            
             var result = new TransferResult()
             {
                 FileId = package.FileId,
@@ -69,7 +74,7 @@ namespace Youverse.Core.Services.Transit
             Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
             _storage.MoveToLongTerm(fileId);
             
-            //
+            //TODO: app routing, app notificatino and so on
         }
 
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
@@ -82,7 +87,7 @@ namespace Youverse.Core.Services.Transit
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
-                    var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfNotCached: true);
+                    var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfInvalid: true);
                     if (null == recipientPublicKey)
                     {
                         AddToTransferKeyEncryptionQueue(recipient, package);
@@ -247,12 +252,12 @@ namespace Youverse.Core.Services.Transit
             return item?.Header;
         }
 
-        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfNotCached = true)
+        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
         {
             //TODO: optimize by reading a dictionary cache
             var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 
-            if ((tpk == null || !tpk.IsValid()) && lookupIfNotCached)
+            if ((tpk == null || !tpk.IsValid()) && lookupIfInvalid)
             {
                 var svc = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
                 var tpkResponse = await svc.GetTransitPublicKey();

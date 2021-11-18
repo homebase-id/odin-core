@@ -41,6 +41,7 @@ namespace Youverse.Core.Services.Transit
 
         public IEnumerable<DotYouIdentity> GetSenders()
         {
+            //todo: remove the entries that were returned
             return this._senders.Keys.ToArray();
         }
     }

@@ -4,7 +4,7 @@ using Youverse.Core.Cryptography;
 namespace Youverse.Core.Services.Base
 {
     /// <summary>
-    /// Context about the App making the request
+    /// Context about the App making the request.
     /// </summary>
     public class AppContext
     {
@@ -25,10 +25,12 @@ namespace Youverse.Core.Services.Base
         }
 
         public string DeviceUid => this._deviceUid;
+
         public string AppId => this._appId;
 
         /// <summary>
-        /// Returns the shared secret between the client app and the server
+        /// Returns the shared secret between the client app and
+        /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <returns></returns>
         public SecureKey GetSharedSecret()
@@ -37,10 +39,11 @@ namespace Youverse.Core.Services.Base
         }
 
         /// <summary>
-        /// Returns the encryption key specific to this app
+        /// Returns the encryption key specific to this app.  This is only available
+        /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public object GetAppEncryptionKey()
+        public SecureKey GetAppEncryptionKey()
         {
             return this._appEncryptionKey;
         }

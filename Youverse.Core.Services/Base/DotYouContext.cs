@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Base
         public DotYouIdentity HostDotYouId { get; }
 
         /// <summary>
-        /// Specifies the Certficate of the individual for this context instance.
+        /// Specifies the certificate of the individual for this context instance.
         /// </summary>
         public IdentityCertificate TenantCertificate { get; }
 

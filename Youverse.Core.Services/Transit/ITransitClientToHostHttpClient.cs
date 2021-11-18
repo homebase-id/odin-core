@@ -12,8 +12,8 @@ namespace Youverse.Core.Services.Transit
         [Multipart]
         [Post(ClientRootEndpoint + "/sendpackage")]
         Task<ApiResponse<TransferResult>> SendClientToHost(
-            [AliasAs("recipients")] RecipientList recipientList,
-            [AliasAs("tekh")] string transferEncryptedKeyHeader64,
+            [AliasAs("tekh")] StreamPart transferEncryptedKeyHeader,
+            [AliasAs("recipients")] StreamPart recipientList,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 

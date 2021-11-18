@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
@@ -53,12 +55,21 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        public SecureKey ConvertTransferKeyHeader(byte[] transferEncryptedKeyHeader)
+        public async Task<EncryptedKeyHeader> ConvertTransferKeyHeaderStream(Stream data)
         {
+            string json = await new StreamReader(data).ReadToEndAsync();
+            var transferEncryptedKeyHeader = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
+
+            if (null == transferEncryptedKeyHeader)
+            {
+                throw new InvalidDataException("Stream returned null EncryptedKeyHeader");
+            }
+            
             var sharedSecret = base.Context.AppContext.GetSharedSecret().GetKey();
-            //TODO: call decryption suing sharedSecret 
-            var bytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
-            return new SecureKey(bytes);
+            var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
+            
+            var appEncryptionKey = base.Context.AppContext.GetAppEncryptionKey().GetKey();
+            return EncryptedKeyHeader.EncryptKeyHeaderAes(kh, appEncryptionKey);
         }
     }
 }

@@ -268,9 +268,9 @@ namespace Youverse.Hosting
             );
 
             //TODO: load with correct app shared key 
-
+            //HACK: !!!
             var appEncryptionKey = new SecureKey(Guid.Empty.ToByteArray());
-            var sharedSecretKey = new SecureKey(Guid.Empty.ToByteArray());
+            var sharedSecretKey = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
             var appId = user.FindFirstValue(DotYouClaimTypes.AppId);
             var deviceUid = user.FindFirstValue(DotYouClaimTypes.DeviceUid);
             var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey);

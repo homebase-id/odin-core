@@ -10,6 +10,7 @@ namespace Youverse.Core.Cryptography
         {
             return new byte[] { (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
         }
+
         public static byte[] UInt64ToBytes(UInt64 i)
         {
             return new byte[] { (byte)(i >> 56 & 0xFF), (byte)(i >> 48 & 0xFF), (byte)(i >> 40 & 0xFF), (byte)(i >> 32 & 0xFF), (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
@@ -22,15 +23,28 @@ namespace Youverse.Core.Cryptography
             Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
             return ret;
         }
+
+        public static (byte[] part1, byte[] part2) Split(byte[] data, int len1, int len2)
+        {
+            var part1 = new byte[len1];
+            var part2 = new byte[len2];
+
+            Buffer.BlockCopy(data, 0, part1, 0, len1);
+            Buffer.BlockCopy(data, len1, part2, 0, len2);
+
+            return (part1, part2);
+        }
+
         public static byte[] Combine(byte[] first, byte[] second, byte[] third)
         {
             byte[] ret = new byte[first.Length + second.Length + third.Length];
-            Buffer.BlockCopy(first,  0, ret, 0, first.Length);
+            Buffer.BlockCopy(first, 0, ret, 0, first.Length);
             Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
-            Buffer.BlockCopy(third,  0, ret, first.Length + second.Length, third.Length);
+            Buffer.BlockCopy(third, 0, ret, first.Length + second.Length, third.Length);
 
             return ret;
         }
+
         public static string PrintByteArray(byte[] bytes)
         {
             var sb = new StringBuilder("new byte[] { ");
@@ -38,6 +52,7 @@ namespace Youverse.Core.Cryptography
             {
                 sb.Append(b + ", ");
             }
+
             sb.Append("}");
             return sb.ToString();
         }
@@ -59,7 +74,7 @@ namespace Youverse.Core.Cryptography
         {
             return new Guid(GetRndByteArray(16));
         }
-        
+
         /// <summary>
         /// Generates a cryptographically safe (?) array of random bytes. To be used for XORing private keys
         /// </summary>
@@ -86,7 +101,7 @@ namespace Youverse.Core.Cryptography
             if (ba1.Length != ba2.Length)
                 throw new ArgumentException("Byte arrays are not the same length");
 
-            int i = 0;        
+            int i = 0;
             while (i < ba1.Length)
             {
                 if (ba1[i] != ba2[i])
@@ -112,7 +127,7 @@ namespace Youverse.Core.Cryptography
             int i = 0;
             while (i < ba1.Length)
             {
-                ra[i] = (byte) (ba1[i] ^ ba2[i]);
+                ra[i] = (byte)(ba1[i] ^ ba2[i]);
                 i++;
             }
 
@@ -120,5 +135,3 @@ namespace Youverse.Core.Cryptography
         }
     }
 }
-
-

@@ -25,10 +25,10 @@ namespace Youverse.Core.Services.Transit
         Task<IDictionary<DotYouIdentity, EncryptedKeyHeader>> Encrypt(EncryptedKeyHeader originalHeader, IDictionary<DotYouIdentity, byte[]> recipientPublicKeys);
 
         /// <summary>
-        /// Creates an EncryptedKeyHeader from the TransferEncryptedKeyHeader for an incoming upload
+        /// Creates an EncryptedKeyHeader from the Transfer EncryptedKeyHeader for an incoming upload
         /// </summary>
-        /// <param name="transferEncryptedKeyHeader"></param>
+        /// <param name="transferEncryptedKeyHeaderStream"></param>
         /// <returns></returns>
-        SecureKey ConvertTransferKeyHeader(byte[] transferEncryptedKeyHeader);
+        Task<EncryptedKeyHeader> ConvertTransferKeyHeaderStream(Stream transferEncryptedKeyHeaderStream);
     }
 }
