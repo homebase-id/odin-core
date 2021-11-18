@@ -154,7 +154,10 @@ namespace Youverse.Core.Services.Storage
                 FilePart part = Enum.Parse<FilePart>(p);
                 var source = GetFilePath(fileId, part, StorageType.Temporary);
                 var dest = GetFilePath(fileId, part, StorageType.LongTerm, ensureExists: true);
+                
                 File.Move(source, dest);
+                
+                Logger.LogInformation($"File Moved to {dest}");
             }
 
             return Task.CompletedTask;

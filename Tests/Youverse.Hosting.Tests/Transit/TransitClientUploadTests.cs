@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests.Transit
                 //TODO: how do i check Pending Transfer Queue?
 
                 //try to hold out for the background job to process
-                System.Threading.Thread.Sleep(2 * 1000);
+                System.Threading.Thread.Sleep(5 * 1000);
 
                 //TODO: determine if we should check outgoing audit to show it was sent
                 // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
@@ -105,8 +105,8 @@ namespace Youverse.Hosting.Tests.Transit
 
             var data = Guid.Empty.ToByteArray();
             tp.TransferEncryptedKeyHeader = Convert.ToBase64String(data);
-            tp.Metadata = Stream.Null;
-            tp.Payload = Stream.Null;
+            tp.Metadata = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{metadata:true, message:'pie on sky}"));
+            tp.Payload = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{payload:true, image:'b64 data'}"));
             return tp;
         }
     }

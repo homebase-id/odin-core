@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
                 }
 
                 section = await reader.ReadNextSectionAsync();
-                expectedFilePart = GetNextExpectedFilePart(null);
+                expectedFilePart = GetNextExpectedFilePart(part);
             }
 
             if (!_perimeterService.IsFileValid(trackerId))

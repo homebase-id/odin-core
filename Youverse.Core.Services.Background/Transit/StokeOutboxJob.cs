@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using Refit;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.Workers.Transit
@@ -32,14 +33,8 @@ namespace Youverse.Core.Services.Workers.Transit
             var senders = _pendingTransfers.GetSenders();
             foreach (var sender in senders)
             {
-                var b = new UriBuilder()
-                {
-                    Scheme = "https",
-                    Host = sender,
-                };
-
                 //TODO: do this in parallel
-                StokeOutbox(b.Uri);
+                StokeOutbox(sender);
             }
 
             return Task.CompletedTask;
@@ -58,14 +53,20 @@ namespace Youverse.Core.Services.Workers.Transit
             this._client = new HttpClient();
         }
 
-        private async Task StokeOutbox(object? uri)
+        private async Task StokeOutbox(DotYouIdentity sender)
         {
-            var withPath = new Uri((Uri) uri, "/api/transit/background/stoke");
-            _logger.LogInformation($"Stoke running for {withPath.ToString()}");
-            Console.WriteLine($"Stoke running for {withPath.ToString()}");
-            // var request = new HttpRequestMessage(HttpMethod.Post, withPath);
-            // var response = _client.Send(request);
-
+            
+            var uri = new UriBuilder()
+            {
+                Scheme = "https",
+                Host = sender
+            }.Uri;
+            
+            
+            _logger.LogInformation($"Stoke running for {sender}");
+            
+            _client.BaseAddress = uri;
+            
             var svc = RestService.For<ITransitClientToHostHttpClient>(_client);
             var response = await svc.ProcessOutbox();
             //TODO: needs information to determine if it should stoke again; and when

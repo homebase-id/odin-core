@@ -152,14 +152,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 throw new InvalidDataException("Corresponding part has been rejected");
             }
 
-            if (tracker.HasAcquiredQuarantinedPart())
+            if (tracker.HasAcquiredQuarantinedPart()) 
             {
                 //quarantine the rest
                 return await QuarantinePart(tracker, part, data);
             }
 
             var filterResponse = await _quarantineService.ApplyFirstStageFilters(tracker.Id, part, data);
-
+    
             switch (filterResponse.Code)
             {
                 case FinalFilterAction.Accepted:
@@ -236,7 +236,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             }
-            
+
             return new TransitPublicKey
             {
                 PublicKey = key.publicKey,
@@ -244,7 +244,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 Crc = key.crc32c
             };
         }
-        
+
         private async Task<RsaKeyListData> GenerateRsaKeyList()
         {
             //HACK: need to refactor this when storage is rebuilt 
@@ -256,7 +256,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             return rsaKeyList;
         }
-        
+
         private async Task<RsaKeyListData> GetRsaKeyList()
         {
             var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
@@ -282,7 +282,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
             //remove all other file parts
-            _fileStorage.Delete(tracker.FileId.GetValueOrDefault());
+            _fileStorage.Delete(tracker.FileId.GetValueOrDefault(), StorageType.Temporary);
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -316,7 +316,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 tracker.SetFileId(_fileStorage.CreateId());
             }
 
-            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data);
+            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data, StorageType.Temporary);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()

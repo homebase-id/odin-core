@@ -65,7 +65,11 @@ namespace Youverse.Core.Services.Transit
         public void Accept(Guid trackerId, Guid fileId)
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
-            throw new NotImplementedException();
+
+            Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
+            _storage.MoveToLongTerm(fileId);
+            
+            //
         }
 
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
@@ -117,7 +121,7 @@ namespace Youverse.Core.Services.Transit
             */
             var appEncryptionKey = this.Context.AppContext.GetAppEncryptionKey();
 
-            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
+            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {
                 EncryptionVersion = 1,
@@ -202,7 +206,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
-                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
+                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
