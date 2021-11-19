@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -73,7 +74,7 @@ namespace Youverse.Core.Services.Transit
 
                 var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this.Context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
                 var list = JsonConvert.DeserializeObject<RecipientList>(json);
-                if (list?.Recipients?.Length <= 0)
+                if (list?.Recipients.Count <= 0)
                 {
                     throw new Exception("No recipients specified");
                 }

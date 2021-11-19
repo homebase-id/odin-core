@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Tests.Transit
@@ -72,7 +74,7 @@ namespace Youverse.Hosting.Tests.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList { Recipients = new[] { _scaffold.Frodo } };
+            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { _scaffold.Frodo } };
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var x = JsonConvert.DeserializeObject<RecipientList>(recipientJson);
