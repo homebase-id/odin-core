@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 
+#nullable enable
 namespace Youverse.Core.Services.Transit.Background
 {
     public class BackgroundOutboxTransferService : IHostedService, IDisposable
@@ -16,7 +17,7 @@ namespace Youverse.Core.Services.Transit.Background
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BackgroundOutboxTransferService> _logger;
         private readonly Dictionary<DotYouIdentity, Timer> _timers = new();
-        private HttpClient _client;
+        private HttpClient? _client;
 
         public BackgroundOutboxTransferService(ILogger<BackgroundOutboxTransferService> logger, IServiceProvider serviceProvider)
         {
@@ -89,15 +90,18 @@ namespace Youverse.Core.Services.Transit.Background
 
         private void StokeOutbox(object? uri)
         {
-            var withPath = new Uri((Uri)uri, "/api/transit/background/stoke");
-            Console.WriteLine($"Stoke running for {withPath.ToString()}");
-            var request = new HttpRequestMessage(HttpMethod.Post, withPath);
-            var response = _client.Send(request);
-
-            if (!response.IsSuccessStatusCode)
+            if (uri != null && _client != null)
             {
-                Console.WriteLine($"Background stoking for [{uri}] failed.");
-                _logger.LogWarning($"Background stoking for [{uri}] failed.");
+                var withPath = new Uri((Uri)uri, "/api/transit/background/stoke");
+                Console.WriteLine($"Stoke running for {withPath.ToString()}");
+                var request = new HttpRequestMessage(HttpMethod.Post, withPath);
+                var response = _client!.Send(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Background stoking for [{uri}] failed.");
+                    _logger.LogWarning($"Background stoking for [{uri}] failed.");
+                }
             }
         }
     }

@@ -30,7 +30,7 @@ namespace Youverse.Core.Cryptography.Tests
             {
                 var rsaList = RsaKeyListManagement.CreateRsaKeyList(0);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Pass();
                 return;
@@ -46,7 +46,7 @@ namespace Youverse.Core.Cryptography.Tests
             {
                 var rsaList = RsaKeyListManagement.CreateRsaKeyList(1, 23);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Pass();
                 return;

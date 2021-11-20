@@ -60,7 +60,7 @@ namespace Youverse.Core.Cryptography.Tests
             {
                 var key = RsaKeyManagement.CreateKey(0);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Pass();
                 return;
@@ -135,7 +135,7 @@ namespace Youverse.Core.Cryptography.Tests
             {
                 byte[] cipher2 = RsaKeyManagement.Encrypt(key, toEncryptData2, true);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Pass();
                 return;
