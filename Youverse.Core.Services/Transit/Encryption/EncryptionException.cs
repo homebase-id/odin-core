@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Encryption
 {
     public class EncryptionException : Exception
     {

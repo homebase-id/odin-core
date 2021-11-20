@@ -9,6 +9,9 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
+using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -178,7 +181,9 @@ namespace Youverse.Core.Services.Transit
                     var item = new OutboxItem()
                     {
                         Recipient = sendResult.Recipient,
-                        FileId = sendResult.FileId
+                        FileId = sendResult.FileId,
+                        AppId = this.Context.AppContext.AppId,
+                        DeviceUid = this.Context.AppContext.DeviceUid
                     };
 
                     _outboxService.Add(item, sendResult.FailureReason.GetValueOrDefault());
@@ -215,7 +220,7 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                var client = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
+                var client = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient);
                 var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
@@ -259,7 +264,7 @@ namespace Youverse.Core.Services.Transit
 
             if ((tpk == null || !tpk.IsValid()) && lookupIfInvalid)
             {
-                var svc = base.CreatePerimeterHttpClient<ITransitHostToHostHttpClient>(recipient);
+                var svc = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient);
                 var tpkResponse = await svc.GetTransitPublicKey();
 
                 if (tpkResponse.Content != null && (!tpkResponse.IsSuccessStatusCode || !tpkResponse.Content.IsValid()))
@@ -274,23 +279,5 @@ namespace Youverse.Core.Services.Transit
 
             return tpk;
         }
-    }
-
-
-    /// <summary>
-    /// The encrypted version of the KeyHeader for a given recipient
-    /// which as been encrypted using the RecipientTransitPublicKey
-    /// </summary>
-    public class EncryptedRecipientTransferKeyHeader
-    {
-        public int EncryptionVersion { get; set; }
-        public byte[] Data { get; set; }
-    }
-
-    public class RecipientTransferKeyHeaderItem
-    {
-        public Guid FileId { get; set; }
-        public DotYouIdentity Recipient { get; set; }
-        public EncryptedRecipientTransferKeyHeader Header { get; set; }
     }
 }

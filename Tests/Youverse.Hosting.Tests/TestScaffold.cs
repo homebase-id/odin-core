@@ -36,6 +36,9 @@ namespace Youverse.Hosting.Tests
         public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
         public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
 
+        public string AppId = "WebApiTests";
+        public string DeviceUid = "WebApiTestsDeviceUid";
+
         public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
         public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
         public string LogFilePath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
@@ -190,8 +193,8 @@ namespace Youverse.Hosting.Tests
                 client = new(handler);
             }
             
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, "WebApiTests");
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, "WebApiTestsDevice");
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 

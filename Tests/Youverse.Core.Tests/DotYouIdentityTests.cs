@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Tests
 {

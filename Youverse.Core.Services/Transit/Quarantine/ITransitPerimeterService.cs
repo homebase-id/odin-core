@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {

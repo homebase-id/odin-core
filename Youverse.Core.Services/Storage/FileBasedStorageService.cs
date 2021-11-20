@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.Util;
 

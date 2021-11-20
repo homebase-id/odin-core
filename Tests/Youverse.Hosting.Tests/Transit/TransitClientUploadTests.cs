@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -9,6 +10,8 @@ using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.Transit
 {
@@ -88,14 +91,13 @@ namespace Youverse.Hosting.Tests.Transit
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
-                var transitSvc = RestService.For<ITransitClientToHostHttpClient>(client);
+                var transitSvc = RestService.For<ITransitHttpClient>(client);
 
-                var response = await transitSvc.SendClientToHost(
+                var response = await transitSvc.SendFile(
                     new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
                     new StreamPart(recipientCipher, "recipientlist.encrypted", "application/json", "recipients"),
                     new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
-
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
@@ -103,13 +105,26 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
-
                 Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
 
-                //TODO: how do i check the outbox queue
+                //there should be a record in the outbox for this transfer
+                var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
+                Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
 
-                //TODO: How do i check the transfer key was populated?
+                //In this test framework, we sent one item so there
+                //should be one item in the outbox.  Be sure the outbox
+                //processor is not enabled
+                var outboxItems = outboxItemsResponse.Content;
+                Assert.IsNotNull(outboxItems);
+                Assert.IsTrue(outboxItems.Results.Count == 1);
 
+                var item = outboxItems.Results.First();
+
+                Assert.IsTrue(item.Recipient == _scaffold.Frodo);
+                Assert.IsTrue(item.AppId == _scaffold.AppId);
+                Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);
+
+                //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
                 //TODO: how do i check Pending Transfer Queue?
 
                 //try to hold out for the background job to process
@@ -149,18 +164,24 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
         [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientExpiredPublic() { }
-        
+        public async Task TestCanRecoverFromRecipientExpiredPublic()
+        {
+        }
+
         [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientNotConnected() { }
-        
+        public async Task TestCanRecoverFromRecipientNotConnected()
+        {
+        }
+
         [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientServerDown() { }
-        
-        
-        [Test(Description = "")]
-        public async Task CanGetOutboxList() { }
+        public async Task TestCanRecoverFromRecipientServerDown()
+        {
+        }
 
 
+        [Test(Description = "")]
+        public async Task CanGetOutboxList()
+        {
+        }
     }
 }

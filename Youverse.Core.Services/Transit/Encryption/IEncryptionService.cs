@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Profile;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Encryption
 {
     public interface IEncryptionService
     {

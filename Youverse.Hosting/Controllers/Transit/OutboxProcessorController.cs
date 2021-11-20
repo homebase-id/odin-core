@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Hosting.Security;
 
 namespace Youverse.Hosting.Controllers.Transit
@@ -14,11 +15,10 @@ namespace Youverse.Hosting.Controllers.Transit
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
-    [Route("/api/transit/background/outbox")]
+    [Route("/api/transit/client/outbox/processor")]
 
     //TODO: !!! need to add a certificate for the system to make calls into itself
     //[Authorize(Policy = DotYouPolicyNames.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]
-    //[Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class OutboxProcessorController : ControllerBase
     {
         private readonly ILogger<OutboxProcessorController> _logger;

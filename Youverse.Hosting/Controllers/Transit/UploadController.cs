@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Security;
 
 namespace Youverse.Hosting.Controllers.Transit

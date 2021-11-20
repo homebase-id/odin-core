@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Outbox
 {
     /// <summary>
     /// Items in the outbox for a given tenant
@@ -38,5 +38,22 @@ namespace Youverse.Core.Services.Transit
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task Remove(DotYouIdentity recipient, Guid fileId);
+
+        Task<OutboxItem> GetItem(Guid id);
+
+        /// <summary>
+        /// Removes an item from the outbox.  This does notify the <see cref="PendingTransfersService"/>.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        Task RemoveItem(Guid id);
+
+        /// <summary>
+        /// Updates the priority of a given <see cref="OutboxItem"/>
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="priority"></param>
+        /// <returns></returns>
+        Task UpdatePriority(Guid id, int priority);
     }
 }

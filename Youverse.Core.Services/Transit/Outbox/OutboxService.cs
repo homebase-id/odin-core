@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Outbox
 {
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Transit
             {
                 this.Add(item);
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -79,10 +79,28 @@ namespace Youverse.Core.Services.Transit
         public async Task Remove(DotYouIdentity recipient, Guid fileId)
         {
             //TODO: need to make a better queue here
-            Expression<Func<OutboxItem, bool>> predicate = item => item.Recipient == recipient && item.FileId == fileId;
+            Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.FileId == fileId;
             var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s=>s.Delete(item.Id));
+            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
+        }
 
+        public async Task<OutboxItem> GetItem(Guid id)
+        {
+            var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(id));
+            return item;
+        }
+
+        public Task RemoveItem(Guid id)
+        {
+            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
+            return Task.CompletedTask;
+        }
+
+        public async Task UpdatePriority(Guid id, int priority)
+        {
+            var item = await this.GetItem(id);
+            item.Priority = priority;
+            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
         }
     }
 }

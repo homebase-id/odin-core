@@ -6,6 +6,7 @@ using Quartz;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Core.Services.Workers.Transit
 {
@@ -67,7 +68,7 @@ namespace Youverse.Core.Services.Workers.Transit
             
             _client.BaseAddress = uri;
             
-            var svc = RestService.For<ITransitClientToHostHttpClient>(_client);
+            var svc = RestService.For<ITransitHttpClient>(_client);
             var response = await svc.ProcessOutbox();
             //TODO: needs information to determine if it should stoke again; and when
 

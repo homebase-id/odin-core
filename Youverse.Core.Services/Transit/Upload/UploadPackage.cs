@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Upload
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients

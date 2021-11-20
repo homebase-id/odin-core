@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Encryption
 {
     public class EncryptionService : DotYouServiceBase, IEncryptionService
     {

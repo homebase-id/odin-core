@@ -19,6 +19,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;

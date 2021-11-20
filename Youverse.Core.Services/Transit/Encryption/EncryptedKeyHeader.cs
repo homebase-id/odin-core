@@ -1,17 +1,8 @@
-using System;
 using System.IO;
-using System.Security.Cryptography;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Encryption
 {
-    public enum EncryptionType
-    {
-        Aes = 11,
-        Rsa = 22
-    }
-
     public class EncryptedKeyHeader
     {
         public int EncryptionVersion { get; set; }
@@ -48,28 +39,6 @@ namespace Youverse.Core.Services.Transit
                 Type = EncryptionType.Aes,
                 Iv = keyHeader.Iv,
                 Data = data
-            };
-        }
-    }
-
-    public class KeyHeader
-    {
-        public byte[] Iv { get; set; }
-
-        public SecureKey AesKey { get; set; }
-
-        public SecureKey Combine()
-        {
-            return new SecureKey(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
-        }
-
-        public static KeyHeader FromCombinedBytes(byte[] data, int ivLength, int keyLength)
-        {
-            var (p1, p2) = ByteArrayUtil.Split(data, ivLength, keyLength);
-            return new KeyHeader()
-            {
-                Iv = p1,
-                AesKey = new SecureKey(p2)
             };
         }
     }

@@ -1,19 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Upload
 {
     public class MultipartPackageStorageWriter : DotYouServiceBase, IMultipartPackageStorageWriter
     {

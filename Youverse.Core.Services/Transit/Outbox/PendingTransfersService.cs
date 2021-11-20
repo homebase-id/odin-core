@@ -2,24 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Outbox
 {
-    /// <summary>
-    /// A global queue (singleton) list of senders who need
-    /// their outboxes stoked (sounds kinky =)
-    /// </summary>
-    public interface IPendingTransfersService
-    {
-        /// <summary>
-        /// Adds the <see cref="DotYouIdentity"/> to the pending transfer queue to be processed by the background job
-        /// </summary>
-        public void EnsureSenderIsPending(DotYouIdentity sender);
-
-        public IEnumerable<DotYouIdentity> GetSenders();
-    }
-
     public class PendingTransfersService : IPendingTransfersService
     {
         private readonly ILogger<IPendingTransfersService> _logger;
@@ -44,15 +29,5 @@ namespace Youverse.Core.Services.Transit
             //todo: remove the entries that were returned
             return this._senders.Keys.ToArray();
         }
-    }
-
-    /// <summary>
-    /// Items that needs to be transferred
-    /// </summary>
-    public class PendingTransferQueueItem
-    {
-        public DotYouIdentity Sender { get; set; }
-
-        public System.UInt64 AddedTimeStamp { get; set; }
     }
 }

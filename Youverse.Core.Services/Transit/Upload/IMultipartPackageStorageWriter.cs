@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Transit.Upload
 {
     /// <summary>
     /// Enables the staging of outgoing data for a given tenant before it transferred.  This handles

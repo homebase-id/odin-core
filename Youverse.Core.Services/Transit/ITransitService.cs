@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit
 {
