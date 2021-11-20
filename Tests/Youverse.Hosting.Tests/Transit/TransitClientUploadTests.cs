@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { _scaffold.Frodo } };
+            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var x = JsonConvert.DeserializeObject<RecipientList>(recipientJson);
@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Tests.Transit
 
                 //TODO: how do i check the outbox queue
 
-                //TODO: How do i check the transfer key was populates?
+                //TODO: How do i check the transfer key was populated?
 
                 //TODO: how do i check Pending Transfer Queue?
 
@@ -147,5 +147,20 @@ namespace Youverse.Hosting.Tests.Transit
              * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
              */
         }
+
+        [Test(Description = "")]
+        public async Task TestCanRecoverFromRecipientExpiredPublic() { }
+        
+        [Test(Description = "")]
+        public async Task TestCanRecoverFromRecipientNotConnected() { }
+        
+        [Test(Description = "")]
+        public async Task TestCanRecoverFromRecipientServerDown() { }
+        
+        
+        [Test(Description = "")]
+        public async Task CanGetOutboxList() { }
+
+
     }
 }

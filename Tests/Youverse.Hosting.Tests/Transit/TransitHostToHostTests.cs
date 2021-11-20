@@ -43,6 +43,8 @@ namespace Youverse.Hosting.Tests.Transit
             Assert.Inconclusive("TODO");
         }
 
+        [Test(Description = "")]
+        public async Task TestCanRecoverFromRecipientServerOffline() { }
         
     }
 }
