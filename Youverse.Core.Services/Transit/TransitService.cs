@@ -45,12 +45,11 @@ namespace Youverse.Core.Services.Transit
             }
 
             //TODO: consider if the recipient transfer key header should go directly in the outbox
-            
+
 
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
             var keyStatus = await this.PrepareTransferKeys(package);
-            
             
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
@@ -58,9 +57,10 @@ namespace Youverse.Core.Services.Transit
             {
                 FileId = package.FileId,
                 Recipient = r,
+                AppId = this.Context.AppContext.AppId,
+                DeviceUid = this.Context.AppContext.DeviceUid
             }));
-            
-            
+
             var result = new TransferResult()
             {
                 FileId = package.FileId,
@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Transit
 
             Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
             _storage.MoveToLongTerm(fileId);
-            
+
             //TODO: app routing, app notificatino and so on
         }
 
@@ -129,7 +129,7 @@ namespace Youverse.Core.Services.Transit
             */
             var appEncryptionKey = this.Context.AppContext.GetAppEncryptionKey();
 
-            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
+            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {
                 EncryptionVersion = 1,

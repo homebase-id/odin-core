@@ -60,7 +60,7 @@ namespace Youverse.Hosting
             
             services.AddQuartzServer(options =>
             {
-                //options.StartDelay = TimeSpan.FromSeconds(30);
+                options.StartDelay = TimeSpan.FromSeconds(config.BackgroundJobStartDelaySeconds);
                 options.WaitForJobsToComplete = true;
             });
 

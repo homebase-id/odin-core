@@ -12,17 +12,16 @@ namespace Youverse.Core.Services.Workers.Transit
         {
             var jobKey = new JobKey(nameof(StokeOutboxJob), "Transit");
             quartz.AddJob<StokeOutboxJob>(options => { options.WithIdentity(jobKey); });
-            
+
             var triggerKey = new TriggerKey(jobKey.Name + "-trigger");
             quartz.AddTrigger(config =>
             {
                 config.ForJob(jobKey);
                 config.WithIdentity(triggerKey);
-                config.WithSimpleSchedule(schedule =>
-                    schedule
-                        .WithRepeatCount(100)
-                        .WithInterval(TimeSpan.FromSeconds(5))
-                        .WithMisfireHandlingInstructionNextWithRemainingCount());
+                config.WithSimpleSchedule(schedule => schedule
+                    .WithRepeatCount(100)
+                    .WithInterval(TimeSpan.FromSeconds(5))
+                    .WithMisfireHandlingInstructionNextWithRemainingCount());
             });
         }
     }

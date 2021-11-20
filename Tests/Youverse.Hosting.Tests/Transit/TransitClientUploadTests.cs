@@ -119,7 +119,6 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(outboxItems.Results.Count == 1);
 
                 var item = outboxItems.Results.First();
-
                 Assert.IsTrue(item.Recipient == _scaffold.Frodo);
                 Assert.IsTrue(item.AppId == _scaffold.AppId);
                 Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);

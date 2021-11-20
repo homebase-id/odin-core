@@ -37,5 +37,10 @@ namespace Youverse.Hosting
             get => _logFilePath;
             set => _logFilePath = PathUtil.OsIfy(value);
         }
+        
+        /// <summary>
+        /// Number of seconds to delay starting the background processing jobs
+        /// </summary>
+        public int BackgroundJobStartDelaySeconds { get; set; }
     }
 }
