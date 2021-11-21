@@ -54,13 +54,13 @@ namespace Youverse.Hosting
                 // {
                 //     options.MaxConcurrency = 10; //TODO: good idea?
                 // });
-            
-                q.UseDefaultTransitSchedule();
+
+                q.UseDefaultTransitOutboxSchedule(config.BackgroundJobStartDelaySeconds);
             });
-            
+
             services.AddQuartzServer(options =>
             {
-                options.StartDelay = TimeSpan.FromSeconds(config.BackgroundJobStartDelaySeconds);
+                //options.StartDelay = TimeSpan.FromSeconds(config.BackgroundJobStartDelaySeconds);
                 options.WaitForJobsToComplete = true;
             });
 
@@ -114,7 +114,7 @@ namespace Youverse.Hosting
 
             //TODO: this service is one of the only singletons because it's used by the 
             services.AddYouVerseScopedServices();
-            
+
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
 
@@ -256,7 +256,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
@@ -270,8 +270,15 @@ namespace Youverse.Hosting
         private void AssertValidConfiguration(Config cfg)
         {
             Guard.Argument(cfg, nameof(cfg)).NotNull();
-            Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
-            Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();
+
+            //HACK: until I merge with Seb Autofac 
+            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
+            if (useLocalReg == false)
+            {
+                Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
+                Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();
+            }
+
             Guard.Argument(cfg.TenantDataRootPath, nameof(cfg.TenantDataRootPath)).NotNull().NotEmpty();
             Guard.Argument(cfg.TempTenantDataRootPath, nameof(cfg.TempTenantDataRootPath)).NotNull().NotEmpty();
         }

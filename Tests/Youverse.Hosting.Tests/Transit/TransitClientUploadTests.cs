@@ -80,8 +80,6 @@ namespace Youverse.Hosting.Tests.Transit
             var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
-            var x = JsonConvert.DeserializeObject<RecipientList>(recipientJson);
-
             var recipientCipher = GetAppSharedSecretEncryptedStream(recipientJson, ekh.Iv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
@@ -129,9 +127,6 @@ namespace Youverse.Hosting.Tests.Transit
                 //try to hold out for the background job to process
                 System.Threading.Thread.Sleep(5 * 1000);
 
-                //TODO: determine if we should check outgoing audit to show it was sent
-                // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
-                // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
@@ -155,6 +150,11 @@ namespace Youverse.Hosting.Tests.Transit
             // }
 
 
+            //TODO: determine if we should check outgoing audit to show it was sent
+            // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
+            // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
+
+            
             /*
              *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
              * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
@@ -162,25 +162,21 @@ namespace Youverse.Hosting.Tests.Transit
              */
         }
 
-        [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientExpiredPublic()
-        {
-        }
+        // [Test(Description = "")]
+        // public async Task TestCanRecoverFromRecipientExpiredPublic()
+        // {
+        // }
+        //
+        // [Test(Description = "")]
+        // public async Task TestCanRecoverFromRecipientNotConnected()
+        // {
+        // }
+        //
+        // [Test(Description = "")]
+        // public async Task TestCanRecoverFromRecipientServerDown()
+        // {
+        // }
 
-        [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientNotConnected()
-        {
-        }
 
-        [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientServerDown()
-        {
-        }
-
-
-        [Test(Description = "")]
-        public async Task CanGetOutboxList()
-        {
-        }
     }
 }

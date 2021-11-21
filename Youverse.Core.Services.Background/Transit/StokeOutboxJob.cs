@@ -56,7 +56,6 @@ namespace Youverse.Core.Services.Workers.Transit
 
         private async Task StokeOutbox(DotYouIdentity sender)
         {
-            
             var uri = new UriBuilder()
             {
                 Scheme = "https",

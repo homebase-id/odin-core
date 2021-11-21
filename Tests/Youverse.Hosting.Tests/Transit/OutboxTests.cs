@@ -30,25 +30,25 @@ namespace Youverse.Hosting.Tests.Transit
             _scaffold.RunAfterAnyTests();
         }
 
-        [Test(Description = "")]
-        public async Task CanGetOutboxList()
-        {
-        }
-
-
-        [Test(Description = "")]
-        public async Task CanRemoveOutboxItem()
-        {
-        }
-
-        [Test(Description = "")]
-        public async Task CanGetOutboxItem()
-        {
-        }
-
-        [Test(Description = "")]
-        public async Task CanUpdateOutboxItemPriority()
-        {
-        }
+        //[Test(Description = "")]
+        // public async Task CanGetOutboxList()
+        // {
+        // }
+        //
+        //
+        // [Test(Description = "")]
+        // public async Task CanRemoveOutboxItem()
+        // {
+        // }
+        //
+        // [Test(Description = "")]
+        // public async Task CanGetOutboxItem()
+        // {
+        // }
+        //
+        // [Test(Description = "")]
+        // public async Task CanUpdateOutboxItemPriority()
+        // {
+        // }
     }
 }
