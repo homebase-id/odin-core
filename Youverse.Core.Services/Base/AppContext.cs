@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Dawn;
 using Youverse.Core.Cryptography;
 
@@ -12,8 +13,9 @@ namespace Youverse.Core.Services.Base
         private readonly SecureKey _appSharedSecret;
         private readonly string _appId;
         private readonly string _deviceUid;
+        private readonly bool _isAdminApp;
 
-        public AppContext(string appId, string deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret)
+        public AppContext(string appId, string deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret, bool isAdminApp)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -21,6 +23,7 @@ namespace Youverse.Core.Services.Base
             this._appId = appId;
             this._appEncryptionKey = appEncryptionKey;
             this._appSharedSecret = appSharedSecret;
+            _isAdminApp = isAdminApp;
             this._deviceUid = deviceUid;
         }
 
@@ -46,6 +49,11 @@ namespace Youverse.Core.Services.Base
         public SecureKey GetAppEncryptionKey()
         {
             return this._appEncryptionKey;
+        }
+
+        public bool IsAdminApp()
+        {
+            return _isAdminApp;
         }
     }
 }

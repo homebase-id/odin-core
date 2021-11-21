@@ -31,8 +31,6 @@ namespace Youverse.Hosting
 {
     public class Startup
     {
-        const string YouFoundationIssuer = "YouFoundation";
-
         private IConfiguration Configuration { get; }
 
         public Startup(IConfiguration configuration)
@@ -214,12 +212,14 @@ namespace Youverse.Hosting
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
+                new Claim(DotYouClaimTypes.IsAdminApp, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
-                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
             };
 
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));

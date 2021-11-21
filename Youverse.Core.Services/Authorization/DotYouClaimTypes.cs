@@ -7,6 +7,8 @@ namespace Youverse.Core.Services.Authorization
     /// </summary>
     public static class DotYouClaimTypes
     {
+        public static string YouFoundationIssuer = "YouFoundation";
+
         public static string LoginDek = "https://schemas.youfoundation.id/2021/3/identity/LoginToken";
         
         public static string AppId = "https://schemas.youfoundation.id/2021/11/apps/AppId";
@@ -29,5 +31,8 @@ namespace Youverse.Core.Services.Authorization
         public static string Actor = "https://schemas.youfoundation.id/2021/3/identity/Actor";
 
         public static string PublicKeyCertificate = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
+        
+        public static string IsAdminApp = "https://schemas.youfoundation.id/2021/3/identity/IsAdminApp";
+
     }
 }

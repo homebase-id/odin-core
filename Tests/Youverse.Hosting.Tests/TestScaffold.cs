@@ -172,7 +172,7 @@ namespace Youverse.Hosting.Tests
 
 
         //Note: ignoreAuth flag added for testing on mac Until we support RSACng
-        public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false)
+        public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false, bool runAsAdminApp = false, Dictionary<string, string> additionalHeaders = null)
         {
             Console.WriteLine("CreateHttpClient");
 
@@ -195,6 +195,21 @@ namespace Youverse.Hosting.Tests
             
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
+            
+            if (runAsAdminApp)
+            {
+                //HACK until we figure out how to identify admin app
+                client.DefaultRequestHeaders.Add("UNIT_TEST_IS_APP_ADMIN", "d43da139-fd58-FF##c-ae8d-fa252a838e09");
+            }
+
+            if (additionalHeaders != null)
+            {
+                foreach(var hrd in additionalHeaders)
+                {
+                    client.DefaultRequestHeaders.Add(hrd.Key, hrd.Value);
+                }
+            }
+            
             client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 

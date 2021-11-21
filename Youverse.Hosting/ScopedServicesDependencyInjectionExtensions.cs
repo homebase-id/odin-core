@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Net.Cache;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,8 +69,8 @@ namespace Youverse.Hosting
                         ResolveLogger<OwnerAuthenticationService>(svc),
                         ResolveOwnerSecretService(svc));
                 });
-            
-            
+
+
             services.AddScoped<IProfileService, ProfileService>(svc =>
             {
                 return new ProfileService(
@@ -76,7 +78,7 @@ namespace Youverse.Hosting
                     ResolveLogger<ProfileService>(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });
-            
+
 
             services.AddScoped<IAppRegistrationService, AppRegistrationService>(svc =>
             {
@@ -86,7 +88,7 @@ namespace Youverse.Hosting
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });
-            
+
 
             services.AddScoped<ICircleNetworkService, CircleNetworkService>(svc =>
             {
@@ -257,13 +259,11 @@ namespace Youverse.Hosting
             string hostname = httpContext.Request.Host.Host;
             var cert = reg.ResolveCertificate(hostname);
             var storage = reg.ResolveStorageConfig(hostname);
-
             var user = httpContext.User;
 
             //TODO: is there a way to delete the claim's reference to they kek?
             var kek = user.FindFirstValue(DotYouClaimTypes.LoginDek);
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
-
             var caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
@@ -274,12 +274,25 @@ namespace Youverse.Hosting
             //HACK: !!!
             var appEncryptionKey = new SecureKey(Guid.Empty.ToByteArray());
             var sharedSecretKey = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
-            var appId = user.FindFirstValue(DotYouClaimTypes.AppId);
-            var deviceUid = user.FindFirstValue(DotYouClaimTypes.DeviceUid);
-            var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey);
+            var appId = user.GetYouverseClaimValue(DotYouClaimTypes.AppId);
+            var deviceUid = user.GetYouverseClaimValue(DotYouClaimTypes.DeviceUid);
+            bool isAdminApp = bool.Parse(user.GetYouverseClaimValue(DotYouClaimTypes.IsAdminApp));
+            
+            var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp);
             var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller, app);
 
             return context;
+        }
+
+        private static string GetYouverseClaimValue(this ClaimsPrincipal user, string name)
+        {
+            var claim = user.FindFirst(name);
+            if (claim?.Issuer != DotYouClaimTypes.YouFoundationIssuer)
+            {
+                throw new InvalidDataException("Invalid Claim Issuer");
+            }
+
+            return claim?.Value;
         }
 
         private static ILogger<T> ResolveLogger<T>(IServiceProvider svc)

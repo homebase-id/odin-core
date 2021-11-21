@@ -44,11 +44,9 @@ namespace Youverse.Hosting.Security.Authentication
             Context.Response.Redirect(b.ToString());
             return Task.CompletedTask;
         }
-
-
+        
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            const string YouFoundationIssuer = "YouFoundation";
 
             Guid sessionToken;
             if (GetToken(out sessionToken))
@@ -57,7 +55,7 @@ namespace Youverse.Hosting.Security.Authentication
 
                 if (await authService.IsValidToken(sessionToken))
                 {
-                    var (appId, deviceUid) = ValidateDeviceApp();
+                    var (appId, deviceUid, isAdminApp) = ValidateDeviceApp();
                     
                     //TODO: this needs to be pulled from context rather than the domain
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
@@ -68,15 +66,18 @@ namespace Youverse.Hosting.Security.Authentication
                     var loginDek = await authService.GetLoginDek(sessionToken, r?.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
+                    //HACK: todo determine how to distinguish our admin app from other apps
+                    
                     var claims = new List<Claim>()
                     {
-                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, YouFoundationIssuer),
-                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, YouFoundationIssuer)
+                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsAdminApp, isAdminApp.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
                     };
 
                     var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);
@@ -101,7 +102,7 @@ namespace Youverse.Hosting.Security.Authentication
         /// Validates the deviceUid and the appid for this request.  If valid, returns the appId and deviceUid
         /// </summary>
         /// <returns></returns>
-        private (string appId, string deviceUid) ValidateDeviceApp()
+        private (string appId, string deviceUid, bool isAdminApp) ValidateDeviceApp()
         {
             //TODO: this needs to be moved to a central location so certificate auth can use it too
             string appId = Context.Request.Headers[DotYouHeaderNames.AppId];
@@ -112,7 +113,18 @@ namespace Youverse.Hosting.Security.Authentication
             
             //TODO call to app service to validate 
             
-            return (appId, deviceUid);
+            
+            //HACK: need to determine how we ensure this is our admin app
+            bool isAdminApp = false;
+
+            //HACK: let the unit test set them selves as the admin app 
+            string hack = "UNIT_TEST_IS_APP_ADMIN";
+            if (base.Context.Request.Headers.ContainsKey(hack))
+            {
+                isAdminApp = base.Context.Request.Headers[hack] == "d43da139-fd58-FF##c-ae8d-fa252a838e09";
+            }
+
+            return (appId, deviceUid, isAdminApp);
         }
 
         private DotYouAuthenticationResult? GetAuthenticationResult()
