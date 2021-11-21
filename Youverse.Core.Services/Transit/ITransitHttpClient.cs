@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Transit
         [Delete(OutboxRootEndPoint + "/item")]
         Task<ApiResponse<bool>> RemoveOutboxItem(Guid id);
 
-        [Put(OutboxRootEndPoint + "/item")]
+        [Put(OutboxRootEndPoint + "/item/priority")]
         Task<ApiResponse<bool>> UpdateOutboxItemPriority(Guid id, int priority);
 
         [Get(AuditRootEndpoint + "/recent")]
