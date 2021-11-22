@@ -19,6 +19,7 @@ using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
@@ -169,6 +170,15 @@ namespace Youverse.Hosting
                     ResolveDotYouHttpClientFactory(svc));
             });
 
+            services.AddScoped<IInboxService, InboxService>(svc =>
+            {
+                return new InboxService(
+                    ResolveContext(svc),
+                    ResolveLogger<OutboxService>(svc),
+                    ResolveNotificationHub(svc),
+                    ResolveDotYouHttpClientFactory(svc));
+            });
+            
             services.AddScoped<IMultipartPackageStorageWriter, MultipartPackageStorageWriter>(svc =>
             {
                 return new MultipartPackageStorageWriter(
@@ -209,6 +219,7 @@ namespace Youverse.Hosting
                     ResolveEncryptionService(svc),
                     svc.GetRequiredService<ITransferKeyEncryptionQueueService>(),
                     ResolveTransitAuditService(svc),
+                    svc.GetRequiredService<IInboxService>(),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });

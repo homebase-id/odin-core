@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Controllers.Owner
     {
         private readonly IOwnerAuthenticationService _authService;
         private readonly IOwnerSecretService _ss;
-        
+
         public OwnerAuthenticationController(IOwnerAuthenticationService authService, IOwnerSecretService ss)
         {
             _authService = authService;
@@ -37,22 +37,18 @@ namespace Youverse.Hosting.Controllers.Owner
             }
         }
 
-        
+
         [HttpGet("verifyToken")]
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
-            //note: this will intentionally ignore any error, including token parsing errors
-            try
+            var value = Request.Cookies[DotYouAuthConstants.TokenKey];
+            if (DotYouAuthenticationResult.TryParse(value ?? "", out var result))
             {
-                var value = Request.Cookies[DotYouAuthConstants.TokenKey];
-                var result = DotYouAuthenticationResult.Parse(value);
                 var isValid = await _authService.IsValidToken(result.SessionToken);
                 return new JsonResult(isValid);
             }
-            catch
-            {
-                return new JsonResult(false);
-            }
+
+            return new JsonResult(false);
         }
 
         [HttpPost]
@@ -70,20 +66,20 @@ namespace Youverse.Hosting.Controllers.Owner
                 return new JsonResult(false);
             }
         }
-        
+
         [HttpPost("device")]
         public async Task<IActionResult> AuthenticateDevice([FromBody] PasswordReply package)
         {
             try
             {
                 var deviceAuth = await _authService.AuthenticateDevice(package);
-               
+
                 //set the cookies like normal to keep the browser logged in.  this will ensure
                 //the user does not have to authenticate across multiple apps
                 var value = $"{deviceAuth.AuthenticationResult.SessionToken}|{deviceAuth.AuthenticationResult.ClientHalfKek}";
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
                 Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
-                
+
                 //return only the device token to be used from the app, etc
                 return new JsonResult(deviceAuth.DeviceToken);
             }
@@ -99,9 +95,9 @@ namespace Youverse.Hosting.Controllers.Owner
             var value = Request.Cookies[DotYouAuthConstants.TokenKey];
             var result = DotYouAuthenticationResult.Parse(value);
             _authService.ExpireToken(result.SessionToken);
-            
+
             Response.Cookies.Delete(DotYouAuthConstants.TokenKey);
-            
+
             return Task.FromResult(new JsonResult(true));
         }
 

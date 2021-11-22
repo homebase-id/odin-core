@@ -10,6 +10,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -19,6 +20,7 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly IStorageService _storage;
         private readonly IOutboxService _outboxService;
+        private readonly IInboxService _inboxService;
         private readonly IEncryptionService _encryption;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
 
@@ -26,12 +28,13 @@ namespace Youverse.Core.Services.Transit
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
         public TransitService(DotYouContext context, ILogger logger, IOutboxService outboxService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
-            IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
+            IInboxService inboxService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
             _outboxService = outboxService;
             _storage = storage;
             _encryption = encryptionSvc;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
+            _inboxService = inboxService;
         }
 
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
@@ -76,8 +79,19 @@ namespace Youverse.Core.Services.Transit
 
             Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
             _storage.MoveToLongTerm(fileId);
+            
+            //TODO: app routing, app notification and so on
 
-            //TODO: app routing, app notificatino and so on
+            var item = new InboxItem()
+            {
+                Id = Guid.NewGuid(),
+                Sender = this.Context.Caller.DotYouId,
+                AppId = this.Context.AppContext.AppId,
+                FileId = fileId,
+                TrackerId = trackerId
+            };
+            
+            _inboxService.Add(item);
         }
 
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)

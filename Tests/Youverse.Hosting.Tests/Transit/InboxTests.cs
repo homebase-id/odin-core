@@ -11,14 +11,15 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.Transit
 {
-    public class OutboxTests
+    public class InboxTests
     {
         private TestScaffold _scaffold;
-
+        
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -37,11 +38,12 @@ namespace Youverse.Hosting.Tests.Transit
         [TearDown]
         public void TearDown()
         {
+
         }
 
 
         // [Test(Description = "")]
-        // public async Task CanOnlyGetOutboxItemsForApp()
+        // public async Task CanOnlyGetInboxItemsForApp()
         // {
         //     // await SendTransfer();
         //     
@@ -53,13 +55,13 @@ namespace Youverse.Hosting.Tests.Transit
         // }
 
         [Test(Description = "")]
-        public async Task CanGetOutboxList()
+        public async Task CanGetInboxList()
         {
             await SendTransfer();
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
             {
-                var svc = RestService.For<ITransitHttpClient>(client);
-                var itemsResponse = await svc.GetOutboxItems(1, 100);
+                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
                 var items = itemsResponse.Content;
@@ -67,24 +69,24 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(items.Results.Count > 0); //TODO: need to actually check for an accurate count
             }
         }
-
+        
         [Test(Description = "")]
-        public async Task CanRemoveOutboxItem()
+        public async Task CanRemoveInboxItem()
         {
             await SendTransfer();
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
             {
-                var svc = RestService.For<ITransitHttpClient>(client);
-                var itemsResponse = await svc.GetOutboxItems(1, 100);
+                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
                 var items = itemsResponse.Content;
                 Assert.IsNotNull(items);
                 var itemId = items.Results.First().Id;
-                var removeItemResponse = await svc.RemoveOutboxItem(itemId);
+                var removeItemResponse = await svc.RemoveInboxItem(itemId);
                 Assert.IsTrue(removeItemResponse.IsSuccessStatusCode);
 
-                var getItemResponse = await svc.GetOutboxItem(itemId);
+                var getItemResponse = await svc.GetInboxItem(itemId);
 
                 Assert.IsTrue(getItemResponse.IsSuccessStatusCode);
                 Assert.IsTrue(getItemResponse.Content == null);
@@ -92,59 +94,33 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
         [Test(Description = "")]
-        public async Task CanGetOutboxItem()
+        public async Task CanGetInboxItem()
         {
             await SendTransfer();
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
             {
-                var svc = RestService.For<ITransitHttpClient>(client);
-                var itemsResponse = await svc.GetOutboxItems(1, 100);
+                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
                 var items = itemsResponse.Content;
                 Assert.IsNotNull(items);
                 Assert.IsTrue(items.Results.Count == 1);
 
-                var singleItemResponse = await svc.GetOutboxItem(items.Results.First().Id);
+                var singleItemResponse = await svc.GetInboxItem(items.Results.First().Id);
 
                 Assert.IsTrue(singleItemResponse.IsSuccessStatusCode);
                 var singleItem = singleItemResponse.Content;
                 Assert.IsNotNull(singleItem);
                 Assert.IsTrue(singleItem.Id == items.Results.First().Id);
-            }
-        }
-
-        [Test(Description = "")]
-        public async Task CanUpdateOutboxItemPriority()
-        {
-            await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
-            {
-                var svc = RestService.For<ITransitHttpClient>(client);
-                var itemsResponse = await svc.GetOutboxItems(1, 100);
-
-                Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
-                var items = itemsResponse.Content;
-                Assert.IsNotNull(items);
-
-                var itemId = items.Results.First().Id;
-
-                var updateResponse = await svc.UpdateOutboxItemPriority(itemId, 999);
-
-                Assert.IsTrue(updateResponse.IsSuccessStatusCode);
-
-                var singleItemResponse = await svc.GetOutboxItem(itemId);
-
-                Assert.IsTrue(singleItemResponse.IsSuccessStatusCode);
-                var singleItem = singleItemResponse.Content;
-                Assert.IsNotNull(singleItem);
-                Assert.IsTrue(singleItem.Id == items.Results.First().Id);
-                Assert.IsTrue(singleItem.Priority == 999);
             }
         }
 
         private async Task SendTransfer()
         {
+            var sender = _scaffold.Samwise;
+            var recipient = _scaffold.Frodo;
+            
             var appSharedSecret = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
 
             var keyHeader = new KeyHeader()
@@ -164,15 +140,15 @@ namespace Youverse.Hosting.Tests.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
+            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { recipient } };
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, ekh.Iv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
-
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
+            
+            using (var client = _scaffold.CreateHttpClient(sender))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
 
@@ -187,13 +163,10 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsNotNull(transferResult);
                 Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
-
-                //there should be a record in the outbox for this transfer
-                var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
-                Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
+                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), "Could not find matching recipient");
+                Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated);
             }
+            
         }
     }
 }

@@ -21,6 +21,5 @@
 
   <ItemGroup>
     <Folder Include="Contacts" />
-    <Folder Include="Transit\Inbox" />
   </ItemGroup>
 </Project>
