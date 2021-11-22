@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Autofac;
 using Dawn;
 using LiteDB;
 using Microsoft.AspNetCore.Authentication.Certificate;
@@ -15,18 +16,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
 using Youverse.Core.Identity;
-using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Logging;
+using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit.Background;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
-using Youverse.Hosting.Logging;
-using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
+using Youverse.Hosting.Multitenant;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
 using Youverse.Services.Messaging.Chat;
@@ -46,6 +45,7 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddMultiTenancy();
             services.AddLoggingServices();
             
             var config = this.Configuration.GetSection("Config").Get<Config>();
@@ -106,10 +106,52 @@ namespace Youverse.Hosting
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
+        
+        // ConfigureContainer is where you can register things directly
+        // with Autofac. This runs after ConfigureServices so the things
+        // here will override registrations made in ConfigureServices.
+        // Don't build the container; that gets done for you. If you
+        // need a reference to the container, you need to use the
+        // "Without ConfigureContainer" mechanism shown later.
+         public void ConfigureContainer(ContainerBuilder builder)
+         {
+             /*
+
+             AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
+
+             ASP.NET Core container             -> Autofac
+             ----------------------                -------
+
+             // the 3 big ones
+             services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
+             services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
+             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
+
+             // default
+             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
+
+             // multiple
+             services.AddX<IFoo1, Foo>();
+             services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
+
+             // without interface
+             services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
+
+             */
+             
+             // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
+             builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+        }
+        
+        public static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
+        {
+            cb.RegisterType<Controllers.Test.TenantDependencyTest>().As<Controllers.Test.ITenantDependencyTest>().SingleInstance();
+        }        
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
+            app.UseMultiTenancy();
             app.UseLoggingMiddleware();
             
             this.ConfigureLiteDBSerialization();

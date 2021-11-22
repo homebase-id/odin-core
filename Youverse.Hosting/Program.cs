@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -15,6 +14,7 @@ using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Logging.Hostname.Serilog;
 using Youverse.Core.Services.Registry;
 using Youverse.Hosting.IdentityRegistry;
+using Youverse.Hosting.Multitenant;
 
 namespace Youverse.Hosting
 {
@@ -36,7 +36,7 @@ namespace Youverse.Hosting
             try
             {
                 Log.Information("Starting web host");
-                CreateHostBuilder(args).Build().Run();
+                CreateHostBuilder(args).Build().Run(); 
                 Log.Information("Stopped web host");
             }
             catch (Exception ex)
@@ -101,8 +101,8 @@ namespace Youverse.Hosting
             _registry.Initialize();
 
             return Host.CreateDefaultBuilder(args)
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(Startup.ConfigureMultiTenantServices))
                 .UseSerilog((context, services, configuration) => configuration
-                    // config from appsettings.json: https://github.com/serilog/serilog-settings-configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
