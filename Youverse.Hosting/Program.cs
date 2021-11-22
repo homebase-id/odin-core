@@ -101,7 +101,7 @@ namespace Youverse.Hosting
             _registry.Initialize();
 
             return Host.CreateDefaultBuilder(args)
-                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(Startup.ConfigureMultiTenantServices))
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(Startup.ConfigureMultiTenantServices, Startup.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Debug()

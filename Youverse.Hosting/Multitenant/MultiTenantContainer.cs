@@ -18,7 +18,8 @@ namespace Youverse.Hosting.Multitenant
         private readonly IContainer _applicationContainer;
 
         //This action configures a container builder
-        private readonly Action<ContainerBuilder, Tenant> _tenantContainerConfiguration;
+        private readonly Action<ContainerBuilder, Tenant> _tenantServiceConfiguration;
+        private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
         
         //This dictionary keeps track of all of the tenant scopes that we have created
         private readonly Dictionary<string, ILifetimeScope> _tenantLifetimeScopes = new();
@@ -26,10 +27,15 @@ namespace Youverse.Hosting.Multitenant
         private readonly object _lock = new();
         private const string MultiTenantTag = "multitenantcontainer";
 
-        public MultiTenantContainer(IContainer applicationContainer, Action<ContainerBuilder, Tenant> containerConfiguration)
+        public MultiTenantContainer(
+            IContainer applicationContainer, 
+            Action<ContainerBuilder, Tenant> serviceConfiguration,
+            Action<ILifetimeScope, Tenant> tenantInitialization
+            )
         {
-            _tenantContainerConfiguration = containerConfiguration;
             _applicationContainer = applicationContainer;
+            _tenantServiceConfiguration = serviceConfiguration;
+            _tenantInitialization = tenantInitialization;
         }
 
         /// <summary>
@@ -63,12 +69,13 @@ namespace Youverse.Hosting.Multitenant
                 return _applicationContainer;
             }
 
-            //If we have created a lifetime for a tenant, return
             if (_tenantLifetimeScopes.ContainsKey(tenantId))
             {
                 return _tenantLifetimeScopes[tenantId];
             }
 
+            Tenant? tenant;
+            ILifetimeScope lifetimeScope;
             lock (_lock)
             {
                 if (_tenantLifetimeScopes.ContainsKey(tenantId))
@@ -76,21 +83,22 @@ namespace Youverse.Hosting.Multitenant
                     return _tenantLifetimeScopes[tenantId];
                 }
                 
-                var currentTenant = GetCurrentTenant();
-                if (currentTenant == null) // sanity
+                tenant = GetCurrentTenant();
+                if (tenant == null) // sanity
                 {
                     return _applicationContainer; 
                 }
 
                 //This is a new tenant, configure a new lifetimescope for it using our tenant sensitive configuration method
-                _tenantLifetimeScopes.Add(
-                    tenantId, 
-                    _applicationContainer.BeginLifetimeScope(
-                        MultiTenantTag, 
-                        cb => _tenantContainerConfiguration(cb, currentTenant))
-                    );
-                return _tenantLifetimeScopes[tenantId];
+                lifetimeScope = _applicationContainer.BeginLifetimeScope(
+                    MultiTenantTag,
+                    cb => _tenantServiceConfiguration(cb, tenant));
+                _tenantLifetimeScopes.Add(tenantId, lifetimeScope); 
             }
+
+            _tenantInitialization(lifetimeScope, tenant);    
+            
+            return _tenantLifetimeScopes[tenantId];
         }
 
         public void Dispose()

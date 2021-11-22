@@ -10,10 +10,14 @@ namespace Youverse.Hosting.Multitenant
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {
         private readonly Action<ContainerBuilder, Tenant> _tenantServicesConfiguration;
+        private readonly Action<ILifetimeScope, Tenant> _tenantInitialization;
 
-        public MultiTenantServiceProviderFactory(Action<ContainerBuilder, Tenant> tenantServicesConfiguration)
+        public MultiTenantServiceProviderFactory(
+            Action<ContainerBuilder, Tenant> tenantServicesConfiguration,
+            Action<ILifetimeScope, Tenant> tenantInitialization)
         {
             _tenantServicesConfiguration = tenantServicesConfiguration;
+            _tenantInitialization = tenantInitialization;
         }
         
         //
@@ -40,7 +44,10 @@ namespace Youverse.Hosting.Multitenant
                 .RegisterInstance(new MultiTenantContainerDisposableAccessor(ContainerAccessor))
                 .SingleInstance();
             
-            container = new MultiTenantContainer(containerBuilder.Build(), _tenantServicesConfiguration);
+            container = new MultiTenantContainer(
+                containerBuilder.Build(), 
+                _tenantServicesConfiguration,
+                _tenantInitialization);
 
             return new AutofacServiceProvider(container);
         }

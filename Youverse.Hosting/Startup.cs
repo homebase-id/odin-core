@@ -143,16 +143,23 @@ namespace Youverse.Hosting
              builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
         }
         
-        public static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
+        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
             cb.RegisterType<Controllers.Test.TenantDependencyTest>().As<Controllers.Test.ITenantDependencyTest>().SingleInstance();
-        }        
+        }
+
+        internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
+        {
+            var logger = scope.Resolve<ILogger<Startup>>();
+            var test = scope.Resolve<Controllers.Test.ITenantDependencyTest>();
+            logger.LogInformation(test.Hello($"I am scoped to tenant {tenant} and I will be disposed!"));            
+        }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
-            app.UseMultiTenancy();
             app.UseLoggingMiddleware();
+            app.UseMultiTenancy();
             
             this.ConfigureLiteDBSerialization();
 

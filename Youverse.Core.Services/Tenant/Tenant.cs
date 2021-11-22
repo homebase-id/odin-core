@@ -9,5 +9,10 @@ namespace Youverse.Core.Services.Tenant
         {
             Name = name;
         }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }
