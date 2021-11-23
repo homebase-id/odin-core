@@ -58,11 +58,11 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetInboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
-
+            
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
                 var items = itemsResponse.Content;
                 Assert.IsNotNull(items);
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanRemoveInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -166,6 +166,8 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), "Could not find matching recipient");
                 Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated);
             }
+            
+            System.Threading.Thread.Sleep(10 * 1000);
             
         }
     }

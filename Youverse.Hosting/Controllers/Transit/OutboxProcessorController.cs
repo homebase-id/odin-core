@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Controllers.Transit
                 //TODO: not sure I should return a detailed result here.
                 //pick up the files from the outbox
                 //var batch = _outbox.GetNextBatch();
-                var batch = await _outbox.GetPendingItems(PageOptions.Default);
+                var batch = await _outbox.GetNextBatch();
                 var result = await _transit.SendBatchNow(batch.Results);
                 _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 

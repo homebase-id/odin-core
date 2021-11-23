@@ -174,7 +174,7 @@ namespace Youverse.Hosting
             {
                 return new InboxService(
                     ResolveContext(svc),
-                    ResolveLogger<OutboxService>(svc),
+                    ResolveLogger<InboxService>(svc),
                     ResolveNotificationHub(svc),
                     ResolveDotYouHttpClientFactory(svc));
             });
@@ -276,7 +276,7 @@ namespace Youverse.Hosting
             var kek = user.FindFirstValue(DotYouClaimTypes.LoginDek);
             SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
             var caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 loginDek: chk
             );
@@ -287,10 +287,10 @@ namespace Youverse.Hosting
             var sharedSecretKey = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
             var appId = user.GetYouverseClaimValue(DotYouClaimTypes.AppId);
             var deviceUid = user.GetYouverseClaimValue(DotYouClaimTypes.DeviceUid);
-            bool isAdminApp = bool.Parse(user.GetYouverseClaimValue(DotYouClaimTypes.IsAdminApp));
-            
+            bool isAdminApp = bool.Parse(user.GetYouverseClaimValue(DotYouClaimTypes.IsAdminApp) ?? bool.FalseString);
+
             var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp);
-            var context = new DotYouContext((DotYouIdentity) hostname, cert, storage, caller, app);
+            var context = new DotYouContext((DotYouIdentity)hostname, cert, storage, caller, app);
 
             return context;
         }
@@ -300,7 +300,7 @@ namespace Youverse.Hosting
             var claim = user.FindFirst(name);
             if (claim?.Issuer != DotYouClaimTypes.YouFoundationIssuer)
             {
-                throw new InvalidDataException("Invalid Claim Issuer");
+                return null;
             }
 
             return claim?.Value;

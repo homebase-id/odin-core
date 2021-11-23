@@ -168,6 +168,13 @@ namespace Youverse.Core.SystemStorage
             return Task.CompletedTask;
         }
 
+        public Task<int> UpdateMany(Expression<Func<T, T>> extend,Expression<Func<T, bool>> predicate)
+        {
+            var col = GetCollection();
+            var count = col.UpdateMany(extend, predicate);
+            return Task.FromResult(count);
+        }
+        
         public Task<bool> Delete(Guid id)
         {
             var col = GetCollection();

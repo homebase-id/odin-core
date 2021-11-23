@@ -13,5 +13,6 @@ namespace Youverse.Core.Services.Transit
         public Guid FileId { get; set; }
 
         public UInt64 Timestamp { get; set; }
+        public Guid OutboxItemId { get; set; }
     }
 }

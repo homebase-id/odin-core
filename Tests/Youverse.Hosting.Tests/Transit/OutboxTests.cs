@@ -39,7 +39,17 @@ namespace Youverse.Hosting.Tests.Transit
         {
         }
 
+        // [Test(Description = "")]
+        // public async Task CanMarkItemAsFailureAndIsCheckedIn()
+        // {
+        // }
+        
 
+        // [Test(Description = "")]
+        // public async Task CanCheckoutItem()
+        // {
+        // }
+        
         // [Test(Description = "")]
         // public async Task CanOnlyGetOutboxItemsForApp()
         // {

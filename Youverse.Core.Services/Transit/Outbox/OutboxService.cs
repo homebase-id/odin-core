@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
@@ -29,6 +31,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <param name="item"></param>
         public Task Add(OutboxItem item)
         {
+            item.IsCheckedOut = false;
             WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
             _pendingTransfers.EnsureSenderIsPending(this.Context.HostDotYouId);
             return Task.CompletedTask;
@@ -47,10 +50,18 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public Task Add(OutboxItem item, TransferFailureReason reason)
+        public async Task MarkFailure(Guid itemId, TransferFailureReason reason)
         {
-            //TODO: check all other fields on the item;
+            var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(itemId));
 
+            if (null == item)
+            {
+                return;
+            }
+            
+            
+            //TODO: check all other fields on the item;
+            item.IsCheckedOut = false;
             item.Attempts.Add(new TransferAttempt()
             {
                 TransferFailureReason = reason,
@@ -58,13 +69,23 @@ namespace Youverse.Core.Services.Transit.Outbox
             });
 
             //TODO:this puts it at the end of the queue however we need to decide if we want to push it forward for various reasons (i.e. it's a chat message, etc.)
-            return Add(item);
+            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection,s=>s.Save(item));
         }
 
-        public Task<PagedResult<OutboxItem>> GetNextBatch()
+        public async Task<PagedResult<OutboxItem>> GetNextBatch()
         {
-            throw new NotImplementedException();
-            //return Array.Empty<OutboxItem>();
+            //TODO: update logic to handle things like priority and other bits
+            var pageOptions = new PageOptions(1, 10);
+            var pagedResult = await WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
+
+            //check out the items
+            foreach (var item in pagedResult.Results)
+            {
+                item.IsCheckedOut = true;
+                WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            }
+
+            return pagedResult;
         }
 
         /// <summary>
@@ -73,7 +94,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <returns></returns>
         public async Task<PagedResult<OutboxItem>> GetPendingItems(PageOptions pageOptions)
         {
-            return await WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions));
+            return await WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
         }
 
         public async Task Remove(DotYouIdentity recipient, Guid fileId)

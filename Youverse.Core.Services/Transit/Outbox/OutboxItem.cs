@@ -9,6 +9,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         public OutboxItem()
         {
             this.Id = Guid.NewGuid();
+            this.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             this.Attempts = new List<TransferAttempt>();
         }
 
@@ -35,5 +36,12 @@ namespace Youverse.Core.Services.Transit.Outbox
         public int Priority { get; set; }
 
         public List<TransferAttempt> Attempts { get; }
+        
+        /// <summary>
+        /// Indicates an item is checked out for processing
+        /// </summary>
+        public bool IsCheckedOut { get; set; }
+
+        public UInt64 AddedTimestamp { get; set; }
     }
 }

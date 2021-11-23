@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        Task Add(OutboxItem item, TransferFailureReason reason);
+        Task MarkFailure(Guid itemId, TransferFailureReason reason);
 
         Task<PagedResult<OutboxItem>> GetNextBatch();
 
@@ -40,9 +40,10 @@ namespace Youverse.Core.Services.Transit.Outbox
         Task Remove(DotYouIdentity recipient, Guid fileId);
 
         Task<OutboxItem> GetItem(Guid id);
+        
 
         /// <summary>
-        /// Removes an item from the outbox.  This does notify the <see cref="PendingTransfersService"/>.
+        /// Removes an item from the outbox.  This does not notify the <see cref="PendingTransfersService"/>.
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>

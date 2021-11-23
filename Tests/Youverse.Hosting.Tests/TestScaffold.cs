@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests
             this.DeleteLogs();
 
             _registry = new IdentityContextRegistry(TestDataPath, TempDataPath);
-            _registry.Initialize();
+            _registry.Initialize(); 
 
             if (startWebserver)
             {
@@ -121,6 +121,8 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
+            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
+            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 

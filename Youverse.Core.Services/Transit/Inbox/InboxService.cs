@@ -77,12 +77,5 @@ namespace Youverse.Core.Services.Transit.Inbox
             WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(id));
             return Task.CompletedTask;
         }
-
-        public async Task UpdatePriority(Guid id, int priority)
-        {
-            var item = await this.GetItem(id);
-            item.Priority = priority;
-            WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
-        }
     }
 }

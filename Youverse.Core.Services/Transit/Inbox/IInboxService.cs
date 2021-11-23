@@ -38,18 +38,10 @@ namespace Youverse.Core.Services.Transit.Inbox
         Task<InboxItem> GetItem(Guid id);
 
         /// <summary>
-        /// Removes an item from the Inbox.  This does notify the <see cref="PendingTransfersService"/>.
+        /// Removes an item from the Inbox.
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
         Task RemoveItem(Guid id);
-
-        /// <summary>
-        /// Updates the priority of a given <see cref="InboxItem"/>
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="priority"></param>
-        /// <returns></returns>
-        Task UpdatePriority(Guid id, int priority);
     }
 }

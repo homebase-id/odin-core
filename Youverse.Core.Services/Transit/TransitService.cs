@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Transit
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
             var keyStatus = await this.PrepareTransferKeys(package);
-            
+
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
             await _outboxService.Add(package.RecipientList.Recipients.Select(r => new OutboxItem()
@@ -79,7 +79,7 @@ namespace Youverse.Core.Services.Transit
 
             Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
             _storage.MoveToLongTerm(fileId);
-            
+
             //TODO: app routing, app notification and so on
 
             var item = new InboxItem()
@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Transit
                 FileId = fileId,
                 TrackerId = trackerId
             };
-            
+
             _inboxService.Add(item);
         }
 
@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Transit
             */
             var appEncryptionKey = this.Context.AppContext.GetAppEncryptionKey();
 
-            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
+            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {
                 EncryptionVersion = 1,
@@ -176,7 +176,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var item in items)
             {
-                tasks.Add(SendAsync(item.Recipient, item.FileId));
+                tasks.Add(SendAsync(item));
             }
 
             await Task.WhenAll(tasks);
@@ -192,15 +192,7 @@ namespace Youverse.Core.Services.Transit
                 }
                 else
                 {
-                    var item = new OutboxItem()
-                    {
-                        Recipient = sendResult.Recipient,
-                        FileId = sendResult.FileId,
-                        AppId = this.Context.AppContext.AppId,
-                        DeviceUid = this.Context.AppContext.DeviceUid
-                    };
-
-                    _outboxService.Add(item, sendResult.FailureReason.GetValueOrDefault());
+                    _outboxService.MarkFailure(sendResult.OutboxItemId, sendResult.FailureReason.GetValueOrDefault());
                     result.RecipientStatus.Add(sendResult.Recipient, TransferStatus.PendingRetry);
                 }
             });
@@ -208,8 +200,11 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        private async Task<SendResult> SendAsync(DotYouIdentity recipient, Guid fileId)
+        private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
+            DotYouIdentity recipient = outboxItem.Recipient;
+            Guid fileId = outboxItem.FileId;
+
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             try
@@ -221,6 +216,7 @@ namespace Youverse.Core.Services.Transit
                 {
                     return new SendResult()
                     {
+                        OutboxItemId = outboxItem.Id,
                         Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Recipient = recipient,
                         Success = false,

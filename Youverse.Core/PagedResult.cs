@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using MessagePack;
 
 namespace Youverse.Core
 {
     [MessagePackObject]
+    [DebuggerDisplay("Result Count={Results.Count}")]
     public class PagedResult<T>
     {
         public PagedResult()
         {
-
         }
 
         public PagedResult(PageOptions req, int totalPages, IList<T> results)
@@ -34,13 +35,10 @@ namespace Youverse.Core
             Results = results;
         }
 
-        [Key(0)]
-        public PageOptions Request { get; set; }
+        [Key(0)] public PageOptions Request { get; set; }
 
-        [Key(1)]
-        public int TotalPages { get; set; }
+        [Key(1)] public int TotalPages { get; set; }
 
-        [Key(2)]
-        public IList<T> Results { get; set; }
+        [Key(2)] public IList<T> Results { get; set; }
     }
 }

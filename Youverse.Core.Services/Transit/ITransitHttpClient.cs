@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 
-        [Post(OutboxRootEndPoint + "/processor")]
+        [Post(OutboxRootEndPoint + "/processor/process")]
         Task<ApiResponse<TransferResult>> ProcessOutbox();
 
         [Get(OutboxRootEndPoint)]

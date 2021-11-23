@@ -24,12 +24,13 @@ namespace Youverse.Core.Services.Workers.Transit
             {
                 config.ForJob(jobKey);
                 config.WithIdentity(triggerKey);
-                
+
                 config.WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
+                    //    .WithRepeatCount(100)
                     .WithInterval(TimeSpan.FromSeconds(5))
                     .WithMisfireHandlingInstructionNextWithRemainingCount());
-                
+
                 config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(backgroundJobStartDelaySeconds)));
             });
         }

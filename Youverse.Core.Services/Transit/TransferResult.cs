@@ -9,6 +9,10 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class TransferResult
     {
+        public TransferResult()
+        {
+            this.RecipientStatus = new();
+        }
         public Guid FileId { get; set; }
         public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
     }
