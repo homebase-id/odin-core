@@ -53,7 +53,7 @@ namespace Youverse.Hosting
                 //     options.MaxConcurrency = 10; //TODO: good idea?
                 // });
 
-                q.UseDefaultTransitOutboxSchedule(config.BackgroundJobStartDelaySeconds);
+                //q.UseDefaultTransitOutboxSchedule(config.BackgroundJobStartDelaySeconds);
             });
 
             services.AddQuartzServer(options =>

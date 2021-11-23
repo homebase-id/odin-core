@@ -62,6 +62,7 @@ namespace Youverse.Hosting.Tests
                 args[2] = LogFilePath;
                 _webserver = Program.CreateHostBuilder(args).Build();
                 _webserver.Start();
+                
             }
         }
 
@@ -241,5 +242,6 @@ namespace Youverse.Hosting.Tests
 
             return Task.CompletedTask;
         }
+        
     }
 }

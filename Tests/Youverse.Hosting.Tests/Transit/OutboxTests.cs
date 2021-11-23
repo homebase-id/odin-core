@@ -203,6 +203,7 @@ namespace Youverse.Hosting.Tests.Transit
                 //there should be a record in the outbox for this transfer
                 var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
                 Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
+                
             }
         }
     }

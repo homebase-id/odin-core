@@ -152,6 +152,7 @@ namespace Youverse.Hosting.Tests.Transit
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
 
+                
                 var response = await transitSvc.SendFile(
                     new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
                     new StreamPart(recipientCipher, "recipientlist.encrypted", "application/json", "recipients"),
@@ -165,9 +166,12 @@ namespace Youverse.Hosting.Tests.Transit
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), "Could not find matching recipient");
                 Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated);
+
+                await transitSvc.ProcessOutbox();
             }
             
-            System.Threading.Thread.Sleep(10 * 1000);
+            //System.Threading.Thread.Sleep(10 * 1000);
+            
             
         }
     }

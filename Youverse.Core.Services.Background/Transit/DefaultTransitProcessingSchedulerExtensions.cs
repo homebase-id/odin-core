@@ -26,8 +26,8 @@ namespace Youverse.Core.Services.Workers.Transit
                 config.WithIdentity(triggerKey);
 
                 config.WithSimpleSchedule(schedule => schedule
-                    .RepeatForever()
-                    //    .WithRepeatCount(100)
+                    //.RepeatForever()
+                    .WithRepeatCount(10)
                     .WithInterval(TimeSpan.FromSeconds(5))
                     .WithMisfireHandlingInstructionNextWithRemainingCount());
 
