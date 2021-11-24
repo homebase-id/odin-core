@@ -12,10 +12,10 @@ namespace Youverse.Core.Services.Authentication
 {
     public class OwnerSecretService : DotYouServiceBase, IOwnerSecretService
     {
-        private const string STORAGE = "Provisioning";
-        private const string PWD_STORAGE = "k3";
-        private const string RSA_KEY_STORAGE = "rks";
-        private readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
+        protected const string STORAGE = "Provisioning";
+        protected const string PWD_STORAGE = "k3";
+        protected const string RSA_KEY_STORAGE = "rks";
+        protected readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
 
         public OwnerSecretService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
         {
@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        public async Task<NonceData> GenerateNewSalts()
+        public virtual async Task<NonceData> GenerateNewSalts()
         {
             var rsaKeyList = await this.GetRsaKeyList();
             var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
@@ -33,14 +33,14 @@ namespace Youverse.Core.Services.Authentication
             {
                 WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             }
-            
+
             var nonce = NonceData.NewRandomNonce(key);
             WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return nonce;
         }
 
 
-        public async Task SetNewPassword(PasswordReply reply)
+        public virtual async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Authentication
 
             return new SecureKey(pk.XorEncryptedDek);
         }
-        
+
         public async Task<SaltsPackage> GetStoredSalts()
         {
             var pk = await WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
@@ -98,12 +98,12 @@ namespace Youverse.Core.Services.Authentication
         public async Task<RsaKeyListData> GetRsaKeyList()
         {
             var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
-            
+
             if (result == null)
             {
                 return await this.GenerateRsaKeyList();
             }
-            
+
             return result;
         }
 

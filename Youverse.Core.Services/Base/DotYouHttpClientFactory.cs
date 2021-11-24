@@ -23,8 +23,10 @@ namespace Youverse.Core.Services.Base
             return this.CreateClient<IPerimeterHttpClient>(dotYouId);
         }
         
-        public T CreateClient<T>(DotYouIdentity dotYouId)
+        public T CreateClient<T>(DotYouIdentity dotYouId, string appIdOverride = null)
         {
+            //HACK: this appIdOverride is strange but required so the background sender
+            //can specify the app since it doesnt know
             Console.WriteLine("CreateClient -> Loading certificate");
             var cert = _context.TenantCertificate.LoadCertificateWithPrivateKey();
 
@@ -41,7 +43,7 @@ namespace Youverse.Core.Services.Base
             
             var client = new System.Net.Http.HttpClient(handler);
             client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, _context.AppContext.AppId);
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride ?? _context.AppContext.AppId);
 
             var ogClient = RestService.For<T>(client);
 

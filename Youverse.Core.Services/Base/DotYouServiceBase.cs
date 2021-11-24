@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Base
         private readonly DotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly DotYouContext _context;
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
-        
+
         protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
         {
             _logger = logger;
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Base
         {
             get => _context;
         }
-        
+
         /// <summary>
         /// Proxy which makes calls to other <see cref="DotYouIdentity"/> servers using a pre-configured HttpClient.
         /// </summary>
@@ -60,17 +60,17 @@ namespace Youverse.Core.Services.Base
         /// <param name="dotYouId"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        protected T CreatePerimeterHttpClient<T>(DotYouIdentity dotYouId)
+        protected T CreatePerimeterHttpClient<T>(DotYouIdentity dotYouId, string appIdOverride = null)
         {
             Guard.Argument(_dotYouHttpClientFactory, nameof(_dotYouHttpClientFactory)).NotNull("The derived class did not initialize the http client factory.");
-            return _dotYouHttpClientFactory.CreateClient<T>(dotYouId);
+            return _dotYouHttpClientFactory.CreateClient<T>(dotYouId, appIdOverride);
         }
 
         protected INotificationHub Notify
         {
             get => _notificationHub.Clients.User(this.Context.HostDotYouId);
         }
-        
+
         protected void AssertCallerIsOwner()
         {
             if (this.Context.Caller.IsOwner == false)
@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Base
                 throw new SecurityException("Caller must be owner");
             }
         }
-        
+
         protected void WithTenantSystemStorage<T>(string collection, Action<LiteDBSingleCollectionStorage<T>> action)
         {
             var cfg = _context.StorageConfig;
@@ -96,7 +96,7 @@ namespace Youverse.Core.Services.Base
                 return func(storage);
             }
         }
-        
+
         protected Task<T> WithTenantSystemStorageReturnSingle<T>(string collection, Func<LiteDBSingleCollectionStorage<T>, Task<T>> func)
         {
             var cfg = _context.StorageConfig;

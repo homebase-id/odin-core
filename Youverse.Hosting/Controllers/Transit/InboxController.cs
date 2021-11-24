@@ -41,14 +41,14 @@ namespace Youverse.Hosting.Controllers.Transit
         }
 
         [HttpGet("item")]
-        public async Task<IActionResult> GetOutboxItem(Guid id)
+        public async Task<IActionResult> GetItem(Guid id)
         {
             var items = await _inbox.GetItem(id);
             return new JsonResult(items);
         }
 
         [HttpDelete("item")]
-        public async Task<IActionResult> RemoveOutboxItem(Guid id)
+        public async Task<IActionResult> RemoveItem(Guid id)
         {
             await _inbox.RemoveItem(id);
             return new JsonResult(true);

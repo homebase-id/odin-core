@@ -25,16 +25,16 @@ namespace Youverse.Core.Services.Authentication
     /// </summary>
     public class OwnerAuthenticationService : DotYouServiceBase, IOwnerAuthenticationService
     {
-        private readonly IOwnerSecretService _secretService;
+        protected readonly IOwnerSecretService _secretService;
         // private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
-        private const string AUTH_TOKEN_COLLECTION = "tko";
+        protected const string AUTH_TOKEN_COLLECTION = "tko";
 
         public OwnerAuthenticationService(DotYouContext context, ILogger logger, IOwnerSecretService secretService) : base(context, logger, null, null)
         {
             _secretService = secretService;
         }
 
-        public async Task<NonceData> GenerateAuthenticationNonce()
+        public virtual async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
 
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Authentication
             return nonce;
         }
 
-        public async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
+        public virtual async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));

@@ -230,7 +230,9 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                var client = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient);
+                //HACK: i override the appId here so the recipeint server knows the corresponding
+                //app.  I'd rather load this into app context some how
+                var client = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
                 var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
@@ -269,6 +271,14 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
         {
+            //HACK: waiting on bouncy castle
+            return new TransitPublicKey()
+            {
+                Crc = 0,
+                Expiration = (UInt64) DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
+                PublicKey =  Guid.Empty.ToByteArray()
+            };
+            
             //TODO: optimize by reading a dictionary cache
             var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 

@@ -47,13 +47,11 @@ namespace Youverse.Hosting.Security.Authentication
         
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-
-            Guid sessionToken;
-            if (GetToken(out sessionToken))
+            if (GetToken(out var authResult))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
 
-                if (await authService.IsValidToken(sessionToken))
+                if (await authService.IsValidToken(authResult.SessionToken))
                 {
                     var (appId, deviceUid, isAdminApp) = ValidateDeviceApp();
                     
@@ -62,8 +60,7 @@ namespace Youverse.Hosting.Security.Authentication
                     string domain = this.Context.Request.Host.Host;
 
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set during the Startup.ResolveContext method
-                    var r = GetAuthenticationResult();
-                    var loginDek = await authService.GetLoginDek(sessionToken, r?.ClientHalfKek);
+                    var loginDek = await authService.GetLoginDek(authResult.SessionToken, authResult.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
                     //HACK: todo determine how to distinguish our admin app from other apps
@@ -90,7 +87,7 @@ namespace Youverse.Hosting.Security.Authentication
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthConstants.DotIdentityOwnerScheme);
-                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, sessionToken);
+                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, authResult.SessionToken);
                     return AuthenticateResult.Success(ticket);
                 }
             }
@@ -146,11 +143,11 @@ namespace Youverse.Hosting.Security.Authentication
 
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
-            Guid token;
-            if (GetToken(out token))
+
+            if (GetToken(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-                authService.ExpireToken(token);
+                authService.ExpireToken(result.SessionToken);
             }
 
             return Task.CompletedTask;
@@ -161,31 +158,25 @@ namespace Youverse.Hosting.Security.Authentication
             return Task.CompletedTask;
         }
 
-        private bool GetToken(out Guid token)
+        private bool GetToken(out DotYouAuthenticationResult authResult)
         {
-            //the header is used by the mobile app
-            if (Guid.TryParse(Context.Request.Headers[DotYouHeaderNames.AuthToken], out token))
-            {
-                return true;
-            }
-
             //the react client app uses the cookie
             string headerToken = Context.Request.Headers[DotYouAuthConstants.TokenKey];
             var value = string.IsNullOrEmpty(headerToken?.Trim()) ? Context.Request.Cookies[DotYouAuthConstants.TokenKey] : headerToken;
             if (DotYouAuthenticationResult.TryParse(value, out var result))
             {
-                token = result.SessionToken;
+                authResult = result;
                 return true;
             }
 
             //TODO: need to avoid the access token on the querystring after #prototrial
             //look for token on querying string as it will come from SignalR
-            if (Context.Request.Path.StartsWithSegments("/api/live", StringComparison.OrdinalIgnoreCase) &&
-                Context.Request.Query.TryGetValue("access_token", out var accessToken))
-            {
-                return Guid.TryParse(accessToken, out token);
-            }
-
+            // if (Context.Request.Path.StartsWithSegments("/api/live", StringComparison.OrdinalIgnoreCase) &&
+            //     Context.Request.Query.TryGetValue("access_token", out var accessToken))
+            // {
+            //     return Guid.TryParse(accessToken, out token);
+            // }
+            authResult = null;
             return false;
         }
     }

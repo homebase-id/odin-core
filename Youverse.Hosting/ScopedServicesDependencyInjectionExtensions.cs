@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Cache;
+using System.Runtime.InteropServices;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,21 +56,43 @@ namespace Youverse.Hosting
 
             //TODO: Need to move the resolveContext to it's own holder that is Scoped to a request
 
-            services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                return new OwnerSecretService(
-                    ResolveContext(svc),
-                    ResolveLogger<OwnerSecretService>(svc));
-            });
-
-            services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
-                svc =>
+                services.AddScoped<IOwnerSecretService, MacHackOwnerSecretService>(svc =>
                 {
-                    return new OwnerAuthenticationService(
+                    return new MacHackOwnerSecretService(
                         ResolveContext(svc),
-                        ResolveLogger<OwnerAuthenticationService>(svc),
-                        ResolveOwnerSecretService(svc));
+                        ResolveLogger<MacHackOwnerSecretService>(svc));
                 });
+
+                services.AddScoped<IOwnerAuthenticationService, MacHackAuthenticationService>(
+                    svc =>
+                    {
+                        return new MacHackAuthenticationService(
+                            ResolveContext(svc),
+                            ResolveLogger<MacHackAuthenticationService>(svc),
+                            ResolveOwnerSecretService(svc));
+                    });
+            }
+            else
+            {
+                services.AddScoped<IOwnerSecretService, OwnerSecretService>(svc =>
+                {
+                    return new OwnerSecretService(
+                        ResolveContext(svc),
+                        ResolveLogger<OwnerSecretService>(svc));
+                });
+
+                services.AddScoped<IOwnerAuthenticationService, OwnerAuthenticationService>(
+                    svc =>
+                    {
+                        return new OwnerAuthenticationService(
+                            ResolveContext(svc),
+                            ResolveLogger<OwnerAuthenticationService>(svc),
+                            ResolveOwnerSecretService(svc));
+                    });
+            }
+
 
 
             services.AddScoped<IProfileService, ProfileService>(svc =>

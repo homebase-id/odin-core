@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Extensions.Hosting;
@@ -50,7 +51,7 @@ namespace Youverse.Hosting.Tests
             this.DeleteLogs();
 
             _registry = new IdentityContextRegistry(TestDataPath, TempDataPath);
-            _registry.Initialize(); 
+            _registry.Initialize();
 
             if (startWebserver)
             {
@@ -62,7 +63,6 @@ namespace Youverse.Hosting.Tests
                 args[2] = LogFilePath;
                 _webserver = Program.CreateHostBuilder(args).Build();
                 _webserver.Start();
-                
             }
         }
 
@@ -137,7 +137,9 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientSalts.Nonce64
             };
-            var saltyReply = LoginKeyManager.CalculatePasswordReply(password, saltyNonce);
+
+            //HACK: until we replace RSACng with bouncy castle
+            PasswordReply saltyReply = GetPasswordReply(password, saltyNonce);
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
@@ -153,7 +155,8 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientNonce.Nonce64
             };
-            var reply = LoginKeyManager.CalculatePasswordReply(password, nonce);
+
+            PasswordReply reply = GetPasswordReply(password, nonce);
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
@@ -173,6 +176,23 @@ namespace Youverse.Hosting.Tests
             return result.ToString();
         }
 
+        private PasswordReply GetPasswordReply(string password, NonceData nonce)
+        {
+            //HACK: until we replyace RSACNG. this hack will let me run on osx
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return new PasswordReply()
+                {
+                    crc = 0,
+                    Nonce64 = nonce.Nonce64,
+                    RsaEncrypted = Convert.ToBase64String(Guid.Empty.ToByteArray()),
+                    NonceHashedPassword64 = Convert.ToBase64String(Guid.Empty.ToByteArray())
+                };
+            }
+
+            return LoginKeyManager.CalculatePasswordReply(password, nonce);
+        }
+
 
         //Note: ignoreAuth flag added for testing on mac Until we support RSACng
         public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false, bool runAsAdminApp = false, Dictionary<string, string> additionalHeaders = null)
@@ -184,6 +204,7 @@ namespace Youverse.Hosting.Tests
             {
                 client = new();
             }
+
             else
             {
                 var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -195,10 +216,9 @@ namespace Youverse.Hosting.Tests
                 };
                 client = new(handler);
             }
-            
+
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
-            
             if (runAsAdminApp)
             {
                 //HACK until we figure out how to identify admin app
@@ -207,12 +227,12 @@ namespace Youverse.Hosting.Tests
 
             if (additionalHeaders != null)
             {
-                foreach(var hrd in additionalHeaders)
+                foreach (var hrd in additionalHeaders)
                 {
                     client.DefaultRequestHeaders.Add(hrd.Key, hrd.Value);
                 }
             }
-            
+
             client.Timeout = TimeSpan.FromMinutes(15);
             //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
 
@@ -230,18 +250,14 @@ namespace Youverse.Hosting.Tests
             ConsoleColor prev = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Uri -> {response.RequestMessage.RequestUri}");
-
             string content = "No Content";
-            // if (response.RequestMessage.Content != null)
-            // {
-            //     content = await response.RequestMessage.Content.ReadAsStringAsync();
-            // }
-
+// if (response.RequestMessage.Content != null)
+// {
+//     content = await response.RequestMessage.Content.ReadAsStringAsync();
+// }
             Console.WriteLine($"Content ->\n {content}");
             Console.ForegroundColor = prev;
-
             return Task.CompletedTask;
         }
-        
     }
 }
