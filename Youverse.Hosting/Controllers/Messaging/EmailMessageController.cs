@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.Messaging
             return result;
         }
 
-        [HttpGet("/{id}")]
+        [HttpGet("{id}")]
         public async Task<Message> Get(Guid id)
         {
             var message = await _messagingService.Mailbox.Get(id);
