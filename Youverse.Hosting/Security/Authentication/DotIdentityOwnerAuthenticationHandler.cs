@@ -14,6 +14,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 
+#nullable enable
 namespace Youverse.Hosting.Security.Authentication
 {
     public class DotIdentityOwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler

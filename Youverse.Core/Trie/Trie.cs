@@ -38,7 +38,7 @@ namespace Youverse.Core.Trie
             128, 128, 128, 128, 128, 128
         }; // 250-255
 
-        private Mutex TrieMutex = new();
+        private object _mutex = new();
 
         private struct NodeData
         {
@@ -202,29 +202,15 @@ namespace Youverse.Core.Trie
 
         public void AddDomain(string sName, T Key)
         {
-            TrieMutex.WaitOne();
-
-            if (IsDomainUniqueInHierarchy(sName) == false)
+            lock (_mutex)
             {
-                TrieMutex.ReleaseMutex();
-                throw new DomainHierarchyNotUniqueException();
-            }
-
-            try
-            {
+                if (IsDomainUniqueInHierarchy(sName) == false)
+                {
+                    throw new DomainHierarchyNotUniqueException();
+                }
                 AddName(sName, Key);
             }
-            catch (Exception e)
-            {
-                throw e;
-            }
-            finally
-            {
-                TrieMutex.ReleaseMutex();
-            }
         }
-
-
 
         // First attempt at removing name from Trie
         private void RemoveName(string sName)
@@ -273,25 +259,13 @@ namespace Youverse.Core.Trie
 
         public void RemoveDomain(string sName)
         {
-            TrieMutex.WaitOne();
-
-            if (IsDomainUniqueInHierarchy(sName) == true)
+            lock (_mutex)
             {
-                TrieMutex.ReleaseMutex();
-                throw new Exception("Trying to remove a domain which is not found in the Trie");
-            }
-
-            try
-            {
+                if (IsDomainUniqueInHierarchy(sName) == true)
+                {
+                    throw new Exception("Trying to remove a domain which is not found in the Trie");
+                }
                 RemoveName(sName);
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
-            finally
-            {
-                TrieMutex.ReleaseMutex();
             }
         }
 

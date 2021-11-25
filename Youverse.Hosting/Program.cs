@@ -5,17 +5,54 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
+using Youverse.Core.Logging.CorrelationId;
+using Youverse.Core.Logging.CorrelationId.Serilog;
+using Youverse.Core.Logging.Hostname;
+using Youverse.Core.Logging.Hostname.Serilog;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting.IdentityRegistry;
+using Youverse.Hosting.Multitenant;
 
 namespace Youverse.Hosting
 {
-    public class Program
+    public static class Program
     {
+        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
+        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate; 
         private static IIdentityContextRegistry _registry;
 
+        public static int Main(string[] args)
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .Enrich.WithHostname(new StickyHostnameGenerator())
+                .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
+                .CreateBootstrapLogger();
+            
+            try
+            {
+                Log.Information("Starting web host");
+                CreateHostBuilder(args).Build().Run(); 
+                Log.Information("Stopped web host");
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly");
+                return 1;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+            
+            return 0;            
+        }
+        
         private static Config LoadConfig()
         {
             var config = new ConfigurationBuilder()
@@ -25,11 +62,6 @@ namespace Youverse.Hosting
             var cfg = new Config();
             config.GetSection("Config").Bind(cfg);
             return cfg;
-        }
-
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(Array.Empty<string>()).Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
@@ -70,23 +102,21 @@ namespace Youverse.Hosting
             _registry.Initialize();
 
             return Host.CreateDefaultBuilder(args)
-                .ConfigureLogging(logConfig =>
-                {
-                    logConfig.ClearProviders();
-                    logConfig.AddConsole();
-                    logConfig.AddFile(PathUtil.Combine(config.LogFilePath, "app_{0:yyyy}-{0:MM}-{0:dd}.log"), opts =>
-                    {
-                        opts.FormatLogEntry = entry => $"{entry.LogName}:{entry.EventId}\t{entry.Message}\nException: {entry.Exception}";
-                        opts.FormatLogFileName = name => string.Format(name, DateTime.UtcNow);
-                    });
-                    //config.AddMultiTenantLogger(
-                    //        configuration =>
-                    //        {
-                    //            configuration.LogLevels.Add(LogLevel.Information, ConsoleColor.Gray);
-                    //            configuration.LogLevels.Add(LogLevel.Warning, ConsoleColor.DarkMagenta);
-                    //            configuration.LogLevels.Add(LogLevel.Error, ConsoleColor.Red);
-                    //        });
-                })
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(Startup.ConfigureMultiTenantServices, Startup.InitializeTenant))
+                .UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Services(services)
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithHostname(new StickyHostnameGenerator())
+                    .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                    .WriteTo.Async(sink =>
+                        sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
+                    .WriteTo.Async(sink => 
+                        sink.RollingFile(Path.Combine(config.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)
+                    ) 
+                )
                 .ConfigureServices(services =>
                 {
                     //TODO: I'm not sure it's a good idea to add this as a service.
