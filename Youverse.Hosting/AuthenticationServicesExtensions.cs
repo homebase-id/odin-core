@@ -67,16 +67,7 @@ namespace Youverse.Hosting
             // determine if this certificate is in my network an add extra claims
             //add system circle claim based on my relationship to this person
             //lookup name for the individual and add to the claims
-
-            bool isTenantOwner = false;
-            var dotYouContext = DependencyInjection.ResolveContext(context.HttpContext.RequestServices);
-            using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificateWithPrivateKey())
-            {
-                //HACK: this is not sufficient for establishing the client and server certificates are the same.
-                //https://eprint.iacr.org/2019/130.pdf - first few paragraphs
-                isTenantOwner = serverCertificate.Thumbprint == context.ClientCertificate.Thumbprint;
-            }
-
+            
             //By logging in with a client certificate for this #prototrial, you are identified
             bool isIdentified = true;
 
@@ -95,7 +86,7 @@ namespace Youverse.Hosting
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
-                new Claim(DotYouClaimTypes.IsIdentityOwner, isTenantOwner.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
