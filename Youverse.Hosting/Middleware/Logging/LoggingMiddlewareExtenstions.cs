@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Youverse.Hosting.Logging;
 
 namespace Youverse.Hosting.Middleware.Logging
 {
