@@ -44,8 +44,13 @@ namespace Youverse.Hosting
         public int BackgroundJobStartDelaySeconds { get; set; }
         
         /// <summary>
-        /// Specifies if this host should runt he quartz background services.
+        /// Specifies if this host should run the quartz background services.
         /// </summary>
         public bool EnableQuartzBackgroundService { get; set; }
+        
+        /// <summary>
+        /// Specifies if development-based certificate registry should be used
+        /// </summary>
+        public bool UseLocalCertificateRegistry { get; set; }
     }
 }

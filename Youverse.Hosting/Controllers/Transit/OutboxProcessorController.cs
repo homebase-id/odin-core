@@ -35,21 +35,14 @@ namespace Youverse.Hosting.Controllers.Transit
         [HttpPost("process")]
         public async Task<JsonResult> ProcessOutbox()
         {
-            try
-            {
-                //TODO: not sure I should return a detailed result here.
-                //pick up the files from the outbox
-                //var batch = _outbox.GetNextBatch();
-                var batch = await _outbox.GetNextBatch();
-                var result = await _transit.SendBatchNow(batch.Results);
-                _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
+            //TODO: not sure I should return a detailed result here.
+            //pick up the files from the outbox
+            //var batch = _outbox.GetNextBatch();
+            var batch = await _outbox.GetNextBatch();
+            var result = await _transit.SendBatchNow(batch.Results);
+            _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
-                return new JsonResult(result);
-            }
-            catch (InvalidDataException e)
-            {
-                return new JsonResult(new NoResultResponse(false, e.Message));
-            }
+            return new JsonResult(result);
         }
     }
 }

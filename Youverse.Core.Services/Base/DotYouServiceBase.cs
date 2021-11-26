@@ -14,14 +14,14 @@ namespace Youverse.Core.Services.Base
     /// <see cref="IDotYouHttpClientProxy"/> instances based on 
     /// the specified <see cref="DotYouContext"/>.
     /// </summary>
-    public abstract class DotYouServiceBase
+    public abstract class DotYouServiceBase<T>
     {
-        ILogger _logger;
+        private readonly ILogger<T> _logger;
         private readonly DotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly DotYouContext _context;
         private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
 
-        protected DotYouServiceBase(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
+        protected DotYouServiceBase(DotYouContext context, ILogger<T> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
         {
             _logger = logger;
             _notificationHub = notificationHub;

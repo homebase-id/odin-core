@@ -8,11 +8,11 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     /// Base class for the transit subsystem providing various functions specific to Transit
     /// </summary>
-    public abstract class TransitServiceBase : DotYouServiceBase
+    public abstract class TransitServiceBase<T> : DotYouServiceBase<T>
     {
         private readonly ITransitAuditWriterService _auditWriter;
 
-        protected TransitServiceBase(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        protected TransitServiceBase(DotYouContext context, ILogger<T> logger, ITransitAuditWriterService auditWriter, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _auditWriter = auditWriter;
         }

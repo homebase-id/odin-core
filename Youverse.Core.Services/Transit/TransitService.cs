@@ -16,7 +16,7 @@ using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransitService : TransitServiceBase, ITransitService
+    public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
         private readonly IStorageService _storage;
         private readonly IOutboxService _outboxService;
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
-        public TransitService(DotYouContext context, ILogger logger, IOutboxService outboxService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
+        public TransitService(DotYouContext context, ILogger<ITransitService> logger, IOutboxService outboxService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
             IInboxService inboxService, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
         {
             _outboxService = outboxService;

@@ -69,7 +69,7 @@ namespace Youverse.Hosting
             //lookup name for the individual and add to the claims
 
             bool isTenantOwner = false;
-            var dotYouContext = ScopedServicesDependencyInjectionExtensions.ResolveContext(context.HttpContext.RequestServices);
+            var dotYouContext = DependencyInjection.ResolveContext(context.HttpContext.RequestServices);
             using (var serverCertificate = dotYouContext.TenantCertificate.LoadCertificateWithPrivateKey())
             {
                 //HACK: this is not sufficient for establishing the client and server certificates are the same.

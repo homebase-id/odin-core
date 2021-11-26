@@ -7,7 +7,8 @@
       "applicationUrl": "https://frodobaggins.me",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "USE_LOCAL_DOTYOU_CERT_REGISTRY": "1"
+        "USE_LOCAL_DOTYOU_CERT_REGISTRY": "1",
+        "Config__UseLocalCertificateRegistry": "true"
       }
     }
   }

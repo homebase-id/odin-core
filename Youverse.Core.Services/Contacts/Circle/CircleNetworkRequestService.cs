@@ -11,7 +11,7 @@ using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
-    public class CircleNetworkRequestService : DotYouServiceBase, ICircleNetworkRequestService
+    public class CircleNetworkRequestService : DotYouServiceBase<ICircleNetworkRequestService>, ICircleNetworkRequestService
     {
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ICircleNetworkService _cns;
         private readonly IOwnerDataAttributeManagementService _mgts;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
         {
             _cns = cns;
             _mgts = mgts;

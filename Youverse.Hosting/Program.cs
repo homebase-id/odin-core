@@ -22,7 +22,7 @@ namespace Youverse.Hosting
     public static class Program
     {
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
-        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate; 
+        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
         private static IIdentityContextRegistry _registry;
 
         public static int Main(string[] args)
@@ -33,11 +33,11 @@ namespace Youverse.Hosting
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
                 .CreateBootstrapLogger();
-            
+
             try
             {
                 Log.Information("Starting web host");
-                CreateHostBuilder(args).Build().Run(); 
+                CreateHostBuilder(args).Build().Run();
                 Log.Information("Stopped web host");
             }
             catch (Exception ex)
@@ -49,10 +49,10 @@ namespace Youverse.Hosting
             {
                 Log.CloseAndFlush();
             }
-            
-            return 0;            
+
+            return 0;
         }
-        
+
         private static Config LoadConfig()
         {
             var config = new ConfigurationBuilder()
@@ -88,21 +88,16 @@ namespace Youverse.Hosting
             Directory.CreateDirectory(config.TenantDataRootPath);
             Directory.CreateDirectory(config.TempTenantDataRootPath);
 
-            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
-            if (useLocalReg)
-            {
-                _registry = new IdentityContextRegistry(config.TenantDataRootPath, config.TempTenantDataRootPath);
-            }
-            else
-            {
-                Console.WriteLine("Using IdentityRegistryRpc");
-                _registry = new IdentityRegistryRpc(config);
-            }
+            //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
+            bool.TryParse(Environment.GetEnvironmentVariable("Config__UseLocalCertificateRegistry"), out var useLocalRegistry);
+            _registry = useLocalRegistry
+                ? _registry = new IdentityContextRegistry(config.TenantDataRootPath, config.TempTenantDataRootPath)
+                : _registry = new IdentityRegistryRpc(config);
 
             _registry.Initialize();
 
             return Host.CreateDefaultBuilder(args)
-                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(Startup.ConfigureMultiTenantServices, Startup.InitializeTenant))
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Debug()
@@ -111,11 +106,8 @@ namespace Youverse.Hosting
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    .WriteTo.Async(sink =>
-                        sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink => 
-                        sink.RollingFile(Path.Combine(config.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)
-                    ) 
+                    .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
+                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(config.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate))
                 )
                 .ConfigureServices(services =>
                 {

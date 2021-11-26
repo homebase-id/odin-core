@@ -14,13 +14,13 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class OutboxService : DotYouServiceBase, IOutboxService
+    public class OutboxService : DotYouServiceBase<IOutboxService>, IOutboxService
     {
         private readonly IPendingTransfersService _pendingTransfers;
 
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger logger, IPendingTransfersService pendingTransfers, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _pendingTransfers = pendingTransfers;
         }

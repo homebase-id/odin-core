@@ -9,13 +9,13 @@ using Youverse.Core.Services.Profile;
 
 namespace Youverse.Services.Messaging.Demo
 {
-    public class PrototrialDemoDataService : DotYouServiceBase, IPrototrialDemoDataService
+    public class PrototrialDemoDataService : DotYouServiceBase<IPrototrialDemoDataService>, IPrototrialDemoDataService
     {
         private readonly IProfileService _profileService;
         private readonly IOwnerDataAttributeManagementService _admin;
         private readonly ICircleNetworkRequestService _circleNetworkService;
 
-        public PrototrialDemoDataService(DotYouContext context, ILogger logger, IProfileService profileService, IOwnerDataAttributeManagementService admin, ICircleNetworkRequestService circleNetworkService) : base(context, logger, null, null)
+        public PrototrialDemoDataService(DotYouContext context, ILogger<IPrototrialDemoDataService> logger, IProfileService profileService, IOwnerDataAttributeManagementService admin, ICircleNetworkRequestService circleNetworkService) : base(context, logger, null, null)
         {
             _profileService = profileService;
             _admin = admin;

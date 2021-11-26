@@ -56,7 +56,8 @@ namespace Youverse.Hosting.Tests
             if (startWebserver)
             {
                 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-                Environment.SetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", "1");
+                Environment.SetEnvironmentVariable("Config__UseLocalCertificateRegistry", "true");
+                Environment.SetEnvironmentVariable("Config__EnableQuartzBackgroundService", "false");
                 var args = new string[3];
                 args[0] = TestDataPath;
                 args[1] = TempDataPath;

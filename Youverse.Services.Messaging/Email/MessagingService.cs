@@ -7,14 +7,14 @@ using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Services.Messaging.Email
 {
-    public class MessagingService : DotYouServiceBase, IMessagingService
+    public class MessagingService : DotYouServiceBase<IMessagingService>, IMessagingService
     {
         private IMailboxService _mailbox;
         private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         
-        public MessagingService(DotYouContext context, ILogger<MessagingService> logger, IHubContext<MessagingHub, IMessagingHub> messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, IHubContext<MessagingHub, IMessagingHub> messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
-            _mailbox = new SimpleMailboxService(context, "Messages", logger);
+            _mailbox = new SimpleMailboxService(context, "Messages");
             _messagingHub = messagingHub;
         }
 

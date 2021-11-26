@@ -13,7 +13,7 @@ using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
-    public class TransitPerimeterService : TransitServiceBase, ITransitPerimeterService
+    public class TransitPerimeterService : TransitServiceBase<ITransitPerimeterService>, ITransitPerimeterService
     {
         private struct PartState
         {
@@ -127,7 +127,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
 
-        public TransitPerimeterService(DotYouContext context, ILogger logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService, IStorageService fileStorage) : base(context,
+        public TransitPerimeterService(DotYouContext context, ILogger<ITransitPerimeterService> logger, ITransitAuditWriterService auditWriter, ITransitService transitService, ITransitQuarantineService quarantineService, IStorageService fileStorage) : base(context,
             logger, auditWriter, null, null)
         {
             _transitService = transitService;

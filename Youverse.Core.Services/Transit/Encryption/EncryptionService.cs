@@ -8,9 +8,9 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
-    public class EncryptionService : DotYouServiceBase, IEncryptionService
+    public class EncryptionService : DotYouServiceBase<IEncryptionService>, IEncryptionService
     {
-        public EncryptionService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public EncryptionService(DotYouContext context, ILogger<IEncryptionService> logger) : base(context, logger, null, null)
         {
         }
 

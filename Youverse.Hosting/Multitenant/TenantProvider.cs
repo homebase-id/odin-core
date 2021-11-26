@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using Microsoft.AspNetCore.Http;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 
 #nullable enable
@@ -8,7 +10,6 @@ namespace Youverse.Hosting.Multitenant
     {
         private readonly ITenantResolutionStrategy _tenantResolutionStrategy;
         private readonly ConcurrentDictionary<string, Tenant> _tenants = new();
-
         //
         
         public TenantProvider(ITenantResolutionStrategy tenantResolutionStrategy)
@@ -33,6 +34,7 @@ namespace Youverse.Hosting.Multitenant
             }
 
             tenant = new Tenant(tenantIdentifier);
+            
             _tenants.GetOrAdd(tenantIdentifier, tenant);
             
             return tenant;

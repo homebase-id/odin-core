@@ -10,14 +10,14 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication
 {
-    public class OwnerSecretService : DotYouServiceBase, IOwnerSecretService
+    public class OwnerSecretService : DotYouServiceBase<IOwnerSecretService>, IOwnerSecretService
     {
         protected const string STORAGE = "Provisioning";
         protected const string PWD_STORAGE = "k3";
         protected const string RSA_KEY_STORAGE = "rks";
         protected readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
 
-        public OwnerSecretService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public OwnerSecretService(DotYouContext context, ILogger<IOwnerSecretService> logger) : base(context, logger, null, null)
         {
         }
 

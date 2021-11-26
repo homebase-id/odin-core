@@ -7,10 +7,10 @@ using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit.Audit
 {
-    public class LiteDbTransitAuditWriterService : DotYouServiceBase, ITransitAuditWriterService
+    public class LiteDbTransitAuditWriterService : DotYouServiceBase<ITransitAuditWriterService>, ITransitAuditWriterService
     {
 
-        public LiteDbTransitAuditWriterService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public LiteDbTransitAuditWriterService(DotYouContext context, ILogger<ITransitAuditWriterService> logger) : base(context, logger, null, null)
         {
         }
 

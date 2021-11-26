@@ -10,15 +10,15 @@ using Youverse.Core.Services.Contacts.Circle;
 namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeReaderService"/>
-    public class OwnerDataAttributeReaderService : DotYouServiceBase, IOwnerDataAttributeReaderService
+    public class OwnerDataAttributeReaderService : DotYouServiceBase<IOwnerDataAttributeReaderService>, IOwnerDataAttributeReaderService
     {
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly OwnerDataAttributeStorage _das;
+        private readonly OwnerDataAttributeStorage<IOwnerDataAttributeReaderService> _das;
 
-        public OwnerDataAttributeReaderService(DotYouContext context, ILogger logger, ICircleNetworkService circleNetwork) : base(context, logger, null, null)
+        public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork) : base(context, logger, null, null)
         {
             _circleNetwork = circleNetwork;
-            _das = new OwnerDataAttributeStorage(context, logger);
+            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeReaderService>(context, logger);
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)

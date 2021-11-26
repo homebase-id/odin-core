@@ -12,12 +12,12 @@ namespace Youverse.Core.Services.Transit.Inbox
     /// <summary>
     /// Services that manages items in a given Tenant's Inbox
     /// </summary>
-    public class InboxService : DotYouServiceBase, IInboxService
+    public class InboxService : DotYouServiceBase<IInboxService>, IInboxService
     {
 
         private const string InboxItemsCollection = "inbxitems";
 
-        public InboxService(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public InboxService(DotYouContext context, ILogger<IInboxService> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
         }
 

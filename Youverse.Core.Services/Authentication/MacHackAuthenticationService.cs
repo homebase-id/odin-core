@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Authentication
 {
     public class MacHackAuthenticationService : OwnerAuthenticationService
     {
-        public MacHackAuthenticationService(DotYouContext context, ILogger logger, IOwnerSecretService secretService) : base(context, logger, secretService)
+        public MacHackAuthenticationService(DotYouContext context, ILogger<MacHackAuthenticationService> logger, IOwnerSecretService secretService) : base(context, logger, secretService)
         {
         }
         

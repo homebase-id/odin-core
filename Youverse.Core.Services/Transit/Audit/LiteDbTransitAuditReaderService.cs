@@ -7,9 +7,9 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit.Audit
 {
-    public class LiteDbTransitAuditReaderService : DotYouServiceBase, ITransitAuditReaderService
+    public class LiteDbTransitAuditReaderService : DotYouServiceBase<ITransitAuditReaderService>, ITransitAuditReaderService
     {
-        public LiteDbTransitAuditReaderService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public LiteDbTransitAuditReaderService(DotYouContext context, ILogger<ITransitAuditReaderService> logger) : base(context, logger, null, null)
         {
         }
 

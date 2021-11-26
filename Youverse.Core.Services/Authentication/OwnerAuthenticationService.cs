@@ -23,13 +23,13 @@ namespace Youverse.Core.Services.Authentication
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
-    public class OwnerAuthenticationService : DotYouServiceBase, IOwnerAuthenticationService
+    public class OwnerAuthenticationService : DotYouServiceBase<IOwnerAuthenticationService>, IOwnerAuthenticationService
     {
         protected readonly IOwnerSecretService _secretService;
         // private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
         protected const string AUTH_TOKEN_COLLECTION = "tko";
 
-        public OwnerAuthenticationService(DotYouContext context, ILogger logger, IOwnerSecretService secretService) : base(context, logger, null, null)
+        public OwnerAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService) : base(context, logger, null, null)
         {
             _secretService = secretService;
         }

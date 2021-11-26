@@ -6,10 +6,10 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransferKeyEncryptionQueueService : DotYouServiceBase,  ITransferKeyEncryptionQueueService
+    public class TransferKeyEncryptionQueueService : DotYouServiceBase<ITransferKeyEncryptionQueueService>,  ITransferKeyEncryptionQueueService
     {
         private const string CollectionName = "tkeqs";
-        public TransferKeyEncryptionQueueService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public TransferKeyEncryptionQueueService(DotYouContext context, ILogger<ITransferKeyEncryptionQueueService> logger) : base(context, logger, null, null)
         {
             
         }

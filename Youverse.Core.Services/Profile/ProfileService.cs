@@ -11,11 +11,11 @@ namespace Youverse.Core.Services.Profile
     /// <summary>
     /// <inheritdoc cref="IProfileService"/>
     /// </summary>
-    public class ProfileService : DotYouServiceBase, IProfileService
+    public class ProfileService : DotYouServiceBase<IProfileService>, IProfileService
     {
         private const string PROFILE_DATA_COLLECTION = "hcp";
 
-        public ProfileService(DotYouContext context, ILogger<ProfileService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
         }
 

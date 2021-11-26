@@ -7,13 +7,13 @@ using Youverse.Core.Services.Base;
 namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
-    public class OwnerDataAttributeManagementService : DotYouServiceBase, IOwnerDataAttributeManagementService
+    public class OwnerDataAttributeManagementService : DotYouServiceBase<IOwnerDataAttributeManagementService>, IOwnerDataAttributeManagementService
     {
-        private readonly OwnerDataAttributeStorage _das;
+        private readonly OwnerDataAttributeStorage<IOwnerDataAttributeManagementService> _das;
 
-        public OwnerDataAttributeManagementService(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger) : base(context, logger, null, null)
         {
-            _das = new OwnerDataAttributeStorage(context, logger);
+            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeManagementService>(context, logger);
         }
 
         public async Task<NameAttribute> GetPrimaryName()

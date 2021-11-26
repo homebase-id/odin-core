@@ -110,7 +110,7 @@ namespace Youverse.Hosting.Multitenant
                     scope.Value.Dispose();
                 }
                 _applicationContainer.Dispose();
-            }
+            } 
         }
 
         public object ResolveComponent(ResolveRequest request) => 

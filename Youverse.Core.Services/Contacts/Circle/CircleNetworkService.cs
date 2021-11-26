@@ -25,13 +25,13 @@ namespace Youverse.Core.Services.Contacts.Circle
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
-    public class CircleNetworkService : DotYouServiceBase, ICircleNetworkService
+    public class CircleNetworkService : DotYouServiceBase<ICircleNetworkService>, ICircleNetworkService
     {
         const string CONNECTIONS = "cnncts";
 
         private readonly IProfileService _profileService;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<CircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _profileService = profileService;
         }

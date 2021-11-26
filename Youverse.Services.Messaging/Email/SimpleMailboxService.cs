@@ -9,11 +9,11 @@ namespace Youverse.Services.Messaging.Email
     /// <summary>
     /// Stores messages in the given folder name using LiteDb.
     /// </summary>
-    public class SimpleMailboxService : DotYouServiceBase, IMailboxService
+    public class SimpleMailboxService : DotYouServiceBase<IMailboxService>, IMailboxService
     {
         private readonly string _folderName;
 
-        public SimpleMailboxService(DotYouContext context, string folderName, ILogger logger) : base(context, logger, null, null)
+        public SimpleMailboxService(DotYouContext context, string folderName) : base(context, null, null, null)
         {
             _folderName = folderName;
         }

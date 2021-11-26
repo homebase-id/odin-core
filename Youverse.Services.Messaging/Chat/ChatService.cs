@@ -20,7 +20,7 @@ using Youverse.Core.Util;
 
 namespace Youverse.Services.Messaging.Chat
 {
-    public class ChatService : DotYouServiceBase, IChatService
+    public class ChatService : DotYouServiceBase<IChatService>, IChatService
     {
         private const string ChatMessageStorageCollection = "chat";
         private const string RecentChatMessagesHistoryCollection = "recent_messages";
@@ -30,7 +30,7 @@ namespace Youverse.Services.Messaging.Chat
         private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<ChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<MessagingHub, IMessagingHub> messagingHub, IStorageService storageService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<IChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<MessagingHub, IMessagingHub> messagingHub, IStorageService storageService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;

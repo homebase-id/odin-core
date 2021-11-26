@@ -103,9 +103,6 @@ namespace Youverse.Hosting.Tests.Transit
                 //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
                 //TODO: how do i check Pending Transfer Queue?
 
-                //try to hold out for the background job to process
-                System.Threading.Thread.Sleep(5 * 1000);
-
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents

@@ -25,10 +25,12 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Core.Services.Logging;
+using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit.Background;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Perimeter;
+using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
 using Youverse.Hosting.Security;
@@ -92,8 +94,7 @@ namespace Youverse.Hosting
             services.AddMemoryCache();
             services.AddSignalR(options => { options.EnableDetailedErrors = true; });
 
-            //TODO: this service is one of the only singletons because it's used by the 
-            services.AddYouVerseScopedServices();
+            //services.AddYouVerseScopedServices();
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
             
@@ -131,24 +132,12 @@ namespace Youverse.Hosting
              // without interface
              services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
 
-             */
-             
+             */ 
+
              // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
-             builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
         }
         
-        internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
-        {
-            cb.RegisterType<Controllers.Test.TenantDependencyTest>().As<Controllers.Test.ITenantDependencyTest>().SingleInstance();
-        }
-
-        internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
-        {
-            var logger = scope.Resolve<ILogger<Startup>>();
-            var test = scope.Resolve<Controllers.Test.ITenantDependencyTest>();
-            logger.LogInformation(test.Hello($"I am scoped to tenant {tenant} and I will be disposed!"));            
-        }
-
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
@@ -171,6 +160,7 @@ namespace Youverse.Hosting
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseMiddleware<DotYouContextMiddleware>();
 
             app.UseEndpoints(endpoints =>
             {
@@ -240,10 +230,7 @@ namespace Youverse.Hosting
         private void AssertValidConfiguration(Config cfg)
         {
             Guard.Argument(cfg, nameof(cfg)).NotNull();
-
-            //HACK: until I merge with Seb Autofac 
-            var useLocalReg = Environment.GetEnvironmentVariable("USE_LOCAL_DOTYOU_CERT_REGISTRY", EnvironmentVariableTarget.Process) == "1";
-            if (useLocalReg == false)
+            if (cfg.UseLocalCertificateRegistry == false)
             {
                 Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
                 Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();

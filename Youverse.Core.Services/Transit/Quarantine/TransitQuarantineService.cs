@@ -10,11 +10,11 @@ using Youverse.Core.Services.Transit.Quarantine.Filter;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
-    public class TransitQuarantineService : TransitServiceBase, ITransitQuarantineService
+    public class TransitQuarantineService : TransitServiceBase<ITransitQuarantineService>, ITransitQuarantineService
     {
         private readonly IStorageService _storage;
 
-        public TransitQuarantineService(DotYouContext context, ILogger logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(context, logger, auditWriter, null, null)
+        public TransitQuarantineService(DotYouContext context, ILogger<ITransitQuarantineService> logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(context, logger, auditWriter, null, null)
         {
             _storage = storage;
         }

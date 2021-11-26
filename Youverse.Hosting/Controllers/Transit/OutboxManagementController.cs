@@ -17,7 +17,6 @@ namespace Youverse.Hosting.Controllers.Transit
     /// </summary>
     [ApiController]
     [Route("/api/transit/client/outbox")]
-
     [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
     public class OutboxManagementController : ControllerBase
     {

@@ -70,7 +70,7 @@ function Sidebar(props: any) {
             </ul>
             <div className="dropdown border-top">
                 <a href="#" className="d-flex align-items-center justify-content-center p-3 link-dark text-decoration-none dropdown-toggle" id="dropdownUser3" data-bs-toggle="dropdown" aria-expanded="false">
-                    <img src="/api/images/avatar/" alt="mdo" className="rounded-circle" width="24" height="24" />
+                    <img src="/api/images/avatar/" alt="" className="rounded-circle" width="24" height="24" />
                 </a>
                 <ul className="dropdown-menu text-small shadow" aria-labelledby="dropdownUser3">
                     <li><a className="dropdown-item" href="#">New project...</a></li>

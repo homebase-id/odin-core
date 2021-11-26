@@ -11,7 +11,7 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
-    public class MultipartPackageStorageWriter : DotYouServiceBase, IMultipartPackageStorageWriter
+    public class MultipartPackageStorageWriter : DotYouServiceBase<IMultipartPackageStorageWriter>, IMultipartPackageStorageWriter
     {
         private readonly IEncryptionService _encryptionService;
         private readonly IStorageService _storageService;
@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
         private byte[] initializationVector;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger logger, IStorageService storageService, IEncryptionService encryptionService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageService storageService, IEncryptionService encryptionService)
             : base(context, logger, null, null)
         {
             _storageService = storageService;

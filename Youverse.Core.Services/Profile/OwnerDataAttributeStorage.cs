@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Profile
     /// Specialized storage for the DI Owner's data attributes.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
-    internal sealed class OwnerDataAttributeStorage : DotYouServiceBase
+    internal sealed class OwnerDataAttributeStorage<T> : DotYouServiceBase<T>
     {
         private const string ADMIN_IDENTITY_COLLECTION = "AdminIdentity";
         private const string PUBLIC_INFO_COLLECTION = "PublicInfo";
@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Profile
         private readonly Guid PUBLIC_PROFILE_ID = Guid.Parse("ffffff6d-d8ff-4aff-97ff-071aafffdfff");
         private readonly Guid CONNECTED_PROFILE_ID = Guid.Parse("EEEEEf6d-d8ff-4aff-97ff-071aafffdfff");
 
-        public OwnerDataAttributeStorage(DotYouContext context, ILogger logger) : base(context, logger, null, null)
+        public OwnerDataAttributeStorage(DotYouContext context, ILogger<T> logger) : base(context, logger, null, null)
         {
         }
 

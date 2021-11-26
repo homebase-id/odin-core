@@ -13,7 +13,7 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Storage
 {
-    public class FileBasedStorageService : DotYouServiceBase, IStorageService, IDisposable
+    public class FileBasedStorageService : DotYouServiceBase<IStorageService>, IStorageService, IDisposable
     {
         private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
         private const int WriteChunkSize = 1024;

@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authentication
 {
     public class MacHackOwnerSecretService : OwnerSecretService
     {
-        public MacHackOwnerSecretService(DotYouContext context, ILogger logger) : base(context, logger)
+        public MacHackOwnerSecretService(DotYouContext context, ILogger<MacHackOwnerSecretService> logger) : base(context, logger)
         {
         }
 

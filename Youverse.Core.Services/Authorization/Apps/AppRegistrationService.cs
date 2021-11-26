@@ -9,12 +9,12 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
-    public class AppRegistrationService : DotYouServiceBase, IAppRegistrationService
+    public class AppRegistrationService : DotYouServiceBase<IAppRegistrationService>, IAppRegistrationService
     {
         private const string AppRegistrationStorageName = "ars";
         private const string AppDeviceRegistrationStorageName = "adrs";
 
-        public AppRegistrationService(DotYouContext context, ILogger logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) :
+        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) :
             base(context, logger, notificationHub, fac)
         {
         }
