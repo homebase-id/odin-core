@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit
@@ -8,11 +5,11 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     /// Base class for the transit subsystem providing various functions specific to Transit
     /// </summary>
-    public abstract class TransitServiceBase<T> : DotYouServiceBase<T>
+    public abstract class TransitServiceBase<T> 
     {
         private readonly ITransitAuditWriterService _auditWriter;
 
-        protected TransitServiceBase(DotYouContext context, ILogger<T> logger, ITransitAuditWriterService auditWriter, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        protected TransitServiceBase(ITransitAuditWriterService auditWriter)
         {
             _auditWriter = auditWriter;
         }

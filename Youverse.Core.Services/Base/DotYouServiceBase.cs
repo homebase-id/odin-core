@@ -17,11 +17,11 @@ namespace Youverse.Core.Services.Base
     public abstract class DotYouServiceBase<T>
     {
         private readonly ILogger<T> _logger;
-        private readonly DotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly DotYouContext _context;
         private NotificationHandler _notificationHandler;
         
-        protected DotYouServiceBase(DotYouContext context, ILogger<T> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac)
+        protected DotYouServiceBase(DotYouContext context, ILogger<T> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory fac)
         {
             _logger = logger;
             _context = context;

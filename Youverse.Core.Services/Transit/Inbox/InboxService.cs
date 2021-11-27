@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         private const string InboxItemsCollection = "inbxitems";
 
-        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
         }
 

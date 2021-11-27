@@ -2,8 +2,6 @@ using System.Runtime.InteropServices;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Identity;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -20,7 +18,6 @@ using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Notifications;
 using Youverse.Services.Messaging.Chat;
 using Youverse.Services.Messaging.Demo;
 using Youverse.Services.Messaging.Email;
@@ -40,12 +37,14 @@ namespace Youverse.Hosting
             // cb.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
             // cb.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
             // cb.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
+
+            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
             
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<NotificationHandler>().AsSelf().SingleInstance();
 
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
-            cb.RegisterType<DotYouHttpClientFactory>().AsSelf().SingleInstance();
+            cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {

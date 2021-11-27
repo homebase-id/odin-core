@@ -12,7 +12,7 @@ namespace Youverse.Services.Messaging.Email
         private IMailboxService _mailbox;
         // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         
-        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, object messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, object messagingHub, IDotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
             _mailbox = new SimpleMailboxService(context, "Messages");
         }

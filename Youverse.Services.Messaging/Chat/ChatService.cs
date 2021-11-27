@@ -31,7 +31,7 @@ namespace Youverse.Services.Messaging.Chat
         // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<IChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, object messagingHub, IStorageService storageService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<IChatService> logger, IDotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, object messagingHub, IStorageService storageService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;

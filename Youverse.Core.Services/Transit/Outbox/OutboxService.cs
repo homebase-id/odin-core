@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, NotificationHandler notificationHub, IDotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _pendingTransfers = pendingTransfers;
         }

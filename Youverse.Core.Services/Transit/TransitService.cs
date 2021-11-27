@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -23,18 +22,34 @@ namespace Youverse.Core.Services.Transit
         private readonly IInboxService _inboxService;
         private readonly IEncryptionService _encryption;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
-
+        private readonly DotYouContext _context;
+        private readonly ILogger<TransitService> _logger;
+        private readonly ISystemStorage _systemStorage;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
-        public TransitService(DotYouContext context, ILogger<ITransitService> logger, IOutboxService outboxService, IStorageService storage, IEncryptionService encryptionSvc, ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService, ITransitAuditWriterService auditWriter,
-            IInboxService inboxService, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, auditWriter, notificationHub, fac)
+        public TransitService(DotYouContext context,
+            ILogger<TransitService> logger,
+            IOutboxService outboxService,
+            IStorageService storage,
+            IEncryptionService encryptionSvc,
+            ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
+            ITransitAuditWriterService auditWriter,
+            IInboxService inboxService, 
+            ISystemStorage systemStorage, 
+            IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
         {
+            _context = context;
             _outboxService = outboxService;
             _storage = storage;
             _encryption = encryptionSvc;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _inboxService = inboxService;
+            _systemStorage = systemStorage;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _logger = logger;
         }
 
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
@@ -60,8 +75,8 @@ namespace Youverse.Core.Services.Transit
             {
                 FileId = package.FileId,
                 Recipient = r,
-                AppId = this.Context.AppContext.AppId,
-                DeviceUid = this.Context.AppContext.DeviceUid
+                AppId = this._context.AppContext.AppId,
+                DeviceUid = this._context.AppContext.DeviceUid
             }));
 
             var result = new TransferResult()
@@ -77,7 +92,7 @@ namespace Youverse.Core.Services.Transit
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
 
-            Logger.LogInformation($"TransitService.Accept fileId:{fileId}");
+            _logger.LogInformation($"TransitService.Accept fileId:{fileId}");
             _storage.MoveToLongTerm(fileId);
 
             //TODO: app routing, app notification and so on
@@ -85,8 +100,8 @@ namespace Youverse.Core.Services.Transit
             var item = new InboxItem()
             {
                 Id = Guid.NewGuid(),
-                Sender = this.Context.Caller.DotYouId,
-                AppId = this.Context.AppContext.AppId,
+                Sender = this._context.Caller.DotYouId,
+                AppId = this._context.AppContext.AppId,
                 FileId = fileId,
                 TrackerId = trackerId
             };
@@ -121,7 +136,7 @@ namespace Youverse.Core.Services.Transit
                     };
 
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
-                    this.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
+                    _systemStorage.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
                 }
                 catch (Exception)
                 {
@@ -141,7 +156,7 @@ namespace Youverse.Core.Services.Transit
                  Result is __EncryptedRecipientTransferKeyHeader__;
              :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
             */
-            var appEncryptionKey = this.Context.AppContext.GetAppEncryptionKey();
+            var appEncryptionKey = this._context.AppContext.GetAppEncryptionKey();
 
             var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
@@ -159,7 +174,7 @@ namespace Youverse.Core.Services.Transit
             var item = new TransitKeyEncryptionQueueItem()
             {
                 FileId = package.FileId,
-                AppId = Context.AppContext.AppId,
+                AppId = _context.AppContext.AppId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
                 Attempts = 1,
@@ -232,7 +247,7 @@ namespace Youverse.Core.Services.Transit
 
                 //HACK: i override the appId here so the recipeint server knows the corresponding
                 //app.  I'd rather load this into app context some how
-                var client = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
+                var client = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
                 var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
@@ -265,7 +280,7 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<EncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, Guid fileId)
         {
-            var item = await this.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.FileId == fileId));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.FileId == fileId));
             return item?.Header;
         }
 
@@ -275,26 +290,26 @@ namespace Youverse.Core.Services.Transit
             return new TransitPublicKey()
             {
                 Crc = 0,
-                Expiration = (UInt64) DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
-                PublicKey =  Guid.Empty.ToByteArray()
+                Expiration = (UInt64)DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
+                PublicKey = Guid.Empty.ToByteArray()
             };
-            
+
             //TODO: optimize by reading a dictionary cache
-            var tpk = await WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
+            var tpk = await _systemStorage.WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 
             if ((tpk == null || !tpk.IsValid()) && lookupIfInvalid)
             {
-                var svc = base.CreatePerimeterHttpClient<ITransitHostHttpClient>(recipient);
+                var svc = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient);
                 var tpkResponse = await svc.GetTransitPublicKey();
 
                 if (tpkResponse.Content != null && (!tpkResponse.IsSuccessStatusCode || !tpkResponse.Content.IsValid()))
                 {
-                    this.Logger.LogWarning("Transit public key is invalid");
+                    this._logger.LogWarning("Transit public key is invalid");
                     return null;
                 }
 
                 tpk = tpkResponse.Content;
-                WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Save(tpk));
+                _systemStorage.WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Save(tpk));
             }
 
             return tpk;

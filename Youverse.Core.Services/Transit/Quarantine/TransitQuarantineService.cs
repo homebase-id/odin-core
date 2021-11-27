@@ -13,9 +13,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
     public class TransitQuarantineService : TransitServiceBase<ITransitQuarantineService>, ITransitQuarantineService
     {
         private readonly IStorageService _storage;
+        private readonly DotYouContext _context;
 
-        public TransitQuarantineService(DotYouContext context, ILogger<ITransitQuarantineService> logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(context, logger, auditWriter, null, null)
+        public TransitQuarantineService(DotYouContext context, ILogger<ITransitQuarantineService> logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(auditWriter)
         {
+            _context = context;
             _storage = storage;
         }
 
@@ -34,7 +36,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             var context = new FilterContext()
             {
-                Sender = this.Context.Caller.DotYouId,
+                Sender = this._context.Caller.DotYouId,
                 AppId = ""
             };
 

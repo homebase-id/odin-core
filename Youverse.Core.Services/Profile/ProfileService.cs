@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Profile
     {
         private const string PROFILE_DATA_COLLECTION = "hcp";
 
-        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, IDotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
         }
 

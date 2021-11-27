@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         private const string AppRegistrationStorageName = "ars";
         private const string AppDeviceRegistrationStorageName = "adrs";
 
-        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac) :
+        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory fac) :
             base(context, logger, notificationHub, fac)
         {
         }

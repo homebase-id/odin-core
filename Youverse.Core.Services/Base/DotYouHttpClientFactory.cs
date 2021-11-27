@@ -9,9 +9,9 @@ namespace Youverse.Core.Services.Base
     /// <summary>
     /// Creates clients for http requests to other digital identity servers
     /// </summary>
-    public class DotYouHttpClientFactory
+    public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
-        private DotYouContext _context;
+        private readonly DotYouContext _context;
 
         public DotYouHttpClientFactory(DotYouContext context)
         {
@@ -41,6 +41,7 @@ namespace Youverse.Core.Services.Base
             //handler.ServerCertificateCustomValidationCallback
             handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
             
+
             var client = new System.Net.Http.HttpClient(handler);
             client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride ?? _context.AppContext.AppId);

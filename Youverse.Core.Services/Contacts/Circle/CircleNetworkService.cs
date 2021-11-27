@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         private readonly IProfileService _profileService;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, IDotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _profileService = profileService;
         }
