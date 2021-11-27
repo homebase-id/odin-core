@@ -22,7 +22,6 @@ using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
-using Youverse.Hosting.Notifications;
 using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Hosting
