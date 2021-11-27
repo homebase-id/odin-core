@@ -17,6 +17,7 @@ using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Notifications;
 using Youverse.Services.Messaging.Chat;
 using Youverse.Services.Messaging.Demo;
 using Youverse.Services.Messaging.Email;
@@ -31,6 +32,10 @@ namespace Youverse.Hosting
 
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
+            
+            cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
+            cb.RegisterType<NotificationHandler>().AsSelf().SingleInstance();
+
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().AsSelf().SingleInstance();
 
@@ -45,7 +50,6 @@ namespace Youverse.Hosting
                 cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
                 cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
             }
-
 
             cb.RegisterType<ProfileService>().As<IProfileService>();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>();

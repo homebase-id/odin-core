@@ -4,16 +4,20 @@ import {Col, Container, Row} from "react-bootstrap";
 import NavMenu from "./NavMenu";
 import Sidebar from "./Sidebar";
 
-function Layout(props: any) {
+function Layout(props: { message: string, children: any }) {
     return (
         <div>
             <Container>
-            <NavMenu/>
+                <NavMenu/>
                 <Row className="align-items-start">
                     <Col xs={1}>
                         <Sidebar/>
                     </Col>
                     <Col>
+                        <b>
+                            Message: {props.message}
+                        </b>
+                        
                         {props.children}
                     </Col>
                 </Row>

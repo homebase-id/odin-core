@@ -15,7 +15,6 @@ namespace Youverse.Hosting.Middleware
     public class DotYouContextMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly DotYouContext _dotYouContext;
         private readonly IIdentityContextRegistry _registry;
         private readonly ITenantProvider _tenantProvider;
 

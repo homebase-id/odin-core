@@ -13,10 +13,41 @@ import Profile from "./components/Profile";
 import PrivacySettings from "./components/PrivacySettings";
 import AppLogin from "./components/AppLogin";
 import Outbox from "./components/Outbox";
+import Cookies from 'universal-cookie';
+const cookies = new Cookies();
 
 function App() {
 
     const [isInitializing, setIsInitializing] = useState(true);
+    const [notification, setNotification] = useState("");
+
+    let socket;
+    let uri = "wss://" + window.location.host + "/api/live/notifications";
+    cookies.set("AppId", "adminapp");
+    cookies.set("deviceUid", "admin-device-id");
+    
+    //Pass the appid and deviceid as a cookie?  technically it's not needed because I will use the session token
+
+    const connect = () => {
+        socket = new WebSocket(uri);
+
+        socket.onopen = function (event) {
+            console.log("opened connection to " + uri);
+        };
+
+        socket.onclose = function (event) {
+            console.log("closed connection from " + uri);
+        };
+
+        socket.onmessage = function (event) {
+            setNotification(event.data);
+            console.log(event.data);
+        };
+
+        socket.onerror = function (event) {
+            console.log("error: " + event.data);
+        };
+    }
 
     const state = useAppStateStore();
     useEffect(() => {
@@ -26,9 +57,10 @@ function App() {
         };
 
         init();
+        connect();
 
     }, []);
-    
+
     if (isInitializing) {
         return <Container className="h-100 align-content-center text-center">
             <Spinner
@@ -61,7 +93,7 @@ function App() {
 
     if (state.isAuthenticated) {
         return (
-            <Layout>
+            <Layout message={notification}>
                 <Route exact path='/' component={Home}/>
                 <Route exact path='/profile' component={Profile}/>
                 <Route exact path='/outbox' component={Outbox}/>

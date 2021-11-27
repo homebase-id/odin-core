@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Security.Authentication
             Context.Response.Redirect(b.ToString());
             return Task.CompletedTask;
         }
-        
+
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             if (GetToken(out var authResult))
@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Security.Authentication
                 if (await authService.IsValidToken(authResult.SessionToken))
                 {
                     var (appId, deviceUid, isAdminApp) = ValidateDeviceApp();
-                    
+
                     //TODO: this needs to be pulled from context rather than the domain
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Security.Authentication
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
                     //HACK: todo determine how to distinguish our admin app from other apps
-                    
+
                     var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
@@ -103,15 +103,26 @@ namespace Youverse.Hosting.Security.Authentication
         private (string appId, string deviceUid, bool isAdminApp) ValidateDeviceApp()
         {
             //TODO: this needs to be moved to a central location so certificate auth can use it too
-            string appId = Context.Request.Headers[DotYouHeaderNames.AppId];
-            string deviceUid = Context.Request.Headers[DotYouHeaderNames.DeviceUid];
+            string appId = Context.Request.Headers[DotYouHeaderNames.AppId].ToString();
+            string deviceUid = Context.Request.Headers[DotYouHeaderNames.DeviceUid].ToString();
+
+            //TODO:Hack read cookie as I'm sorting through how this should work
+            if (string.IsNullOrEmpty(appId))
+            {
+                appId = Context.Request.Cookies[DotYouHeaderNames.AppId] ?? "";
+            }
+
+            if (string.IsNullOrEmpty(deviceUid))
+            {
+                deviceUid = Context.Request.Cookies[DotYouHeaderNames.DeviceUid] ?? "";
+            }
 
             Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
-            
+
             //TODO call to app service to validate 
-            
-            
+
+
             //HACK: need to determine how we ensure this is our admin app
             bool isAdminApp = false;
 
@@ -144,7 +155,6 @@ namespace Youverse.Hosting.Security.Authentication
 
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
-
             if (GetToken(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
