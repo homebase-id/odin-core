@@ -3,10 +3,10 @@ using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Contacts.Circle
@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ICircleNetworkService _cns;
         private readonly IOwnerDataAttributeManagementService _mgts;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, DotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
         {
             _cns = cns;
             _mgts = mgts;
@@ -85,8 +85,8 @@ namespace Youverse.Core.Services.Contacts.Circle
             request.Validate();
             this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
             WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
-
-            this.Notify.ConnectionRequestReceived(request).Wait();
+            
+            //this.Notify.ConnectionRequestReceived(request).Wait();
 
             return Task.CompletedTask;
         }
@@ -131,7 +131,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequest(originalRequest.Recipient);
 
-            this.Notify.ConnectionRequestAccepted(request).Wait();
+            // this.Notify.ConnectionRequestAccepted(request).Wait();
         }
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender)

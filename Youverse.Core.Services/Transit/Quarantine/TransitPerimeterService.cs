@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
-using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;

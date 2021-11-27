@@ -2,7 +2,7 @@
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Youverse.Hosting.Notifications
+namespace Youverse.Core.Services.Notifications
 {
     public class NotificationHandler : WebSocketHandlerBase
     {

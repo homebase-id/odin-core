@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Hosting.Notifications;
 using Youverse.Hosting.Security;

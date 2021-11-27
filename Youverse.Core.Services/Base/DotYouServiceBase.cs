@@ -2,9 +2,9 @@
 using System.Security;
 using System.Threading.Tasks;
 using Dawn;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Base
@@ -19,14 +19,14 @@ namespace Youverse.Core.Services.Base
         private readonly ILogger<T> _logger;
         private readonly DotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly DotYouContext _context;
-        private readonly IHubContext<NotificationHub, INotificationHub> _notificationHub;
-
-        protected DotYouServiceBase(DotYouContext context, ILogger<T> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac)
+        private NotificationHandler _notificationHandler;
+        
+        protected DotYouServiceBase(DotYouContext context, ILogger<T> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac)
         {
             _logger = logger;
-            _notificationHub = notificationHub;
             _context = context;
             _dotYouHttpClientFactory = fac;
+            _notificationHandler = notificationHub;
         }
 
         /// <summary>
@@ -66,9 +66,9 @@ namespace Youverse.Core.Services.Base
             return _dotYouHttpClientFactory.CreateClient<T>(dotYouId, appIdOverride);
         }
 
-        protected INotificationHub Notify
+        protected NotificationHandler Notify
         {
-            get => _notificationHub.Clients.User(this.Context.HostDotYouId);
+            get => null; // _notificationHandler.Clients.User(this.Context.HostDotYouId);
         }
 
         protected void AssertCallerIsOwner()

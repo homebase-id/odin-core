@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit
@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly ITransitAuditWriterService _auditWriter;
 
-        protected TransitServiceBase(DotYouContext context, ILogger<T> logger, ITransitAuditWriterService auditWriter, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        protected TransitServiceBase(DotYouContext context, ILogger<T> logger, ITransitAuditWriterService auditWriter, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _auditWriter = auditWriter;
         }

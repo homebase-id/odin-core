@@ -4,10 +4,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
@@ -20,7 +21,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
             _pendingTransfers = pendingTransfers;
         }

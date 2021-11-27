@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Services.Messaging.Chat;
@@ -10,12 +10,11 @@ namespace Youverse.Services.Messaging.Email
     public class MessagingService : DotYouServiceBase<IMessagingService>, IMessagingService
     {
         private IMailboxService _mailbox;
-        private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
+        // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         
-        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, IHubContext<MessagingHub, IMessagingHub> messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, object messagingHub, DotYouHttpClientFactory fac) : base(context, logger, null, fac)
         {
             _mailbox = new SimpleMailboxService(context, "Messages");
-            _messagingHub = messagingHub;
         }
 
         public IMailboxService Mailbox => _mailbox;
@@ -46,8 +45,8 @@ namespace Youverse.Services.Messaging.Email
             message.Folder = RootMessageFolder.Inbox;
             this.Mailbox.Save(message);
 
-            var hub = _messagingHub.Clients.User(this.Context.HostDotYouId);
-            hub.NewEmailReceived(message);
+            //var hub = _messagingHub.Clients.User(this.Context.HostDotYouId);
+            //hub.NewEmailReceived(message);
         }
     }
 }

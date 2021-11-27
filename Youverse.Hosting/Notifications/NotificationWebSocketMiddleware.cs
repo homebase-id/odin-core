@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Hosting.Notifications
 {

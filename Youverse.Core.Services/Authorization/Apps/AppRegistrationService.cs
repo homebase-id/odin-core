@@ -1,11 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -14,7 +15,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         private const string AppRegistrationStorageName = "ars";
         private const string AppDeviceRegistrationStorageName = "adrs";
 
-        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) :
+        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac) :
             base(context, logger, notificationHub, fac)
         {
         }

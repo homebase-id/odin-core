@@ -4,11 +4,12 @@ using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Util;
 
@@ -31,7 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         private readonly IProfileService _profileService;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, IHubContext<NotificationHub, INotificationHub> hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, DotYouHttpClientFactory fac) : base(context, logger, hub, fac)
         {
             _profileService = profileService;
         }

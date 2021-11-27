@@ -2,10 +2,13 @@ using System.Runtime.InteropServices;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Identity;
+using Youverse.Core.Logging.CorrelationId;
+using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Storage;
@@ -32,6 +35,11 @@ namespace Youverse.Hosting
 
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
+            
+            // cb.RegisterType<CorrelationUniqueIdGenerator>().As<ICorrelationIdGenerator>().SingleInstance();
+            // cb.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
+            // cb.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
+            // cb.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
             
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<NotificationHandler>().AsSelf().SingleInstance();

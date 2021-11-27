@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Inbox
 {
@@ -17,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         private const string InboxItemsCollection = "inbxitems";
 
-        public InboxService(DotYouContext context, ILogger<IInboxService> logger, IHubContext<NotificationHub, INotificationHub> notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, DotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
         {
         }
 

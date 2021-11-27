@@ -6,7 +6,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Refit;
 using Youverse.Core;
@@ -26,15 +25,17 @@ namespace Youverse.Services.Messaging.Chat
         private const string RecentChatMessagesHistoryCollection = "recent_messages";
 
         private readonly IProfileService _profileService;
+
         private readonly ICircleNetworkService _cns;
-        private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
+
+        // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<IChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, IHubContext<MessagingHub, IMessagingHub> messagingHub, IStorageService storageService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<IChatService> logger, DotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, object messagingHub, IStorageService storageService) : base(context, logger, null, fac)
         {
             _profileService = profileService;
             _cns = cns;
-            _messagingHub = messagingHub;
+            // _messagingHub = messagingHub;
             _storageService = storageService;
         }
 
@@ -112,7 +113,7 @@ namespace Youverse.Services.Messaging.Chat
             else
             {
                 MediaMetaData metaData = await _storageService.GetMetaData(message.MediaId);
-                
+
                 if (metaData == null)
                 {
                     Logger.LogWarning($"SendMessage -> Meta data missing for [{message.MediaId}]");
@@ -168,14 +169,14 @@ namespace Youverse.Services.Messaging.Chat
 
             Console.WriteLine($"has metadata: {(metaData != null).ToString()}");
             Console.WriteLine($"metadata len: {mediaStream?.Length}");
-            
+
             if (metaData != null && mediaStream is { Length: > 0 })
             {
                 Console.WriteLine($"Message has media of type [{metaData.MimeType}] and length: {mediaStream.Length}");
                 Guard.Argument(metaData.MimeType, nameof(metaData.MimeType)).NotNull("Mimetype required").NotEmpty("Mimetype required");
                 envelope.MediaId = await _storageService.SaveMedia(metaData, mediaStream, giveNewId: true);
             }
-            
+
             string collection = GetChatStoragePath(envelope.SenderDotYouId);
             WithTenantSystemStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
 
@@ -249,7 +250,7 @@ namespace Youverse.Services.Messaging.Chat
 
         private IMessagingHub MessagingHub
         {
-            get => _messagingHub.Clients.User(this.Context.HostDotYouId);
+            get => null; // _messagingHub.Clients.User(this.Context.HostDotYouId);
         }
     }
 }

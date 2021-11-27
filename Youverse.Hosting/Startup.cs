@@ -79,7 +79,7 @@ namespace Youverse.Hosting
             services.AddYouverseAuthorization();
 
             services.AddMemoryCache();
-            services.AddSignalR(options => { options.EnableDetailedErrors = true; });
+
 
             //services.AddYouVerseScopedServices();
 
@@ -147,7 +147,7 @@ namespace Youverse.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
-            
+
             app.UseWebSockets();
             app.Map("/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 
@@ -155,15 +155,6 @@ namespace Youverse.Hosting
             {
                 endpoints.MapControllers();
                 //endpoints.MapFallbackToFile("index.html");
-                //
-                // endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
-                // {
-                //     //TODO: for #prototrial, i narrowed this to websockets
-                //     //only so i could disable negotiation from the client
-                //     //as it was causing issues with authentication.
-                //     o.Transports = HttpTransportType.WebSockets;
-                // });
-                //
                 // endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
                 // {
                 //     //TODO: for #prototrial, i narrowed this to websockets
