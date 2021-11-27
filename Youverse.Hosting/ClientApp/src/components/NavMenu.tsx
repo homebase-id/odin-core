@@ -34,6 +34,7 @@ function NavMenu(props: any) {
                             menuAlign="left"
                             title=""
                             id="meMenu">
+                            <Nav.Link as={Link} to="/transit" className="text-dark nav-link">Transit</Nav.Link>
                             <Nav.Link as={Link} to="/profile" className="text-dark nav-link">My Profile</Nav.Link>
                             <Nav.Link as={Link} to="/privacy" className="text-dark nav-link text-nowrap">Settings and Privacy</Nav.Link>
                             <NavDropdown.Divider/>

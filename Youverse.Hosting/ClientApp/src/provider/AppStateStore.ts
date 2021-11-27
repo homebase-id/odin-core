@@ -25,6 +25,11 @@ class AppStateStore {
     private isInitialized: boolean = false;
     isAuthenticated: boolean = false;
     deviceToken: string | null = null;
+    
+    //The key used to encrypt data being uploaded
+    private temp_sharedSecret = "4fc5b0fd-e21e-427d-961b-a2c7a18f18c5";
+    appSharedSecret: string = "TODO";
+    
     theme: string = "light";
 
     async initialize(): Promise<void> {
@@ -41,11 +46,13 @@ class AppStateStore {
     }
 
     async authenticate(password: string): Promise<boolean> {
-        let client = createAuthenticationProvider();
-        return client.authenticate(password).then(success => {
-            this.isAuthenticated = success;
-            return success;
-        });
+       this.isAuthenticated = true;
+       return true;
+        // let client = createAuthenticationProvider();
+        // return client.authenticate(password).then(success => {
+        //     this.isAuthenticated = success;
+        //     return success;
+        // });
     }
 
     //TODO this code is almost a duplicate authenticate method. need to refactor it
@@ -83,10 +90,11 @@ class AppStateStore {
     }
 
     private async checkTokenStatus(): Promise<boolean> {
-        const client = createAuthenticationProvider();
-        return client.hasValidToken().then(result => {
-            return result;
-        })
+        return true;
+        // const client = createAuthenticationProvider();
+        // return client.hasValidToken().then(result => {
+        //     return result;
+        // })
     }
 }
 

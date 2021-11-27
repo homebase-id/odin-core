@@ -12,7 +12,7 @@ import {observer} from "mobx-react-lite";
 import Profile from "./components/Profile";
 import PrivacySettings from "./components/PrivacySettings";
 import AppLogin from "./components/AppLogin";
-import Outbox from "./components/Outbox";
+import Transit from "./components/Transit";
 import Cookies from 'universal-cookie';
 const cookies = new Cookies();
 
@@ -45,7 +45,7 @@ function App() {
         };
 
         socket.onerror = function (event) {
-            console.log("error: " + event.data);
+            console.log("error: " + event);
         };
     }
 
@@ -96,7 +96,7 @@ function App() {
             <Layout message={notification}>
                 <Route exact path='/' component={Home}/>
                 <Route exact path='/profile' component={Profile}/>
-                <Route exact path='/outbox' component={Outbox}/>
+                <Route exact path='/transit' component={Transit}/>
                 <Route exact path='/privacy' component={PrivacySettings}/>
             </Layout>
         );
