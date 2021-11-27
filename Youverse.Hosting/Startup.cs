@@ -1,13 +1,9 @@
 using System;
 using System.IO;
-using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using LiteDB;
-using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Connections;
@@ -15,9 +11,7 @@ using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-
 using Quartz;
-
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -25,17 +19,9 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Core.Services.Logging;
-using Youverse.Core.Services.Profile;
-using Youverse.Core.Services.Tenant;
-using Youverse.Core.Services.Transit.Background;
-using Youverse.Core.Util;
-using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
-using Youverse.Hosting.Security;
-using Youverse.Hosting.Security.Authentication;
-
 using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Hosting
@@ -148,7 +134,6 @@ namespace Youverse.Hosting
 
             if (env.IsDevelopment())
             {
-                //app.UseWebAssemblyDebugging();
                 app.UseDeveloperExceptionPage();
             }
 
@@ -164,13 +149,7 @@ namespace Youverse.Hosting
 
             app.UseEndpoints(endpoints =>
             {
-                // endpoints.Map("/", async context =>
-                // {
-                //     await context.Response.WriteAsync("wrinkle");
-                // });
-
                 endpoints.MapControllers();
-                //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
                 //endpoints.MapFallbackToFile("index.html");
 
                 endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
