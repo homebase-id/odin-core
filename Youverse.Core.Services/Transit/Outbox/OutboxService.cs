@@ -15,15 +15,19 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class OutboxService : DotYouServiceBase<IOutboxService>, IOutboxService
+    public class OutboxService : IOutboxService
     {
         private readonly IPendingTransfersService _pendingTransfers;
-
+        private readonly ISystemStorage _systemStorage;
+        private readonly DotYouContext _context;
+        
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, NotificationHandler notificationHub, IDotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, NotificationHandler notificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
+            _context = context;
             _pendingTransfers = pendingTransfers;
+            _systemStorage = systemStorage;
         }
 
         /// <summary>
@@ -33,8 +37,8 @@ namespace Youverse.Core.Services.Transit.Outbox
         public Task Add(OutboxItem item)
         {
             item.IsCheckedOut = false;
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
-            _pendingTransfers.EnsureSenderIsPending(this.Context.HostDotYouId);
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            _pendingTransfers.EnsureSenderIsPending(this._context.HostDotYouId);
             return Task.CompletedTask;
         }
 
@@ -53,7 +57,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         public async Task MarkFailure(Guid itemId, TransferFailureReason reason)
         {
-            var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(itemId));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(itemId));
 
             if (null == item)
             {
@@ -70,20 +74,20 @@ namespace Youverse.Core.Services.Transit.Outbox
             });
 
             //TODO:this puts it at the end of the queue however we need to decide if we want to push it forward for various reasons (i.e. it's a chat message, etc.)
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection,s=>s.Save(item));
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection,s=>s.Save(item));
         }
 
         public async Task<PagedResult<OutboxItem>> GetNextBatch()
         {
             //TODO: update logic to handle things like priority and other bits
             var pageOptions = new PageOptions(1, 10);
-            var pagedResult = await WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
+            var pagedResult = await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
 
             //check out the items
             foreach (var item in pagedResult.Results)
             {
                 item.IsCheckedOut = true;
-                WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+                _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
             }
 
             return pagedResult;
@@ -95,26 +99,26 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <returns></returns>
         public async Task<PagedResult<OutboxItem>> GetPendingItems(PageOptions pageOptions)
         {
-            return await WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
+            return await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
         }
 
         public async Task Remove(DotYouIdentity recipient, Guid fileId)
         {
             //TODO: need to make a better queue here
             Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.FileId == fileId;
-            var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
         }
 
         public async Task<OutboxItem> GetItem(Guid id)
         {
-            var item = await WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(id));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(id));
             return item;
         }
 
         public Task RemoveItem(Guid id)
         {
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
@@ -122,7 +126,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         {
             var item = await this.GetItem(id);
             item.Priority = priority;
-            WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
         }
     }
 }

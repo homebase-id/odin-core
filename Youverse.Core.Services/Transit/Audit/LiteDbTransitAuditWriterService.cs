@@ -7,18 +7,23 @@ using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit.Audit
 {
-    public class LiteDbTransitAuditWriterService : DotYouServiceBase<ITransitAuditWriterService>, ITransitAuditWriterService
+    public class LiteDbTransitAuditWriterService : ITransitAuditWriterService
     {
+        private readonly DotYouContext _context;
+        private readonly ISystemStorage _systemStorage;
 
-        public LiteDbTransitAuditWriterService(DotYouContext context, ILogger<ITransitAuditWriterService> logger) : base(context, logger, null, null)
+
+        public LiteDbTransitAuditWriterService(DotYouContext context, ILogger<ITransitAuditWriterService> logger, ISystemStorage systemStorage)
         {
+            _context = context;
+            _systemStorage = systemStorage;
         }
 
         public async Task<Guid> CreateAuditTrackerId()
         {
             //TODO: determine if i want to create a primary collection mapping sender to their trackers or just rely on the long list written by WriteEvent
             var id = Guid.NewGuid();
-            var sender = this.Context.Caller.DotYouId;
+            var sender = this._context.Caller.DotYouId;
 
             return id;
         }
@@ -29,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this.Context.Caller.DotYouId,
+                Sender = this._context.Caller.DotYouId,
                 EventId = (int) auditEvent,
             };
 
@@ -44,7 +49,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this.Context.Caller.DotYouId,
+                Sender = this._context.Caller.DotYouId,
                 EventId = (int) auditEvent,
                 FilterId = filterId,
                 FilterRecommendation = recommendation,
@@ -55,7 +60,7 @@ namespace Youverse.Core.Services.Transit.Audit
 
         private void StoreEntry(TransitAuditEntry entry)
         {
-            WithTenantSystemStorage<TransitAuditEntry>(AuditConstants.AuditCollectionName, s => s.Save(entry));
+            _systemStorage.WithTenantSystemStorage<TransitAuditEntry>(AuditConstants.AuditCollectionName, s => s.Save(entry));
         }
     }
 }

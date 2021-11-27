@@ -13,15 +13,20 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Storage
 {
-    public class FileBasedStorageService : DotYouServiceBase<IStorageService>, IStorageService, IDisposable
+    public class FileBasedStorageService : IStorageService, IDisposable
     {
+        private readonly ILogger<FileBasedStorageService> _logger;
         private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
+        private readonly DotYouContext _context;
+        
         private const int WriteChunkSize = 1024;
         private const string CollectionName = "md";
         private const string MediaRoot = "media";
 
-        public FileBasedStorageService(DotYouContext context, ILogger<FileBasedStorageService> logger) : base(context, logger, null, null)
+        public FileBasedStorageService(DotYouContext context, ILogger<FileBasedStorageService> logger) 
         {
+            _context = context;
+            _logger = logger;
             string path = PathUtil.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
             _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
         }
@@ -168,7 +173,7 @@ namespace Youverse.Core.Services.Storage
 
                 File.Move(source, dest);
 
-                Logger.LogInformation($"File Moved to {dest}");
+                _logger.LogInformation($"File Moved to {dest}");
             }
 
             return Task.CompletedTask;
@@ -197,7 +202,7 @@ namespace Youverse.Core.Services.Storage
 
         public async Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false)
         {
-            Logger.LogDebug($"SaveMedia called - size: {mediaData.Bytes.Length}");
+            _logger.LogDebug($"SaveMedia called - size: {mediaData.Bytes.Length}");
 
             if (!giveNewId && mediaData.Id == Guid.Empty)
             {
@@ -226,13 +231,13 @@ namespace Youverse.Core.Services.Storage
                 MimeType = mediaData.MimeType
             });
 
-            Logger.LogDebug($"Image saved:{id}");
+            _logger.LogDebug($"Image saved:{id}");
             return id;
         }
 
         public async Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false, StorageType storageType = StorageType.LongTerm)
         {
-            Logger.LogDebug($"SaveMedia - Stream Edition called - size: {stream.Length}");
+            _logger.LogDebug($"SaveMedia - Stream Edition called - size: {stream.Length}");
 
             if (!giveNewId && metaData.Id == Guid.Empty)
             {
@@ -257,7 +262,7 @@ namespace Youverse.Core.Services.Storage
             metaData.Id = id; //be sure we use the new id
             await _storage.Save(metaData);
 
-            Logger.LogDebug($"media saved:{id}");
+            _logger.LogDebug($"media saved:{id}");
             return id;
         }
 
@@ -267,7 +272,7 @@ namespace Youverse.Core.Services.Storage
             if (null == fileRecord)
             {
                 Console.WriteLine($"No file record found with ID [{id}]");
-                Logger.LogInformation($"No file record found with ID [{id}]");
+                _logger.LogInformation($"No file record found with ID [{id}]");
                 return null;
             }
 
@@ -275,7 +280,7 @@ namespace Youverse.Core.Services.Storage
             if (File.Exists(path) == false)
             {
                 Console.WriteLine($"Record exists for ID [{id}] but file not found");
-                Logger.LogInformation($"Record exists for ID [{id}] but file not found");
+                _logger.LogInformation($"Record exists for ID [{id}] but file not found");
                 return null;
             }
 
@@ -324,7 +329,7 @@ namespace Youverse.Core.Services.Storage
 
         private string GetMediaRoot()
         {
-            string path = PathUtil.Combine(Context.StorageConfig.DataStoragePath, MediaRoot);
+            string path = PathUtil.Combine(_context.StorageConfig.DataStoragePath, MediaRoot);
             Directory.CreateDirectory(path);
             return path;
         }
@@ -344,7 +349,7 @@ namespace Youverse.Core.Services.Storage
 
         private string GetStorageRoot(StorageType storageType)
         {
-            var path = storageType == StorageType.Temporary ? Context.StorageConfig.TempStoragePath : Context.StorageConfig.DataStoragePath;
+            var path = storageType == StorageType.Temporary ? _context.StorageConfig.TempStoragePath : _context.StorageConfig.DataStoragePath;
             return path;
         }
     }

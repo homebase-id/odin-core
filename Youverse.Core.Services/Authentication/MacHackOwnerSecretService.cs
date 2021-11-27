@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authentication
 {
     public class MacHackOwnerSecretService : OwnerSecretService
     {
-        public MacHackOwnerSecretService(DotYouContext context, ILogger<MacHackOwnerSecretService> logger) : base(context, logger)
+        public MacHackOwnerSecretService(DotYouContext context, ILogger<MacHackOwnerSecretService> logger, ISystemStorage systemStorage) : base(context, logger, systemStorage)
         {
         }
 
@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authentication
             {
                 crc32c = 0,
                 instantiated = DateTimeExtensions.UnixTimeSeconds(),
-                expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64) 10 * 3600 + (UInt64) 5 * 60 + (UInt64) 5,
+                expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64)10 * 3600 + (UInt64)5 * 60 + (UInt64)5,
                 iv = Guid.Empty,
                 privateKey = Guid.Empty.ToByteArray(),
                 publicKey = Guid.Empty.ToByteArray(),
@@ -31,14 +31,14 @@ namespace Youverse.Core.Services.Authentication
             };
 
             var nonce = NonceData.NewRandomNonce(key);
-            WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
+            _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return nonce;
         }
 
         public override async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
-            var originalNoncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
+            var originalNoncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             var pk = new LoginKeyData()
             {
@@ -47,10 +47,10 @@ namespace Youverse.Core.Services.Authentication
                 HashPassword = Guid.Empty.ToByteArray(),
                 XorEncryptedDek = Guid.Empty.ToByteArray()
             };
-            WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
+            _systemStorage.WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
-            WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
+            _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
     }
 }

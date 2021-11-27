@@ -10,15 +10,18 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication
 {
-    public class OwnerSecretService : DotYouServiceBase<IOwnerSecretService>, IOwnerSecretService
+    public class OwnerSecretService :  IOwnerSecretService
     {
         protected const string STORAGE = "Provisioning";
         protected const string PWD_STORAGE = "k3";
         protected const string RSA_KEY_STORAGE = "rks";
         protected readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
 
-        public OwnerSecretService(DotYouContext context, ILogger<IOwnerSecretService> logger) : base(context, logger, null, null)
+        protected readonly ISystemStorage _systemStorage;
+
+        public OwnerSecretService(DotYouContext context, ILogger<IOwnerSecretService> logger, ISystemStorage systemStorage)
         {
+            _systemStorage = systemStorage;
         }
 
         /// <summary>
@@ -31,11 +34,11 @@ namespace Youverse.Core.Services.Authentication
             var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
             if (keyListWasUpdated)
             {
-                WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             }
 
             var nonce = NonceData.NewRandomNonce(key);
-            WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
+            _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Save(nonce));
             return nonce;
         }
 
@@ -43,22 +46,22 @@ namespace Youverse.Core.Services.Authentication
         public virtual async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
-            var originalNoncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
+            var originalNoncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             //HACK: this will be moved to the overall provisioning process
             //await this.GenerateRsaKeyList();
             var keys = await this.GetRsaKeyList();
 
             var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, keys);
-            WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
+            _systemStorage.WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
-            WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
+            _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
         public async Task<SecureKey> GetEncryptedDek()
         {
-            var pk = await WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
             if (null == pk)
             {
@@ -70,7 +73,7 @@ namespace Youverse.Core.Services.Authentication
 
         public async Task<SaltsPackage> GetStoredSalts()
         {
-            var pk = await WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
             if (null == pk)
             {
@@ -91,13 +94,13 @@ namespace Youverse.Core.Services.Authentication
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
 
-            WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             return rsaKeyList;
         }
 
         public async Task<RsaKeyListData> GetRsaKeyList()
         {
-            var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
 
             if (result == null)
             {
@@ -111,7 +114,7 @@ namespace Youverse.Core.Services.Authentication
         // and with that info we can validate if the client calculated the right hash.
         public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
-            var pk = await WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
 
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 

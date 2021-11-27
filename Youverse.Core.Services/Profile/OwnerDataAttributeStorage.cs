@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Security;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ namespace Youverse.Core.Services.Profile
     /// Specialized storage for the DI Owner's data attributes.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
-    internal sealed class OwnerDataAttributeStorage<T> : DotYouServiceBase<T>
+    internal sealed class OwnerDataAttributeStorage<T>
     {
         private const string ADMIN_IDENTITY_COLLECTION = "AdminIdentity";
         private const string PUBLIC_INFO_COLLECTION = "PublicInfo";
@@ -24,15 +25,20 @@ namespace Youverse.Core.Services.Profile
         private readonly Guid NAME_ATTRIBUTE_ID = Guid.Parse("ff06ce6d-d871-4a82-9775-071aa70fdab4");
         private readonly Guid PUBLIC_PROFILE_ID = Guid.Parse("ffffff6d-d8ff-4aff-97ff-071aafffdfff");
         private readonly Guid CONNECTED_PROFILE_ID = Guid.Parse("EEEEEf6d-d8ff-4aff-97ff-071aafffdfff");
+        
+        private readonly DotYouContext _context;
+        private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeStorage(DotYouContext context, ILogger<T> logger) : base(context, logger, null, null)
+        public OwnerDataAttributeStorage(DotYouContext context, ILogger<T> logger, ISystemStorage systemStorage)
         {
+            _context = context;
+            _systemStorage = systemStorage;
         }
 
         public async Task<NameAttribute> GetPrimaryName()
         {
             //Note: the ID for the primary name is a fixed attribute in the system
-            var name = await WithTenantSystemStorageReturnSingle<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Get(NAME_ATTRIBUTE_ID));
+            var name = await _systemStorage.WithTenantSystemStorageReturnSingle<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Get(NAME_ATTRIBUTE_ID));
             return name;
         }
 
@@ -44,7 +50,7 @@ namespace Youverse.Core.Services.Profile
 
             //Note: the ID for the primary name is a fixed attribute in the system
             name.Id = NAME_ATTRIBUTE_ID;
-            WithTenantSystemStorage<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Save(name));
+            _systemStorage.WithTenantSystemStorage<NameAttribute>(ADMIN_IDENTITY_COLLECTION, s => s.Save(name));
             return Task.CompletedTask;
         }
 
@@ -53,7 +59,7 @@ namespace Youverse.Core.Services.Profile
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
             Guard.Argument(profile, nameof(profile)).NotNull();
             profile.Id = CONNECTED_PROFILE_ID;
-            WithTenantSystemStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
+            _systemStorage.WithTenantSystemStorage<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
@@ -62,63 +68,71 @@ namespace Youverse.Core.Services.Profile
             //HACK: I Used a full object here with static id as I'm focused on the ui.  the storage needs to be redesigned
             Guard.Argument(profile, nameof(profile)).NotNull();
             profile.Id = PUBLIC_PROFILE_ID;
-            WithTenantSystemStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
+            _systemStorage.WithTenantSystemStorage<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Save(profile));
             return Task.CompletedTask;
         }
 
         public async Task<OwnerProfile> GetConnectedProfile()
         {
-            return await WithTenantSystemStorageReturnSingle<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
+            return await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerProfile>(CONNECTED_INFO_COLLECTION, s => s.Get(CONNECTED_PROFILE_ID));
         }
 
         public async Task<OwnerProfile> GetPublicProfile()
         {
-            return await WithTenantSystemStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
+            return await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerProfile>(PUBLIC_INFO_COLLECTION, s => s.Get(PUBLIC_PROFILE_ID));
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
         {
             AssertCallerIsOwner();
-            var results = await WithTenantSystemStorageReturnList<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.GetList(pageOptions));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.GetList(pageOptions));
             return results;
         }
 
         public Task SaveCategory(DataAttributeCategory category)
         {
-            WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Save(category));
+            _systemStorage.WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Save(category));
             return Task.CompletedTask;
         }
 
         public Task DeleteCategory(Guid id)
         {
-            WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<DataAttributeCategory>(CATEGORY_ATTRIBUTE_STORAGE, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
         public Task SaveAttribute(BaseAttribute attribute)
         {
-            WithTenantSystemStorage<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Save(attribute));
+            _systemStorage.WithTenantSystemStorage<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Save(attribute));
             return Task.CompletedTask;
         }
 
         public Task DeleteAttribute(Guid id)
         {
-            WithTenantSystemStorage<DataAttributeCategory>(ATTRIBUTE_STORAGE, s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<DataAttributeCategory>(ATTRIBUTE_STORAGE, s => s.Delete(id));
             return Task.CompletedTask;
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)
         {
             Expression<Func<BaseAttribute, bool>> predicate = attr => true;
-            var results = await WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions, Guid categoryId)
         {
             Expression<Func<BaseAttribute, bool>> predicate = attr => attr.CategoryId == categoryId;
-            var results = await WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
+        }
+        
+        protected void AssertCallerIsOwner()
+        {
+            if (this._context.Caller.IsOwner == false)
+            {
+                throw new SecurityException("Caller must be owner");
+            }
         }
     }
 }

@@ -11,35 +11,43 @@ using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
-    public class CircleNetworkRequestService : DotYouServiceBase<ICircleNetworkRequestService>, ICircleNetworkRequestService
+    public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
+        private readonly DotYouContext _context;
         private readonly ICircleNetworkService _cns;
+        private readonly ILogger<ICircleNetworkRequestService> _logger;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly IOwnerDataAttributeManagementService _mgts;
+        private readonly ISystemStorage _systemStorage;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, IDotYouHttpClientFactory fac, IOwnerDataAttributeManagementService mgts) : base(context, logger, hub, fac)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IOwnerDataAttributeManagementService mgts, ISystemStorage systemStorage)
         {
+            _context = context;
             _cns = cns;
+            _logger = logger;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _mgts = mgts;
-
-            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
-            WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
+            _systemStorage = systemStorage;
+            _context = context;
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
-            var results = await WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
 
             return results;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            var results = await WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
@@ -54,7 +62,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Id = header.Id,
                 Recipient = header.Recipient,
                 Message = header.Message,
-                SenderDotYouId = this.Context.HostDotYouId, //this should not be required since it's set on the receiving end
+                SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() //this should not be required since it's set on the receiving end
             };
 
@@ -64,11 +72,11 @@ namespace Youverse.Core.Services.Contacts.Circle
             //Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
             //Guard.Argument(profile.Name.Personal, nameof(profile.Name.Personal)).NotNull("The DI owner's primary name is not correctly configured");
             //Guard.Argument(profile.Name.Surname, nameof(profile.Name.Surname)).NotNull("The DI owner's primary name is not correctly configured");
-            
-            request.Name = profile.Name;
-            this.Logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
 
-            var response = await base.CreatePerimeterHttpClient(request.Recipient).DeliverConnectionRequest(request);
+            request.Name = profile.Name;
+            _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
+
+            var response = await _dotYouHttpClientFactory.CreateClient(request.Recipient).DeliverConnectionRequest(request);
 
             if (response.Content is { Success: false })
             {
@@ -76,16 +84,16 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception("Failed to establish connection request");
             }
 
-            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
             //note: this would occur during the operation verification process
             request.Validate();
-            this.Logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
-            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
-            
+            _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
+
             //this.Notify.ConnectionRequestReceived(request).Wait();
 
             return Task.CompletedTask;
@@ -93,22 +101,22 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            var result = await WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
-            var result = await WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
 
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
-            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
 
             return Task.CompletedTask;
         }
@@ -144,7 +152,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             request.Validate();
 
-            this.Logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
+            _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
             await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
 
@@ -158,7 +166,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 ProfilePic = p.Photo
             };
 
-            var response = await this.CreatePerimeterHttpClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
+            var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
 
             if (!response.IsSuccessStatusCode || response.Content is not { Success: true })
             {
@@ -174,10 +182,10 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
-            WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
+            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
 
             return Task.CompletedTask;
         }

@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
@@ -26,29 +25,31 @@ namespace Youverse.Core.Services.Contacts.Circle
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
-    public class CircleNetworkService : DotYouServiceBase<ICircleNetworkService>, ICircleNetworkService
+    public class CircleNetworkService : ICircleNetworkService
     {
         const string CONNECTIONS = "cnncts";
 
         private readonly IProfileService _profileService;
+        private readonly ISystemStorage _systemStorage;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, IDotYouHttpClientFactory fac) : base(context, logger, hub, fac)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
             _profileService = profileService;
+            _systemStorage = systemStorage;
         }
 
         public async Task DeleteConnection(DotYouIdentity dotYouId)
         {
-            WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s=>s.Delete(dotYouId));
+            _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Delete(dotYouId));
         }
-        
+
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             var info = await this.GetConnectionInfo(dotYouId);
             if (info is { Status: ConnectionStatus.Connected })
             {
                 info.Status = ConnectionStatus.None;
-                WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
@@ -61,7 +62,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             if (null != info && info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
-                WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
@@ -74,7 +75,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             if (null != info && info.Status == ConnectionStatus.Blocked)
             {
                 info.Status = ConnectionStatus.Connected;
-                WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
@@ -85,7 +86,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         {
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
-            PagedResult<ConnectionInfo> results = await WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            PagedResult<ConnectionInfo> results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
 
@@ -93,10 +94,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         {
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
-            PagedResult<ConnectionInfo> results = await WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            PagedResult<ConnectionInfo> results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
-        
+
         public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
@@ -139,7 +140,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
         {
-            var info = await WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
+            var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
 
             if (null == info)
             {
@@ -195,10 +196,10 @@ namespace Youverse.Core.Services.Contacts.Circle
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
 
-            WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));
+            _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));
 
             //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
-            
+
             var contact = new DotYouProfile()
             {
                 Name = name,

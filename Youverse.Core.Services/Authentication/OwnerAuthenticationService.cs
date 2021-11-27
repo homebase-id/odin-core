@@ -23,15 +23,17 @@ namespace Youverse.Core.Services.Authentication
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
-    public class OwnerAuthenticationService : DotYouServiceBase<IOwnerAuthenticationService>, IOwnerAuthenticationService
+    public class OwnerAuthenticationService :  IOwnerAuthenticationService
     {
+        protected readonly ISystemStorage _systemStorage;
         protected readonly IOwnerSecretService _secretService;
         // private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
         protected const string AUTH_TOKEN_COLLECTION = "tko";
 
-        public OwnerAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService) : base(context, logger, null, null)
+        public OwnerAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {
             _secretService = secretService;
+            _systemStorage = systemStorage;
         }
 
         public virtual async Task<NonceData> GenerateAuthenticationNonce()
@@ -51,7 +53,7 @@ namespace Youverse.Core.Services.Authentication
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);
 
-            WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
 
@@ -61,13 +63,13 @@ namespace Youverse.Core.Services.Authentication
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            var noncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist. 
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
+            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
@@ -76,7 +78,7 @@ namespace Youverse.Core.Services.Authentication
             var keys = await this._secretService.GetRsaKeyList();
             var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(noncePackage, reply, keys);
             
-            WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
+            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -121,14 +123,14 @@ namespace Youverse.Core.Services.Authentication
 
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
-            var entry = await WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             return IsAuthTokenEntryValid(entry);
         }
         
         public async Task<SecureKey> GetLoginDek(Guid sessionToken, SecureKey clientHalfKek)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = await WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             if (!IsAuthTokenEntryValid(loginToken))
             {
                 throw new Exception("Token is invalid");
@@ -153,18 +155,18 @@ namespace Youverse.Core.Services.Authentication
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
         }
 
         public void ExpireToken(Guid token)
         {
-            WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
+            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
 
         public async Task<bool> IsLoggedIn()
         {
             //check if an active token exists
-            var authTokens = await WithTenantSystemStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
+            var authTokens = await _systemStorage.WithTenantSystemStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
 
             var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
 
@@ -173,7 +175,7 @@ namespace Youverse.Core.Services.Authentication
 
         private async Task<LoginTokenData> GetValidatedEntry(Guid token)
         {
-            var entry = await WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             AssertTokenIsValid(entry);
             return entry;
         }

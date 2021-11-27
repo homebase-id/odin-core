@@ -7,14 +7,18 @@ using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Services.Messaging.Email
 {
-    public class MessagingService : DotYouServiceBase<IMessagingService>, IMessagingService
+    public class MessagingService : IMessagingService
     {
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ISystemStorage _systemStorage;
         private IMailboxService _mailbox;
         // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         
-        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, object messagingHub, IDotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        public MessagingService(DotYouContext context, ILogger<IMessagingService> logger, object messagingHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
-            _mailbox = new SimpleMailboxService(context, "Messages");
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _systemStorage = systemStorage;
+            _mailbox = new SimpleMailboxService(context, "Messages", systemStorage);
         }
 
         public IMailboxService Mailbox => _mailbox;
@@ -26,7 +30,7 @@ namespace Youverse.Services.Messaging.Email
             foreach (var recipient in message.Recipients)
             {
                 //TODO: this creates a lot of httpclients.  need to see how they are disposed
-                var response = await base.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(recipient).DeliverEmail(message);
+                var response = await _dotYouHttpClientFactory.CreateClient<IMessagingPerimeterHttpClient>(recipient).DeliverEmail(message);
                 if (!response.Content.Success)
                 {
                     //TODO: add more info

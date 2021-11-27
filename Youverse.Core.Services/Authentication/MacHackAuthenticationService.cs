@@ -10,8 +10,10 @@ namespace Youverse.Core.Services.Authentication
 {
     public class MacHackAuthenticationService : OwnerAuthenticationService
     {
-        public MacHackAuthenticationService(DotYouContext context, ILogger<MacHackAuthenticationService> logger, IOwnerSecretService secretService) : base(context, logger, secretService)
+        
+        public MacHackAuthenticationService(DotYouContext context, ILogger<MacHackAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage) : base(context, logger, secretService, systemStorage)
         {
+            
         }
         
         public override async Task<NonceData> GenerateAuthenticationNonce()
@@ -20,7 +22,7 @@ namespace Youverse.Core.Services.Authentication
             
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, "publicKey", 0);
 
-            WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;
         }
 
@@ -29,13 +31,13 @@ namespace Youverse.Core.Services.Authentication
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
 
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            var noncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist. 
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
+            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
             
             byte[] halfCookie = Guid.Empty.ToByteArray();
             var loginToken = new LoginTokenData()
@@ -47,7 +49,7 @@ namespace Youverse.Core.Services.Authentication
                 
             };
             
-            WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
+            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
 
             return new DotYouAuthenticationResult()
             {

@@ -9,14 +9,16 @@ using Youverse.Core.Services.Profile;
 
 namespace Youverse.Services.Messaging.Demo
 {
-    public class PrototrialDemoDataService : DotYouServiceBase<IPrototrialDemoDataService>, IPrototrialDemoDataService
+    public class PrototrialDemoDataService : IPrototrialDemoDataService
     {
+        private readonly DotYouContext _context;
         private readonly IProfileService _profileService;
         private readonly IOwnerDataAttributeManagementService _admin;
         private readonly ICircleNetworkRequestService _circleNetworkService;
 
-        public PrototrialDemoDataService(DotYouContext context, ILogger<IPrototrialDemoDataService> logger, IProfileService profileService, IOwnerDataAttributeManagementService admin, ICircleNetworkRequestService circleNetworkService) : base(context, logger, null, null)
+        public PrototrialDemoDataService(DotYouContext context, ILogger<IPrototrialDemoDataService> logger, IProfileService profileService, IOwnerDataAttributeManagementService admin, ICircleNetworkRequestService circleNetworkService)
         {
+            _context = context;
             _profileService = profileService;
             _admin = admin;
             _circleNetworkService = circleNetworkService;
@@ -267,9 +269,9 @@ namespace Youverse.Services.Messaging.Demo
         }
 
 
-        private bool IsFrodo => this.Context.HostDotYouId == "frodobaggins.me";
-        private bool IsSam => this.Context.HostDotYouId == "samwisegamgee.me";
-        private bool IsGandalf => this.Context.HostDotYouId == "gandalf.middleearth.life";
-        private bool IsOdin => this.Context.HostDotYouId == "odin.valhalla.com";
+        private bool IsFrodo => this._context.HostDotYouId == "frodobaggins.me";
+        private bool IsSam => this._context.HostDotYouId == "samwisegamgee.me";
+        private bool IsGandalf => this._context.HostDotYouId == "gandalf.middleearth.life";
+        private bool IsOdin => this._context.HostDotYouId == "odin.valhalla.com";
     }
 }

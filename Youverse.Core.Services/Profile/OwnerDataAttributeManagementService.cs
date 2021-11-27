@@ -1,4 +1,5 @@
 using System;
+using System.Security;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity.DataAttribute;
@@ -7,13 +8,17 @@ using Youverse.Core.Services.Base;
 namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
-    public class OwnerDataAttributeManagementService : DotYouServiceBase<IOwnerDataAttributeManagementService>, IOwnerDataAttributeManagementService
+    public class OwnerDataAttributeManagementService :  IOwnerDataAttributeManagementService
     {
+        private readonly DotYouContext _context;
         private readonly OwnerDataAttributeStorage<IOwnerDataAttributeManagementService> _das;
+        private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger) : base(context, logger, null, null)
+        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage) 
         {
-            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeManagementService>(context, logger);
+            _context = context;
+            _systemStorage = systemStorage;
+            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeManagementService>(context, logger, systemStorage);
         }
 
         public async Task<NameAttribute> GetPrimaryName()
@@ -88,6 +93,14 @@ namespace Youverse.Core.Services.Profile
         {
             AssertCallerIsOwner();
             return await _das.GetAttributes(pageOptions, categoryId);
+        }
+        
+        protected void AssertCallerIsOwner()
+        {
+            if (this._context.Caller.IsOwner == false)
+            {
+                throw new SecurityException("Caller must be owner");
+            }
         }
     }
 }

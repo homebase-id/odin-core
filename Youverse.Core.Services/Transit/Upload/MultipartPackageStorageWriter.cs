@@ -11,8 +11,9 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
-    public class MultipartPackageStorageWriter : DotYouServiceBase<IMultipartPackageStorageWriter>, IMultipartPackageStorageWriter
+    public class MultipartPackageStorageWriter : IMultipartPackageStorageWriter
     {
+        private readonly DotYouContext _context;
         private readonly IEncryptionService _encryptionService;
         private readonly IStorageService _storageService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
@@ -21,8 +22,8 @@ namespace Youverse.Core.Services.Transit.Upload
         private byte[] initializationVector;
 
         public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageService storageService, IEncryptionService encryptionService)
-            : base(context, logger, null, null)
         {
+            _context = context;
             _storageService = storageService;
             _encryptionService = encryptionService;
             _packages = new Dictionary<Guid, UploadPackage>();
@@ -60,7 +61,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 {
                     throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
                 }
-                
+
                 byte[] encryptedBytes;
                 await using (var ms = new MemoryStream())
                 {
@@ -68,7 +69,7 @@ namespace Youverse.Core.Services.Transit.Upload
                     encryptedBytes = ms.ToArray();
                 }
 
-                var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this.Context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
+                var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
                 var list = JsonConvert.DeserializeObject<RecipientList>(json);
                 if (list?.Recipients.Count <= 0)
                 {

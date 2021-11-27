@@ -11,12 +11,16 @@ namespace Youverse.Core.Services.Profile
     /// <summary>
     /// <inheritdoc cref="IProfileService"/>
     /// </summary>
-    public class ProfileService : DotYouServiceBase<IProfileService>, IProfileService
+    public class ProfileService : IProfileService
     {
         private const string PROFILE_DATA_COLLECTION = "hcp";
-
-        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, IDotYouHttpClientFactory fac) : base(context, logger, null, fac)
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ISystemStorage _systemStorage;
+        
+        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _systemStorage = systemStorage;
         }
 
         public async Task<DotYouProfile> Get(DotYouIdentity dotYouId)
@@ -26,7 +30,7 @@ namespace Youverse.Core.Services.Profile
             // 2 if not in cache - pull from DI and update local cache
             DotYouProfile profile = null;
 
-            profile = await WithTenantSystemStorageReturnSingle<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId));
+            profile = await _systemStorage.WithTenantSystemStorageReturnSingle<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Get(dotYouId));
 
             if (null != profile)
             {
@@ -37,7 +41,7 @@ namespace Youverse.Core.Services.Profile
             Console.WriteLine($"Retrieving remote profile for {dotYouId}");
 
             //maybe this should be a call from the cache
-            var client = this.CreatePerimeterHttpClient(dotYouId);
+            var client = _dotYouHttpClientFactory.CreateClient<IPerimeterHttpClient>(dotYouId);
             var response = await client.GetProfile();
 
             if (response.IsSuccessStatusCode && response.Content != null)
@@ -57,19 +61,19 @@ namespace Youverse.Core.Services.Profile
 
         public Task Save(DotYouProfile profile)
         {
-            WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
+            _systemStorage.WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, storage => storage.Save(profile));
             return Task.CompletedTask;
         }
 
         public async Task<PagedResult<DotYouProfile>> Find(Expression<Func<DotYouProfile, bool>> predicate, PageOptions req)
         {
-            var results = await WithTenantSystemStorageReturnList<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Find(predicate, req));
             return results;
         }
 
         public Task Delete(DotYouIdentity dotYouId)
         {
-            WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
+            _systemStorage.WithTenantSystemStorage<DotYouProfile>(PROFILE_DATA_COLLECTION, s => s.Delete(dotYouId));
             return Task.CompletedTask;
         }
     }

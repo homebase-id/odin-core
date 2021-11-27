@@ -6,23 +6,24 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransferKeyEncryptionQueueService : DotYouServiceBase<ITransferKeyEncryptionQueueService>,  ITransferKeyEncryptionQueueService
+    public class TransferKeyEncryptionQueueService : ITransferKeyEncryptionQueueService
     {
         private const string CollectionName = "tkeqs";
-        public TransferKeyEncryptionQueueService(DotYouContext context, ILogger<ITransferKeyEncryptionQueueService> logger) : base(context, logger, null, null)
+        private readonly ISystemStorage _systemStorage;
+        public TransferKeyEncryptionQueueService(DotYouContext context, ILogger<ITransferKeyEncryptionQueueService> logger, ISystemStorage systemStorage)
         {
-            
+            _systemStorage = systemStorage;
         }
         
         public Task Enqueue(TransitKeyEncryptionQueueItem item)
         {
-            this.WithTenantSystemStorage<TransitKeyEncryptionQueueItem>(CollectionName, s => s.Save(item));
+            this._systemStorage.WithTenantSystemStorage<TransitKeyEncryptionQueueItem>(CollectionName, s => s.Save(item));
             return Task.CompletedTask;
         }
 
         public async Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext(PageOptions pageOptions)
         {
-            var list = await this.WithTenantSystemStorageReturnList<TransitKeyEncryptionQueueItem>(CollectionName, 
+            var list = await this._systemStorage.WithTenantSystemStorageReturnList<TransitKeyEncryptionQueueItem>(CollectionName, 
                 s => s.GetList(pageOptions, ListSortDirection.Descending, key=>key.FirstAddedTimestampMs));
             return list.Results;
         }

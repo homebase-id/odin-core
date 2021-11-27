@@ -10,15 +10,19 @@ using Youverse.Core.Services.Contacts.Circle;
 namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeReaderService"/>
-    public class OwnerDataAttributeReaderService : DotYouServiceBase<IOwnerDataAttributeReaderService>, IOwnerDataAttributeReaderService
+    public class OwnerDataAttributeReaderService : IOwnerDataAttributeReaderService
     {
+        private readonly DotYouContext _context;
         private readonly ICircleNetworkService _circleNetwork;
         private readonly OwnerDataAttributeStorage<IOwnerDataAttributeReaderService> _das;
+        private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork) : base(context, logger, null, null)
+        public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork, ISystemStorage systemStorage)
         {
+            _context = context;
             _circleNetwork = circleNetwork;
-            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeReaderService>(context, logger);
+            _systemStorage = systemStorage;
+            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeReaderService>(context, logger, systemStorage);
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)
@@ -40,7 +44,7 @@ namespace Youverse.Core.Services.Profile
         public async Task<DotYouProfile> GetProfile()
         {
             OwnerProfile oProfile = null;
-            if (await _circleNetwork.IsConnected(Context.Caller.DotYouId))
+            if (await _circleNetwork.IsConnected(_context.Caller.DotYouId))
             {
                 oProfile = await _das.GetConnectedProfile();
             }
@@ -51,7 +55,7 @@ namespace Youverse.Core.Services.Profile
 
             var profile = new DotYouProfile()
             {
-                DotYouId = Context.HostDotYouId,
+                DotYouId = _context.HostDotYouId,
                 Name = oProfile?.Name,
                 AvatarUri = oProfile?.Photo?.ProfilePic
             };

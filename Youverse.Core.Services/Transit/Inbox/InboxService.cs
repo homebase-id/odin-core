@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -13,13 +12,15 @@ namespace Youverse.Core.Services.Transit.Inbox
     /// <summary>
     /// Services that manages items in a given Tenant's Inbox
     /// </summary>
-    public class InboxService : DotYouServiceBase<IInboxService>, IInboxService
+    public class InboxService : IInboxService
     {
-
         private const string InboxItemsCollection = "inbxitems";
 
-        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory fac) : base(context, logger, notificationHub, fac)
+        private readonly ISystemStorage _systemStorage;
+
+        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
+            _systemStorage = systemStorage;
         }
 
         /// <summary>
@@ -29,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Inbox
         public Task Add(InboxItem item)
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
-            WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
+            _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
             return Task.CompletedTask;
         }
 
@@ -55,26 +56,26 @@ namespace Youverse.Core.Services.Transit.Inbox
         /// <returns></returns>
         public async Task<PagedResult<InboxItem>> GetPendingItems(PageOptions pageOptions)
         {
-            return await WithTenantSystemStorageReturnList<InboxItem>(InboxItemsCollection, s => s.GetList(pageOptions));
+            return await _systemStorage.WithTenantSystemStorageReturnList<InboxItem>(InboxItemsCollection, s => s.GetList(pageOptions));
         }
 
         public async Task Remove(DotYouIdentity recipient, Guid fileId)
         {
             //TODO: need to make a better queue here
             Expression<Func<InboxItem, bool>> predicate = item => item.Sender == recipient && item.FileId == fileId;
-            var item = await WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.FindOne(predicate));
-            WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(item.Id));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.FindOne(predicate));
+            _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(item.Id));
         }
 
         public async Task<InboxItem> GetItem(Guid id)
         {
-            var item = await WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.Get(id));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.Get(id));
             return item;
         }
 
         public Task RemoveItem(Guid id)
         {
-            WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(id));
             return Task.CompletedTask;
         }
     }

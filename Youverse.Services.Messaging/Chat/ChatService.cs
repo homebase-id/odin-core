@@ -19,24 +19,31 @@ using Youverse.Core.Util;
 
 namespace Youverse.Services.Messaging.Chat
 {
-    public class ChatService : DotYouServiceBase<IChatService>, IChatService
+    public class ChatService: IChatService
     {
         private const string ChatMessageStorageCollection = "chat";
         private const string RecentChatMessagesHistoryCollection = "recent_messages";
 
+        private readonly ISystemStorage _systemStorage;
+        private readonly DotYouContext _context;
+        private readonly ILogger<IChatService> _logger;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly IProfileService _profileService;
-
         private readonly ICircleNetworkService _cns;
 
         // private readonly IHubContext<MessagingHub, IMessagingHub> _messagingHub;
         private readonly IStorageService _storageService;
 
-        public ChatService(DotYouContext context, ILogger<IChatService> logger, IDotYouHttpClientFactory fac, IProfileService profileService, ICircleNetworkService cns, object messagingHub, IStorageService storageService) : base(context, logger, null, fac)
+        public ChatService(DotYouContext context, ILogger<IChatService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileService profileService, ICircleNetworkService cns, object messagingHub, IStorageService storageService, ISystemStorage systemStorage)
         {
+            _context = context;
+            _logger = logger;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _profileService = profileService;
             _cns = cns;
             // _messagingHub = messagingHub;
             _storageService = storageService;
+            _systemStorage = systemStorage;
         }
 
         public async Task<PagedResult<AvailabilityStatus>> GetAvailableContacts(PageOptions options)
@@ -50,7 +57,7 @@ namespace Youverse.Services.Messaging.Chat
 
             var tasks = connections.Results.Select(async connectionInfo =>
             {
-                var client = base.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(connectionInfo.DotYouId);
+                var client = _dotYouHttpClientFactory.CreateClient<IMessagingPerimeterHttpClient>(connectionInfo.DotYouId);
                 var response = await client.GetAvailability();
 
                 var canChat = response.IsSuccessStatusCode && response.Content == true;
@@ -86,10 +93,10 @@ namespace Youverse.Services.Messaging.Chat
                 throw new MessageSendException($"Cannot find public key certificate for {message.Recipient}");
             }
 
-            message.SenderDotYouId = this.Context.HostDotYouId;
+            message.SenderDotYouId = this._context.HostDotYouId;
             message.ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            Console.WriteLine($"Message being sent from {this.Context.HostDotYouId} to {message.Recipient}");
+            Console.WriteLine($"Message being sent from {this._context.HostDotYouId} to {message.Recipient}");
 
             var encryptedMessage = new ChatMessageEnvelope()
             {
@@ -102,10 +109,10 @@ namespace Youverse.Services.Messaging.Chat
                 Body = message.Body
             };
 
-            Logger.LogDebug($"Media Id: {message.MediaId}");
+            _logger.LogDebug($"Media Id: {message.MediaId}");
 
             ApiResponse<NoResultResponse> response;
-            var client = this.CreatePerimeterHttpClient<IMessagingPerimeterHttpClient>(message.Recipient);
+            var client = _dotYouHttpClientFactory.CreateClient<IMessagingPerimeterHttpClient>(message.Recipient);
             if (message.MediaId == Guid.Empty)
             {
                 response = await client.DeliverChatMessage(encryptedMessage, null, null);
@@ -116,7 +123,7 @@ namespace Youverse.Services.Messaging.Chat
 
                 if (metaData == null)
                 {
-                    Logger.LogWarning($"SendMessage -> Meta data missing for [{message.MediaId}]");
+                    _logger.LogWarning($"SendMessage -> Meta data missing for [{message.MediaId}]");
                     response = await client.DeliverChatMessage(encryptedMessage, null, null);
                 }
                 else
@@ -133,7 +140,7 @@ namespace Youverse.Services.Messaging.Chat
                 Console.WriteLine($"Message successfully sent to {message.Recipient}");
 
                 //upon successful delivery of the message, save our message
-                WithTenantSystemStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
+                _systemStorage.WithTenantSystemStorage<ChatMessageEnvelope>(GetChatStoragePath(message.Recipient), s => s.Save(message));
 
                 var recent = new RecentChatMessageHeader()
                 {
@@ -142,7 +149,7 @@ namespace Youverse.Services.Messaging.Chat
                     Timestamp = message.ReceivedTimestampMilliseconds
                 };
 
-                WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
+                _systemStorage.WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
                 await this.MessagingHub.NewChatMessageSent(message);
                 //Console.WriteLine($"ChatHub.NewChatMessageSent sent to {this.Context.HostDotYouId}");
@@ -165,7 +172,7 @@ namespace Youverse.Services.Messaging.Chat
             // Console.BackgroundColor = ConsoleColor.Yellow;
             // Console.ForegroundColor = ConsoleColor.Black;
 
-            Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this.Context.HostDotYouId}");
+            Console.WriteLine($"Message received from {envelope.SenderDotYouId} to {this._context.HostDotYouId}");
 
             Console.WriteLine($"has metadata: {(metaData != null).ToString()}");
             Console.WriteLine($"metadata len: {mediaStream?.Length}");
@@ -178,7 +185,7 @@ namespace Youverse.Services.Messaging.Chat
             }
 
             string collection = GetChatStoragePath(envelope.SenderDotYouId);
-            WithTenantSystemStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
+            _systemStorage.WithTenantSystemStorage<ChatMessageEnvelope>(collection, s => s.Save(envelope));
 
             var recent = new RecentChatMessageHeader()
             {
@@ -187,7 +194,7 @@ namespace Youverse.Services.Messaging.Chat
                 Timestamp = envelope.ReceivedTimestampMilliseconds
             };
 
-            WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
+            _systemStorage.WithTenantSystemStorage<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.Save(recent));
 
             await this.MessagingHub.NewChatMessageReceived(envelope);
 
@@ -200,7 +207,7 @@ namespace Youverse.Services.Messaging.Chat
 
         public async Task<PagedResult<RecentChatMessageHeader>> GetRecentMessages(PageOptions pageOptions)
         {
-            var page = await WithTenantSystemStorageReturnList<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<RecentChatMessageHeader>(RecentChatMessagesHistoryCollection, s => s.GetList(pageOptions, ListSortDirection.Descending, sortKey => sortKey.Timestamp));
 
             //HACK:  need to redesign the storage of chat and/or recent messages
             var grouping = page.Results.GroupBy(h => h.DotYouId, StringComparer.InvariantCultureIgnoreCase);
@@ -221,7 +228,7 @@ namespace Youverse.Services.Messaging.Chat
         public async Task<DateRangePagedResult<ChatMessageEnvelope>> GetHistory(DotYouIdentity dotYouId, Int64 startDateTimeOffsetSeconds, Int64 endDateTimeOffsetSeconds, PageOptions pageOptions)
         {
             string collection = GetChatStoragePath(dotYouId);
-            var page = await WithTenantSystemStorageReturnList<ChatMessageEnvelope>(collection, s =>
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<ChatMessageEnvelope>(collection, s =>
             {
                 Expression<Func<ChatMessageEnvelope, bool>> predicate = p => (p.ReceivedTimestampMilliseconds >= startDateTimeOffsetSeconds &&
                                                                               p.ReceivedTimestampMilliseconds <= endDateTimeOffsetSeconds);

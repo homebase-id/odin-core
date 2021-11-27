@@ -7,10 +7,13 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit.Audit
 {
-    public class LiteDbTransitAuditReaderService : DotYouServiceBase<ITransitAuditReaderService>, ITransitAuditReaderService
+    public class LiteDbTransitAuditReaderService : ITransitAuditReaderService
     {
-        public LiteDbTransitAuditReaderService(DotYouContext context, ILogger<ITransitAuditReaderService> logger) : base(context, logger, null, null)
+        private readonly ISystemStorage _systemStorage;
+
+        public LiteDbTransitAuditReaderService(DotYouContext context, ILogger<ITransitAuditReaderService> logger, ISystemStorage systemStorage)
         {
+            _systemStorage = systemStorage;
         }
 
         public async Task<PagedResult<TransitAuditEntry>> GetList(DateRangeOffset range, PageOptions pageOptions)
@@ -18,11 +21,11 @@ namespace Youverse.Core.Services.Transit.Audit
             Expression<Func<TransitAuditEntry, bool>> predicate = (entry => range.StartDateTimeOffsetMilliseconds <= entry.Timestamp && range.EndDateTimeOffsetMilliseconds >= entry.Timestamp);
             Expression<Func<TransitAuditEntry, Int64>> sortKey = (entry => entry.Timestamp);
 
-            var list = await WithTenantSystemStorageReturnList<TransitAuditEntry>(
+            var list = await _systemStorage.WithTenantSystemStorageReturnList<TransitAuditEntry>(
                 AuditConstants.AuditCollectionName,
                 s => s.Find(predicate, ListSortDirection.Descending, sortKey, pageOptions));
 
-            var all = await WithTenantSystemStorageReturnList<TransitAuditEntry>(
+            var all = await _systemStorage.WithTenantSystemStorageReturnList<TransitAuditEntry>(
                 AuditConstants.AuditCollectionName,
                 s => s.Find(p => true, ListSortDirection.Descending, sortKey, pageOptions));
 

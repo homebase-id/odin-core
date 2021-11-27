@@ -8,10 +8,14 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
-    public class EncryptionService : DotYouServiceBase<IEncryptionService>, IEncryptionService
+    public class EncryptionService : IEncryptionService
     {
-        public EncryptionService(DotYouContext context, ILogger<IEncryptionService> logger) : base(context, logger, null, null)
+        private readonly DotYouContext _context;
+        private readonly ISystemStorage _systemStorage;
+        public EncryptionService(DotYouContext context, ILogger<IEncryptionService> logger, ISystemStorage systemStorage)
         {
+            _context = context;
+            _systemStorage = systemStorage;
         }
 
         public async Task<EncryptedKeyHeader> Encrypt(EncryptedKeyHeader originalHeader, byte[] publicKey)
@@ -61,10 +65,10 @@ namespace Youverse.Core.Services.Transit.Encryption
                 throw new InvalidDataException("Stream returned null EncryptedKeyHeader");
             }
             
-            var sharedSecret = base.Context.AppContext.GetSharedSecret().GetKey();
+            var sharedSecret = _context.AppContext.GetSharedSecret().GetKey();
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
             
-            var appEncryptionKey = base.Context.AppContext.GetAppEncryptionKey().GetKey();
+            var appEncryptionKey = _context.AppContext.GetAppEncryptionKey().GetKey();
             return EncryptedKeyHeader.EncryptKeyHeaderAes(kh, appEncryptionKey);
         }
     }
