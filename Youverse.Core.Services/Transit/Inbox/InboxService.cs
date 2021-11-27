@@ -42,7 +42,6 @@ namespace Youverse.Core.Services.Transit.Inbox
             return Task.CompletedTask;
         }
 
-
         public Task<PagedResult<InboxItem>> GetNextBatch()
         {
             throw new NotImplementedException();

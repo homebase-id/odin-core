@@ -25,19 +25,12 @@ namespace Youverse.Hosting.Controllers.Transit
         {
             _inbox = inbox;
         }
-        
+
         [HttpGet]
         public async Task<IActionResult> GetList(int pageNumber, int pageSize)
         {
-            try
-            {
-                var items = await _inbox.GetPendingItems(new PageOptions(pageNumber, pageSize));
-                return new JsonResult(items);
-            }
-            catch (InvalidDataException e)
-            {
-                return new JsonResult(new NoResultResponse(false, e.Message));
-            }
+            var items = await _inbox.GetPendingItems(new PageOptions(pageNumber, pageSize));
+            return new JsonResult(items);
         }
 
         [HttpGet("item")]
