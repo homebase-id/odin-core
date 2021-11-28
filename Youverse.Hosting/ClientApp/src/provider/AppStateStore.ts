@@ -1,6 +1,7 @@
 import React from "react";
 import {createAuthenticationProvider} from "./AuthenticationProvider";
 import {action, configure, makeObservable, observable} from "mobx";
+import {ArrayUtils} from "./ArrayUtils";
 
 //https://wix.github.io/react-native-navigation/docs/third-party-mobx
 configure({enforceActions: "always"});
@@ -27,8 +28,8 @@ class AppStateStore {
     deviceToken: string | null = null;
     
     //The key used to encrypt data being uploaded
-    private temp_sharedSecret = "4fc5b0fd-e21e-427d-961b-a2c7a18f18c5";
-    appSharedSecret: string = "TODO";
+    //TODO: need to load from system
+    appSharedSecret: Uint8Array = ArrayUtils.toArray("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5");
     
     theme: string = "light";
 
@@ -46,13 +47,11 @@ class AppStateStore {
     }
 
     async authenticate(password: string): Promise<boolean> {
-       this.isAuthenticated = true;
-       return true;
-        // let client = createAuthenticationProvider();
-        // return client.authenticate(password).then(success => {
-        //     this.isAuthenticated = success;
-        //     return success;
-        // });
+        let client = createAuthenticationProvider();
+        return client.authenticate(password).then(success => {
+            this.isAuthenticated = success;
+            return success;
+        });
     }
 
     //TODO this code is almost a duplicate authenticate method. need to refactor it
@@ -90,11 +89,10 @@ class AppStateStore {
     }
 
     private async checkTokenStatus(): Promise<boolean> {
-        return true;
-        // const client = createAuthenticationProvider();
-        // return client.hasValidToken().then(result => {
-        //     return result;
-        // })
+        const client = createAuthenticationProvider();
+        return client.hasValidToken().then(result => {
+            return result;
+        })
     }
 }
 

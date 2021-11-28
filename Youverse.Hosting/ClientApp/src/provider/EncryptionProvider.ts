@@ -2,6 +2,7 @@
 import {KeyHeader} from "./KeyHeader";
 import {useAppStateStore} from "./AppStateStore";
 import {EncryptedKeyHeader} from "./EncryptedKeyHeader";
+import {ArrayUtils} from "./ArrayUtils";
 
 export class EncryptionProvider extends ProviderBase {
 
@@ -23,32 +24,79 @@ export class EncryptionProvider extends ProviderBase {
     }
 
     //Encrypts the data with AES using the initializationVector and appSharedSecret from state
-    encryptAesWithAppSharedSecret(data: string, initializationVector: Uint8Array): Promise<EncryptedKeyHeader> {
-        const {appSharedSecret} = useAppStateStore();
-
-        let encryptedData = new Uint8Array([0, 1, 2]);
-
-        let ekh: EncryptedKeyHeader = {
-            encryptionType: 1,
-            encryptionVersion: 1,
-            iv: initializationVector,
-            data: encryptedData
-        }
-        
-        //TODO: use window.subtle.crypto
-        return new Promise<EncryptedKeyHeader>(resolve => {
+    encryptKeyHeader(data: string, initializationVector: Uint8Array): Promise<EncryptedKeyHeader> {
+        return this.encryptAesUsingAppSharedSecret(data, initializationVector).then(encryptedData => {
+            let ekh: EncryptedKeyHeader = {
+                encryptionType: 1,
+                encryptionVersion: 1,
+                iv: initializationVector,
+                data: encryptedData
+            }
             return ekh;
         });
     }
 
-    encryptAesUsingKeyHeader(data: string, keyHeader: KeyHeader): Promise<Uint8Array> {
+    encryptAesUsingAppSharedSecret(data: string, initializationVector: Uint8Array): Promise<Uint8Array> {
         const {appSharedSecret} = useAppStateStore();
-
-        //TODO: use window.subtle.crypto
-        return new Promise<Uint8Array>(resolve => {
-            return new Uint8Array([0, 1, 2])
+        return EncryptionProvider.aesCbcEncrypt(ArrayUtils.toArray(data), appSharedSecret, initializationVector).then(encryptedData => {
+            return encryptedData;
         });
     }
+
+    encryptAesUsingKeyHeader(data: string, keyHeader: KeyHeader): Promise<Uint8Array> {
+        return EncryptionProvider.aesCbcEncrypt(ArrayUtils.toArray(data), keyHeader.encryptionKey, keyHeader.initializationVector).then(encryptedData => {
+            return encryptedData;
+        });
+    }
+
+
+    private static async aesCbcEncrypt(u8aData: Uint8Array, u8aKey: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+        let key = await crypto.subtle.importKey(
+            "raw",
+            u8aKey,
+            {   //this is the algorithm options
+                name: "AES-CBC",
+            },
+            false, //whether the key is extractable (i.e. can be used in exportKey)
+            ["encrypt", "decrypt"] //can be "encrypt", "decrypt", "wrapKey", or "unwrapKey"
+        );
+
+        let cipher = await crypto.subtle.encrypt(
+            {
+                name: "AES-CBC",
+                iv: iv,
+            },
+            key, //from generateKey or importKey above
+            u8aData //ArrayBuffer of data you want to encrypt
+        );
+
+        return new Uint8Array(cipher);
+    }
+
+    private static async aesCbcDecrypt(u8aCipher: Uint8Array, u8aKey: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+        // console.log("Decrypt IV = " + iv);
+        let key = await crypto.subtle.importKey(
+            "raw",
+            u8aKey,
+            {   //this is the algorithm options
+                name: "AES-CBC",
+            },
+            false, //whether the key is extractable (i.e. can be used in exportKey)
+            ["encrypt", "decrypt"] //can be "encrypt", "decrypt", "wrapKey", or "unwrapKey"
+        );
+
+        let decrypted = await crypto.subtle.decrypt(
+            {
+                name: "AES-CBC",
+                iv: iv, //The initialization vector you used to encrypt
+            },
+            key, //from generateKey or importKey above
+            u8aCipher //ArrayBuffer of the data
+        );
+
+        return new Uint8Array(decrypted);
+    }
+
 }
 
 export function createEncryptionProvider() {

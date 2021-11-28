@@ -3,6 +3,7 @@ import {useAppStateStore} from "./AppStateStore";
 import {createEncryptionProvider} from "./EncryptionProvider";
 import {RecipientList} from "./RecipientList";
 import {isArray} from "util";
+import {MetaData} from "./MetaData";
 
 export class TransitProvider extends ProviderBase {
 
@@ -17,39 +18,42 @@ export class TransitProvider extends ProviderBase {
         //NOTE: the order of items in this package is required
         const multipartPackage = new FormData();
 
-        
         let keyHeader = ep.generateKeyHeader();
 
         let transferInitializationVector = ep.generateRandom16Bytes();
-        let transferEncryptedKeyHeader = ep.encryptAesWithAppSharedSecret(JSON.stringify(keyHeader), transferInitializationVector);
-        multipartPackage.append('tekh', transferEncryptedKeyHeader);
-        
+        let transferEncryptedKeyHeader = await ep.encryptKeyHeader(JSON.stringify(keyHeader), transferInitializationVector);
+        multipartPackage.append('tekh', JSON.stringify(transferEncryptedKeyHeader));
+
         let recipientList = new RecipientList();
         recipientList.Recipients = Array.isArray(recipients) ? recipients : [recipients];
-        let recipientCipher = ep.encryptAesWithAppSharedSecret(JSON.stringify(recipientList), transferInitializationVector);
-        multipartPackage.append('recipients', recipientCipher);
-
+        let recipientCipher = await ep.encryptAesUsingAppSharedSecret(JSON.stringify(recipientList), transferInitializationVector);
+        multipartPackage.append('recipients', new Blob([recipientCipher], {type: 'application/json'}));
+        
         /*
-        :Encrypt RecipientList using __KeyHeader__ and places in __MultipartUploadPackage__;
         :Encrypt file parts {metadata,payload} using __KeyHeader__ and places in __MultipartUploadPackage__
         (note, does not encrypt __KeyHeader__);
         */
 
+        let metadata:MetaData = {
+            preview:"this is some preview text..."
+        };
+        let metadataCipher = await ep.encryptAesUsingKeyHeader(JSON.stringify(metadata), keyHeader);
+        multipartPackage.append('metadata', new Blob([metadataCipher], {type: 'application/json'}));
+        
+        //TODO: how to encrypt a file client side
+        const reader = new FileReader();
+        reader.readAsArrayBuffer()
+        let payload = JSON.stringify({});
 
+        let payloadCipher = await ep.encryptAesUsingKeyHeader(JSON.stringify(metadata), keyHeader);
+        multipartPackage.append('payload', new Blob([payloadCipher], {type: 'application/json'}));
+        
+        
         /*
-        This is the __TransferEncryptedKeyHeader__
-        Client place    s __TransferEncryptedKeyHeader__ in the  __MultipartUploadPackage__;
         :client saves __MultipartUploadPackage__ contents on device as cache if needed;
         :client uploads __MultipartUploadPackage__ using multipart stream;
         */
-
-        let metadata = "";
-        let payload = "";
-
-        multipartPackage.append('metadata', metadata);
-        multipartPackage.append('payload', payload);
-        multipartPackage.append('file', file);
-
+        
         let client = this.createAxiosClient();
         let url = "/api/transit/client/SendPackage";
 
