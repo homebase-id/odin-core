@@ -10,6 +10,8 @@ class AuthenticationProvider extends ProviderBase {
     //checks if the authentication token (stored in a cookie) is valid
     async hasValidToken(): Promise<boolean> {
 
+        // return true;
+
         //Note: the token is in a cookie marked http-only so making 
         // the call to the endpoint will automatically include the 
         // cookie.  we just need to check the success code 
@@ -21,9 +23,10 @@ class AuthenticationProvider extends ProviderBase {
     }
 
     async authenticate(password: string): Promise<boolean> {
-        
-        return this.getNonce().then(noncePackage => {
 
+        return this.getNonce().then(noncePackage => {
+            console.log(noncePackage);
+            
             return this.prepareAuthPassword(password, noncePackage).then(reply => {
                 let client = this.createAxiosClient();
 
@@ -77,7 +80,7 @@ class AuthenticationProvider extends ProviderBase {
         let hashedPassword64 = await this.wrapPbkdf2HmacSha256(password, nonceData.saltPassword64, interations, len);
         let hashNoncePassword64 = await this.wrapPbkdf2HmacSha256(hashedPassword64, nonceData.nonce64, interations, len);
         let hashedKek64 = await this.wrapPbkdf2HmacSha256(password, nonceData.saltKek64, interations, len);
-
+        console.log(nonceData);
         let base64Key = this.rsaPemStrip(nonceData.publicPem);
         let key = await this.rsaImportKey(base64Key);
 
@@ -197,7 +200,7 @@ class AuthenticationProvider extends ProviderBase {
         const binaryDerString = window.atob(key64);
         // convert from a binary string to an ArrayBuffer
         const binaryDer = this.str2ab(binaryDerString);
-
+        console.log(new Uint8Array(binaryDer));
         return window.crypto.subtle.importKey(
             "spki",
             binaryDer,

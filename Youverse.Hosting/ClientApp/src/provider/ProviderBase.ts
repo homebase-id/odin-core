@@ -25,8 +25,7 @@ export class ProviderBase {
             baseURL: this.getEndpoint(),
             // headers:
             //     {
-            //         'X-DI-Admin-Auth-Token': this.token?.token ?? "",
-            //         'X-DI-Admin-Auth-KEK': this.token?.token2 ?? ""
+            //         'token': "00000830-0000-483c-98a5-4b655c047f8d|00000000-0000-483c-98a5-4b655c047f8d",
             //     }
         });
     }

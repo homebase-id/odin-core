@@ -7,4 +7,13 @@
         }
         return arr;
     }
+
+    public static toBase64(bytes: Uint8Array): string {
+        let binary = '';
+        let len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
 }

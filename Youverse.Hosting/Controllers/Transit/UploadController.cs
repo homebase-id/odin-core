@@ -40,47 +40,40 @@ namespace Youverse.Hosting.Controllers.Transit
         [HttpPost("SendPackage")]
         public async Task<IActionResult> SendPackage()
         {
-            try
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                if (!IsMultipartContentType(HttpContext.Request.ContentType))
-                {
-                    throw new InvalidDataException("Data is not multi-part content");
-                }
-                
-                var boundary = GetBoundary(HttpContext.Request.ContentType);
-                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-                //NOTE: the first section MUST BE the app id so we can validate it
-                var section = await reader.ReadNextSectionAsync();
-
-                //Note: the _packageStorageWriter exists so we have a service that holds
-                //the logic and routing of tenant-specific data.  We don't
-                //want that in the http controllers
-
-                var packageId = await _packageStorageWriter.CreatePackage();
-                bool isComplete = false;
-                while (section != null || !isComplete)
-                {
-                    var partName = GetSectionName(section.ContentDisposition);
-                    var partStream = section.Body;
-                    isComplete = await _packageStorageWriter.AddPart(packageId, partName, partStream);
-                    section = await reader.ReadNextSectionAsync();
-                }
-
-                if (!isComplete)
-                {
-                    throw new InvalidDataException("Upload does not contain all required parts.");
-                }
-                
-                var package = await _packageStorageWriter.GetPackage(packageId);
-                var status = await _transitService.PrepareTransfer(package);
-
-                return new JsonResult(status);
+                throw new InvalidDataException("Data is not multi-part content");
             }
-            catch (InvalidDataException e)
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            //NOTE: the first section MUST BE the app id so we can validate it
+            var section = await reader.ReadNextSectionAsync();
+
+            //Note: the _packageStorageWriter exists so we have a service that holds
+            //the logic and routing of tenant-specific data.  We don't
+            //want that in the http controllers
+
+            var packageId = await _packageStorageWriter.CreatePackage();
+            bool isComplete = false;
+            while (section != null || !isComplete)
             {
-                return new JsonResult(new NoResultResponse(false, e.Message));
+                var partName = GetSectionName(section.ContentDisposition);
+                var partStream = section.Body;
+                isComplete = await _packageStorageWriter.AddPart(packageId, partName, partStream);
+                section = await reader.ReadNextSectionAsync();
             }
+
+            if (!isComplete)
+            {
+                throw new InvalidDataException("Upload does not contain all required parts.");
+            }
+
+            var package = await _packageStorageWriter.GetPackage(packageId);
+            var status = await _transitService.PrepareTransfer(package);
+
+            return new JsonResult(status);
         }
 
         private static bool IsMultipartContentType(string contentType)

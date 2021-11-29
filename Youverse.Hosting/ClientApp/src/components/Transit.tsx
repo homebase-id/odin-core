@@ -8,7 +8,7 @@ type Props = {};
 function Transit(props: Props) {
     const [recipient, setRecipient] = useState<string>("samwisegamgee.me");
     const [message, setMessage] = useState<string>("get to the choppah");
-
+    
     useEffect(() => {
         loadOutbox();
     }, []);
@@ -18,13 +18,10 @@ function Transit(props: Props) {
     }
 
     const handleSendMessage = () => {
-        
         let tp = createTransitProvider();
-        return tp.sendPayload(recipient, message, null).then(result=>
-        {
-            
+        return tp.sendPayload(recipient, message, null).then(result => {
+            console.log(result);
         });
-
     }
 
     return <div>

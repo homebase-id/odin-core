@@ -1,10 +1,11 @@
 ﻿import {ProviderBase} from "./ProviderBase";
 import {KeyHeader} from "./KeyHeader";
-import {useAppStateStore} from "./AppStateStore";
+import {appStateStoreInstance} from "./AppStateStore";
 import {EncryptedKeyHeader} from "./EncryptedKeyHeader";
 import {ArrayUtils} from "./ArrayUtils";
 
 export class EncryptionProvider extends ProviderBase {
+
 
     constructor() {
         super();
@@ -26,19 +27,18 @@ export class EncryptionProvider extends ProviderBase {
     //Encrypts the data with AES using the initializationVector and appSharedSecret from state
     encryptKeyHeader(data: string, initializationVector: Uint8Array): Promise<EncryptedKeyHeader> {
         return this.encryptAesUsingAppSharedSecret(data, initializationVector).then(encryptedData => {
-            let ekh: EncryptedKeyHeader = {
-                encryptionType: 1,
-                encryptionVersion: 1,
-                iv: initializationVector,
-                data: encryptedData
-            }
+            let ekh = new EncryptedKeyHeader();
+            ekh.encryptionType = "AES";
+            ekh.encryptionVersion = 1;
+            ekh.iv = initializationVector;
+            ekh.data = encryptedData
+
             return ekh;
         });
     }
 
     encryptAesUsingAppSharedSecret(data: string, initializationVector: Uint8Array): Promise<Uint8Array> {
-        const {appSharedSecret} = useAppStateStore();
-        return EncryptionProvider.aesCbcEncrypt(ArrayUtils.toArray(data), appSharedSecret, initializationVector).then(encryptedData => {
+        return EncryptionProvider.aesCbcEncrypt(ArrayUtils.toArray(data), appStateStoreInstance.appSharedSecret, initializationVector).then(encryptedData => {
             return encryptedData;
         });
     }
@@ -51,9 +51,11 @@ export class EncryptionProvider extends ProviderBase {
 
 
     private static async aesCbcEncrypt(u8aData: Uint8Array, u8aKey: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+        console.log(u8aKey);
+
         let key = await crypto.subtle.importKey(
             "raw",
-            u8aKey,
+            u8aKey.buffer,
             {   //this is the algorithm options
                 name: "AES-CBC",
             },

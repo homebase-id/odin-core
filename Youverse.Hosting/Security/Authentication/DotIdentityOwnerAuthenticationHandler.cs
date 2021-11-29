@@ -171,7 +171,7 @@ namespace Youverse.Hosting.Security.Authentication
 
         private bool GetToken(out DotYouAuthenticationResult authResult)
         {
-            //the react client app uses the cookie
+            //HACK: this needs to be switched to only using the cookie after getting app auth sorted
             string headerToken = Context.Request.Headers[DotYouAuthConstants.TokenKey];
             var value = string.IsNullOrEmpty(headerToken?.Trim()) ? Context.Request.Cookies[DotYouAuthConstants.TokenKey] : headerToken;
             if (DotYouAuthenticationResult.TryParse(value, out var result))

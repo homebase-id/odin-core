@@ -20,7 +20,11 @@ namespace Youverse.Core.Services.Authentication
         {
             var salts = await _secretService.GetStoredSalts();
             
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, "publicKey", 0);
+            var publicKey64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6Tt75Wgd7iVOlFk9sTl/+d/oiiMPNH5NtHaK6uOPE1GRCSXWbvvY46+vrgNIk3DZCDSPCk26e0U+AvB/mwtZFaqcRrg3rbO2jcGQWybYZdTA+UqQNVi1BSxRCRlFptGoM+pdGnnAG8o80VwWZlryUPiMXM2FF/BhHSOxDoMfXgFKJnxc+4Mvdzu5qYA+/ivjgCmT+zUhb00eSWnCCgnB4SXRFP/VZB2isH/ovfJ6kTGDE+e1Ct3gQD6mst0CcSe9YvXhYhADqjOO5nLIq4b+BXoM18ce4qy9t75/AmdW9PdOx7CikVDHNrhVwYAt9rNTnftW9yAPmUX9pGydoAlyqQIDAQAB";
+            // var publicKey = Convert.FromBase64String(publicKey64);
+            // var privateKey = Guid.Parse("0000000F-0f85-DDDD-a7eb-e8e0b06c2555").ToByteArray();
+
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey64, 0);
 
             _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
             return nonce;

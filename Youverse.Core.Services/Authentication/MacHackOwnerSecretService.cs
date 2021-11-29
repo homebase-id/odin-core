@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 
@@ -19,14 +20,18 @@ namespace Youverse.Core.Services.Authentication
         /// <returns></returns>
         public override async Task<NonceData> GenerateNewSalts()
         {
+            var publicKey64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6Tt75Wgd7iVOlFk9sTl/+d/oiiMPNH5NtHaK6uOPE1GRCSXWbvvY46+vrgNIk3DZCDSPCk26e0U+AvB/mwtZFaqcRrg3rbO2jcGQWybYZdTA+UqQNVi1BSxRCRlFptGoM+pdGnnAG8o80VwWZlryUPiMXM2FF/BhHSOxDoMfXgFKJnxc+4Mvdzu5qYA+/ivjgCmT+zUhb00eSWnCCgnB4SXRFP/VZB2isH/ovfJ6kTGDE+e1Ct3gQD6mst0CcSe9YvXhYhADqjOO5nLIq4b+BXoM18ce4qy9t75/AmdW9PdOx7CikVDHNrhVwYAt9rNTnftW9yAPmUX9pGydoAlyqQIDAQAB";
+            var publicKey = Convert.FromBase64String(publicKey64);
+            var privateKey = Guid.Parse("0000000F-0f85-DDDD-a7eb-e8e0b06c2555").ToByteArray();
+
             var key = new RsaKeyData()
             {
-                crc32c = 0,
+                crc32c = CRC32C.CalculateCRC32C(0, publicKey),
                 instantiated = DateTimeExtensions.UnixTimeSeconds(),
-                expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64)10 * 3600 + (UInt64)5 * 60 + (UInt64)5,
+                expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64) 10 * 3600 + (UInt64) 5 * 60 + (UInt64) 5,
                 iv = Guid.Empty,
-                privateKey = Guid.Empty.ToByteArray(),
-                publicKey = Guid.Empty.ToByteArray(),
+                privateKey = privateKey,
+                publicKey = publicKey,
                 encrypted = false
             };
 

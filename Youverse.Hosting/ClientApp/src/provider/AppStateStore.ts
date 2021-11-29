@@ -29,8 +29,7 @@ class AppStateStore {
     
     //The key used to encrypt data being uploaded
     //TODO: need to load from system
-    appSharedSecret: Uint8Array = ArrayUtils.toArray("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5");
-    
+    appSharedSecret: Uint8Array = ArrayUtils.toArray("4fc5b0fde21e427d961ba2c7a18f18c5");
     theme: string = "light";
 
     async initialize(): Promise<void> {
@@ -47,6 +46,8 @@ class AppStateStore {
     }
 
     async authenticate(password: string): Promise<boolean> {
+        // this.isAuthenticated = true;
+        // return true;
         let client = createAuthenticationProvider();
         return client.authenticate(password).then(success => {
             this.isAuthenticated = success;
@@ -96,6 +97,6 @@ class AppStateStore {
     }
 }
 
-const store = new AppStateStore();
-export const AppStateStoreContext = React.createContext(store);
+export const appStateStoreInstance = new AppStateStore();
+export const AppStateStoreContext = React.createContext(appStateStoreInstance);
 export const useAppStateStore = () => React.useContext(AppStateStoreContext);
