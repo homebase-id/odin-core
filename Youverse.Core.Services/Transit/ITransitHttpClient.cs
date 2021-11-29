@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit
             [AliasAs("payload")] StreamPart payload);
 
         [Post(OutboxRootEndPoint + "/processor/process")]
-        Task<ApiResponse<TransferResult>> ProcessOutbox();
+        Task<ApiResponse<bool>> ProcessOutbox();
 
         [Get(OutboxRootEndPoint)]
         Task<ApiResponse<PagedResult<OutboxItem>>> GetOutboxItems(int pageNumber, int pageSize);

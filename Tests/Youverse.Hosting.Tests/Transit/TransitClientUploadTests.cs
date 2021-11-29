@@ -39,6 +39,7 @@ namespace Youverse.Hosting.Tests.Transit
         {
             var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
 
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = new KeyHeader()
             {
                 Iv = ByteArrayUtil.GetRndByteArray(16),
@@ -51,7 +52,7 @@ namespace Youverse.Hosting.Tests.Transit
             var payloadJson = "{payload:true, image:'b64 data'}";
             var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadJson, keyHeader);
 
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, appSharedSecret.GetKey());
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
@@ -59,7 +60,7 @@ namespace Youverse.Hosting.Tests.Transit
             var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
-            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, ekh.Iv, appSharedSecret.GetKey());
+            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
@@ -103,6 +104,7 @@ namespace Youverse.Hosting.Tests.Transit
                 //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
                 //TODO: how do i check Pending Transfer Queue?
 
+                await transitSvc.ProcessOutbox();
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents

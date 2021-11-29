@@ -27,6 +27,6 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="items"></param>
         /// <returns></returns>
-        Task<TransferResult> SendBatchNow(IEnumerable<OutboxItem> items);
+        Task SendBatchNow(IEnumerable<OutboxItem> items);
     }
 }

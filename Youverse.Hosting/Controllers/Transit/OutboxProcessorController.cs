@@ -39,10 +39,10 @@ namespace Youverse.Hosting.Controllers.Transit
             //pick up the files from the outbox
             //var batch = _outbox.GetNextBatch();
             var batch = await _outbox.GetNextBatch();
-            var result = await _transit.SendBatchNow(batch.Results);
             _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
+            await _transit.SendBatchNow(batch.Results);
 
-            return new JsonResult(result);
+            return new JsonResult(true);
         }
     }
 }

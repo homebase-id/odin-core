@@ -27,17 +27,17 @@ namespace Youverse.Core.Services.Transit.Encryption
             throw new InvalidDataException("Unsupported encryption version");
         }
 
-        public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] key)
+        public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, byte[] key)
         {
             var secureKeyHeader = keyHeader.Combine();
-            var data = AesCbc.EncryptBytesToBytes_Aes(secureKeyHeader.GetKey(), key, keyHeader.Iv);
+            var data = AesCbc.EncryptBytesToBytes_Aes(secureKeyHeader.GetKey(), key, iv);
             secureKeyHeader.Wipe();
 
             return new EncryptedKeyHeader()
             {
                 EncryptionVersion = 1,
                 Type = EncryptionType.Aes,
-                Iv = keyHeader.Iv,
+                Iv = iv,
                 Data = data
             };
         }

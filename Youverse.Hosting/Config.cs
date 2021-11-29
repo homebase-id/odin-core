@@ -8,6 +8,7 @@ namespace Youverse.Hosting
         private string _tenantDataRootPath;
         private string _tempTenantDataRootPath;
         private string _logFilePath;
+        private string _systemDataPath;
 
         /// <summary>
         /// Specifies the endpoint of the registry server
@@ -36,6 +37,12 @@ namespace Youverse.Hosting
         {
             get => _logFilePath;
             set => _logFilePath = PathUtil.OsIfy(value);
+        }
+        
+        public string SystemDataPath
+        {
+            get => _systemDataPath;
+            set => _systemDataPath = PathUtil.OsIfy(value);
         }
         
         /// <summary>

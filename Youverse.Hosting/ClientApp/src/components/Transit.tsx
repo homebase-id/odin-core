@@ -19,7 +19,7 @@ function Transit(props: Props) {
 
     const handleSendMessage = () => {
         let tp = createTransitProvider();
-        return tp.sendPayload(recipient, message, null).then(result => {
+        return tp.sendPayload([recipient], message, null).then(result => {
             console.log(result);
         });
     }

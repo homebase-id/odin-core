@@ -69,7 +69,7 @@ namespace Youverse.Core.Services.Transit.Encryption
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
             
             var appEncryptionKey = _context.AppContext.GetAppEncryptionKey().GetKey();
-            return EncryptedKeyHeader.EncryptKeyHeaderAes(kh, appEncryptionKey);
+            return EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, appEncryptionKey);
         }
     }
 }

@@ -26,19 +26,17 @@ namespace Youverse.Core.Services.Workers.Transit
             _pendingTransfers = pendingTransfers;
         }
 
-        public Task Execute(IJobExecutionContext context)
+        public async Task Execute(IJobExecutionContext context)
         {
             InitializeHttpClient();
 
             _logger.LogInformation("Send Payload Job running now");
-            var senders = _pendingTransfers.GetSenders();
+            var senders = await _pendingTransfers.GetSenders();
             foreach (var sender in senders)
             {
                 //TODO: do this in parallel
                 StokeOutbox(sender);
             }
-
-            return Task.CompletedTask;
         }
 
         private void InitializeHttpClient()

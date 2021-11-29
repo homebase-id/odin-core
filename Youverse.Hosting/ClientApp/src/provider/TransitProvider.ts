@@ -4,6 +4,7 @@ import {createEncryptionProvider} from "./EncryptionProvider";
 import {RecipientList} from "./RecipientList";
 import {isArray} from "util";
 import {MetaData} from "./MetaData";
+import {ArrayUtils} from "./ArrayUtils";
 
 export class TransitProvider extends ProviderBase {
 
@@ -11,7 +12,7 @@ export class TransitProvider extends ProviderBase {
         super();
     }
 
-    async sendPayload(recipients: string | string[], message: string, file: any): Promise<string> {
+    async sendPayload(recipients: string[], message: string, file: any): Promise<string> {
 
         const ep = createEncryptionProvider();
 
@@ -19,26 +20,14 @@ export class TransitProvider extends ProviderBase {
         const multipartPackage = new FormData();
 
         let keyHeader = ep.generateKeyHeader();
+        let transferIv = ep.generateRandom16Bytes();
 
-        let transferInitializationVector = ep.generateRandom16Bytes();
-        console.log('transferInitializationVector', transferInitializationVector);
-        let transferEncryptedKeyHeader = await ep.encryptKeyHeader(keyHeader.toJson(), transferInitializationVector);
+        let transferEncryptedKeyHeader = await ep.encryptKeyHeader(keyHeader, transferIv);
         multipartPackage.append('tekh', transferEncryptedKeyHeader.toJson());
 
-        console.log('b64', transferEncryptedKeyHeader.toJson());
-
-        let recipientList = new RecipientList();
-        recipientList.Recipients = Array.isArray(recipients) ? recipients : [recipients];
-        let recipientCipher = await ep.encryptAesUsingAppSharedSecret(JSON.stringify(recipientList), transferInitializationVector);
+        let recipientCipher = await ep.encryptAesUsingAppSharedSecret(ArrayUtils.toArray(JSON.stringify(recipients)), transferIv);
         let recipientBlob = new Blob([recipientCipher], {type: 'application/json'});
-        //console.log('recipientCipher', recipientCipher);
-        //console.log('recipientBlob', recipientBlob);
         multipartPackage.append('recipients', recipientBlob);
-
-        /*
-        :Encrypt file parts {metadata,payload} using __KeyHeader__ and places in __MultipartUploadPackage__
-        (note, does not encrypt __KeyHeader__);
-        */
 
         let metadata: MetaData = {
             preview: "this is some preview text..."
@@ -53,7 +42,6 @@ export class TransitProvider extends ProviderBase {
 
         let payloadCipher = await ep.encryptAesUsingKeyHeader(JSON.stringify(metadata), keyHeader);
         multipartPackage.append('payload', new Blob([payloadCipher], {type: 'application/json'}));
-        console.log(multipartPackage);
 
         /*
         :client saves __MultipartUploadPackage__ contents on device as cache if needed;
@@ -61,7 +49,7 @@ export class TransitProvider extends ProviderBase {
         */
 
         let client = this.createAxiosClient();
-        let url = "/transit/client/SendPackage";
+        let url = "/transit/client/sendpackage";
 
         const config = {
             headers: {

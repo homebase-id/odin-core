@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Transit.Outbox
@@ -14,6 +15,6 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         public void EnsureSenderIsPending(DotYouIdentity sender);
 
-        public IEnumerable<DotYouIdentity> GetSenders();
+        public Task<IEnumerable<DotYouIdentity>> GetSenders();
     }
 }

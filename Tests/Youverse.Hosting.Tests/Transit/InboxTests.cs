@@ -122,6 +122,7 @@ namespace Youverse.Hosting.Tests.Transit
             var recipient = _scaffold.Frodo;
             
             var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
             var keyHeader = new KeyHeader()
             {
@@ -135,7 +136,7 @@ namespace Youverse.Hosting.Tests.Transit
             var payloadJson = "{payload:true, image:'b64 data'}";
             var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadJson, keyHeader);
 
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, appSharedSecret.GetKey());
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
@@ -143,7 +144,7 @@ namespace Youverse.Hosting.Tests.Transit
             var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { recipient } };
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
-            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, ekh.Iv, appSharedSecret.GetKey());
+            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();

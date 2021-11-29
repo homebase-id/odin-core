@@ -184,9 +184,8 @@ namespace Youverse.Core.Services.Transit
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        public async Task<TransferResult> SendBatchNow(IEnumerable<OutboxItem> items)
+        public async Task SendBatchNow(IEnumerable<OutboxItem> items)
         {
-            var result = new TransferResult();
             var tasks = new List<Task<SendResult>>();
 
             foreach (var item in items)
@@ -202,17 +201,14 @@ namespace Youverse.Core.Services.Transit
                 var sendResult = task.Result;
                 if (sendResult.Success)
                 {
-                    result.RecipientStatus.Add(sendResult.Recipient, TransferStatus.Delivered);
                     _outboxService.Remove(sendResult.Recipient, sendResult.FileId);
                 }
                 else
                 {
                     _outboxService.MarkFailure(sendResult.OutboxItemId, sendResult.FailureReason.GetValueOrDefault());
-                    result.RecipientStatus.Add(sendResult.Recipient, TransferStatus.PendingRetry);
                 }
             });
 
-            return result;
         }
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
@@ -225,18 +221,17 @@ namespace Youverse.Core.Services.Transit
             try
             {
                 //look up transfer key
-
                 EncryptedRecipientTransferKeyHeader transferKeyHeader = await this.GetTransferKeyFromCache(recipient, fileId);
                 if (null == transferKeyHeader)
                 {
                     return new SendResult()
                     {
                         OutboxItemId = outboxItem.Id,
-                        Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                        FileId = fileId,
                         Recipient = recipient,
+                        Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Success = false,
-                        FailureReason = TransferFailureReason.EncryptedTransferKeyNotAvailable,
-                        FileId = fileId
+                        FailureReason = TransferFailureReason.EncryptedTransferKeyNotAvailable
                     };
                 }
 
@@ -245,7 +240,7 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                //HACK: i override the appId here so the recipeint server knows the corresponding
+                //HACK: i override the appId here so the recipient server knows the corresponding
                 //app.  I'd rather load this into app context some how
                 var client = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
                 var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -270,11 +265,12 @@ namespace Youverse.Core.Services.Transit
 
             return new SendResult()
             {
+                FileId = fileId,
                 Recipient = recipient,
+                OutboxItemId = outboxItem.Id,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                FileId = fileId
+                Timestamp = DateTimeExtensions.UnixTimeMilliseconds()
             };
         }
 

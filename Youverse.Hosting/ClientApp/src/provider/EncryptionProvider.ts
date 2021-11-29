@@ -38,8 +38,8 @@ export class EncryptionProvider extends ProviderBase {
         });
     }
 
-    encryptAesUsingAppSharedSecret(data: string, initializationVector: Uint8Array): Promise<Uint8Array> {
-        return EncryptionProvider.aesCbcEncrypt(ArrayUtils.toArray(data), appStateStoreInstance.appSharedSecret, initializationVector).then(encryptedData => {
+    encryptAesUsingAppSharedSecret(data: Uint8Array, initializationVector: Uint8Array): Promise<Uint8Array> {
+        return EncryptionProvider.aesCbcEncrypt(data, appStateStoreInstance.appSharedSecret, initializationVector).then(encryptedData => {
             return encryptedData;
         });
     }
