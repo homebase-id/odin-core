@@ -55,12 +55,12 @@ namespace Youverse.Hosting.Middleware
             //TODO: load with correct app shared key 
             //HACK: !!!
             var appEncryptionKey = new SecureKey(Guid.Empty.ToByteArray());
-            var sharedSecretKey = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
+            var sharedSecretKey = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
             var appId = user.FindFirstValue(DotYouClaimTypes.AppId);
             var deviceUid = user.FindFirstValue(DotYouClaimTypes.DeviceUid);
             bool isAdminApp = bool.Parse(user.FindFirstValue(DotYouClaimTypes.IsAdminApp) ?? bool.FalseString);
             var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp);
-            
+
             dotYouContext.HostDotYouId = (DotYouIdentity)tenant.Name;
             dotYouContext.AppContext = app;
             dotYouContext.Caller = caller;

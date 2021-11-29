@@ -155,7 +155,7 @@ namespace Youverse.Hosting.Tests.Transit
 
         private async Task SendTransfer()
         {
-            var appSharedSecret = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
+            var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
 
             var keyHeader = new KeyHeader()
             {

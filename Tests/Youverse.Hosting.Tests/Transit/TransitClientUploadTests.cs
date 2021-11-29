@@ -37,11 +37,11 @@ namespace Youverse.Hosting.Tests.Transit
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var appSharedSecret = new SecureKey(Guid.Parse("4fc5b0fd-e21e-427d-961b-a2c7a18f18c5").ToByteArray());
+            var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
 
             var keyHeader = new KeyHeader()
             {
-                Iv = Guid.Empty.ToByteArray(), //ByteArrayUtil.GetRndByteArray(16),
+                Iv = ByteArrayUtil.GetRndByteArray(16),
                 AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
             };
 

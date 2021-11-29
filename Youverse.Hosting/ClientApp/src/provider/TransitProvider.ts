@@ -21,18 +21,18 @@ export class TransitProvider extends ProviderBase {
         let keyHeader = ep.generateKeyHeader();
 
         let transferInitializationVector = ep.generateRandom16Bytes();
+        console.log('transferInitializationVector', transferInitializationVector);
         let transferEncryptedKeyHeader = await ep.encryptKeyHeader(keyHeader.toJson(), transferInitializationVector);
         multipartPackage.append('tekh', transferEncryptedKeyHeader.toJson());
+
+        console.log('b64', transferEncryptedKeyHeader.toJson());
 
         let recipientList = new RecipientList();
         recipientList.Recipients = Array.isArray(recipients) ? recipients : [recipients];
         let recipientCipher = await ep.encryptAesUsingAppSharedSecret(JSON.stringify(recipientList), transferInitializationVector);
-
-        console.log('recipientCipher', recipientCipher);
         let recipientBlob = new Blob([recipientCipher], {type: 'application/json'});
-
-        console.log('recipientBlob', recipientBlob);
-
+        //console.log('recipientCipher', recipientCipher);
+        //console.log('recipientBlob', recipientBlob);
         multipartPackage.append('recipients', recipientBlob);
 
         /*

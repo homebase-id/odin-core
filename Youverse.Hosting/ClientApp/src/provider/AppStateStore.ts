@@ -12,11 +12,11 @@ class AppStateStore {
         makeObservable(this,
             {
                 isAuthenticated: observable,
-                deviceToken:observable,
+                deviceToken: observable,
                 theme: observable,
                 initialize: action.bound,
                 authenticate: action.bound,
-                authenticateDevice:action.bound,
+                authenticateDevice: action.bound,
                 logout: action.bound,
                 setDarkMode: action,
                 setLightMode: action
@@ -26,10 +26,11 @@ class AppStateStore {
     private isInitialized: boolean = false;
     isAuthenticated: boolean = false;
     deviceToken: string | null = null;
-    
+
     //The key used to encrypt data being uploaded
     //TODO: need to load from system
-    appSharedSecret: Uint8Array = ArrayUtils.toArray("4fc5b0fde21e427d961ba2c7a18f18c5");
+
+    appSharedSecret: Uint8Array = Uint8Array.of(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
     theme: string = "light";
 
     async initialize(): Promise<void> {

@@ -6,7 +6,6 @@ import {ArrayUtils} from "./ArrayUtils";
 
 export class EncryptionProvider extends ProviderBase {
 
-
     constructor() {
         super();
     }
@@ -25,13 +24,15 @@ export class EncryptionProvider extends ProviderBase {
     }
 
     //Encrypts the data with AES using the initializationVector and appSharedSecret from state
-    encryptKeyHeader(data: string, initializationVector: Uint8Array): Promise<EncryptedKeyHeader> {
-        return this.encryptAesUsingAppSharedSecret(data, initializationVector).then(encryptedData => {
+    encryptKeyHeader(keyHeader: KeyHeader, initializationVector: Uint8Array): Promise<EncryptedKeyHeader> {
+        
+        let keyHeaderCombined = ArrayUtils.combine(keyHeader.initializationVector, keyHeader.encryptionKey);
+        return this.encryptAesUsingAppSharedSecret(keyHeaderCombined, initializationVector).then(encryptedKeyHeader => {
             let ekh = new EncryptedKeyHeader();
             ekh.encryptionType = "AES";
             ekh.encryptionVersion = 1;
             ekh.iv = initializationVector;
-            ekh.data = encryptedData
+            ekh.data = encryptedKeyHeader
 
             return ekh;
         });
