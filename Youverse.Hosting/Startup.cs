@@ -160,49 +160,30 @@ namespace Youverse.Hosting
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
 
-            // app.UseEndpoints(endpoints =>
-            // {
-            //     // endpoints.Map("/", async context =>
-            //     // {
-            //     //     await context.Response.WriteAsync("wrinkle");
-            //     // });
-            //
-            //     endpoints.MapControllers();
-            //     //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
-            //     //endpoints.MapFallbackToFile("index.html");
-            //
-            //     endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
-            //     {
-            //         //TODO: for #prototrial, i narrowed this to websockets
-            //         //only so i could disable negotiation from the client
-            //         //as it was causing issues with authentication.
-            //         o.Transports = HttpTransportType.WebSockets;
-            //     });
-            //
-            //     endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
-            //     {
-            //         //TODO: for #prototrial, i narrowed this to websockets
-            //         //only so i could disable negotiation from the client
-            //         //as it was causing issues with authentication.
-            //         o.Transports = HttpTransportType.WebSockets;
-            //     });
-            // });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
 
-            // app.UseSpa(spa =>
-            // {
-            //     spa.Options.SourcePath = @"Client/landing-page";
-            //     spa.Options.DefaultPage = "/index.html";
-            //     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-            //     {
-            //         RequestPath = "/home",
-            //         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
-            //     };
-            //     if (env.IsDevelopment())
-            //     {
-            //         spa.UseReactDevelopmentServer(npmScript: "start");
-            //         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
-            //     }
-            // });
+                endpoints.MapControllers();
+                //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
+                //endpoints.MapFallbackToFile("index.html");
+
+                endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
+                {
+                    //TODO: for #prototrial, i narrowed this to websockets
+                    //only so i could disable negotiation from the client
+                    //as it was causing issues with authentication.
+                    o.Transports = HttpTransportType.WebSockets;
+                });
+
+                endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
+                {
+                    //TODO: for #prototrial, i narrowed this to websockets
+                    //only so i could disable negotiation from the client
+                    //as it was causing issues with authentication.
+                    o.Transports = HttpTransportType.WebSockets;
+                });
+            });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/admin"), adminApp =>
             {
