@@ -210,12 +210,12 @@ namespace Youverse.Hosting
             {
                 landingPageApp.UseSpa(spa =>
                 {
-                    spa.Options.SourcePath = @"Client/landing-page";
+                    spa.Options.SourcePath = @"Client/public-app";
                     spa.Options.DefaultPage = "/index.html";
                     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
                     {
                         RequestPath = "/home",
-                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
+                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
                     };
                     if (env.IsDevelopment())
                     {
