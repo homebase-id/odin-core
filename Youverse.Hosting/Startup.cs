@@ -14,10 +14,9 @@ using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-
 using Quartz;
-
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -35,7 +34,6 @@ using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
-
 using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Hosting
@@ -53,7 +51,7 @@ namespace Youverse.Hosting
         {
             services.AddMultiTenancy();
             services.AddLoggingServices();
-            
+
             var config = this.Configuration.GetSection("Config").Get<Config>();
             AssertValidConfiguration(config);
             PrepareEnvironment(config);
@@ -74,7 +72,7 @@ namespace Youverse.Hosting
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-            
+
             services.AddControllers(config =>
                 {
                     config.Filters.Add(new ApplyPerimeterMetaData());
@@ -87,7 +85,7 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-            
+
             services.AddYouverseAuthentication();
             services.AddYouverseAuthorization();
 
@@ -97,53 +95,53 @@ namespace Youverse.Hosting
             //services.AddYouVerseScopedServices();
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
-        
+
         // ConfigureContainer is where you can register things directly
         // with Autofac. This runs after ConfigureServices so the things
         // here will override registrations made in ConfigureServices.
         // Don't build the container; that gets done for you. If you
         // need a reference to the container, you need to use the
         // "Without ConfigureContainer" mechanism shown later.
-         public void ConfigureContainer(ContainerBuilder builder)
-         {
-             /*
+        public void ConfigureContainer(ContainerBuilder builder)
+        {
+            /*
 
-             AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
+            AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
 
-             ASP.NET Core container             -> Autofac
-             ----------------------                -------
+            ASP.NET Core container             -> Autofac
+            ----------------------                -------
 
-             // the 3 big ones
-             services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
-             services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
-             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
+            // the 3 big ones
+            services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
+            services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
+            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
 
-             // default
-             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
+            // default
+            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
 
-             // multiple
-             services.AddX<IFoo1, Foo>();
-             services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
+            // multiple
+            services.AddX<IFoo1, Foo>();
+            services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
 
-             // without interface
-             services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
+            // without interface
+            services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
 
-             */ 
+            */
 
-             // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
-             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+            // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
+            //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
         }
-        
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             app.UseLoggingMiddleware();
             app.UseMultiTenancy();
-            
+
             this.ConfigureLiteDBSerialization();
 
             if (env.IsDevelopment())
@@ -162,44 +160,91 @@ namespace Youverse.Hosting
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
 
-            app.UseEndpoints(endpoints =>
+            // app.UseEndpoints(endpoints =>
+            // {
+            //     // endpoints.Map("/", async context =>
+            //     // {
+            //     //     await context.Response.WriteAsync("wrinkle");
+            //     // });
+            //
+            //     endpoints.MapControllers();
+            //     //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
+            //     //endpoints.MapFallbackToFile("index.html");
+            //
+            //     endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
+            //     {
+            //         //TODO: for #prototrial, i narrowed this to websockets
+            //         //only so i could disable negotiation from the client
+            //         //as it was causing issues with authentication.
+            //         o.Transports = HttpTransportType.WebSockets;
+            //     });
+            //
+            //     endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
+            //     {
+            //         //TODO: for #prototrial, i narrowed this to websockets
+            //         //only so i could disable negotiation from the client
+            //         //as it was causing issues with authentication.
+            //         o.Transports = HttpTransportType.WebSockets;
+            //     });
+            // });
+
+            // app.UseSpa(spa =>
+            // {
+            //     spa.Options.SourcePath = @"Client/landing-page";
+            //     spa.Options.DefaultPage = "/index.html";
+            //     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+            //     {
+            //         RequestPath = "/home",
+            //         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
+            //     };
+            //     if (env.IsDevelopment())
+            //     {
+            //         spa.UseReactDevelopmentServer(npmScript: "start");
+            //         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
+            //     }
+            // });
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/admin"), adminApp =>
             {
-                // endpoints.Map("/", async context =>
-                // {
-                //     await context.Response.WriteAsync("wrinkle");
-                // });
-
-                endpoints.MapControllers();
-                //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
-                //endpoints.MapFallbackToFile("index.html");
-
-                endpoints.MapHub<NotificationHub>("/api/live/notifications", o =>
+                adminApp.UseSpa(spa =>
                 {
-                    //TODO: for #prototrial, i narrowed this to websockets
-                    //only so i could disable negotiation from the client
-                    //as it was causing issues with authentication.
-                    o.Transports = HttpTransportType.WebSockets;
-                });
+                    spa.Options.SourcePath = @"Client/admin-app";
+                    spa.Options.DefaultPage = "/index.html";
 
-                endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
-                {
-                    //TODO: for #prototrial, i narrowed this to websockets
-                    //only so i could disable negotiation from the client
-                    //as it was causing issues with authentication.
-                    o.Transports = HttpTransportType.WebSockets;
+                    spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+                    {
+                        RequestPath = "/admin",
+                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
+                    };
+
+                    if (env.IsDevelopment())
+                    {
+                        spa.UseReactDevelopmentServer(npmScript: "start");
+                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/admin");
+                    }
                 });
             });
 
-            app.UseSpa(spa =>
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"), landingPageApp =>
             {
-                spa.Options.SourcePath = "ClientApp";
-                if (env.IsDevelopment())
+                landingPageApp.UseSpa(spa =>
                 {
-                    spa.UseReactDevelopmentServer(npmScript: "start");
-                }
+                    spa.Options.SourcePath = @"Client/landing-page";
+                    spa.Options.DefaultPage = "/index.html";
+                    spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+                    {
+                        RequestPath = "/home",
+                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
+                    };
+                    if (env.IsDevelopment())
+                    {
+                        spa.UseReactDevelopmentServer(npmScript: "start");
+                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
+                    }
+                });
             });
         }
-        
+
         private void ConfigureLiteDBSerialization()
         {
             var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
@@ -216,7 +261,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
