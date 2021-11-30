@@ -51,9 +51,6 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMultiTenancy();
-            services.AddLoggingServices();
-            
             var config = this.Configuration.GetSection("Config").Get<Config>();
             AssertValidConfiguration(config);
             PrepareEnvironment(config);
@@ -136,6 +133,8 @@ namespace Youverse.Hosting
 
              // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
              //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+             builder.RegisterModule(new LoggingAutofacModule());
+             builder.RegisterModule(new MultiTenantAutofacModule());
         }
         
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

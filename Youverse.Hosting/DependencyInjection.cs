@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
@@ -71,6 +72,9 @@ namespace Youverse.Hosting
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
+            var logger = scope.Resolve<ILogger<Startup>>();
+            logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
+
             var registry = scope.Resolve<IIdentityContextRegistry>();
 
             var ctx = scope.Resolve<DotYouContext>();

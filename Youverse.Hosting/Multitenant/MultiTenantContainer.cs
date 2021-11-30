@@ -13,9 +13,8 @@ namespace Youverse.Hosting.Multitenant
 {
     public class MultiTenantContainer : IContainer
     {
-    
         //This is the base application container
-        private readonly IContainer _applicationContainer;
+        private readonly  IContainer _applicationContainer;
 
         //This action configures a container builder
         private readonly Action<ContainerBuilder, Tenant> _tenantServiceConfiguration;
@@ -53,7 +52,8 @@ namespace Youverse.Hosting.Multitenant
         /// <returns></returns>
         public ILifetimeScope GetCurrentTenantScope()
         {
-            return GetTenantScope(GetCurrentTenant()?.Name);
+            var tenant = GetCurrentTenant();
+            return GetTenantScope(tenant?.Name);
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Multitenant
 
             Tenant? tenant;
             ILifetimeScope lifetimeScope;
-            lock (_lock)
+            lock (_lock) // SEB:TODO swap this for a ReaderWriterLockSlim 
             {
                 if (_tenantLifetimeScopes.ContainsKey(tenantId))
                 {
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Multitenant
                     return _applicationContainer; 
                 }
 
-                //This is a new tenant, configure a new lifetimescope for it using our tenant sensitive configuration method
+                // This is a new tenant, configure a new lifetimescope for it using our tenant sensitive configuration method
                 lifetimeScope = _applicationContainer.BeginLifetimeScope(
                     MultiTenantTag,
                     cb => _tenantServiceConfiguration(cb, tenant));
@@ -103,14 +103,16 @@ namespace Youverse.Hosting.Multitenant
 
         public void Dispose()
         {
-            lock (_lock)
+            lock (_lock) // SEB:TODO swap this for a ReaderWriterLockSlim
             {
                 foreach (var scope in _tenantLifetimeScopes)
                 {
                     scope.Value.Dispose();
                 }
-                _applicationContainer.Dispose();
-            } 
+                _tenantLifetimeScopes.Clear();
+                _applicationContainer.Dispose(); // SEB:TODO really? _applicationContainer is injected
+            }
+            GC.SuppressFinalize(this);
         }
 
         public object ResolveComponent(ResolveRequest request) => 
@@ -144,7 +146,6 @@ namespace Youverse.Hosting.Multitenant
         public event EventHandler<LifetimeScopeEndingEventArgs> CurrentScopeEnding { add{} remove{} }
         public event EventHandler<ResolveOperationBeginningEventArgs> ResolveOperationBeginning { add{} remove{} }
         
-        public DiagnosticListener DiagnosticSource => 
-            new ("MultiTenantContainer");
+        public DiagnosticListener DiagnosticSource => new ("MultiTenantContainer");
     }
 }
