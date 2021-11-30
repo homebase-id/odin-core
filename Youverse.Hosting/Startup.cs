@@ -141,6 +141,7 @@ namespace Youverse.Hosting
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             app.UseLoggingMiddleware();
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
             
             this.ConfigureLiteDBSerialization();
@@ -148,11 +149,10 @@ namespace Youverse.Hosting
             if (env.IsDevelopment())
             {
                 //app.UseWebAssemblyDebugging();
-                app.UseDeveloperExceptionPage();
+                //app.UseDeveloperExceptionPage();
             }
 
             app.UseCertificateForwarding();
-            app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
 
