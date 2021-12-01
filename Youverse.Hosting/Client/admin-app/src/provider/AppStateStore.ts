@@ -83,10 +83,12 @@ class AppStateStore {
     }
 
     private async checkTokenStatus(): Promise<boolean> {
-        const client = createAuthenticationProvider();
-        return client.hasValidToken().then(result => {
-            return result;
-        })
+        return true;
+        
+        // const client = createAuthenticationProvider();
+        // return client.hasValidToken().then(result => {
+        //     return result;
+        // });
     }
 }
 

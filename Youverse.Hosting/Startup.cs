@@ -97,7 +97,7 @@ namespace Youverse.Hosting
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
             // In production, the React files will be served from this directory
-            services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
+            // services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
 
         // ConfigureContainer is where you can register things directly
@@ -153,7 +153,7 @@ namespace Youverse.Hosting
             app.UseCertificateForwarding();
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
-            app.UseSpaStaticFiles();
+            //app.UseSpaStaticFiles();
 
             app.UseRouting();
             app.UseAuthentication();

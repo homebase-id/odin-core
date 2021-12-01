@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import './NavMenu.css';
-import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton} from "react-bootstrap";
+import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton, Offcanvas, Form, Button, FormControl} from "react-bootstrap";
 import {Link} from "react-router-dom";
 import {useAppStateStore} from "../provider/AppStateStore";
 
@@ -29,17 +29,50 @@ function NavMenu(props: any) {
                     <Navbar.Brand href="/">DotYou</Navbar.Brand>
                     <Navbar.Toggle onClick={toggleNavbar} className="mr-2"/>
                     <Navbar.Collapse className="d-sm-inline-flex flex-sm-row-reverse" in={!collapsed}>
-
                         <DropdownButton
-                            menuAlign="left"
                             title=""
                             id="meMenu">
-                            <Nav.Link as={Link} to="/profile" className="text-dark nav-link">My Profile</Nav.Link>
-                            <Nav.Link as={Link} to="/privacy" className="text-dark nav-link text-nowrap">Settings and Privacy</Nav.Link>
+                            {/*<Nav.Link as={Link} to="/profile" className="text-dark nav-link">My Profile</Nav.Link>*/}
+                            {/*<Nav.Link as={Link} to="/privacy" className="text-dark nav-link text-nowrap">Settings and Privacy</Nav.Link>*/}
                             <NavDropdown.Divider/>
                             <a href="#" onClick={handleLogout} className="text-dark nav-link">Logout</a>
                         </DropdownButton>
                     </Navbar.Collapse>
+                </Container>
+            </Navbar>
+
+            <Navbar bg="light" expand={false}>
+                <Container fluid>
+                    <Navbar.Brand href="#">Youverse Admin</Navbar.Brand>
+                    <Navbar.Toggle aria-controls="offcanvasNavbar"/>
+                    <Navbar.Offcanvas
+                        id="offcanvasNavbar"
+                        aria-labelledby="offcanvasNavbarLabel"
+                        placement="start">
+                        <Offcanvas.Header closeButton>
+                            <Offcanvas.Title id="offcanvasNavbarLabel">Youverse</Offcanvas.Title>
+                        </Offcanvas.Header>
+                        <Form className="d-flex">
+                            <FormControl
+                                type="search"
+                                placeholder="Search"
+                                className="me-2"
+                                aria-label="Search"
+                            />
+                            <Button variant="outline-success">Search</Button>
+                        </Form>
+                        <Offcanvas.Body>
+                            <Nav className="justify-content-end flex-grow-1 pe-3">
+                                <Nav.Link href="/admin">Dashboard</Nav.Link>
+                                <Nav.Link href="/mynetwork">My Network</Nav.Link>
+                                <Nav.Link href="/profile">Profile</Nav.Link>
+                                <Nav.Link href="/blog">Blog</Nav.Link>
+                                <Nav.Link href="/files">Files</Nav.Link>
+                                <Nav.Link href="/transit">Transfers</Nav.Link>
+                                <Nav.Link href="/security">Security</Nav.Link>
+                            </Nav>
+                        </Offcanvas.Body>
+                    </Navbar.Offcanvas>
                 </Container>
             </Navbar>
 

@@ -1,10 +1,10 @@
 import React, {useEffect, useState} from 'react';
-import {Route} from 'react-router-dom';
+import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 import {Spinner} from 'react-bootstrap';
-import './custom.css'
 import Login from "./components/Login";
 import {Container} from "react-bootstrap";
 import {useAppStateStore} from "./provider/AppStateStore";
@@ -13,6 +13,7 @@ import Profile from "./components/Profile";
 import PrivacySettings from "./components/PrivacySettings";
 import AppLogin from "./components/AppLogin";
 import Outbox from "./components/Outbox";
+import BlogLayout from "../../public-app/src/components/Blog/BlogLayout";
 
 function App() {
 
@@ -62,10 +63,15 @@ function App() {
     if (state.isAuthenticated) {
         return (
             <Layout>
-                <Route exact path='/' component={Home}/>
-                <Route exact path='/profile' component={Profile}/>
-                <Route exact path='/outbox' component={Outbox}/>
-                <Route exact path='/privacy' component={PrivacySettings}/>
+                <BrowserRouter>
+                    <Routes>
+                        <Route path='/admin' element={<Home/>}/>
+                        {/*<Route exact path='/' component={Home}/>*/}
+                        {/*<Route exact path='/profile' component={Profile}/>*/}
+                        {/*<Route exact path='/outbox' component={Outbox}/>*/}
+                        {/*<Route exact path='/privacy' component={PrivacySettings}/>*/}
+                    </Routes>
+                </BrowserRouter>
             </Layout>
         );
     }

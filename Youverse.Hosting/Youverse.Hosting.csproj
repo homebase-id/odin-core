@@ -2,8 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-     <SpaRoot>ClientApp\</SpaRoot>
-        <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
+     <SpaRoot>Client\</SpaRoot>
+        <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)public-app\node_modules\**;$(SpaRoot)admin-app\node_modules\**</DefaultItemExcludes>
+        
         <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
         <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
         <IsPackable>false</IsPackable>
@@ -123,9 +124,6 @@
     <None Update="identityweb.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="ClientApp\package-lock.json" />
-    <None Include="ClientApp\package.json" />
-    <None Include="ClientApp\public\manifest.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -134,10 +132,13 @@
 
   <ItemGroup>
     <_ContentIncludedByDefault Remove="wwwroot\assets\unknown.png" />
+    <_ContentIncludedByDefault Remove="Client\admin-app-eux\package-lock.json" />
+    <_ContentIncludedByDefault Remove="Client\admin-app-eux\package.json" />
+    <_ContentIncludedByDefault Remove="Client\admin-app-eux\public\manifest.json" />
+    <_ContentIncludedByDefault Remove="Client\admin-app-eux\tsconfig.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Client" />
     <Folder Include="wwwroot\assets" />
   </ItemGroup>
 

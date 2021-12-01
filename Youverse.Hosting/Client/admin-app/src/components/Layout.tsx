@@ -8,7 +8,7 @@ function Layout(props: any) {
     return (
         <div>
             <Container>
-            <NavMenu/>
+                <NavMenu/>
                 <Row className="align-items-start">
                     <Col xs={1}>
                         <Sidebar/>
