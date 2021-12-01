@@ -40,6 +40,7 @@
         <None Remove="$(SpaRoot)**" />
         <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
         <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
+        <Content Include="Client\admin-app\public\assets\unknown.png" />
         <Content Include="https\samwisegamgee.me\samwisegamgee.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
@@ -128,7 +129,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="ClientApp\public\assets\unknown.png" />
     <Content Include="Properties\PublishProfiles\FTPProfile.pubxml.user" />
   </ItemGroup>
 

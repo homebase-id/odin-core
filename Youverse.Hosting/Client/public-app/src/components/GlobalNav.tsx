@@ -19,7 +19,7 @@ function GlobalNav() {
                                 size="sm"
                                 aria-label="youverse id"
                             />
-                            <Button size="sm" className="me-1" variant="outline-success" >Login</Button>
+                            <Button size="sm" className="me-1" variant="outline-success">Login</Button>
                             <Button size="sm" variant="outline-info">Signup</Button>
                         </Form>
                     </Nav>
