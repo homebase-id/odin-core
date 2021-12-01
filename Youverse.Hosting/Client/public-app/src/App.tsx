@@ -1,11 +1,10 @@
 import React, {useEffect, useState} from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import Container from 'react-bootstrap/Container';
-import GlobalNav from "./components/GlobalNav";
 import {useAppStateStore} from "./provider/AppStateStore";
-import {Route} from 'react-router-dom';
+import {BrowserRouter, Routes, Route} from 'react-router-dom';
 import Layout from "./components/Layout";
+import BlogLayout from "./components/Blog/BlogLayout";
 
 function App() {
 
@@ -19,11 +18,17 @@ function App() {
         };
         init();
     }, []);
-    
+
+    //https://reactrouter.com/docs/en/v6/getting-started/overview
     return (
         <Layout>
-            {/*<Route exact={true} path='/home' component={Home}/>*/}
-            {/*<Route exact path='/profile' component={Profile}/>*/}
+            <BrowserRouter>
+                <Routes>
+                    {/*<Route exact={true} path='/home' component={Home}/>*/}
+                    <Route path='/blog' element={<BlogLayout/>}/>
+                </Routes>
+            </BrowserRouter>
+
         </Layout>
     );
 }

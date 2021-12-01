@@ -1,7 +1,10 @@
 import React from 'react';
 import {Container, Navbar, Nav, Form, FormControl, Button} from 'react-bootstrap';
+import {useAppStateStore} from "../provider/AppStateStore";
 
 function GlobalNav() {
+
+    const {isAuthenticated} = useAppStateStore()
     return (
         <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
             <Container>
@@ -9,6 +12,7 @@ function GlobalNav() {
                 <Navbar.Toggle aria-controls="responsive-navbar-nav"/>
                 <Navbar.Collapse id="responsive-navbar-nav">
                     <Nav className="me-auto">
+                        {isAuthenticated && <Nav.Link href="/blog">Blog</Nav.Link>}
                     </Nav>
                     <Nav>
                         <Form className="d-flex">

@@ -1,5 +1,4 @@
 import React from 'react';
-import '../styles/Blog.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Article() {
