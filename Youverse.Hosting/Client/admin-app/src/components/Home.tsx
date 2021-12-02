@@ -29,7 +29,7 @@ function Home(props: any) {
 
     return (
         <div>
-            <Image src="https://images.gr-assets.com/hostedimages/1568664189ra/28157476.gif"/>
+            {/* <Image src="https://images.gr-assets.com/hostedimages/1568664189ra/28157476.gif"/> */}
             <h1>Welcome</h1>
             <Button onClick={addDemoData}>Add Demo Data</Button>
             <br/>

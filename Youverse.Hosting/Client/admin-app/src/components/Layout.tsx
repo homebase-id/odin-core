@@ -6,9 +6,11 @@ import Sidebar from "./Sidebar";
 
 function Layout(props: any) {
     return (
-        <div>
-            <Container>
+        <body>
+            <header>
                 <NavMenu/>
+            </header>
+            <Container>
                 <Row className="align-items-start">
                     <Col xs={1}>
                         <Sidebar/>
@@ -18,7 +20,7 @@ function Layout(props: any) {
                     </Col>
                 </Row>
             </Container>
-        </div>
+        </body>
     );
 }
 

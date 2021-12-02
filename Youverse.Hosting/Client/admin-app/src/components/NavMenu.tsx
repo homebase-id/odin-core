@@ -1,7 +1,6 @@
 import React, {useState} from 'react';
 import './NavMenu.css';
-import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton, Offcanvas, Form, Button, FormControl} from "react-bootstrap";
-import {Link} from "react-router-dom";
+import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton, Offcanvas, Form, Button, FormControl, Row} from "react-bootstrap";
 import {useAppStateStore} from "../provider/AppStateStore";
 
 function NavMenu(props: any) {
@@ -20,35 +19,28 @@ function NavMenu(props: any) {
             if (success) {
                 window.location.href = "/"
             }
+
         });
     }
     return (
         <header>
-            <Navbar className="navbar-expand-sm navbar-toggleable-sm ng-white border-bottom box-shadow mb-3" bg="light">
+            <Navbar bg="light" expand="lg" sticky="top">
                 <Container>
-                    <Navbar.Brand href="/">DotYou</Navbar.Brand>
-                    <Navbar.Toggle onClick={toggleNavbar} className="mr-2"/>
-                    <Navbar.Collapse className="d-sm-inline-flex flex-sm-row-reverse" in={!collapsed}>
-                        <DropdownButton
-                            title=""
-                            id="meMenu">
-                            {/*<Nav.Link as={Link} to="/profile" className="text-dark nav-link">My Profile</Nav.Link>*/}
-                            {/*<Nav.Link as={Link} to="/privacy" className="text-dark nav-link text-nowrap">Settings and Privacy</Nav.Link>*/}
-                            <NavDropdown.Divider/>
-                            <a href="#" onClick={handleLogout} className="text-dark nav-link">Logout</a>
-                        </DropdownButton>
-                    </Navbar.Collapse>
-                </Container>
-            </Navbar>
-
-            <Navbar bg="light" expand={false}>
-                <Container fluid>
                     <Navbar.Brand href="#">Youverse Admin</Navbar.Brand>
                     <Navbar.Toggle aria-controls="offcanvasNavbar"/>
+                   
+                    <Nav className="justify-content-end" activeKey="/home">
+                        <Nav.Link href="/home">Active</Nav.Link>
+                        <Nav.Link eventKey="link-1">Link</Nav.Link>
+                        <Nav.Link eventKey="link-2">Link</Nav.Link>
+                    </Nav>
+
                     <Navbar.Offcanvas
+                        className="px-2 m-3"
                         id="offcanvasNavbar"
                         aria-labelledby="offcanvasNavbarLabel"
                         placement="start">
+                        
                         <Offcanvas.Header closeButton>
                             <Offcanvas.Title id="offcanvasNavbarLabel">Youverse</Offcanvas.Title>
                         </Offcanvas.Header>
