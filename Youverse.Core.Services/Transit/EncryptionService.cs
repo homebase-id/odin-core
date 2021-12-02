@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Transit
             };
 
             var data = originalHeader.GetKeyBytes();
-            var encryptedData = RsaKeyManagement.Encrypt(key, data, true);
+            var encryptedData = RsaKeyManagement.Encrypt(key, data);
 
             return new KeyHeader()
             {

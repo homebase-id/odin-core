@@ -4,6 +4,11 @@ using System.Text;
 using System.Threading;
 using NUnit.Framework;
 using Youverse.Core.Cryptography.Crypto;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 
 namespace Youverse.Core.Cryptography.Tests
 {
@@ -26,8 +31,8 @@ namespace Youverse.Core.Cryptography.Tests
             var key = RsaKeyManagement.CreateKey(1);
             byte[] data = { 1, 2, 3, 4, 5 };
 
-            var cipher  = RsaKeyManagement.Encrypt(key, data, true);  // Encrypt with public key 
-            var decrypt = RsaKeyManagement.Decrypt(key, cipher, false); // Decrypt with private key
+            var cipher  = RsaKeyManagement.Encrypt(key, data);  // Encrypt with public key 
+            var decrypt = RsaKeyManagement.Decrypt(key, cipher); // Decrypt with private key
 
             if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
@@ -35,23 +40,6 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Pass();
 
         }
-
-/* NOT SURE WHY THIS WONT WORK. MAYBE ITS A FEATURE OF OAEP THAT IT CANT
- * ENCRYPT WITH PRIVATE AND DECRYPT WITH PUBLIC.
-        [Test]
-        public void RsaKeyEncryptPrivateTest()
-        {
-            var key = RsaKeyManagement.CreateKey(1);
-            byte[] data = { 1, 2, 3, 4, 5 };
-
-            var cipher = RsaKeyManagement.Encrypt(key, data, false);  // Encrypt with private key 
-            var decrypt = RsaKeyManagement.Decrypt(key, cipher, true); // Decrypt with public key
-
-            if (YFByteArray.EquiByteArrayCompare(data, decrypt) == false)
-                Assert.Fail();
-            else
-                Assert.Pass();
-        }*/
 
         [Test]
         public void RsaKeyCreateInvalidTest()
@@ -123,7 +111,7 @@ namespace Youverse.Core.Cryptography.Tests
                          "01234567890123456789012345678901234567890123456789" + "0123456789012345678901234567890123456789";
 
             byte[] toEncryptData = Encoding.ASCII.GetBytes(myData);
-            byte[] cipher = RsaKeyManagement.Encrypt(key, toEncryptData, true);
+            byte[] cipher = RsaKeyManagement.Encrypt(key, toEncryptData);
             if (cipher.Length != 256)
                 Assert.Fail();
 
@@ -133,7 +121,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             try
             {
-                byte[] cipher2 = RsaKeyManagement.Encrypt(key, toEncryptData2, true);
+                byte[] cipher2 = RsaKeyManagement.Encrypt(key, toEncryptData2);
             }
             catch (Exception e)
             {
@@ -149,20 +137,72 @@ namespace Youverse.Core.Cryptography.Tests
         public void RsaKeyCrossJSTest()
         {
             var key = RsaKeyManagement.CreateKey(1);
-            var publicKey = RsaKeyManagement.publicBase64(key);
-            var privateKey = RsaKeyManagement.privateBase64(key);
+            var publicKey = RsaKeyManagement.publicDerBase64(key);
+            var privateKey = RsaKeyManagement.privateDerBase64(key);
 
             // max chars
             var myData = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
                          "01234567890123456789012345678901234567890123456789" + "0123456789012345678901234567890123456789";
             byte[] toEncryptData = Encoding.ASCII.GetBytes(myData);
 
-            byte[] cipher = RsaKeyManagement.Encrypt(key, toEncryptData, true);
+            byte[] cipher = RsaKeyManagement.Encrypt(key, toEncryptData);
             var base64cipher = Convert.ToBase64String(cipher);
             Console.WriteLine($"Public Key: {publicKey}");
             Console.WriteLine($"Private Key: {privateKey}");
             Console.WriteLine($"Encrypted data: {base64cipher}");
             Assert.Pass();
+        }
+
+
+
+        // ===== GENERIC BOUNCY CASTLE TEST =====
+
+        [Test]
+        public void BouncyCastleOAEPRoundTripPass()
+        {
+            // Generate an asymmetric key with BC, 2048 bits
+            RsaKeyPairGenerator r = new RsaKeyPairGenerator();
+            r.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
+            AsymmetricCipherKeyPair keys = r.GenerateKeyPair();
+
+            // Extract the public and the private keys
+            var privInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private);
+            var pubInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
+
+            // DER encode the extracted public and private keys
+            var privateKeyDer = privInfo.GetDerEncoded();
+            var publicKeyDer = pubInfo.GetDerEncoded();
+
+            // Recreate the public and private keys from the extracted DER encoded versions
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKeyDer);
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(privateKeyDer);
+
+            // Go to this site:
+            // https://lapo.it/asn1js/
+            // To test out the key. In the immediate window CTRL+ALT+I
+            // get the value of ?pubInfo and of Convert.ToBase64String(publicKeyDer). 
+            // Both can be pasted into the site to compare.
+
+            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher.Init(true, publicKeyRestored);
+
+            var testStr = "En frøk ræv";
+            var dataToEncrypt = Encoding.UTF8.GetBytes(testStr);
+            var cipherBlock = cipher.DoFinal(dataToEncrypt);
+
+            // Now let's try to decrypt it
+
+            var cipher2 = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher2.Init(false, privateKeyRestored);
+
+            var roundTrip = cipher2.DoFinal(cipherBlock);
+            string chkStr = Encoding.UTF8.GetString(roundTrip);
+
+            if (chkStr == testStr)
+                Assert.Pass();
+            else
+                Assert.Fail();
+
         }
 
         //
