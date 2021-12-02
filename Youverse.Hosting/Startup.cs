@@ -51,11 +51,12 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var config = this.Configuration.GetSection("Config").Get<Config>();
-            AssertValidConfiguration(config);
+            var config = new Configuration(Configuration);
+            services.AddSingleton(config);
+
             PrepareEnvironment(config);
 
-            if (config.EnableQuartzBackgroundService)
+            if (config.Quartz.EnableQuartzBackgroundService)
             {
                 services.AddQuartz(q =>
                 {
@@ -66,15 +67,15 @@ namespace Youverse.Hosting
                     //     options.MaxConcurrency = 10; //TODO: good idea?
                     // });
 
-                    q.UseDefaultTransitOutboxSchedule(config.BackgroundJobStartDelaySeconds);
+                    q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
             
-            services.AddControllers(config =>
+            services.AddControllers(options =>
                 {
-                    config.Filters.Add(new ApplyPerimeterMetaData());
+                    options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
@@ -226,23 +227,10 @@ namespace Youverse.Hosting
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }
 
-        private void AssertValidConfiguration(Config cfg)
+        private void PrepareEnvironment(Configuration cfg)
         {
-            Guard.Argument(cfg, nameof(cfg)).NotNull();
-            if (cfg.UseLocalCertificateRegistry == false)
-            {
-                Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
-                Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();
-            }
-
-            Guard.Argument(cfg.TenantDataRootPath, nameof(cfg.TenantDataRootPath)).NotNull().NotEmpty();
-            Guard.Argument(cfg.TempTenantDataRootPath, nameof(cfg.TempTenantDataRootPath)).NotNull().NotEmpty();
-        }
-
-        private void PrepareEnvironment(Config cfg)
-        {
-            Directory.CreateDirectory(cfg.TenantDataRootPath);
-            Directory.CreateDirectory(cfg.TempTenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
         }
     }
 }

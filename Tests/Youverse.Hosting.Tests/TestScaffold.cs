@@ -56,13 +56,15 @@ namespace Youverse.Hosting.Tests
             if (startWebserver)
             {
                 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-                Environment.SetEnvironmentVariable("Config__UseLocalCertificateRegistry", "true");
-                Environment.SetEnvironmentVariable("Config__EnableQuartzBackgroundService", "false");
-                var args = new string[3];
-                args[0] = TestDataPath;
-                args[1] = TempDataPath;
-                args[2] = LogFilePath;
-                _webserver = Program.CreateHostBuilder(args).Build();
+                Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");
+                Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
+                Environment.SetEnvironmentVariable("Host__TempTenantDataRootPath", TempDataPath);
+                Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
+                Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
+                Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
+                Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+
+                _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
                 _webserver.Start();
             }
         }
