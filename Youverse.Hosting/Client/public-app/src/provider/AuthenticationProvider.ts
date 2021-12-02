@@ -4,7 +4,7 @@ class AuthenticationProvider extends ProviderBase {
 
     //checks if the authentication token (stored in a cookie) is valid
     async hasValidToken(): Promise<boolean> {
-        return true;
+        return false;
     }
 
     async authenticate(password: string): Promise<boolean> {

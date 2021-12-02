@@ -14,6 +14,7 @@ import PrivacySettings from "./components/PrivacySettings";
 import AppLogin from "./components/AppLogin";
 import Outbox from "./components/Outbox";
 import BlogLayout from "../../public-app/src/components/Blog/BlogLayout";
+import AdminLayout from "./components/AdminLayout";
 
 function App() {
 
@@ -62,24 +63,36 @@ function App() {
 
     if (state.isAuthenticated) {
         return (
-            <Layout>
-                <BrowserRouter>
+            <BrowserRouter>
+                <Layout>
                     <Routes>
-                        <Route path='/admin' element={<Home/>}/>
-                        {/*<Route exact path='/' component={Home}/>*/}
+                        {/*<Route path='/admin' element={<Home/>}/>*/}
+                        <Route path='/admin' element={<AdminLayout/>}/>
                         {/*<Route exact path='/profile' component={Profile}/>*/}
                         {/*<Route exact path='/outbox' component={Outbox}/>*/}
                         {/*<Route exact path='/privacy' component={PrivacySettings}/>*/}
                     </Routes>
-                </BrowserRouter>
-            </Layout>
+                </Layout>
+            </BrowserRouter>
+
         );
     }
 
     return (
-        <Container className="h-100 align-content-center text-center">
-            <Login/>
-        </Container>
+        <BrowserRouter>
+            <Routes>
+                <Route path='/device/login' element={<Home/>}/>
+                <Route path='/admin' element={<Login/>}/>
+                {/*<Route exact path='/' component={Home}/>*/}
+                {/*<Route exact path='/profile' component={Profile}/>*/}
+                {/*<Route exact path='/outbox' component={Outbox}/>*/}
+                {/*<Route exact path='/privacy' component={PrivacySettings}/>*/}
+            </Routes>
+        </BrowserRouter>
+
+        // <Container className="h-100 align-content-center text-center">
+        //     <Login/>
+        // </Container>
     );
 }
 
