@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, Card, FormControl, Image} from "react-bootstrap";
+import {Button, Card, FormControl} from "react-bootstrap";
 import {createAuthenticationProvider} from "../provider/AuthenticationProvider";
 import {useAppStateStore} from "../provider/AppStateStore";
 

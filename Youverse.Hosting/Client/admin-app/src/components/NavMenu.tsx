@@ -1,5 +1,4 @@
 import React, {useState} from 'react';
-import './NavMenu.css';
 import {Container, Navbar, Nav, Modal, NavDropdown, DropdownButton, Offcanvas, Form, Button, FormControl, Row} from "react-bootstrap";
 import {useAppStateStore} from "../provider/AppStateStore";
 

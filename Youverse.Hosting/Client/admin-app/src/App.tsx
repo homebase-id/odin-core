@@ -1,19 +1,15 @@
 import React, {useEffect, useState} from 'react';
 import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import Layout from './components/Layout';
-import Home from './components/Home';
+import Dashboard from './components/Dashboard';
 import 'bootstrap/dist/css/bootstrap.min.css';
-
-import {Spinner} from 'react-bootstrap';
-import Login from "./components/Login";
-import {Container} from "react-bootstrap";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import "./assets/App.css";
+import {Container,Spinner} from "react-bootstrap";
 import {useAppStateStore} from "./provider/AppStateStore";
 import {observer} from "mobx-react-lite";
-import Profile from "./components/Profile";
-import PrivacySettings from "./components/PrivacySettings";
 import AppLogin from "./components/AppLogin";
-import Outbox from "./components/Outbox";
-import BlogLayout from "../../public-app/src/components/Blog/BlogLayout";
+import Login from "./components/Login";
 
 function App() {
 
@@ -25,20 +21,12 @@ function App() {
             await state.initialize();
             setIsInitializing(false);
         };
-
         init();
-
     }, []);
 
     if (isInitializing) {
         return <Container className="h-100 align-content-center text-center">
-            <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-            />
+            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
         </Container>
     }
 
@@ -62,20 +50,18 @@ function App() {
 
     if (state.isAuthenticated) {
         return (
-            <Layout>
-                <BrowserRouter>
+            <BrowserRouter>
+                <Layout>
                     <Routes>
-                        <Route path='/admin' element={<Home/>}/>
-                        {/*<Route exact path='/' component={Home}/>*/}
-                        {/*<Route exact path='/profile' component={Profile}/>*/}
-                        {/*<Route exact path='/outbox' component={Outbox}/>*/}
-                        {/*<Route exact path='/privacy' component={PrivacySettings}/>*/}
+                        <Route path='/admin' element={<Dashboard/>}/>
+                        <Route path='/admin' element={<Dashboard/>}/>
+                        <Route path='/admin' element={<Dashboard/>}/>
                     </Routes>
-                </BrowserRouter>
-            </Layout>
+                </Layout>
+            </BrowserRouter>
         );
     }
-
+ 
     return (
         <Container className="h-100 align-content-center text-center">
             <Login/>

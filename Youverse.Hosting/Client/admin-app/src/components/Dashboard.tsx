@@ -3,7 +3,7 @@ import { Button, Image} from "react-bootstrap";
 import {createDemoDataProvider} from "../provider/DemoDataProvider";
 import {MediaProvider} from "../provider/MediaProvider";
 
-function Home(props: any) {
+function Dashboard(props: any) {
 
     const ddp = createDemoDataProvider();
     const fileRef = useRef();
@@ -40,4 +40,4 @@ function Home(props: any) {
     );
 }
 
-export default Home;
+export default Dashboard;
