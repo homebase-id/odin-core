@@ -24,12 +24,11 @@ function NavMenu(props: any) {
     }
     return (
         <header>
-            <Navbar bg="light" expand="lg" sticky="top">
+            <Navbar bg="light" expand="lg" fixed="top">
+                <Navbar.Toggle aria-controls="offcanvasNavbar"/>
                 <Container>
-                    <Navbar.Brand href="#">Youverse Admin</Navbar.Brand>
-                    <Navbar.Toggle aria-controls="offcanvasNavbar"/>
-                   
-                    <Nav className="justify-content-end" activeKey="/home">
+                    <Navbar.Brand href="#">Youverse Admin</Navbar.Brand>                   
+                    <Nav className="flex-row d-inline-flex justify-content-end" activeKey="/home">
                         <Nav.Link href="/home">Active</Nav.Link>
                         <Nav.Link eventKey="link-1">Link</Nav.Link>
                         <Nav.Link eventKey="link-2">Link</Nav.Link>
