@@ -12,6 +12,7 @@ using Org.BouncyCastle.X509;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1;
 using Youverse.Core.Cryptography.Utility;
+using System.Text;
 
 namespace Youverse.Core.Cryptography.Tests
 {
@@ -43,22 +44,42 @@ namespace Youverse.Core.Cryptography.Tests
             RsaKeyPairGenerator r = new RsaKeyPairGenerator();
             r.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
             AsymmetricCipherKeyPair keys = r.GenerateKeyPair();
+
             var privInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private);
-            
             var pubInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
-            // Generate our RSAKey data object
             
-            var rsa = new RsaKeyData();
-            rsa.encrypted = false;
-            rsa.iv = Guid.Empty;
-            rsa.privateKey = privInfo.GetDerEncoded();
-            rsa.publicKey  = pubInfo.GetDerEncoded();
-            //rsa.crc32c = KeyCRC(rsa);
-            rsa.instantiated = DateTimeExtensions.UnixTime();
-            //rsa.expiration = rsa.instantiated + (UInt64)hours * 3600 + (UInt64)minutes * 60 + (UInt64)seconds;
-            
-            
-            
+            var privateKeyDer = privInfo.GetDerEncoded();
+            var publicKeyDer  = pubInfo.GetDerEncoded();
+
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKeyDer);
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(privateKeyDer);
+
+            // Go to this site:
+            // https://lapo.it/asn1js/
+            // To test out the key. In the immediate window CTRL+ALT+I
+            // get the value of ?pubInfo and of Convert.ToBase64String(publicKeyDer). 
+            // Both can be pasted into the site to compare.
+
+            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher.Init(true, publicKeyRestored);
+
+            var testStr = "En frøk ræv";
+            var dataToEncrypt = Encoding.UTF8.GetBytes(testStr);
+            var cipherBlock = cipher.DoFinal(dataToEncrypt);
+
+            // Now let's try to decrypt it
+
+            var cipher2 = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher2.Init(false, privateKeyRestored);
+
+            var roundTrip = cipher2.DoFinal(cipherBlock);
+            string chkStr = Encoding.UTF8.GetString(roundTrip);
+
+            if (chkStr == testStr)
+                Assert.Pass();
+            else
+                Assert.Fail();
+
         }
 
     }
