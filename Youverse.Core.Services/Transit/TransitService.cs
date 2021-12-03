@@ -93,16 +93,17 @@ namespace Youverse.Core.Services.Transit
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
 
             _logger.LogInformation($"TransitService.Accept fileId:{fileId}");
-            _storage.MoveToLongTerm(fileId);
+            _storage.MoveToLongTerm(fileId); // TODO: Change to per app
 
             //TODO: app routing, app notification and so on
-
+            //Get the app Inbox storage
+            // store item 
             var item = new InboxItem()
             {
                 Id = Guid.NewGuid(),
                 Sender = this._context.Caller.DotYouId,
                 AppId = this._context.AppContext.AppId,
-                FileId = fileId,
+                FileId = fileId, 
                 TrackerId = trackerId
             };
 
