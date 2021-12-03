@@ -1,4 +1,4 @@
-import {AuthenticationPayload, AuthenticationReplyNonce, AuthenticationResult, NonceData} from "./AuthenticationTypes";
+import {AuthenticationPayload, AuthenticationReplyNonce, NonceData} from "./AuthenticationTypes";
 import {ProviderBase} from "./ProviderBase";
 
 class AuthenticationProvider extends ProviderBase {

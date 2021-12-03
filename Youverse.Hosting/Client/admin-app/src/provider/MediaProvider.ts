@@ -1,5 +1,4 @@
 ﻿import {ProviderBase} from "./ProviderBase";
-import {AuthenticationResult} from "./AuthenticationTypes";
 
 export class MediaProvider extends ProviderBase {
 
@@ -16,10 +15,6 @@ export class MediaProvider extends ProviderBase {
         }
 
         throw new Error("MediaProvider not initialized")
-    }
-
-    constructor() {
-        super();
     }
 
     initialize() {

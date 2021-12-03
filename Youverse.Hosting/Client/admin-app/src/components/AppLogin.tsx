@@ -1,14 +1,34 @@
-import React, {Component, useState} from 'react';
-import {Button, Card, Col, Container, FormControl, Row} from "react-bootstrap";
+import React, {useEffect, useState} from 'react';
+import {Button, Card, Container, FormControl, Spinner} from "react-bootstrap";
 import {useAppStateStore} from "../provider/AppStateStore";
 
-
-function AppLogin(props: any) {
+function AppLogin(  ) {
 
     const [passwordText, setPasswordText] = useState<string>("");
     const [errorText, setErrorText] = useState<string>("");
     const state = useAppStateStore();
 
+    const [initialized, setInitialized] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (!initialized) {
+            init();
+        }
+    }, []);
+
+    const init = async () => {
+        await state.initialize();
+        setInitialized(true);
+    };
+
+    if (!initialized) {
+        return (
+            <Container className="mt-5 h-300 align-content-center text-center">
+                <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </Spinner>
+            </Container>);
+    }
 
     function handleLoginClick() {
         if (!passwordText) {

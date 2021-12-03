@@ -1,43 +1,47 @@
-import React, {Component, useEffect, useState} from 'react';
-import {Col, Container, Row, Spinner} from "react-bootstrap";
+import React, {useEffect, useState} from 'react';
+import {Container, Row, Spinner} from "react-bootstrap";
 import {Route, Routes} from "react-router";
-import routes, {RouteDefinition} from './Routes';
-import Dashboard from "./Dashboard";
 import {useAppStateStore} from "../provider/AppStateStore";
+import Testboard from "./Testboard";
+import Sidebar from "./Sidebar";
 
 function Layout(props: any) {
 
-    const [isInitializing, setIsInitializing] = useState(true);
     const state = useAppStateStore();
+    const [initialized, setInitialized] = useState<boolean>(false);
+
     useEffect(() => {
-        const init = async () => {
-            await state.initialize();
-            setIsInitializing(false);
-        };
-        init();
+        if (!initialized) {
+            init();
+        }
     }, []);
 
-    const renderRoutes = (routes: RouteDefinition[]) => {
-        return routes.map((prop: RouteDefinition, key: any) => {
-            return (<Route path={prop.path} element={prop.component} key={key}/>);
-        });
+    const init = async () => {
+        await state.initialize();
+        setInitialized(true);
     };
 
-    if (isInitializing) {
-        return <Container className="h-100 align-content-center text-center">
-            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true"/>
-        </Container>
+    if (!initialized) {
+        return (
+            <Container className="mt-5 h-300 align-content-center text-center">
+                <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </Spinner>
+            </Container>);
     }
 
     if (state.isAuthenticated) {
         return (
-            <Layout>
-                <Routes>
-                    <Route path='/admin/dashboard' element={<Dashboard/>}/>
-                    <Route path='/admin/' element={<Dashboard/>}/>
-                    <Route path='/admin' element={<Dashboard/>}/>
-                </Routes>
-            </Layout>
+            <Container fluid={true}>
+                <Row>
+                    <Sidebar/>
+                    <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                        <Routes>
+                            <Route path='/dashboard/*' element={<Testboard/>}/>
+                        </Routes>
+                    </main>
+                </Row>
+            </Container>
         );
     }
 

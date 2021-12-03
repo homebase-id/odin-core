@@ -1,5 +1,4 @@
 import axios, {AxiosError} from "axios";
-import {AuthenticationResult} from "./AuthenticationTypes";
 
 export class ProviderBase {
     //protected token: AuthenticationResult;

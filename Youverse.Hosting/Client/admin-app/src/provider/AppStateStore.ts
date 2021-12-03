@@ -10,26 +10,32 @@ class AppStateStore {
     constructor() {
         makeObservable(this,
             {
+                isInitialized: observable,
                 isAuthenticated: observable,
-                deviceToken:observable,
+                deviceToken: observable,
                 theme: observable,
                 initialize: action.bound,
                 authenticate: action.bound,
-                authenticateDevice:action.bound,
+                authenticateDevice: action.bound,
                 logout: action.bound,
                 setDarkMode: action,
                 setLightMode: action
             });
     }
 
-    private isInitialized: boolean = false;
+    isInitialized: boolean = false;
     isAuthenticated: boolean = false;
     deviceToken: string | null = null;
     theme: string = "light";
 
+    sleep(ms: number) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async initialize(): Promise<void> {
 
         let tokenIsValid = await this.checkTokenStatus();
+        await this.sleep(2000);
 
         if (tokenIsValid) {
             this.isAuthenticated = true;
@@ -79,12 +85,12 @@ class AppStateStore {
     }
 
     isNightMode(): boolean {
-        return this.theme == "night";
+        return this.theme === "night";
     }
 
     private async checkTokenStatus(): Promise<boolean> {
         return true;
-        
+
         // const client = createAuthenticationProvider();
         // return client.hasValidToken().then(result => {
         //     return result;
