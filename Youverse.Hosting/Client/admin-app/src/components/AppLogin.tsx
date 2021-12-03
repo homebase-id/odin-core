@@ -1,7 +1,7 @@
-import React, {useState} from 'react';
-import {Button, Card, Container, FormControl} from "react-bootstrap";
-import {createAuthenticationProvider} from "../provider/AuthenticationProvider";
+import React, {Component, useState} from 'react';
+import {Button, Card, Col, Container, FormControl, Row} from "react-bootstrap";
 import {useAppStateStore} from "../provider/AppStateStore";
+
 
 function AppLogin(props: any) {
 
@@ -9,7 +9,8 @@ function AppLogin(props: any) {
     const [errorText, setErrorText] = useState<string>("");
     const state = useAppStateStore();
 
-    async function handleLoginClick() {
+
+    function handleLoginClick() {
         if (!passwordText) {
             setErrorText("Please enter your password");
             return;
@@ -23,23 +24,6 @@ function AppLogin(props: any) {
 
             setErrorText("Invalid password");
         })
-    }
-
-    async function handleForcePassword() {
-        let auth = createAuthenticationProvider();
-        let success = await auth.forceSetPassword_temp("a");
-        if (success) {
-            alert("Password was successfully set to a\n\nPress Sign in now");
-            setPasswordText("a")
-        }
-    }
-
-    if (state.isAuthenticated && state.deviceToken) {
-        //redirect to the app
-        //todo: this is duplicate code
-        console.log('device is authenticated; redirecting')
-        window.location.href = "dotyou://auth/" + state.deviceToken;
-        return;
     }
 
     return (

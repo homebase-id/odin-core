@@ -1,6 +1,5 @@
 import Dashboard from "./Dashboard";
 import {Route} from "react-router-dom";
-
 export class RouteDefinition {
     path:string = "";
     title:string = "";
