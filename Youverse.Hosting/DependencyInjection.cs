@@ -58,26 +58,26 @@ namespace Youverse.Hosting
                 cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
             }
 
-            cb.RegisterType<ProfileService>().As<IProfileService>();
-            cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>();
-            cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>();
-            cb.RegisterType<OwnerDataAttributeManagementService>().As<IOwnerDataAttributeManagementService>();
-            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>();
-            cb.RegisterType<OwnerDataAttributeReaderService>().As<IOwnerDataAttributeReaderService>();
-            cb.RegisterType<MessagingService>().As<IMessagingService>();
-            cb.RegisterType<FileBasedStorageService>().As<IStorageService>();
-            cb.RegisterType<ChatService>().As<IChatService>();
-            cb.RegisterType<EncryptionService>().As<IEncryptionService>();
-            cb.RegisterType<OutboxService>().As<IOutboxService>();
-            cb.RegisterType<InboxService>().As<IInboxService>();
-            cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>();
-            cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>();
-            cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>();
-            cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>();
-            cb.RegisterType<TransitService>().As<ITransitService>();
-            cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>();
-            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>();
-            cb.RegisterType<PrototrialDemoDataService>().As<IPrototrialDemoDataService>();
+            cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
+            cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
+            cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
+            cb.RegisterType<OwnerDataAttributeManagementService>().As<IOwnerDataAttributeManagementService>().SingleInstance();
+            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+            cb.RegisterType<OwnerDataAttributeReaderService>().As<IOwnerDataAttributeReaderService>().SingleInstance();
+            cb.RegisterType<MessagingService>().As<IMessagingService>().SingleInstance();
+            cb.RegisterType<FileBasedStorageService>().As<IStorageService>().SingleInstance();
+            cb.RegisterType<ChatService>().As<IChatService>().SingleInstance();
+            cb.RegisterType<EncryptionService>().As<IEncryptionService>().SingleInstance();
+            cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
+            cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
+            cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
+            cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>().SingleInstance();
+            cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>().SingleInstance();
+            cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
+            cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
+            cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>().SingleInstance();
+            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
+            cb.RegisterType<PrototrialDemoDataService>().As<IPrototrialDemoDataService>().SingleInstance();
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
