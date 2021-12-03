@@ -127,7 +127,7 @@ namespace Youverse.Core.Services.Authentication
             return IsAuthTokenEntryValid(entry);
         }
         
-        public async Task<SecureKey> GetLoginDek(Guid sessionToken, SecureKey clientHalfKek)
+        public async Task<SecureKey> GetOwnerDek(Guid sessionToken, SecureKey clientHalfKek)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
@@ -136,16 +136,7 @@ namespace Youverse.Core.Services.Authentication
                 throw new Exception("Token is invalid");
             }
 
-            var encryptedDek  = await _secretService.GetEncryptedDek();
-            var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
-            
-            var dek = LoginKeyManager.GetDek(encryptedDek.GetKey(), loginKek.GetKey());
-           
-            encryptedDek.Wipe();
-            loginKek.Wipe();
-            loginToken.Dispose();
-            
-            return new SecureKey(dek);
+            return await _secretService.GetDek(loginToken, clientHalfKek);
         }
 
 

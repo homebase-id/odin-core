@@ -59,16 +59,31 @@ namespace Youverse.Core.Services.Authentication
             _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
-        public async Task<SecureKey> GetEncryptedDek()
+        public async Task<SecureKey> GetDek(LoginTokenData loginToken, SecureKey clientHalfKek)
         {
             var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
-
             if (null == pk)
             {
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            return new SecureKey(pk.XorEncryptedDek);
+            var encryptedDek = new SecureKey(pk.XorEncryptedDek);
+            var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
+
+            var dek = LoginKeyManager.GetDek(encryptedDek.GetKey(), loginKek.GetKey());
+
+            var isValid = LoginKeyManager.IsValidAdminDek(pk.VerificationIv, dek, pk.EncryptedVerificationValue, pk.VerificationValue);
+
+            if(!isValid)
+            {
+                throw new InvalidDataException("Invalid Owner login data");
+            }
+
+            encryptedDek.Wipe();
+            loginKek.Wipe();
+            loginToken.Dispose();
+
+            return new SecureKey(dek);
         }
 
         public async Task<SaltsPackage> GetStoredSalts()

@@ -66,6 +66,6 @@ namespace Youverse.Core.Services.Authentication
         /// </summary>
         /// <returns></returns>
         
-        Task<SecureKey> GetLoginDek(Guid sessionToken, SecureKey rClientHalfKek);
+        Task<SecureKey> GetOwnerDek(Guid sessionToken, SecureKey rClientHalfKek);
     }
 }

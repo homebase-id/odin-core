@@ -30,6 +30,11 @@ namespace Youverse.Core.Cryptography
 
             var dek = ByteArrayUtil.GetRndByteArray(16); // Create the DeK
 
+
+            passwordKey.VerificationIv = ByteArrayUtil.GetRndByteArray(16);
+            passwordKey.VerificationValue = ByteArrayUtil.GetRndByteArray(16);
+            passwordKey.EncryptedVerificationValue = AesCbc.EncryptBytesToBytes_Aes(passwordKey.VerificationValue, dek, passwordKey.VerificationIv);
+
             //TODO: can be used to validate the generated dek is a valid key
             // testEncryptedData = new TestEncryptedData();
             // (testEncryptedData.Iv, testEncryptedData.CipherText) = AesCbc.EncryptStringToBytes_Aes(testEncryptedData.ClearText, dek);
@@ -41,6 +46,11 @@ namespace Youverse.Core.Cryptography
             return passwordKey;
         }
 
+        public static bool IsValidAdminDek(byte[] iv, byte[] dek, byte[] encryptedValue, byte[] verificationValue)
+        {
+            var decryptedVerificationValue = AesCbc.DecryptBytesFromBytes_Aes(encryptedValue, dek, iv);
+            return ByteArrayUtil.EquiByteArrayCompare(verificationValue, decryptedVerificationValue);
+        }
 
         public static void ChangePassword(LoginKeyData passwordKey, byte[] oldKeK, byte[] newKeK)
         {

@@ -31,5 +31,21 @@ namespace Youverse.Core.Cryptography.Data
         /// LoginTokenData when the client and server halves meet.
         /// </summary>
         public byte[] XorEncryptedDek { get; set; }
+
+        /// <summary>
+        /// The value which must be matched by the admin verification service to establish the running thing
+        /// </summary>
+        public byte[] VerificationValue { get; set; }
+
+        /// <summary>
+        /// Encrypted with Admin Dek
+        /// </summary>
+        public byte[] EncryptedVerificationValue { get; set; }
+
+        /// <summary>
+        /// The initialization vector for the encryption of the <see cref="VerificationValue"/>
+        /// </summary>
+        public byte[] VerificationIv { get; set; }
+
     }
 }

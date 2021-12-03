@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Security.Authentication
                     string domain = this.Context.Request.Host.Host;
 
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set during the Startup.ResolveContext method
-                    var loginDek = await authService.GetLoginDek(authResult.SessionToken, authResult.ClientHalfKek);
+                    var loginDek = await authService.GetOwnerDek(authResult.SessionToken, authResult.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
 
                     //HACK: todo determine how to distinguish our admin app from other apps

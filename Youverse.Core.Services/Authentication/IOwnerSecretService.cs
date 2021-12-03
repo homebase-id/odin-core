@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Authentication
         /// the initial password
         /// </summary>
         /// <returns></returns>
-        Task<SecureKey> GetEncryptedDek();
+        Task<SecureKey> GetDek(LoginTokenData loginToken, SecureKey key);
 
     }
 }
