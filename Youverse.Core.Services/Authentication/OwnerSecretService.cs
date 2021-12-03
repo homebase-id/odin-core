@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Authentication
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>
         /// <returns></returns>
-        public virtual async Task<NonceData> GenerateNewSalts()
+        public async Task<NonceData> GenerateNewSalts()
         {
             var rsaKeyList = await this.GetRsaKeyList();
             var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Authentication
         }
 
 
-        public virtual async Task SetNewPassword(PasswordReply reply)
+        public async Task SetNewPassword(PasswordReply reply)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.Authentication
         {
             var result = await WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
 
-            if (result == null)
+            if (result == null || result.ListRSA == null)
             {
                 return await this.GenerateRsaKeyList();
             }

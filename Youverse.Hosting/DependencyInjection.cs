@@ -35,18 +35,8 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().AsSelf().SingleInstance();
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                // logger.LogWarning("Running Mac-workaround services");
-                cb.RegisterType<MacHackOwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-                cb.RegisterType<MacHackAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-            }
-            else
-            {
-                cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-                cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-            }
-
+            cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
+            cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
 
             cb.RegisterType<ProfileService>().As<IProfileService>();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>();

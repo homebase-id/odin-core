@@ -140,19 +140,5 @@ namespace Youverse.Core.Cryptography.Crypto
         {
             return RsaKeyManagement.publicPem(GetCurrentKey(ref listRsa, out var _));
         }
-
-        public static RSACng FindKeyPublic(RsaKeyListData listRsa, UInt32 publicKeyCrc)
-        {
-            var key = FindKey(listRsa, publicKeyCrc);
-
-            return RsaKeyManagement.KeyPublic(key);
-        }
-
-        public static RSACng FindKeyPrivate(RsaKeyListData listRsa, UInt32 publicKeyCrc)
-        {
-            var key = FindKey(listRsa, publicKeyCrc);
-
-            return RsaKeyManagement.KeyPrivate(key);
-        }
     }
 }
