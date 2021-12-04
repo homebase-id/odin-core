@@ -1,8 +1,8 @@
 {
-  "name": "admin-app",
+  "name": "owner-console",
   "version": "0.1.0",
   "private": true,
-  "homepage": "/admin",
+  "homepage": "/owner",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^5.15.4",
     "@fortawesome/fontawesome-svg-core": "^1.2.36",

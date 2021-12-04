@@ -1,11 +1,14 @@
 import React, {useEffect, useState} from 'react';
-import {Container, Row, Spinner} from "react-bootstrap";
+import {Container, Row, Col, Spinner} from "react-bootstrap";
 import {Route, Routes} from "react-router";
 import {useAppStateStore} from "../provider/AppStateStore";
 import Testboard from "./Testboard";
-import Sidebar from "./Sidebar";
+import Connections from "./Connections";
 
-function Layout(props: any) {
+import Sidebar from "./Sidebar";
+import "../assets/OwnerConsole.css";
+
+function OwnerConsoleLayout(props: any) {
 
     const state = useAppStateStore();
     const [initialized, setInitialized] = useState<boolean>(false);
@@ -32,20 +35,24 @@ function Layout(props: any) {
 
     if (state.isAuthenticated) {
         return (
-            <Container fluid={true}>
-                <Row>
+            <Row className="wrapper">
+                <Col md={1} className="d-none d-md-flex no-gutters">
                     <Sidebar/>
-                    <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                        <Routes>
-                            <Route path='/dashboard/*' element={<Testboard/>}/>
-                        </Routes>
-                    </main>
-                </Row>
-            </Container>
+                </Col>
+                <Col as="main" md={11} className="no-gutters">
+                    <Routes>
+                        <Route path='/' element={<Testboard />} />
+                        <Route path='/dashboard/*' element={<Testboard />} />
+                        <Route path='/connections/*' element={<Connections />} />
+                    </Routes>
+                </Col>
+            </Row>
         );
     }
+
+    //className="col-md-11 ms-sm-auto col-lg-11 px-md-4
 
     return (<div>Access Denied</div>);
 }
 
-export default Layout;
+export default OwnerConsoleLayout;

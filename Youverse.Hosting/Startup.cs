@@ -185,17 +185,17 @@ namespace Youverse.Hosting
                 });
             });
 
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/admin"), adminApp =>
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"), adminApp =>
             {
                 adminApp.UseSpa(spa =>
                 {
-                    spa.Options.SourcePath = @"Client/admin-app";
+                    spa.Options.SourcePath = @"Client/owner-console";
                     spa.Options.DefaultPage = "/index.html";
 
                     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
                     {
                         RequestPath = "/admin",
-                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "admin-app"))
+                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
                     };
 
                     if (env.IsDevelopment())

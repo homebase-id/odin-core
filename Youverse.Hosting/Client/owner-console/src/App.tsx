@@ -4,14 +4,14 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./assets/App.css";
 import {observer} from "mobx-react-lite";
-import Layout from './components/Layout';
-import AppLogin from "./components/AppLogin";
+import OwnerConsoleLayout from './ownerconsole/OwnerConsoleLayout';
+import AppLogin from "./appLogin/AppLogin";
 
 function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path='/admin/*' element={<Layout/>}/>
+                <Route path='/owner/*' element={<OwnerConsoleLayout/>}/>
                 <Route path='/applogin' element={<AppLogin/>}/>
             </Routes>
         </BrowserRouter>);
