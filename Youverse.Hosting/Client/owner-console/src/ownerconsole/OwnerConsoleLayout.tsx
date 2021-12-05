@@ -35,9 +35,9 @@ function OwnerConsoleLayout(props: any) {
 
     if (state.isAuthenticated) {
         return (
-            <Row className="wrapper">
-                <Col md={1} className="d-none d-md-flex no-gutters">
-                    <Sidebar/>
+            <Row className="wrapper g-0 ">
+                <Col md={1} className="d-none justify-content-center d-md-flex g-0">
+                    <Sidebar />
                 </Col>
                 <Col as="main" md={11} className="no-gutters">
                     <Routes>

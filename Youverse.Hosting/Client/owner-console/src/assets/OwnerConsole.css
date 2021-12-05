@@ -22,3 +22,8 @@
   min-height:100vh;
   justify-content: space-around;
 }
+
+.offcanvas-menu
+{
+  width:111px !important;
+}
