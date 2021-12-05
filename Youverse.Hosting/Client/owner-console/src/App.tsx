@@ -12,7 +12,7 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route path='/owner/*' element={<OwnerConsoleLayout/>}/>
-                <Route path='/applogin' element={<AppLogin/>}/>
+                <Route path='/applogin/*' element={<AppLogin/>}/>
             </Routes>
         </BrowserRouter>);
 }
