@@ -1,4 +1,5 @@
 import React, { Component, useRef } from 'react';
+import { Row } from 'react-bootstrap';
 import HeaderNavbar from "./HeaderNavbar";
 
 function Testboard(props: any) {
@@ -12,7 +13,7 @@ function Testboard(props: any) {
                 </ul>
             </HeaderNavbar>
 
-            <div className="row">
+            <Row className="g-0">
                 <div className="row g-4 py-5 row-cols-1 row-cols-lg-3">
                     <div className="feature col">
                         <div className="feature-icon bg-primary bg-gradient">
@@ -184,7 +185,7 @@ function Testboard(props: any) {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </Row>
         </>
     );
 }

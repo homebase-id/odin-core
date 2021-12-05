@@ -35,15 +35,15 @@ function OwnerConsoleLayout(props: any) {
 
     if (state.isAuthenticated) {
         return (
-            <Row className="wrapper g-0 ">
+            <Row className="wrapper g-0">
                 <Col md={1} className="d-none justify-content-center d-md-flex g-0">
                     <Sidebar />
                 </Col>
-                <Col as="main" md={11} className="no-gutters">
+                <Col as="main" md={11} className="">
                     <Routes>
                         <Route path='/' element={<Testboard />} />
                         <Route path='/dashboard/*' element={<Testboard />} />
-                        <Route path='/connections/*' element={<Connections />} />
+                        <Route path='/mynetwork/*' element={<Connections />} />
                     </Routes>
                 </Col>
             </Row>
