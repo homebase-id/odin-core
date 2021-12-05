@@ -5,7 +5,12 @@ function Testboard(props: any) {
 
     return (
         <>
-            <HeaderNavbar />
+            <HeaderNavbar>
+                <ul className="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
+                    <li><a href="#" className="nav-link px-2 link-secondary">Overview</a></li>
+                    <li><a href="#" className="nav-link px-2 link-dark">Testboard Menu</a></li>
+                </ul>
+            </HeaderNavbar>
 
             <div className="row">
                 <div className="row g-4 py-5 row-cols-1 row-cols-lg-3">

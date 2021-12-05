@@ -21,7 +21,8 @@ function ActiveDetectLink({to, icon, popover, ...props}: ActiveDetectLinkProps) 
         <OverlayTrigger
             placement="right"
             delay={{show: 250, hide: 400}}
-            overlay={popover}>
+            overlay={popover}
+            trigger="focus">
             <li className="nav-item">
                 <Link className={css} to={to} {...props}>
                     <FontAwesomeIcon icon={icon} size="2x"/>
