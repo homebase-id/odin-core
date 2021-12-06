@@ -42,7 +42,7 @@
         <Content Remove="$(SpaRoot)**" />
         <None Remove="$(SpaRoot)**" />
         <Content Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
         <Content Include="https\samwisegamgee.me\samwisegamgee.key">

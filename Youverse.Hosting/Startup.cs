@@ -183,8 +183,6 @@ namespace Youverse.Hosting
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"), adminApp =>
             {
-                var x = Directory.GetCurrentDirectory();
-                
                 adminApp.UseSpa(spa =>
                 {
                     spa.Options.SourcePath = @"Client/owner-console";
