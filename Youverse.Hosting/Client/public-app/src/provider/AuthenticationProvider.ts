@@ -1,4 +1,4 @@
-import {ProviderBase} from "./ProviderBase";
+import { ProviderBase } from "./ProviderBase";
 
 class AuthenticationProvider extends ProviderBase {
 
@@ -10,7 +10,9 @@ class AuthenticationProvider extends ProviderBase {
 
     async authenticate(password: string): Promise<boolean> {
         var goodPwd = (password === "a");
-        sessionStorage.setItem("auth", "true");
+        if (goodPwd) {
+            sessionStorage.setItem("auth", "true");
+        }
         return goodPwd;
     }
 

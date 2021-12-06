@@ -6,7 +6,7 @@ import Container from 'react-bootstrap/Container';
 function HomeLayout() {
     return (
         <Container>
-            vegha
+            landing page
         </Container>
     );
 }
