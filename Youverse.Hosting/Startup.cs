@@ -149,7 +149,7 @@ namespace Youverse.Hosting
 
             app.UseCertificateForwarding();
             app.UseStaticFiles();
-            app.UseSpaStaticFiles();
+            //app.UseSpaStaticFiles();
 
             app.UseRouting();
             app.UseAuthentication();
