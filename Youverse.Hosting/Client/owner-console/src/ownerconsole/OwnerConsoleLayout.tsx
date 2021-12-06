@@ -49,9 +49,6 @@ function OwnerConsoleLayout(props: any) {
             </Row>
         );
     }
-
-    //className="col-md-11 ms-sm-auto col-lg-11 px-md-4
-
     return (<div>Access Denied</div>);
 }
 
