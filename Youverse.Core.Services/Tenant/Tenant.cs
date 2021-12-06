@@ -1,8 +1,4 @@
-﻿using System.Security.Claims;
-using Youverse.Core.Services.Identity;
-using Youverse.Core.Services.Registry;
-
-#nullable enable
+﻿#nullable enable
 namespace Youverse.Core.Services.Tenant
 {
     public class Tenant
@@ -18,6 +14,5 @@ namespace Youverse.Core.Services.Tenant
         {
             return Name;
         }
-        
     }
 }

@@ -16,7 +16,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+
 using Quartz;
+
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -34,6 +36,7 @@ using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
+
 using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Hosting
@@ -49,14 +52,12 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMultiTenancy();
-            services.AddLoggingServices();
+            var config = new Configuration(Configuration);
+            services.AddSingleton(config);
 
-            var config = this.Configuration.GetSection("Config").Get<Config>();
-            AssertValidConfiguration(config);
             PrepareEnvironment(config);
 
-            if (config.EnableQuartzBackgroundService)
+            if (config.Quartz.EnableQuartzBackgroundService)
             {
                 services.AddQuartz(q =>
                 {
@@ -67,15 +68,15 @@ namespace Youverse.Hosting
                     //     options.MaxConcurrency = 10; //TODO: good idea?
                     // });
 
-                    q.UseDefaultTransitOutboxSchedule(config.BackgroundJobStartDelaySeconds);
+                    q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-
-            services.AddControllers(config =>
+            
+            services.AddControllers(options =>
                 {
-                    config.Filters.Add(new ApplyPerimeterMetaData());
+                    options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
@@ -85,7 +86,7 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-
+            
             services.AddYouverseAuthentication();
             services.AddYouverseAuthorization();
 
@@ -95,65 +96,60 @@ namespace Youverse.Hosting
             //services.AddYouVerseScopedServices();
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-
+            
             // In production, the React files will be served from this directory
             // services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
-
+        
         // ConfigureContainer is where you can register things directly
         // with Autofac. This runs after ConfigureServices so the things
         // here will override registrations made in ConfigureServices.
         // Don't build the container; that gets done for you. If you
         // need a reference to the container, you need to use the
         // "Without ConfigureContainer" mechanism shown later.
-        public void ConfigureContainer(ContainerBuilder builder)
-        {
-            /*
+         public void ConfigureContainer(ContainerBuilder builder)
+         {
+             /*
+             AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
+             ASP.NET Core container             -> Autofac
+             ----------------------                -------
+             // the 3 big ones
+             services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
+             services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
+             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
+             // default
+             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
+             // multiple
+             services.AddX<IFoo1, Foo>();
+             services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
+             // without interface
+             services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
+             */ 
 
-            AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
-
-            ASP.NET Core container             -> Autofac
-            ----------------------                -------
-
-            // the 3 big ones
-            services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
-            services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
-            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
-
-            // default
-            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
-
-            // multiple
-            services.AddX<IFoo1, Foo>();
-            services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
-
-            // without interface
-            services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
-
-            */
-
-            // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
-            //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+             // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
+             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+             builder.RegisterModule(new LoggingAutofacModule());
+             builder.RegisterModule(new MultiTenantAutofacModule());
         }
-
+        
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             app.UseLoggingMiddleware();
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-
+            
             this.ConfigureLiteDBSerialization();
 
             if (env.IsDevelopment())
             {
                 //app.UseWebAssemblyDebugging();
-                app.UseDeveloperExceptionPage();
+                //app.UseDeveloperExceptionPage();
             }
 
             app.UseCertificateForwarding();
-            app.UseMiddleware<ExceptionMiddleware>();
             app.UseStaticFiles();
-            //app.UseSpaStaticFiles();
+            app.UseSpaStaticFiles();
 
             app.UseRouting();
             app.UseAuthentication();
@@ -225,7 +221,7 @@ namespace Youverse.Hosting
                 });
             });
         }
-
+        
         private void ConfigureLiteDBSerialization()
         {
             var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
@@ -242,7 +238,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };
@@ -253,23 +249,10 @@ namespace Youverse.Hosting
             //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
         }
 
-        private void AssertValidConfiguration(Config cfg)
+        private void PrepareEnvironment(Configuration cfg)
         {
-            Guard.Argument(cfg, nameof(cfg)).NotNull();
-            if (cfg.UseLocalCertificateRegistry == false)
-            {
-                Guard.Argument(cfg.RegistryServerUri, nameof(cfg.RegistryServerUri)).NotNull().NotEmpty();
-                Guard.Argument(Uri.IsWellFormedUriString(cfg.RegistryServerUri, UriKind.Absolute), nameof(cfg.RegistryServerUri)).True();
-            }
-
-            Guard.Argument(cfg.TenantDataRootPath, nameof(cfg.TenantDataRootPath)).NotNull().NotEmpty();
-            Guard.Argument(cfg.TempTenantDataRootPath, nameof(cfg.TempTenantDataRootPath)).NotNull().NotEmpty();
-        }
-
-        private void PrepareEnvironment(Config cfg)
-        {
-            Directory.CreateDirectory(cfg.TenantDataRootPath);
-            Directory.CreateDirectory(cfg.TempTenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
         }
     }
 }

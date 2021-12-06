@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Authentication
             _secretService = secretService;
         }
 
-        public virtual async Task<NonceData> GenerateAuthenticationNonce()
+        public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
 
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Authentication
             return nonce;
         }
 
-        public virtual async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
+        public async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));

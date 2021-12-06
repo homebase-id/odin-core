@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
@@ -34,18 +35,8 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().AsSelf().SingleInstance();
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                // logger.LogWarning("Running Mac-workaround services");
-                cb.RegisterType<MacHackOwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-                cb.RegisterType<MacHackAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-            }
-            else
-            {
-                cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-                cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-            }
-
+            cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
+            cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
 
             cb.RegisterType<ProfileService>().As<IProfileService>();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>();
@@ -71,6 +62,9 @@ namespace Youverse.Hosting
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
+            var logger = scope.Resolve<ILogger<Startup>>();
+            logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
+
             var registry = scope.Resolve<IIdentityContextRegistry>();
 
             var ctx = scope.Resolve<DotYouContext>();

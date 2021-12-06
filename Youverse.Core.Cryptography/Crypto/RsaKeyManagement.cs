@@ -2,6 +2,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using Youverse.Core.Cryptography.Data;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 
 namespace Youverse.Core.Cryptography.Crypto
 {
@@ -24,18 +29,23 @@ namespace Youverse.Core.Cryptography.Crypto
         // Work to do here. OAEP or for signing? Encrypted private?
         public static RsaKeyData CreateKey(int hours, int minutes=0, int seconds=0)
         {
-            var rsa = new RsaKeyData();
+            // Generate an asymmetric key with BC, 2048 bits
+            RsaKeyPairGenerator r = new RsaKeyPairGenerator();
+            r.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
+            AsymmetricCipherKeyPair keys = r.GenerateKeyPair();
 
+            // Extract the public and the private keys
+            var privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private);
+            var publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
+
+            // Create and prepare our own RsaKeyData data structure
+            var rsa = new RsaKeyData();
             rsa.encrypted = false;
             rsa.iv = Guid.Empty;
 
-            var rsaGenKeys = new RSACng(2048);   // Windows only **wwaaahhh*** Need to figure that one out
-
-            // rsa.privateKey = rsaGenKeys.ExportRSAPrivateKey();
-            // rsa.publicKey = rsaGenKeys.ExportRSAPublicKey();
-
-            rsa.privateKey = rsaGenKeys.ExportPkcs8PrivateKey();
-            rsa.publicKey  = rsaGenKeys.ExportSubjectPublicKeyInfo();  // Be JS crypto.subtle compatible
+            // Save the DER encoded private and public keys in our own data structure
+            rsa.privateKey = privateKeyInfo.GetDerEncoded();
+            rsa.publicKey  = publicKeyInfo.GetDerEncoded();
 
             rsa.crc32c = KeyCRC(rsa);
             rsa.instantiated = DateTimeExtensions.UnixTimeSeconds();
@@ -47,41 +57,96 @@ namespace Youverse.Core.Cryptography.Crypto
             return rsa;
         }
 
-        public static byte[] Encrypt(RsaKeyData key, byte[] data, bool EncryptWithPublicKey)
+        private static UInt32 KeyCRC(byte[] keyDerEncoded)
         {
-            RSACng myRsa;
-
-            if (EncryptWithPublicKey)
-                myRsa = KeyPublic(key);
-            else
-                myRsa = KeyPrivate(key);
-
-            var cipher = myRsa.Encrypt(data, RSAEncryptionPadding.OaepSHA256);
-
-            return cipher;
+            return CRC32C.CalculateCRC32C(0, keyDerEncoded);
         }
 
-        public static byte[] Decrypt(RsaKeyData key, byte[] cipher, bool DecryptWithPublicKey)
+        private static UInt32 KeyCRC(RsaKeyData key)
         {
-            RSACng myRsa;
+            return KeyCRC(key.publicKey);
+        }
 
-            if (DecryptWithPublicKey)
-                myRsa = KeyPublic(key);
-            else
-                myRsa = KeyPrivate(key);
+        public static string publicDerBase64(RsaKeyData key)
+        {
+            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
+            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
+            return Convert.ToBase64String(key.publicKey);
+        }
 
-            var data = myRsa.Decrypt(cipher, RSAEncryptionPadding.OaepSHA256);
+        public static string privateDerBase64(RsaKeyData key)
+        {
+            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
+            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
+            return Convert.ToBase64String(key.privateKey);
+        }
 
-            return data;
+        public static string publicPem(RsaKeyData key)
+        {
+            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
+            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
+            return "-----BEGIN PUBLIC KEY-----\n" + publicDerBase64(key) + "\n-----END PUBLIC KEY-----";
+        }
+
+        // privatePEM needs work in case it's encrypted
+        public static string privatePem(RsaKeyData key)
+        {
+            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
+            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
+            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
+        }
+
+        public static byte[] decodePublicPem(string key)
+        {
+            string publicKeyPEM = key.Replace("-----BEGIN PUBLIC KEY-----", "")
+                                        .Replace("\n", "")
+                                        .Replace("\r", "")
+                                        .Replace("-----END PUBLIC KEY-----", "");
+
+            return Convert.FromBase64String(publicKeyPEM);
+        }
+
+
+        // Encrypt with the public key
+        public static byte[] Encrypt(RsaKeyData key, byte[] data)
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(key.publicKey);
+
+            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher.Init(true, publicKeyRestored);
+            var cipherData = cipher.DoFinal(data);
+
+            return cipherData;
+        }
+
+        // Decrypt with private key
+        public static byte[] Decrypt(RsaKeyData key, byte[] cipherData)
+        {
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(key.privateKey);
+
+            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher.Init(false, privateKeyRestored);
+
+            var clearData = cipher.DoFinal(cipherData);
+ 
+            return clearData;
         }
 
         public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
         {
             var rsa = new RSACng();
             rsa.ImportFromPem(publicKey);
-            var cipher = Convert.ToBase64String(rsa.Encrypt(Encoding.ASCII.GetBytes(payload), RSAEncryptionPadding.OaepSHA256));
 
-            return (RsaKeyManagement.KeyCRC(rsa), cipher);
+            var publicKeyRestored = PublicKeyFactory.CreateKey(decodePublicPem(publicKey));
+
+            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
+            cipher.Init(true, publicKeyRestored);
+            var tmp = cipher.DoFinal(Encoding.ASCII.GetBytes(payload));
+
+            var cipherData = Convert.ToBase64String(tmp);
+
+
+            return (RsaKeyManagement.KeyCRC(decodePublicPem(publicKey)), cipherData);
         }
 
         // Not expired, it's still good (it may be overdue for a refresh)
@@ -118,62 +183,5 @@ namespace Youverse.Core.Cryptography.Crypto
                 return false;
         }
 
-        public static RSACng KeyPublic(RsaKeyData key)
-        {
-            var rsaPublic = new RSACng();
-
-            rsaPublic.ImportSubjectPublicKeyInfo(key.publicKey, out int _);
-
-            return rsaPublic;
-        }
-
-        public static RSACng KeyPrivate(RsaKeyData key)
-        {
-            var rsaFull = new RSACng();
-
-            rsaFull.ImportPkcs8PrivateKey(key.privateKey, out int _);
-
-            return rsaFull;
-        }
-
-        private static UInt32 KeyCRC(RsaKeyData key)
-        {
-            return CRC32C.CalculateCRC32C(0, key.publicKey);
-        }
-
-        public static UInt32 KeyCRC(RSACng rsa)
-        {
-            return CRC32C.CalculateCRC32C(0, rsa.ExportSubjectPublicKeyInfo());
-        }
-
-        public static string publicBase64(RsaKeyData key)
-        {
-            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
-            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
-            return Convert.ToBase64String(key.publicKey);
-        }
-
-        // privatePEM needs work in case it's encrypted
-        public static string privateBase64(RsaKeyData key)
-        {
-            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
-            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return Convert.ToBase64String(key.privateKey);
-        }
-
-        public static string publicPem(RsaKeyData key)
-        {
-            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
-            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
-            return "-----BEGIN PUBLIC KEY-----\n" + publicBase64(key) + "\n-----END PUBLIC KEY-----";
-        }
-
-        // privatePEM needs work in case it's encrypted
-        public static string privatePem(RsaKeyData key)
-        {
-            // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
-            // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + privateBase64(key)+ "\n-----END PRIVATE KEY-----";
-        }
     }
 }

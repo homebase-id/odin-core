@@ -14,11 +14,11 @@ namespace Youverse.Hosting.IdentityRegistry
 {
     public class IdentityRegistryRpc : IIdentityContextRegistry
     {
-        private readonly Config _config;
+        private readonly Configuration _config;
         private readonly Trie<IdentityCertificate> _identityMap;
         private readonly List<string> _tempDomains = new();
 
-        public IdentityRegistryRpc(Config config)
+        public IdentityRegistryRpc(Configuration config)
         {
             _config = config;
             _identityMap = new Trie<IdentityCertificate>();
@@ -67,8 +67,8 @@ namespace Youverse.Hosting.IdentityRegistry
 
         public TenantStorageConfig ResolveStorageConfig(string domainName)
         {
-            var path = PathUtil.Combine(_config.TenantDataRootPath, domainName);
-            var tempPath = PathUtil.Combine(_config.TempTenantDataRootPath, domainName);
+            var path = PathUtil.Combine(_config.Host.TenantDataRootPath, domainName);
+            var tempPath = PathUtil.Combine(_config.Host.TempTenantDataRootPath, domainName);
             var result = new TenantStorageConfig(PathUtil.Combine(path, "data"), PathUtil.Combine(tempPath, "temp"));
             return result;
         }
@@ -114,7 +114,7 @@ namespace Youverse.Hosting.IdentityRegistry
         
         private IRegistryRpcService GetClient()
         {
-            var channel = GrpcChannel.ForAddress(_config.RegistryServerUri);
+            var channel = GrpcChannel.ForAddress(_config.Host.RegistryServerUri);
             var client = MagicOnionClient.Create<IRegistryRpcService>(channel);
             return client;
         }

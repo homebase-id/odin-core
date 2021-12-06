@@ -7,7 +7,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
-using Youverse.Hosting.Multitenant;
+using Youverse.Core.Services.Tenant;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Hosting.Middleware

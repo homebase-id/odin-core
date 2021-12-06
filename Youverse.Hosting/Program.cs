@@ -53,46 +53,28 @@ namespace Youverse.Hosting
             return 0;
         }
 
-        private static Config LoadConfig()
+        private static Configuration LoadConfig()
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: false)
+                .AddEnvironmentVariables()
                 .Build();
 
-            var cfg = new Config();
-            config.GetSection("Config").Bind(cfg);
-            return cfg;
+            return new Configuration(config);
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            Config config = LoadConfig();
+            var cfg = LoadConfig();
 
-            //HACK: overriding the data and log file paths so the test runner can set the path.  need to overhaul this config loading process
-            if (args.Length >= 1)
-            {
-                config.TenantDataRootPath = args[0];
-            }
-
-            if (args.Length >= 2)
-            {
-                config.TempTenantDataRootPath = args[1];
-            }
-
-            if (args.Length == 3)
-            {
-                config.LogFilePath = args[2];
-            }
-
-            Directory.CreateDirectory(config.LogFilePath);
-            Directory.CreateDirectory(config.TenantDataRootPath);
-            Directory.CreateDirectory(config.TempTenantDataRootPath);
+            Directory.CreateDirectory(cfg.Logging.LogFilePath);
+            Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
 
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
-            bool.TryParse(Environment.GetEnvironmentVariable("Config__UseLocalCertificateRegistry"), out var useLocalRegistry);
-            _registry = useLocalRegistry
-                ? _registry = new IdentityContextRegistry(config.TenantDataRootPath, config.TempTenantDataRootPath)
-                : _registry = new IdentityRegistryRpc(config);
+            _registry = cfg.Host.UseLocalCertificateRegistry
+                ? new IdentityContextRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
+                : new IdentityRegistryRpc(cfg);
 
             _registry.Initialize();
 
@@ -107,7 +89,7 @@ namespace Youverse.Hosting
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(config.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate))
+                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(cfg.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate))
                 )
                 .ConfigureServices(services =>
                 {
