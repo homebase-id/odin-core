@@ -183,6 +183,8 @@ namespace Youverse.Hosting
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"), adminApp =>
             {
+                var x = Directory.GetCurrentDirectory();
+                
                 adminApp.UseSpa(spa =>
                 {
                     spa.Options.SourcePath = @"Client/owner-console";
@@ -191,10 +193,11 @@ namespace Youverse.Hosting
                     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
                     {
                         RequestPath = "/owner",
+                        //FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
                         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
                     };
 
-                    if (env.IsDevelopment())
+                    // if (env.IsDevelopment())
                     {
                         spa.UseReactDevelopmentServer(npmScript: "start");
                         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/admin");
@@ -213,7 +216,7 @@ namespace Youverse.Hosting
                         RequestPath = "/home",
                         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
                     };
-                    if (env.IsDevelopment())
+                    // if (env.IsDevelopment())
                     {
                         spa.UseReactDevelopmentServer(npmScript: "start");
                         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
