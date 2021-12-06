@@ -197,7 +197,7 @@ namespace Youverse.Hosting
                         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
                     };
 
-                    // if (env.IsDevelopment())
+                    if (env.IsDevelopment())
                     {
                         spa.UseReactDevelopmentServer(npmScript: "start");
                         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/admin");
@@ -216,7 +216,7 @@ namespace Youverse.Hosting
                         RequestPath = "/home",
                         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
                     };
-                    // if (env.IsDevelopment())
+                    if (env.IsDevelopment())
                     {
                         spa.UseReactDevelopmentServer(npmScript: "start");
                         // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");

@@ -41,7 +41,9 @@
         <!-- Don't publish the SPA source files, but do show them in the project files list -->
         <Content Remove="$(SpaRoot)**" />
         <None Remove="$(SpaRoot)**" />
-        <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
+        <Content Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
         <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
         <Content Include="https\samwisegamgee.me\samwisegamgee.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
