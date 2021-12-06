@@ -1,10 +1,14 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import {useAppStateStore} from "./provider/AppStateStore";
-import {BrowserRouter, Routes, Route} from 'react-router-dom';
-import Layout from "./components/Layout";
+import { useAppStateStore } from "./provider/AppStateStore";
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import BlogLayout from "./components/Blog/BlogLayout";
+import NotFoundLayout from "./components/NotFound/NotFoundLayout";
+import {Container} from "react-bootstrap";
+import GlobalNav from "./components/GlobalNav";
+import HomeLayout from "./components/Home/HomeLayout";
+import {observer} from 'mobx-react-lite';
 
 function App() {
 
@@ -21,16 +25,32 @@ function App() {
 
     //https://reactrouter.com/docs/en/v6/getting-started/overview
     return (
-        <Layout>
-            <BrowserRouter>
-                <Routes>
-                    {/*<Route exact={true} path='/home' component={Home}/>*/}
-                    <Route path='/blog' element={<BlogLayout/>}/>
-                </Routes>
-            </BrowserRouter>
-
-        </Layout>
+        <BrowserRouter>
+            <Routes>
+                <Route path='/home' element={<Layout />}>
+                    <Route index={true} element={<HomeLayout />} />
+                    {state.isAuthenticated &&
+                        <Route path='blog' element={<BlogLayout />}>
+                            {/* todo: add other blog routes */}
+                        </Route>
+                    }
+                    <Route path="/home/*" element={<NotFoundLayout />} />
+                </Route>
+                <Route path="*" element={<NotFoundLayout />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
 
-export default App;
+function Layout(props: any) {
+    return (
+        <Container fluid>
+            <GlobalNav/>
+            <Container as="main">
+                <Outlet />
+            </Container>
+        </Container>
+    );
+}
+
+export default observer(App);

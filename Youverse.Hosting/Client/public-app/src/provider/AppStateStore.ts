@@ -1,9 +1,9 @@
 import React from "react";
-import {createAuthenticationProvider} from "./AuthenticationProvider";
-import {action, configure, makeObservable, observable} from "mobx";
+import { createAuthenticationProvider } from "./AuthenticationProvider";
+import { action, configure, makeObservable, observable } from "mobx";
 
 //https://wix.github.io/react-native-navigation/docs/third-party-mobx
-configure({enforceActions: "always"});
+configure({ enforceActions: "observed" });
 
 class AppStateStore {
 
@@ -11,7 +11,7 @@ class AppStateStore {
         makeObservable(this,
             {
                 isAuthenticated: observable,
-                deviceToken:observable,
+                deviceToken: observable,
                 theme: observable,
                 initialize: action.bound,
                 authenticate: action.bound,
@@ -29,7 +29,7 @@ class AppStateStore {
     async initialize(): Promise<void> {
 
         let tokenIsValid = await AppStateStore.checkTokenStatus();
-        console.log('tokenIsValid', tokenIsValid);
+        //console.log('tokenIsValid', tokenIsValid);
 
         if (tokenIsValid) {
             this.isAuthenticated = true;
@@ -43,14 +43,20 @@ class AppStateStore {
     async authenticate(password: string): Promise<boolean> {
         let client = createAuthenticationProvider();
         return client.authenticate(password).then(success => {
+            console.log('setting')
             this.isAuthenticated = success;
+            console.log('isAuthenticated', this.isAuthenticated);
+            console.log('ssvalue', sessionStorage.getItem('auth'));
             return success;
         });
     }
-    
+
     public async logout(): Promise<boolean> {
         let client = createAuthenticationProvider();
         return client.logout().then(success => {
+            if (success) {
+                this.isAuthenticated = false;
+            }
             return success;
         });
     }
@@ -69,11 +75,7 @@ class AppStateStore {
 
     private static async checkTokenStatus(): Promise<boolean> {
         const client = createAuthenticationProvider();
-        console.log('check token status');
-
         return client.hasValidToken().then(result => {
-            console.log('nitty');
-
             return result;
         })
     }

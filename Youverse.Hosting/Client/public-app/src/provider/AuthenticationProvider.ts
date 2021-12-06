@@ -4,14 +4,18 @@ class AuthenticationProvider extends ProviderBase {
 
     //checks if the authentication token (stored in a cookie) is valid
     async hasValidToken(): Promise<boolean> {
-        return false;
+        var value = sessionStorage.getItem("auth");
+        return value === "true";
     }
 
     async authenticate(password: string): Promise<boolean> {
-        return (password === "a");
+        var goodPwd = (password === "a");
+        sessionStorage.setItem("auth", "true");
+        return goodPwd;
     }
 
     async logout(): Promise<boolean> {
+        sessionStorage.setItem("auth", "");
         return true;
     }
 }
