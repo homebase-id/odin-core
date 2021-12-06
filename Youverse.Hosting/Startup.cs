@@ -190,7 +190,7 @@ namespace Youverse.Hosting
 
                     spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
                     {
-                        RequestPath = "/admin",
+                        RequestPath = "/owner",
                         FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
                     };
 

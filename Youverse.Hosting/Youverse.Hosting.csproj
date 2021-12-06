@@ -2,12 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-     <SpaRoot>Client\</SpaRoot>
-        <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)public-app\node_modules\**;$(SpaRoot)admin-app\node_modules\**</DefaultItemExcludes>
-        
-        <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
-        <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
-        <IsPackable>false</IsPackable>
+    <SpaRoot>Client\</SpaRoot>
+    <PublicAppRoot>$(SpaRoot)public-app\</PublicAppRoot>
+    <OwnerConsoleRoot>$(SpaRoot)owner-console\</OwnerConsoleRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(PublicAppRoot)node_modules\**;$(OwnerConsoleRoot)node_modules\**</DefaultItemExcludes>
+
+    <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
+    <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -41,7 +43,6 @@
         <None Remove="$(SpaRoot)**" />
         <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
         <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
-        <Content Include="Client\admin-app\public\assets\unknown.png" />
         <Content Include="https\samwisegamgee.me\samwisegamgee.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
@@ -67,24 +68,40 @@
         </Content>
     </ItemGroup>
 
-    <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
+    <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And (!Exists('$(OwnerConsoleRoot)node_modules') Or !Exists('$(PublicAppRoot)node_modules')) ">
         <!-- Ensure Node.js is installed -->
         <Exec Command="node --version" ContinueOnError="true">
             <Output TaskParameter="ExitCode" PropertyName="ErrorCode" />
         </Exec>
         <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run this project. To continue, please install Node.js from https://nodejs.org/, and then restart your command prompt or IDE." />
-        <Message Importance="high" Text="Restoring dependencies using 'npm'. This may take several minutes..." />
-        <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+
+        <Message Importance="high" Text="Restoring dependencies for owner-console using 'npm'. This may take several minutes..." />
+        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm install" />
+
+        <Message Importance="high" Text="Restoring dependencies for public-app using 'npm'. This may take several minutes..." />
+        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm install" />
     </Target>
 
     <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
         <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
-        <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
-        <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm install" />
+        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm run build" />
 
         <!-- Include the newly-built files in the publish output -->
         <ItemGroup>
-            <DistFiles Include="$(SpaRoot)build\**" />
+            <DistFiles Include="$(OwnerConsoleRoot)build\**" />
+            <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+                <RelativePath>%(DistFiles.Identity)</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+                <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+
+        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm install" />
+        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm run build" />
+
+         <ItemGroup>
+            <DistFiles Include="$(PublicAppRoot)build\**" />
             <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
                 <RelativePath>%(DistFiles.Identity)</RelativePath>
                 <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
