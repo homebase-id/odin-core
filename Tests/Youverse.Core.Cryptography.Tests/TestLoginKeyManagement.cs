@@ -1,5 +1,7 @@
 using System;
+using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.DotNet.PlatformAbstractions;
 using NUnit.Framework;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
@@ -128,7 +130,6 @@ namespace Youverse.Core.Cryptography.Tests
         }
 
 
-
         [Test]
         public void NewLoginTest2KeysPass()
         {
@@ -152,6 +153,12 @@ namespace Youverse.Core.Cryptography.Tests
         // Rough test, hard to build a super case with random salts :o)
         public void CreateInitialPasswordKeyPass()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Not valid on non-windows OS");
+                return;
+            }
+
             // Generate Host RSA key 
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
             RsaKeyListManagement.GenerateNewKey(hostRsa, 24);
@@ -177,16 +184,22 @@ namespace Youverse.Core.Cryptography.Tests
         // Rigged test with pre-computed constants
         public void CreateInitialPasswordKeyConstantPass()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Not valid on non-windows OS");
+                return;
+            }
+
             // Generate Host RSA key 
             var hostRsa = RsaKeyListManagement.CreateRsaKeyList(2);
 
             var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref hostRsa, out var _));
 
-            np.SaltPassword64 = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 12, 13, 14, 15, 16 });
-            np.SaltKek64      = Convert.ToBase64String(new byte[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 });
+            np.SaltPassword64 = Convert.ToBase64String(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+            np.SaltKek64 = Convert.ToBase64String(new byte[] {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17});
 
-            var resultPasswordArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
-            var resultKekArray = new byte[] { 162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204 };  // from asmCrypto
+            var resultPasswordArray = new byte[] {162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204}; // from asmCrypto
+            var resultKekArray = new byte[] {162, 146, 244, 243, 106, 138, 115, 194, 11, 233, 94, 27, 79, 215, 36, 204}; // from asmCrypto
 
             var pr = LoginKeyManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
             LoginKeyData pk = LoginKeyManager.SetInitialPassword(np, pr, hostRsa);
