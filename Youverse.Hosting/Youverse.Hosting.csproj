@@ -2,10 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-    <SpaRoot>Client\</SpaRoot>
-    <PublicAppRoot>$(SpaRoot)public-app\</PublicAppRoot>
-    <OwnerConsoleRoot>$(SpaRoot)owner-console\</OwnerConsoleRoot>
-    <DefaultItemExcludes>$(DefaultItemExcludes);$(PublicAppRoot)node_modules\**;$(OwnerConsoleRoot)node_modules\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes)</DefaultItemExcludes>
 
     <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
     <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
@@ -39,11 +36,6 @@
 
   <ItemGroup>
         <!-- Don't publish the SPA source files, but do show them in the project files list -->
-        <Content Remove="$(SpaRoot)**" />
-        <None Remove="$(SpaRoot)**" />
-        <Content Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
         <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
         <Content Include="https\samwisegamgee.me\samwisegamgee.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -70,47 +62,6 @@
         </Content>
     </ItemGroup>
 
-    <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And (!Exists('$(OwnerConsoleRoot)node_modules') Or !Exists('$(PublicAppRoot)node_modules')) ">
-        <!-- Ensure Node.js is installed -->
-        <Exec Command="node --version" ContinueOnError="true">
-            <Output TaskParameter="ExitCode" PropertyName="ErrorCode" />
-        </Exec>
-        <Error Condition="'$(ErrorCode)' != '0'" Text="Node.js is required to build and run this project. To continue, please install Node.js from https://nodejs.org/, and then restart your command prompt or IDE." />
-
-        <Message Importance="high" Text="Restoring dependencies for owner-console using 'npm'. This may take several minutes..." />
-        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm install" />
-
-        <Message Importance="high" Text="Restoring dependencies for public-app using 'npm'. This may take several minutes..." />
-        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm install" />
-    </Target>
-
-    <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
-        <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
-        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm install" />
-        <Exec WorkingDirectory="$(OwnerConsoleRoot)" Command="npm run build" />
-
-        <!-- Include the newly-built files in the publish output -->
-        <ItemGroup>
-            <DistFiles Include="$(OwnerConsoleRoot)build\**" />
-            <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
-                <RelativePath>%(DistFiles.Identity)</RelativePath>
-                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-                <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-            </ResolvedFileToPublish>
-        </ItemGroup>
-
-        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm install" />
-        <Exec WorkingDirectory="$(PublicAppRoot)" Command="npm run build" />
-
-         <ItemGroup>
-            <DistFiles Include="$(PublicAppRoot)build\**" />
-            <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
-                <RelativePath>%(DistFiles.Identity)</RelativePath>
-                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-                <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-            </ResolvedFileToPublish>
-        </ItemGroup>
-    </Target>
 
   <ItemGroup>
     <None Update="https\local.youfoundation.id\ca_bundle.crt">
@@ -151,10 +102,6 @@
 
   <ItemGroup>
     <_ContentIncludedByDefault Remove="wwwroot\assets\unknown.png" />
-    <_ContentIncludedByDefault Remove="Client\admin-app-eux\package-lock.json" />
-    <_ContentIncludedByDefault Remove="Client\admin-app-eux\package.json" />
-    <_ContentIncludedByDefault Remove="Client\admin-app-eux\public\manifest.json" />
-    <_ContentIncludedByDefault Remove="Client\admin-app-eux\tsconfig.json" />
   </ItemGroup>
 
   <ItemGroup>

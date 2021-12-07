@@ -185,20 +185,21 @@ namespace Youverse.Hosting
             {
                 adminApp.UseSpa(spa =>
                 {
-                    spa.Options.SourcePath = @"Client/owner-console";
-                    spa.Options.DefaultPage = "/index.html";
-
-                    spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-                    {
-                        RequestPath = "/owner",
-                        //FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
-                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
-                    };
-
                     if (env.IsDevelopment())
                     {
-                        spa.UseReactDevelopmentServer(npmScript: "start");
-                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/admin");
+                         spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/owner");
+                    }
+                    else
+                    {
+                        //TODO: setup to read from config in production (CDN Or otherwise)
+                        spa.Options.SourcePath = @"Client/owner-console";
+                        spa.Options.DefaultPage = "/index.html";
+                        spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+                        {
+                            RequestPath = "/owner",
+                            FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
+                        };
+
                     }
                 });
             });
@@ -207,18 +208,22 @@ namespace Youverse.Hosting
             {
                 landingPageApp.UseSpa(spa =>
                 {
-                    spa.Options.SourcePath = @"Client/public-app";
-                    spa.Options.DefaultPage = "/index.html";
-                    spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-                    {
-                        RequestPath = "/home",
-                        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
-                    };
                     if (env.IsDevelopment())
                     {
-                        spa.UseReactDevelopmentServer(npmScript: "start");
-                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
+                        spa.UseProxyToSpaDevelopmentServer("http://localhost:3000/home");
                     }
+                    else
+                    {
+                        //TODO: setup to read from config in production (CDN Or otherwise)
+                        spa.Options.SourcePath = @"Client/public-app";
+                        spa.Options.DefaultPage = "/index.html";
+                        spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+                        {
+                            RequestPath = "/home",
+                            FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
+                        };
+                    }
+
                 });
             });
         }
