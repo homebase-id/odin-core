@@ -21,8 +21,8 @@ namespace Youverse.Hosting.Multitenant
         public async Task Invoke(HttpContext context, MultiTenantContainerDisposableAccessor container)
         {
             // Begin new scope for request as ASP.NET Core standard scope is per-request
-            context.RequestServices = new AutofacServiceProvider(
-                container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope());
+            var scope = container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope(); 
+            context.RequestServices = new AutofacServiceProvider(scope);
             
             await _next(context);
         }
