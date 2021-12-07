@@ -29,16 +29,15 @@ namespace Youverse.Core.Cryptography.Tests
         public void RsaKeyEncryptPublicTest()
         {
             var key = RsaKeyManagement.CreateKey(1);
-            byte[] data = { 1, 2, 3, 4, 5 };
+            byte[] data = {1, 2, 3, 4, 5};
 
-            var cipher  = RsaKeyManagement.Encrypt(key, data);  // Encrypt with public key 
+            var cipher = RsaKeyManagement.Encrypt(key, data); // Encrypt with public key 
             var decrypt = RsaKeyManagement.Decrypt(key, cipher); // Decrypt with private key
 
             if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
             else
                 Assert.Pass();
-
         }
 
         [Test]
@@ -60,7 +59,7 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RsaKeyCreateTimerTest()
         {
-            var key = RsaKeyManagement.CreateKey(0,seconds:2);
+            var key = RsaKeyManagement.CreateKey(0, seconds: 2);
 
             if (!RsaKeyManagement.IsValid(key))
                 Assert.Fail();
@@ -71,7 +70,7 @@ namespace Youverse.Core.Cryptography.Tests
             if (RsaKeyManagement.IsDead(key))
                 Assert.Fail();
 
-            Thread.Sleep(3000);  // The key is now 1 second expired.
+            Thread.Sleep(3000); // The key is now 1 second expired.
 
             if (!RsaKeyManagement.IsExpired(key))
                 Assert.Fail();
@@ -95,7 +94,6 @@ namespace Youverse.Core.Cryptography.Tests
 
             Assert.Pass();
         }
-
 
 
         /// <summary>
@@ -154,7 +152,6 @@ namespace Youverse.Core.Cryptography.Tests
         }
 
 
-
         // ===== GENERIC BOUNCY CASTLE TEST =====
 
         [Test]
@@ -202,7 +199,6 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Pass();
             else
                 Assert.Fail();
-
         }
 
         //
@@ -210,6 +206,7 @@ namespace Youverse.Core.Cryptography.Tests
         //
         // I've taken the JS that imports the key from above, and encrypts the 150 bytes with the public key
         // into cipher64 below
+        [Ignore("Needs to be upgraded to bouncy castle")]
         [Test]
         public void RsaCrossJSTest2()
         {
@@ -222,7 +219,7 @@ namespace Youverse.Core.Cryptography.Tests
             var orgData = myRsa.Decrypt(bin, RSAEncryptionPadding.OaepSHA256);
 
             var my256 = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
-                         "01234567890123456789012345678901234567890123456789";// + "01234567890123456789012345678901234567890123456789";// +
+                        "01234567890123456789012345678901234567890123456789"; // + "01234567890123456789012345678901234567890123456789";// +
 
             if (Encoding.ASCII.GetString(orgData) != my256)
                 Assert.Fail();
@@ -259,8 +256,6 @@ namespace Youverse.Core.Cryptography.Tests
             else
                 Assert.Pass();
         }*/
-
-
 
 
         [Test]

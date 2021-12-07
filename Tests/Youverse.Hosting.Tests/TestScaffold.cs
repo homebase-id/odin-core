@@ -140,9 +140,7 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientSalts.Nonce64
             };
-
-            //HACK: until we replace RSACng with bouncy castle
-            PasswordReply saltyReply = GetPasswordReply(password, saltyNonce);
+            var saltyReply = LoginKeyManager.CalculatePasswordReply(password, saltyNonce);
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
@@ -158,8 +156,7 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientNonce.Nonce64
             };
-
-            PasswordReply reply = GetPasswordReply(password, nonce);
+            var reply = LoginKeyManager.CalculatePasswordReply(password, nonce);
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
@@ -179,66 +176,22 @@ namespace Youverse.Hosting.Tests
             return result.ToString();
         }
 
-        private PasswordReply GetPasswordReply(string password, NonceData nonce)
-        {
-            //HACK: until we replyace RSACNG. this hack will let me run on osx
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return new PasswordReply()
-                {
-                    crc = 0,
-                    Nonce64 = nonce.Nonce64,
-                    RsaEncrypted = Convert.ToBase64String(Guid.Empty.ToByteArray()),
-                    NonceHashedPassword64 = Convert.ToBase64String(Guid.Empty.ToByteArray())
-                };
-            }
-
-            return LoginKeyManager.CalculatePasswordReply(password, nonce);
-        }
-
-
-        //Note: ignoreAuth flag added for testing on mac Until we support RSACng
         public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false, bool runAsAdminApp = false, Dictionary<string, string> additionalHeaders = null)
+            //public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
             Console.WriteLine("CreateHttpClient");
-
-            HttpClient client;
-            if (ignoreAuth)
+            var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
+            HttpMessageHandler handler = new HttpClientHandler()
             {
-                client = new();
-            }
-
-            else
-            {
-                var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-                var cookieJar = new CookieContainer();
-                cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
-                HttpMessageHandler handler = new HttpClientHandler()
-                {
-                    CookieContainer = cookieJar
-                };
-                client = new(handler);
-            }
-
+                CookieContainer = cookieJar
+            };
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
-            if (runAsAdminApp)
-            {
-                //HACK until we figure out how to identify admin app
-                client.DefaultRequestHeaders.Add("UNIT_TEST_IS_APP_ADMIN", "d43da139-fd58-FF##c-ae8d-fa252a838e09");
-            }
-
-            if (additionalHeaders != null)
-            {
-                foreach (var hrd in additionalHeaders)
-                {
-                    client.DefaultRequestHeaders.Add(hrd.Key, hrd.Value);
-                }
-            }
-
-            client.Timeout = TimeSpan.FromMinutes(15);
-            //client.DefaultRequestHeaders.Add(DotYouHeaderNames.AuthToken, token.ToString());
-
+            
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
@@ -253,13 +206,16 @@ namespace Youverse.Hosting.Tests
             ConsoleColor prev = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Uri -> {response.RequestMessage.RequestUri}");
+
             string content = "No Content";
-// if (response.RequestMessage.Content != null)
-// {
-//     content = await response.RequestMessage.Content.ReadAsStringAsync();
-// }
+            // if (response.RequestMessage.Content != null)
+            // {
+            //     content = await response.RequestMessage.Content.ReadAsStringAsync();
+            // }
+
             Console.WriteLine($"Content ->\n {content}");
             Console.ForegroundColor = prev;
+
             return Task.CompletedTask;
         }
     }

@@ -134,9 +134,6 @@ namespace Youverse.Core.Cryptography.Crypto
 
         public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
         {
-            var rsa = new RSACng();
-            rsa.ImportFromPem(publicKey);
-
             var publicKeyRestored = PublicKeyFactory.CreateKey(decodePublicPem(publicKey));
 
             var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
