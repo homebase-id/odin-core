@@ -9,14 +9,14 @@ namespace Youverse.Core.Cryptography.Data
     /// </summary>
     public sealed class NonceData
     {
-        public static NonceData NewRandomNonce(RsaKeyData keyData)
+        public static NonceData NewRandomNonce(RsaPublicKeyData keyData)
         {
             var np = new NonceData()
             {
                 Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                PublicPem  = RsaKeyManagement.publicPem(keyData),
+                PublicPem = RsaKeyManagement.publicPem(keyData),
                 CRC = keyData.crc32c
             };
 
@@ -37,8 +37,8 @@ namespace Youverse.Core.Cryptography.Data
         /// <param name="saltKek64"></param>
         public NonceData(string saltPassword64, string saltKek64, string pem, UInt32 crc)
         {
-             // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
-             // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
+            // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
+            // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
 
             Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE));
             SaltPassword64 = saltPassword64;
@@ -55,7 +55,7 @@ namespace Youverse.Core.Cryptography.Data
             }
             set
             {
-                
+
             }
         }
         public string SaltPassword64 { get; set; }

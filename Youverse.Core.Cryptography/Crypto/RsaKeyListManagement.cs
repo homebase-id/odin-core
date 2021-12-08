@@ -24,7 +24,7 @@ namespace Youverse.Core.Cryptography.Crypto
                 throw new Exception("Hours cannot be less than 24");
 
             var rkl = new RsaKeyListData();
-            rkl.ListRSA = new List<RsaKeyData>();
+            rkl.ListRSA = new List<RsaFullKeyData>();
             rkl.MaxKeys = max;
 
             GenerateNewKey(rkl, hours);
@@ -64,10 +64,10 @@ namespace Youverse.Core.Cryptography.Crypto
         }
 
 
-        public static RsaKeyData GetCurrentKey(ref RsaKeyListData listRsa, out bool wasUpdated)
+        public static RsaFullKeyData GetCurrentKey(ref RsaKeyListData listRsa, out bool wasUpdated)
         {
             wasUpdated = false;
-            
+
             if (listRsa.ListRSA == null)
                 throw new Exception("List shouldn't be null");
 
@@ -93,7 +93,7 @@ namespace Youverse.Core.Cryptography.Crypto
         /// <param name="listRsa"></param>
         /// <param name="publicKeyCrc"></param>
         /// <returns></returns>
-        public static RsaKeyData FindKey(RsaKeyListData listRsa, UInt32 publicKeyCrc)
+        public static RsaFullKeyData FindKey(RsaKeyListData listRsa, UInt32 publicKeyCrc)
         {
             if (listRsa.ListRSA == null)
                 throw new Exception("List shouldn't be null");
