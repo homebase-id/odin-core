@@ -44,7 +44,10 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
         [Test(Description = "")]
-        public async Task TestCanRecoverFromRecipientServerOffline() { }
-        
+        public Task TestCanRecoverFromRecipientServerOffline()
+        {
+            return Task.CompletedTask;
+        }
+
     }
 }

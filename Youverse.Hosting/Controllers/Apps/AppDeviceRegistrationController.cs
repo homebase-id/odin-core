@@ -6,12 +6,13 @@ using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps
 {
     [ApiController]
     [Route("/api/admin/apps/devices")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class AppDeviceRegistrationController : Controller
     {
         private readonly IAppRegistrationService _appRegistration;

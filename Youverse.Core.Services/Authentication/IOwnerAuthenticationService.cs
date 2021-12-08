@@ -59,8 +59,6 @@ namespace Youverse.Core.Services.Authentication
         /// <returns></returns>
         Task<NonceData> GenerateAuthenticationNonce();
 
-        Task<bool> IsLoggedIn();
-
         /// <summary>
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>

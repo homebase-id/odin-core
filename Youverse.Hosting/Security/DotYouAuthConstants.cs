@@ -2,10 +2,6 @@
 {
     public static class DotYouAuthConstants
     {
-        /// <summary>
-        /// Scheme for authenticating an individual to the Digital Identity they own
-        /// </summary>
-        public const string DotIdentityOwnerScheme = "digital-identity-owner";
 
         /// <summary>
         /// Scheme for authenticating external Digital Identity hosts. 

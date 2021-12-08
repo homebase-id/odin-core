@@ -11,6 +11,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
 using Youverse.Hosting.Security;
 using Youverse.Hosting.Security.Authentication;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting
 {
@@ -33,7 +34,7 @@ namespace Youverse.Hosting
                     options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
                     options.DefaultChallengeScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
                 })
-                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(DotYouAuthConstants.DotIdentityOwnerScheme, op => { op.LoginUri = "/login"; })
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(OwnerAuthConstants.DotIdentityOwnerScheme, op => { op.LoginUri = "/login"; })
                 .AddCertificate(DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
@@ -68,9 +69,6 @@ namespace Youverse.Hosting
             //add system circle claim based on my relationship to this person
             //lookup name for the individual and add to the claims
             
-            //By logging in with a client certificate for this #prototrial, you are identified
-            bool isIdentified = true;
-
             var bytes = context.ClientCertificate.Export(X509ContentType.Pkcs12);
             string clientCertificatePortable = Convert.ToBase64String(bytes);
 
@@ -87,7 +85,7 @@ namespace Youverse.Hosting
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, isIdentified.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
                 new Claim(DotYouClaimTypes.IsAdminApp, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),

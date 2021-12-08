@@ -154,16 +154,6 @@ namespace Youverse.Core.Services.Authentication
             _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
 
-        public async Task<bool> IsLoggedIn()
-        {
-            //check if an active token exists
-            var authTokens = await _systemStorage.WithTenantSystemStorageReturnList<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.GetList(PageOptions.Default));
-
-            var activeToken = authTokens.Results.FirstOrDefault(IsAuthTokenEntryValid);
-
-            return activeToken != null;
-        }
-
         private async Task<LoginTokenData> GetValidatedEntry(Guid token)
         {
             var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));

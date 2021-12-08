@@ -17,10 +17,12 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests
 {
+   
     public class TestScaffold
     {
         private string _folder;
@@ -110,15 +112,8 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        private async Task<string> EnsureAuthToken(DotYouIdentity identity)
+        public async Task ForceNewPassword(string identity, string password)
         {
-            const string password = "EnSøienØ";
-
-            if (tokens.TryGetValue(identity, out var authResult))
-            {
-                return authResult.ToString();
-            }
-
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
             handler.CookieContainer = jar;
@@ -144,9 +139,24 @@ namespace Youverse.Hosting.Tests
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
-            Assert.IsTrue(newPasswordResponse.Content?.Success, "failed forcing a new password");
+        }
 
-            Console.WriteLine($"authenticating to {authClient.BaseAddress}");
+        public async Task<DotYouAuthenticationResult> LoginToOwnerConsole(string identity, string password)
+        {
+            var handler = new HttpClientHandler();
+            var jar = new CookieContainer();
+            handler.CookieContainer = jar;
+            handler.UseCookies = true;
+
+            using HttpClient authClient = new(handler);
+            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
+            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
+            authClient.BaseAddress = new Uri($"https://{identity}");
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+            
+            var uri = new Uri($"https://{identity}");
+
+            Console.WriteLine($"authenticating to {uri}");
             var nonceResponse = await svc.GenerateNonce();
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
@@ -163,26 +173,44 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(response.Content, $"Failed to authenticate {identity}");
 
             var cookies = jar.GetCookies(authClient.BaseAddress);
-            var tokenCookie = HttpUtility.UrlDecode(cookies[DotYouAuthConstants.TokenKey]?.Value);
-
+            var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
 
             Assert.IsTrue(DotYouAuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
             var newToken = result.SessionToken;
             Assert.IsTrue(newToken != Guid.Empty);
             Assert.IsTrue(result.ClientHalfKek.IsSet());
+            return result;
+        }
+        private async Task<DotYouAuthenticationResult> EnsureAuthToken(DotYouIdentity identity)
+        {
+            if (tokens.TryGetValue(identity, out var authResult))
+            {
+                return authResult;
+            }
 
+            const string password = "EnSøienØ";
+            await this.ForceNewPassword(identity, password);
+
+            var result = await this.LoginToOwnerConsole(identity, password);
             tokens.Add(identity, result);
-            return result.ToString();
+            return result;
         }
 
-        public HttpClient CreateHttpClient(DotYouIdentity identity, bool ignoreAuth = false, bool runAsAdminApp = false, Dictionary<string, string> additionalHeaders = null)
-            //public HttpClient CreateHttpClient(DotYouIdentity identity)
+        public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
             Console.WriteLine("CreateHttpClient");
             var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var client = CreateHttpClient(identity, token);
+
+            return client;
+        }
+        
+        public HttpClient CreateHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
+        {
+            Console.WriteLine("CreateHttpClient");
             var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(DotYouAuthConstants.TokenKey, token, null, identity));
+            cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
             HttpMessageHandler handler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar
@@ -191,7 +219,7 @@ namespace Youverse.Hosting.Tests
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
-            
+
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }

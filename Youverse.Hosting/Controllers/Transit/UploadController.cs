@@ -11,12 +11,13 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
     [Route("/api/transit/client")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class UploadController : ControllerBase
     {
         private readonly ITransitService _transitService;

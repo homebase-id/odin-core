@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Services.Authorization;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting
 {
@@ -20,7 +21,7 @@ namespace Youverse.Hosting
                     pb =>
                     {
                         pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
-                        pb.AuthenticationSchemes.Add(DotYouAuthConstants.DotIdentityOwnerScheme);
+                        pb.AuthenticationSchemes.Add(OwnerAuthConstants.DotIdentityOwnerScheme);
                     });
 
                 policy.AddPolicy(DotYouPolicyNames.MustBeIdentified,

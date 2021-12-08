@@ -6,12 +6,13 @@ using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
     [Route("/api/transit/audit")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class TransitAuditController : ControllerBase
     {
         private readonly ITransitAuditReaderService _audit;

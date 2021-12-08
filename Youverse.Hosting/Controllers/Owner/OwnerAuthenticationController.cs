@@ -6,6 +6,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner
 {
@@ -41,7 +42,7 @@ namespace Youverse.Hosting.Controllers.Owner
         [HttpGet("verifyToken")]
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
-            var value = Request.Cookies[DotYouAuthConstants.TokenKey];
+            var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (DotYouAuthenticationResult.TryParse(value ?? "", out var result))
             {
                 var isValid = await _authService.IsValidToken(result.SessionToken);
@@ -58,7 +59,7 @@ namespace Youverse.Hosting.Controllers.Owner
             {
                 var result = await _authService.Authenticate(package);
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
-                Response.Cookies.Append(DotYouAuthConstants.TokenKey, result.ToString(), options);
+                Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
                 return new JsonResult(true);
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
@@ -78,7 +79,7 @@ namespace Youverse.Hosting.Controllers.Owner
                 //the user does not have to authenticate across multiple apps
                 var value = $"{deviceAuth.AuthenticationResult.SessionToken}|{deviceAuth.AuthenticationResult.ClientHalfKek}";
                 var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
-                Response.Cookies.Append(DotYouAuthConstants.TokenKey, value, options);
+                Response.Cookies.Append(OwnerAuthConstants.CookieName, value, options);
 
                 //return only the device token to be used from the app, etc
                 return new JsonResult(deviceAuth.DeviceToken);
@@ -92,11 +93,11 @@ namespace Youverse.Hosting.Controllers.Owner
         [HttpGet("logout")]
         public Task<JsonResult> ExpireCookieBasedToken()
         {
-            var value = Request.Cookies[DotYouAuthConstants.TokenKey];
+            var value = Request.Cookies[OwnerAuthConstants.CookieName];
             var result = DotYouAuthenticationResult.Parse(value);
             _authService.ExpireToken(result.SessionToken);
 
-            Response.Cookies.Delete(DotYouAuthConstants.TokenKey);
+            Response.Cookies.Delete(OwnerAuthConstants.CookieName);
 
             return Task.FromResult(new JsonResult(true));
         }

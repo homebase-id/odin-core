@@ -13,10 +13,14 @@ using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 #nullable enable
 namespace Youverse.Hosting.Security.Authentication
 {
+    /// <summary>
+    /// Handles authenticating owners to their owner-console
+    /// </summary>
     public class DotIdentityOwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         public DotIdentityOwnerAuthenticationHandler(IOptionsMonitor<DotIdentityOwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
@@ -54,8 +58,14 @@ namespace Youverse.Hosting.Security.Authentication
 
                 if (await authService.IsValidToken(authResult.SessionToken))
                 {
-                    var (appId, deviceUid, isAdminApp) = ValidateDeviceApp();
-
+                    string deviceUid = Context.Request.Headers[DotYouHeaderNames.DeviceUid].ToString();
+                    if (string.IsNullOrEmpty(deviceUid))
+                    {
+                        deviceUid = Context.Request.Cookies[DotYouHeaderNames.DeviceUid] ?? "";
+                    }
+                    
+                    //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
+                    
                     //TODO: this needs to be pulled from context rather than the domain
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
@@ -63,22 +73,22 @@ namespace Youverse.Hosting.Security.Authentication
                     //TODO: we need to avoid using a claim to hold the login kek.  it should just be set during the Startup.ResolveContext method
                     var loginDek = await authService.GetOwnerDek(authResult.SessionToken, authResult.ClientHalfKek);
                     var b64 = Convert.ToBase64String(loginDek.GetKey());
-
-                    //HACK: todo determine how to distinguish our admin app from other apps
-
+                    
                     var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsAdminApp, isAdminApp.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                        new Claim(DotYouClaimTypes.AppId, "owner-console", ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+
+                        //note: the isAdminApp flag can be set true since the authService.GetOwnerDek did not throw an exception (it verifies the owner password was used)
+                        new Claim(DotYouClaimTypes.IsAdminApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                     };
 
-                    var identity = new ClaimsIdentity(claims, DotYouAuthConstants.DotIdentityOwnerScheme);
+                    var identity = new ClaimsIdentity(claims, OwnerAuthConstants.DotIdentityOwnerScheme);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 
                     AuthenticationProperties authProperties = new AuthenticationProperties();
@@ -87,67 +97,15 @@ namespace Youverse.Hosting.Security.Authentication
                     authProperties.AllowRefresh = true;
                     authProperties.IsPersistent = true;
 
-                    var ticket = new AuthenticationTicket(principal, authProperties, DotYouAuthConstants.DotIdentityOwnerScheme);
-                    ticket.Properties.SetParameter(DotYouAuthConstants.TokenKey, authResult.SessionToken);
+                    var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.DotIdentityOwnerScheme);
+                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.SessionToken);
                     return AuthenticateResult.Success(ticket);
                 }
             }
 
             return AuthenticateResult.Fail("Invalid or missing token");
         }
-
-        /// <summary>
-        /// Validates the deviceUid and the appid for this request.  If valid, returns the appId and deviceUid
-        /// </summary>
-        /// <returns></returns>
-        private (string appId, string deviceUid, bool isAdminApp) ValidateDeviceApp()
-        {
-            //TODO: this needs to be moved to a central location so certificate auth can use it too
-            string appId = Context.Request.Headers[DotYouHeaderNames.AppId].ToString();
-            string deviceUid = Context.Request.Headers[DotYouHeaderNames.DeviceUid].ToString();
-
-            //TODO:Hack read cookie as I'm sorting through how this should work
-            if (string.IsNullOrEmpty(appId))
-            {
-                appId = Context.Request.Cookies[DotYouHeaderNames.AppId] ?? "";
-            }
-
-            if (string.IsNullOrEmpty(deviceUid))
-            {
-                deviceUid = Context.Request.Cookies[DotYouHeaderNames.DeviceUid] ?? "";
-            }
-
-            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
-            Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
-
-            //TODO call to app service to validate 
-
-
-            //HACK: need to determine how we ensure this is our admin app
-            bool isAdminApp = false;
-
-            //HACK: let the unit test set them selves as the admin app 
-            string hack = "UNIT_TEST_IS_APP_ADMIN";
-            if (base.Context.Request.Headers.ContainsKey(hack))
-            {
-                isAdminApp = base.Context.Request.Headers[hack] == "d43da139-fd58-FF##c-ae8d-fa252a838e09";
-            }
-
-            return (appId, deviceUid, isAdminApp);
-        }
-
-        private DotYouAuthenticationResult? GetAuthenticationResult()
-        {
-            DotYouAuthenticationResult result;
-            var value = Context.Request.Cookies[DotYouAuthConstants.TokenKey];
-            if (DotYouAuthenticationResult.TryParse(value, out result))
-            {
-                return result;
-            }
-
-            return null;
-        }
-
+        
         protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
         {
             return base.HandleForbiddenAsync(properties);
@@ -171,22 +129,13 @@ namespace Youverse.Hosting.Security.Authentication
 
         private bool GetToken(out DotYouAuthenticationResult authResult)
         {
-            //HACK: this needs to be switched to only using the cookie after getting app auth sorted
-            string headerToken = Context.Request.Headers[DotYouAuthConstants.TokenKey];
-            var value = string.IsNullOrEmpty(headerToken?.Trim()) ? Context.Request.Cookies[DotYouAuthConstants.TokenKey] : headerToken;
+            var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];
             if (DotYouAuthenticationResult.TryParse(value, out var result))
             {
                 authResult = result;
                 return true;
             }
 
-            //TODO: need to avoid the access token on the querystring after #prototrial
-            //look for token on querying string as it will come from SignalR
-            // if (Context.Request.Path.StartsWithSegments("/api/live", StringComparison.OrdinalIgnoreCase) &&
-            //     Context.Request.Query.TryGetValue("access_token", out var accessToken))
-            // {
-            //     return Guid.TryParse(accessToken, out token);
-            // }
             authResult = null;
             return false;
         }

@@ -43,13 +43,13 @@ namespace Youverse.Hosting.Tests.Transit
         // public async Task CanMarkItemAsFailureAndIsCheckedIn()
         // {
         // }
-        
+
 
         // [Test(Description = "")]
         // public async Task CanCheckoutItem()
         // {
         // }
-        
+
         // [Test(Description = "")]
         // public async Task CanOnlyGetOutboxItemsForApp()
         // {
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetOutboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanRemoveOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanUpdateOutboxItemPriority()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -155,9 +155,9 @@ namespace Youverse.Hosting.Tests.Transit
 
         private async Task SendTransfer()
         {
-            var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            
+
             var keyHeader = new KeyHeader()
             {
                 Iv = ByteArrayUtil.GetRndByteArray(16),
@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
 
@@ -204,7 +204,6 @@ namespace Youverse.Hosting.Tests.Transit
                 //there should be a record in the outbox for this transfer
                 var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
                 Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
-                
             }
         }
     }

@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Tests.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false))
+            using (var client = _scaffold.CreateHttpClient( _scaffold.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 

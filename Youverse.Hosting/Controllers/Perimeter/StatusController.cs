@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authentication;
@@ -22,12 +23,8 @@ namespace Youverse.Hosting.Controllers.Perimeter
         [HttpPost("chat")]
         public async Task<IActionResult> GetAvailability()
         {
-            //TODO: for prototrial, we'll just tell you if the 
-            //individual is logged in.  longer term, we'll have
-            //controls to turn chat on/off
-            var loggedIn = await _authService.IsLoggedIn();
-            
-            return new JsonResult(loggedIn);
+            //TODO: Update to use the notification middleware to see if there's an active socket on one of the owner's registered devices
+            throw new NotImplementedException("");            
         }
     }
 }

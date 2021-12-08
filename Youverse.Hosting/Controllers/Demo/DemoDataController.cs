@@ -6,13 +6,14 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 using Youverse.Services.Messaging.Demo;
 
 namespace Youverse.Hosting.Controllers.Demo
 {
     [ApiController]
     [Route("api/demodata")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
         private IProfileService _profileService;

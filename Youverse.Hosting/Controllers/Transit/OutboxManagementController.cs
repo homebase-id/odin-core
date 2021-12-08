@@ -9,6 +9,7 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Transit
 {
@@ -17,7 +18,7 @@ namespace Youverse.Hosting.Controllers.Transit
     /// </summary>
     [ApiController]
     [Route("/api/transit/client/outbox")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class OutboxManagementController : ControllerBase
     {
         private readonly ILogger<OutboxManagementController> _logger;

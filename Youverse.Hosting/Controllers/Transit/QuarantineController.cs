@@ -11,12 +11,13 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Transit
 {
     [ApiController]
     [Route("/api/transit/quarantine")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = DotYouAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class QuarantineController : ControllerBase
     {
         private readonly ITransitQuarantineService _svc;

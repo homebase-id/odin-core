@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetInboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanRemoveInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.Transit
         public async Task CanGetInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, false, true))
+            using (var client = _scaffold.CreateHttpClient( _scaffold.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
