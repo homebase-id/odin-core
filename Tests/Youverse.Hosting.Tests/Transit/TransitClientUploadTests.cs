@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests.Transit
         {
             _scaffold.RunAfterAnyTests();
         }
-        
+
 
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Tests.Transit
                 AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
             };
 
-            var metadataJson = "{metadata:true, message:'pie on sky}";
+            var metadataJson = "{metadata:true, message:'pie on sky'}";
             var metaDataCipher = TransitTestUtils.GetEncryptedStream(metadataJson, keyHeader);
 
             var payloadJson = "{payload:true, image:'b64 data'}";
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Tests.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
+            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { _scaffold.Frodo } };
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Tests.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient( _scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -98,7 +98,6 @@ namespace Youverse.Hosting.Tests.Transit
 
                 var item = outboxItems.Results.First();
                 Assert.IsTrue(item.Recipient == _scaffold.Frodo);
-                Assert.IsTrue(item.AppId == _scaffold.AppId);
                 Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);
 
                 //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
@@ -132,7 +131,7 @@ namespace Youverse.Hosting.Tests.Transit
             // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
             // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
 
-            
+
             /*
              *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
              * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
@@ -154,7 +153,5 @@ namespace Youverse.Hosting.Tests.Transit
         // public async Task TestCanRecoverFromRecipientServerDown()
         // {
         // }
-
-
     }
 }
