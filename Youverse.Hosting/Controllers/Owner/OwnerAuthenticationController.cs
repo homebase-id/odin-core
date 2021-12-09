@@ -58,7 +58,15 @@ namespace Youverse.Hosting.Controllers.Owner
             try
             {
                 var result = await _authService.Authenticate(package);
-                var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
+                var options = new CookieOptions()
+                {
+                    HttpOnly = true, 
+                    IsEssential = true, 
+                    Secure = true,
+                    //Path = "/owner",
+                    SameSite = SameSiteMode.Strict
+                };
+
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
                 return new JsonResult(true);
             }
