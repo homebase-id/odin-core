@@ -8,6 +8,6 @@ namespace Youverse.Core.Services.Authentication
     {
         public Guid Id { get; set; }
 
-        public List<RsaKeyData> Keys { get; set; }
+        public List<RsaFullKeyData> Keys { get; set; }
     }
 }

@@ -7,7 +7,7 @@ namespace Youverse.Core.Cryptography.Data
     public class RsaKeyListData
     {
         public Guid Id { get; set; }
-        public List<RsaKeyData> ListRSA { get; set; }// List.first is the current key, the rest are historic
+        public List<RsaFullKeyData> ListRSA { get; set; }// List.first is the current key, the rest are historic
         public int MaxKeys { get; set; } // At least 1. 
     }
 }
