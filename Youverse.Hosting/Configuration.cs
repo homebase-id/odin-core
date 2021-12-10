@@ -35,7 +35,7 @@ namespace Youverse.Hosting
                 TenantDataRootPath = config.Required<string>("Host:TenantDataRootPath");
                 TempTenantDataRootPath = config.Required<string>("Host:TempTenantDataRootPath");
                 UseLocalCertificateRegistry = config.Required<bool>("Host:UseLocalCertificateRegistry");
-
+                
                 if (UseLocalCertificateRegistry == false)
                 {
                     Guard.Argument(Uri.IsWellFormedUriString(RegistryServerUri, UriKind.Absolute), nameof(RegistryServerUri)).True();
@@ -71,6 +71,4 @@ namespace Youverse.Hosting
 
         //
     }
-
-
 }

@@ -78,29 +78,7 @@ namespace Youverse.Hosting
                 : new IdentityRegistryRpc(cfg);
 
             _registry.Initialize();
-
-#if DEBUG
-            if (args.Contains("prep_dev_environment"))
-            {
-                Console.WriteLine("Running dev env prep");
-                // string[] domains = new[] { "frodobaggins.me", "samwisegamgee.me" };
-                //
-                // foreach (var domain in domains)
-                // {
-                //     Guid registryId = _registry.ResolveId(domain);
-                //     DotYouIdentity dotYouId = (DotYouIdentity)domain;
-                //     Guid domainId = CertificateResolver.CalculateDomainId(dotYouId);
-                //
-                //     string certificatePath = Path.Combine(cfg.Host.TenantDataRootPath, registryId.ToString(), domainId.ToString(), "certificate.crt");
-                //     
-                //     string path = Path.Combine(Environment.CurrentDirectory, "https", domain);
-                //
-                //     // var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
-                // }
-            }
-#endif
-
-
+            
             return Host.CreateDefaultBuilder(args)
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
@@ -137,7 +115,7 @@ namespace Youverse.Hosting
                                     if (!string.IsNullOrEmpty(hostName))
                                     {
                                         Guid domainId = _registry.ResolveId(hostName);
-                                        DotYouIdentity dotYouId = (DotYouIdentity)hostName;
+                                        DotYouIdentity dotYouId = (DotYouIdentity) hostName;
                                         var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
                                         if (null == cert)
                                         {

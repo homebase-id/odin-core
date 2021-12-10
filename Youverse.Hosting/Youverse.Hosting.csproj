@@ -35,62 +35,22 @@
   </ItemGroup>
 
   <ItemGroup>
-        <!-- Don't publish the SPA source files, but do show them in the project files list -->
-        <None Remove="https\samwisegamgee.me\samwisegamgee.key" />
-        <Content Include="https\samwisegamgee.me\samwisegamgee.key">
+        <Content Include="https\samwisegamgee.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <None Remove="https\samwisegamgee.me\samwisegamgee_me.ca-bundle" />
-        <Content Include="https\samwisegamgee.me\samwisegamgee_me.ca-bundle">
+        <Content Include="https\samwisegamgee.me\certificate.crt">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <None Remove="https\samwisegamgee.me\samwisegamgee_me.crt" />
-        <Content Include="https\samwisegamgee.me\samwisegamgee_me.crt">
+        <Content Include="https\frodobaggins.me\certificate.crt">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <None Remove="https\frodobaggins.me\frodobaggins_me.ca-bundle" />
-        <Content Include="https\frodobaggins.me\frodobaggins_me.ca-bundle">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <None Remove="https\frodobaggins.me\frodobaggins_me.crt" />
-        <Content Include="https\frodobaggins.me\frodobaggins_me.crt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <None Remove="https\frodobaggins.me\frodobaggins_me.key" />
-        <Content Include="https\frodobaggins.me\frodobaggins_me.key">
+        <Content Include="https\frodobaggins.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
 
   <ItemGroup>
-    <None Update="https\local.youfoundation.id\ca_bundle.crt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\local.youfoundation.id\certificate.crt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\local.youfoundation.id\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\gandalf.middleearth.life\certificate.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\gandalf.middleearth.life\fullchain.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\gandalf.middleearth.life\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\youfoundation.id\certificate.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\youfoundation.id\fullchain.cer">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="https\youfoundation.id\private.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="identityweb.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

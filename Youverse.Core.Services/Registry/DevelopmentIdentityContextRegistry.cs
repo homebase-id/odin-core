@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using Youverse.Core.Services.Identity;
+using Youverse.Core.Identity;
 using Youverse.Core.Trie;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
 {
@@ -17,9 +16,6 @@ namespace Youverse.Core.Services.Registry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
 
-        private string _dataStoragePath;
-        private string _tempDataStoragePath;
-
         public DevelopmentIdentityContextRegistry(string dataStoragePath, string tempDataStoragePath)
         {
             if (!Directory.Exists(dataStoragePath))
@@ -32,27 +28,59 @@ namespace Youverse.Core.Services.Registry
             _tempDataStoragePath = tempDataStoragePath;
         }
 
-        //temporary until the Trie supports Generics
-        private Dictionary<Guid, IdentityCertificate> _certificates = new();
-
-        /// <summary>
-        /// Hard coded identity which lets you boostrap your system when you have no other sites
-        /// Note: for a production system this must be moved to configuration.
-        /// </summary>
-        private static readonly IdentityCertificate RootIdentityCertificate = new(Guid.Parse("ca67c239-2e05-42ca-9120-57ef89ac05db"), "youfoundation.id");
+        //this 
+        private readonly Dictionary<Guid, string> _certificates = new();
+        private readonly string _dataStoragePath;
+        private readonly string _tempDataStoragePath;
 
         public void Initialize()
         {
-            IdentityCertificate samwise = new(Guid.Parse("AABBCc39-0001-0042-9120-57ef89a00000"), "samwisegamgee.me");
-            IdentityCertificate frodo = new(Guid.Parse("AABBCc39-1111-4442-9120-57ef89a11111"), "frodobaggins.me");
+            _certificates.Add(Guid.Parse("AABBCc39-1111-4442-9120-57ef89a11111"), "frodobaggins.me");
+            _certificates.Add(Guid.Parse("AABBCc39-0001-0042-9120-57ef89a00000"), "samwisegamgee.me");
 
-            //_certificates.Add(RootIdentityCertificate.Key, RootIdentityCertificate);
-            _certificates.Add(samwise.Key, samwise);
-            _certificates.Add(frodo.Key, frodo);
-
-            foreach (var c in _certificates.Values)
+            foreach (var c in _certificates)
             {
-                this.CacheDomain(c);
+                this.EnsureCertificateInFolder(c);
+                _identityMap.AddDomain(c.Value, c.Key);
+            }
+        }
+
+        private void EnsureCertificateInFolder(KeyValuePair<Guid, string> kvp)
+        {
+            Guid id = kvp.Key;
+            string domain = kvp.Value;
+
+            //lookup certificate from source
+            Guid domainId = CertificateResolver.CalculateDomainId((DotYouIdentity) domain);
+            string domainRootPath = Path.Combine(_dataStoragePath, id.ToString(), "ssl", domainId.ToString());
+            string destCertPath = Path.Combine(domainRootPath, "certificate.crt");
+            string destKeyPath = Path.Combine(domainRootPath, "private.key");
+
+            Directory.CreateDirectory(domainRootPath);
+
+            string sourceCertPath = Path.Combine(Environment.CurrentDirectory, "https", domain, "certificate.crt");
+
+            //only copy if needed
+            if (!File.Exists(destCertPath))
+            {
+                if (!File.Exists(sourceCertPath))
+                {
+                    throw new Exception($"Cannot find  [{sourceCertPath}]");
+                }
+
+                File.Copy(sourceCertPath, destCertPath);
+            }
+
+            string sourceKeyPath = Path.Combine(Environment.CurrentDirectory, "https", domain, "private.key");
+
+            if (!File.Exists(destKeyPath))
+            {
+                if (!File.Exists(sourceKeyPath))
+                {
+                    throw new Exception($"Cannot find [{sourceKeyPath}]");
+                }
+
+                File.Copy(sourceKeyPath, destKeyPath);
             }
         }
 
@@ -66,12 +94,6 @@ namespace Youverse.Core.Services.Registry
             }
 
             return key;
-        }
-
-        private void CacheDomain(IdentityCertificate c)
-        {
-            Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
-            _identityMap.AddDomain(c.DomainName, c.Key);
         }
     }
 }

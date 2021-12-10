@@ -21,8 +21,8 @@ namespace Youverse.Core.Services.Registry
         public X509Certificate2 GetSslCertificate()
         {
             Guid domainId = CalculateDomainId(_context.HostDotYouId);
-            string certificatePath = Path.Combine(_context.DataRoot, domainId.ToString(), "certificate.crt");
-            string privateKeyPath  = Path.Combine(_context.DataRoot, domainId.ToString(), "private.key");
+            string certificatePath = Path.Combine(_context.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
+            string privateKeyPath  = Path.Combine(_context.DataRoot, "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
@@ -41,8 +41,8 @@ namespace Youverse.Core.Services.Registry
         public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
         {
             Guid domainId = CalculateDomainId(dotYouId);
-            string certificatePath = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "certificate.crt");
-            string privateKeyPath  = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "private.key");
+            string certificatePath = Path.Combine(rootPath, registryId.ToString(),"ssl", domainId.ToString(), "certificate.crt");
+            string privateKeyPath  = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
