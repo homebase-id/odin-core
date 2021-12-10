@@ -1,8 +1,11 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
@@ -45,7 +48,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
-            
+
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
@@ -80,18 +83,16 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<DotYouContext>();
-            
+
+
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
-            ctx.DotYouReferenceId = id;
-            ctx.HostDotYouId = (DotYouIdentity) tenant.Name;
+            ctx.DotYouRegistryId = id;
+            ctx.HostDotYouId = (DotYouIdentity)tenant.Name;
 
             ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
-            
-            var path = Path.Combine(config.Host.TenantDataRootPath, domainName);
-            var tempPath = Path.Combine(config.Host.TempTenantDataRootPath, domainName);
-            ctx.StorageConfig = new TenantStorageConfig(Path.Combine(path, "data"), path.Combine(tempPath, "temp"));
+            ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
         }
     }
 }

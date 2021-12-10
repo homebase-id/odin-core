@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Registry
         /// Returns the SSL certificate for the current DotYouIdentity
         /// </summary>
         /// <returns></returns>
-        public X509Certificate2 GetSSLCertificate();
+        public X509Certificate2 GetSslCertificate();
 
         /// <summary>
         /// Returns the location of the certificate used to sign documents.

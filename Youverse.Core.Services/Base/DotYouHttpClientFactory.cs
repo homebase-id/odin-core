@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Base
             //HACK: this appIdOverride is strange but required so the background sender
             //can specify the app since it doesnt know
             Console.WriteLine("CreateClient -> Loading certificate");
-            var cert = _certificateResolver.GetSSLCertificate();
+            var cert = _certificateResolver.GetSslCertificate();
 
             if (null == cert)
             {

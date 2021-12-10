@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Registry
@@ -9,27 +12,46 @@ namespace Youverse.Core.Services.Registry
     public class CertificateResolver : ICertificateResolver
     {
         private readonly DotYouContext _context;
-        private readonly CertificateLocation _certificateLocation;
 
         public CertificateResolver(DotYouContext context)
         {
             _context = context;
-
-            //TODO: maybe use a sha1 one-way hash for the domain? or md5 hash?
-            //note: the primary is a placeholder for when we support multiple domains for a given dotYouReferenceId
-            string certRoot = Path.Combine(context.DataRoot, "ssl", "primary");
-            _certificateLocation = new CertificateLocation()
-            {
-                CertificatePath = Path.Combine(certRoot, "primary", "certificate.crt"),
-                PrivateKeyPath = Path.Combine(certRoot, "primary", "private.key")
-            };
         }
         
-        public X509Certificate2 GetSSLCertificate()
+        public X509Certificate2 GetSslCertificate()
         {
-            using (X509Certificate2 publicKey = new X509Certificate2(_certificateLocation.CertificatePath))
+            Guid domainId = CalculateDomainId(_context.HostDotYouId);
+            string certificatePath = Path.Combine(_context.DataRoot, domainId.ToString(), "certificate.crt");
+            string privateKeyPath  = Path.Combine(_context.DataRoot, domainId.ToString(), "private.key");
+            return LoadCertificate(certificatePath, privateKeyPath);
+        }
+
+        public CertificateLocation GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Loads and returns a certificate for the given dotYouId
+        /// </summary>
+        /// <param name="rootPath"></param>
+        /// <param name="registryId"></param>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
+        public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
+        {
+
+            Guid domainId = CalculateDomainId(dotYouId);
+            string certificatePath = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "certificate.crt");
+            string privateKeyPath  = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "private.key");
+            return LoadCertificate(certificatePath, privateKeyPath);
+        }
+
+        private static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
+        {
+            using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
-                string encodedKey = File.ReadAllText(_certificateLocation.PrivateKeyPath);
+                string encodedKey = File.ReadAllText(privateKeyPath);
                 RSA rsaPrivateKey;
                 using (rsaPrivateKey = RSA.Create())
                 {
@@ -45,10 +67,17 @@ namespace Youverse.Core.Services.Registry
                 }
             }
         }
-
-        public CertificateLocation GetSigningCertificate()
+        
+        private static Guid CalculateDomainId(DotYouIdentity input)
         {
-            throw new NotImplementedException();
+            var adjustedInput = input.ToString().ToLower();
+            using SHA256 hashAlgo = SHA256.Create();
+            byte[] bytes = hashAlgo.ComputeHash(Encoding.UTF8.GetBytes(adjustedInput));
+            var half = bytes.Length / 2;
+            var (part1, part2) = ByteArrayUtil.Split(bytes, half, half);
+            var reducedBytes = ByteArrayUtil.EquiByteArrayXor(part1, part2);
+                
+            return new Guid(reducedBytes);
         }
     }
 }

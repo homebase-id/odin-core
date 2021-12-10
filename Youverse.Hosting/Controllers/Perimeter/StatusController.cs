@@ -21,7 +21,7 @@ namespace Youverse.Hosting.Controllers.Perimeter
         }
 
         [HttpPost("chat")]
-        public async Task<IActionResult> GetAvailability()
+        public Task<IActionResult> GetAvailability()
         {
             //TODO: Update to use the notification middleware to see if there's an active socket on one of the owner's registered devices
             throw new NotImplementedException("");            

@@ -14,20 +14,13 @@ namespace Youverse.Core.Services.Identity
         //private empty ctor handles deserialization
         private IdentityCertificate() { }
 
-        public IdentityCertificate(Guid key, string domain, NameInfo owner, CertificateLocation location)
+        public IdentityCertificate(Guid key, string domain)
         {
             Guard.Argument(key, nameof(key)).NotEqual(Guid.Empty);
             Guard.Argument(domain, nameof(domain)).NotEmpty();
-            Guard.Argument(location, nameof(location)).NotNull();
-
-            Guard.Argument(location.CertificatePath, nameof(CertificateLocation.CertificatePath)).NotEmpty();
-            Guard.Argument(location.PrivateKeyPath, nameof(CertificateLocation.PrivateKeyPath)).NotEmpty();
-            
-            //Guard.Argument(owner, nameof(owner)).NotNull();
             
             Key = key;
             DomainName = domain;
-            Location = location;
         }
 
         public Guid Key
@@ -36,10 +29,6 @@ namespace Youverse.Core.Services.Identity
         }
 
         public string DomainName { get; }
-
-        /// <summary>
-        /// The file location of the certificates
-        /// </summary>
-        public CertificateLocation Location { get; private set; }
+        
     }
 }

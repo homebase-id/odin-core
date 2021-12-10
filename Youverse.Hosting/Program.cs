@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Youverse.Core.Identity;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
@@ -113,13 +114,9 @@ namespace Youverse.Hosting
                                 {
                                     if (!string.IsNullOrEmpty(hostName))
                                     {
-                                        //TODO: how do we do this using the resolver?
-                                        
-                                        string certRoot = Path.Combine(cfg.Host.TenantDataRootPath,  "ssl");
-                                        string certificatePath = Path.Combine(certRoot, "primary", "certificate.crt");
-                                        string privateKeyPath = Path.Combine(certRoot, "primary", "private.key");
-                                        var cert = Youverse.Core.Services.Identity.CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
-
+                                        Guid domainId = _registry.ResolveId(hostName);
+                                        DotYouIdentity dotYouId = (DotYouIdentity)hostName;
+                                        var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
                                         if (null == cert)
                                         {
                                             //TODO: add logging or throw exception
@@ -129,7 +126,6 @@ namespace Youverse.Hosting
                                         return cert;
                                     }
 
-                                    //Console.WriteLine($"Received request with a hostname.  Request Host is [{connectionContext.GetHttpContext()?.Request.Host}]");
                                     return null;
                                 };
 

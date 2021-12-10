@@ -24,7 +24,10 @@ namespace Youverse.Core.Services.Base
             this.AppContext = app;
         }
         
-        public Guid DotYouReferenceId { get; set; }
+        /// <summary>
+        /// Specifies the identifier for this account
+        /// </summary>
+        public Guid DotYouRegistryId { get; set; }
         
         /// <summary>
         /// Specifies the DotYouId of the host
@@ -41,11 +44,6 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public string TempDataRoot { get; set; }
         
-        /// <summary>
-        /// Specifies the certificate of the individual for this context instance.
-        /// </summary>
-        public IdentityCertificate TenantCertificate { get; set; }
-
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.
         /// </summary>
