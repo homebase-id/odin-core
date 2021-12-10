@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using Youverse.Core.Cryptography;
 
 namespace Scratchpad
 {
@@ -9,34 +11,51 @@ namespace Scratchpad
     {
         static void Main(string[] args)
         {
-            RunCalcs();
+            RunSHA256Calcs();
         }
 
-        static void RunCalcs()
+        static void RunSHA256Calcs()
         {
-            const string frodo = "frodo baggins";
-            GetId(frodo);
-            GetId("frodo BAGGINS");
-        }
+            //            const string domain = "frodobaggins.me";
+            const string domain = "it is time to test a really really long 03819~casidsd º™¶£ string";
+            string domain2 = domain.Replace(domain.Substring(2, 4), domain.Substring(2, 4).ToUpper());
+            Console.WriteLine($"domain2: {domain2}");
 
-        static Guid GetId(string input)
-        {
-            string lcase = input.ToLower();
-            var bytes = CalculateMD5Hash(lcase);
-            var id = new Guid(bytes);
+            var b1 = CalculateSHA256Hash(domain);
+            var b2 = CalculateSHA256Hash(domain);
+            var fullSizeMatch = ByteArrayUtil.EquiByteArrayCompare(b1, b2);
 
-            Console.WriteLine($"Bytes for [{input}]: {string.Join(" ", bytes)}");
-            Console.WriteLine($"Guid Id for [{input}]: {id}");
-            return id;
+            var b1Reduced = ReduceSHA256Hash(b1);
+            var b2Reduced = ReduceSHA256Hash(b2);
             
+            Console.WriteLine($"b1Reduced: {string.Join(" ",b1Reduced)}");
+            Console.WriteLine($"b2Reduced: {string.Join(" ", b2Reduced)}");
+
+            var reducedMatch = ByteArrayUtil.EquiByteArrayCompare(b1Reduced, b2Reduced);
+
+            Console.WriteLine($"full size match:{fullSizeMatch}");
+            Console.WriteLine($"reduced match {reducedMatch}");
+            Console.WriteLine($"Reduced Value:{string.Join(" ", b1Reduced)}");
+            Console.WriteLine($"Reduced Guid: {new Guid(b1Reduced)}");
         }
         
-        static byte[] CalculateMD5Hash(string input)
+        static byte[] CalculateSHA256Hash(string input)
         {
-            using MD5 hashAlgo = MD5.Create();
-            var bytes = Encoding.UTF8.GetBytes(input);
-            var result = hashAlgo.ComputeHash(bytes);
-            return result;
+            var adjustedInput = input.ToLower();
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                // ComputeHash - returns byte array  
+                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(adjustedInput));
+                return bytes;
+            }
+        }
+
+        static byte[] ReduceSHA256Hash(byte[] bytes)
+        {
+            var half = bytes.Length / 2;
+            var (part1, part2) = ByteArrayUtil.Split(bytes, half, half);
+            var reducedBytes = ByteArrayUtil.EquiByteArrayXor(part1, part2);
+            return reducedBytes;
         }
     }
 }

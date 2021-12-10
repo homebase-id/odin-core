@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using Grpc.Net.Client;
 using MagicOnion.Client;
@@ -15,14 +13,12 @@ namespace Youverse.Hosting.IdentityRegistry
     public class IdentityRegistryRpc : IIdentityContextRegistry
     {
         private readonly Configuration _config;
-        private readonly Trie<IdentityCertificate> _identityMap;
-        private readonly List<string> _tempDomains = new();
+        private readonly Trie<Guid> _identityMap;
 
         public IdentityRegistryRpc(Configuration config)
         {
             _config = config;
-            _identityMap = new Trie<IdentityCertificate>();
-            
+            _identityMap = new Trie<Guid>();
         }
 
         public async void Initialize()
@@ -52,42 +48,29 @@ namespace Youverse.Hosting.IdentityRegistry
             }
         }
 
-        public IdentityCertificate ResolveCertificate(string domainName)
+        public Guid ResolveId(string domainName)
         {
-            //Console.WriteLine($"Resolving certificate for [{domainName}]");
-            var cert = _identityMap.LookupName(domainName) ?? LazyLoad(domainName).ConfigureAwait(false).GetAwaiter().GetResult();
-
-            if (cert == null)
+            Guid id = _identityMap.LookupName(domainName);
+            if (id == Guid.Empty)
             {
-                Console.WriteLine($"No cert found on registry server for [{domainName}]");
+                id = LazyLoad(domainName).ConfigureAwait(false).GetAwaiter().GetResult().GetValueOrDefault();
             }
 
-            return cert;
+            if (id == Guid.Empty)
+            {
+                throw new InvalidTenantException($"Not tenant with domain [{domainName}]");
+            }
+
+            return id;
         }
 
-        public TenantStorageConfig ResolveStorageConfig(string domainName)
+        private Guid CacheDomain(IdentityRegistration ident)
         {
-            var path = PathUtil.Combine(_config.Host.TenantDataRootPath, domainName);
-            var tempPath = PathUtil.Combine(_config.Host.TempTenantDataRootPath, domainName);
-            var result = new TenantStorageConfig(PathUtil.Combine(path, "data"), PathUtil.Combine(tempPath, "temp"));
-            return result;
+            _identityMap.AddDomain(ident.DomainName, ident.Id);
+            return ident.Id;
         }
 
-        public IEnumerable<string> GetDomains()
-        {
-            return _tempDomains;
-        }
-
-        private IdentityCertificate CacheDomain(IdentityRegistration ident)
-        {
-            IdentityCertificate identCert = Map(ident);
-            _identityMap.AddDomain(ident.DomainName, identCert);
-            _tempDomains.Add(ident.DomainName);
-
-            return identCert;
-        }
-        
-        private async Task<IdentityCertificate> LazyLoad(string domainName)
+        private async Task<Guid?> LazyLoad(string domainName)
         {
             var cert = await GetClient().Get(domainName);
             if (cert == null)
@@ -99,19 +82,6 @@ namespace Youverse.Hosting.IdentityRegistry
             return CacheDomain(cert);
         }
 
-        private IdentityCertificate Map(IdentityRegistration ident)
-        {
-            var location = new CertificateLocation()
-            {
-                CertificatePath = ident.PublicKeyCertificateRelativePath,
-                PrivateKeyPath = ident.PrivateKeyRelativePath
-            };
-
-            var identCert = new IdentityCertificate(ident.DomainKey, ident.DomainName, null, location);
-            return identCert;
-        }
-        
-        
         private IRegistryRpcService GetClient()
         {
             var channel = GrpcChannel.ForAddress(_config.Host.RegistryServerUri);

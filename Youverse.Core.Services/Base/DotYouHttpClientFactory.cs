@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Security.Authentication;
 using Refit;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base
 {
@@ -12,10 +13,12 @@ namespace Youverse.Core.Services.Base
     public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
         private readonly DotYouContext _context;
+        private readonly ICertificateResolver _certificateResolver;
 
-        public DotYouHttpClientFactory(DotYouContext context)
+        public DotYouHttpClientFactory(DotYouContext context, ICertificateResolver certificateResolver)
         {
             _context = context;
+            _certificateResolver = certificateResolver;
         }
 
         public IPerimeterHttpClient CreateClient(DotYouIdentity dotYouId)
@@ -28,7 +31,7 @@ namespace Youverse.Core.Services.Base
             //HACK: this appIdOverride is strange but required so the background sender
             //can specify the app since it doesnt know
             Console.WriteLine("CreateClient -> Loading certificate");
-            var cert = _context.TenantCertificate.LoadCertificateWithPrivateKey();
+            var cert = _certificateResolver.GetSSLCertificate();
 
             if (null == cert)
             {
@@ -41,9 +44,15 @@ namespace Youverse.Core.Services.Base
             //handler.ServerCertificateCustomValidationCallback
             handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
             
-
-            var client = new System.Net.Http.HttpClient(handler);
-            client.BaseAddress = new UriBuilder() {Scheme = "https", Host = dotYouId}.Uri;
+            var client = new HttpClient(handler)
+            {
+                BaseAddress = new UriBuilder()
+                {
+                    Scheme = "https",
+                    Host = dotYouId
+                }.Uri
+            };
+            
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride ?? _context.AppContext.AppId);
 
             var ogClient = RestService.For<T>(client);

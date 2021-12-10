@@ -5,6 +5,5 @@
         public string PrivateKeyPath { get; set; }
 
         public string CertificatePath { get; set; }
-
     }
 }

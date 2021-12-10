@@ -28,8 +28,6 @@ namespace Youverse.Core.Services.Identity
             Key = key;
             DomainName = domain;
             Location = location;
-            
-            SetCertificateInfo();
         }
 
         public Guid Key
@@ -40,40 +38,8 @@ namespace Youverse.Core.Services.Identity
         public string DomainName { get; }
 
         /// <summary>
-        /// The Subject for the certificate
-        /// </summary>
-        public string CertificateSubject { get; private set; }
-
-        /// <summary>
         /// The file location of the certificates
         /// </summary>
         public CertificateLocation Location { get; private set; }
-
-        private void SetCertificateInfo()
-        {
-            using (var cert = this.LoadCertificateWithPrivateKey())
-            {
-                this.CertificateSubject = cert.Subject;
-            }
-        }
-        
-        public X509Certificate2 LoadCertificateWithPrivateKey()
-        {
-            //_logger.LogDebug($"looking up cert for [{hostname}]");
-
-            string certificatePath = this.Location.CertificatePath;
-            string privateKeyPath = this.Location.PrivateKeyPath;
-
-            if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
-            {
-                return null;
-            }
-            
-            // Console.WriteLine($"Public Key [{certificatePath}]");
-            // Console.WriteLine($"Private Key [{privateKeyPath}]");
-
-            return CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
-
-        }
     }
 }

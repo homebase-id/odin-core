@@ -73,7 +73,7 @@ namespace Youverse.Hosting
 
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
             _registry = cfg.Host.UseLocalCertificateRegistry
-                ? new IdentityContextRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
+                ? new DevelopmentIdentityContextRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
                 : new IdentityRegistryRpc(cfg);
 
             _registry.Initialize();
@@ -113,9 +113,12 @@ namespace Youverse.Hosting
                                 {
                                     if (!string.IsNullOrEmpty(hostName))
                                     {
-                                        //Console.WriteLine($"Resolving certificate for host [{hostName}]");
-                                        var certInfo = _registry.ResolveCertificate(hostName);
-                                        var cert = certInfo.LoadCertificateWithPrivateKey();
+                                        //TODO: how do we do this using the resolver?
+                                        
+                                        string certRoot = Path.Combine(cfg.Host.TenantDataRootPath,  "ssl");
+                                        string certificatePath = Path.Combine(certRoot, "primary", "certificate.crt");
+                                        string privateKeyPath = Path.Combine(certRoot, "primary", "private.key");
+                                        var cert = Youverse.Core.Services.Identity.CertificateLoader.LoadPublicPrivateRSAKey(certificatePath, privateKeyPath);
 
                                         if (null == cert)
                                         {

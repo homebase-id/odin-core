@@ -39,8 +39,6 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            var cert = _registry.ResolveCertificate(tenant.Name);
-            var storage = _registry.ResolveStorageConfig(tenant.Name);
             var user = httpContext.User;
 
             //TODO: is there a way to delete the claim's reference to they kek?
@@ -64,8 +62,6 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.HostDotYouId = (DotYouIdentity)tenant.Name;
             dotYouContext.AppContext = app;
             dotYouContext.Caller = caller;
-            dotYouContext.TenantCertificate = cert;
-            dotYouContext.StorageConfig = storage;
 
             await _next(httpContext);
         }

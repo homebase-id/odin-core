@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Tests
         private IHost _webserver;
         private Dictionary<string, DotYouAuthenticationResult> tokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
 
-        IdentityContextRegistry _registry;
+        DevelopmentIdentityContextRegistry _registry;
 
         public TestScaffold(string folder)
         {
@@ -52,7 +52,7 @@ namespace Youverse.Hosting.Tests
             this.DeleteData();
             this.DeleteLogs();
 
-            _registry = new IdentityContextRegistry(TestDataPath, TempDataPath);
+            _registry = new DevelopmentIdentityContextRegistry(TestDataPath, TempDataPath);
             _registry.Initialize();
 
             if (startWebserver)

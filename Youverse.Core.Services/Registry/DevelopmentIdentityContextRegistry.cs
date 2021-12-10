@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Services.Identity;
@@ -14,15 +13,14 @@ namespace Youverse.Core.Services.Registry
     /// </summary>
     /// Note: this is marked internal to ensure code running in a given instance 
     /// of any class in Youverse.Core.Services.* cannot access other Identities
-    public class IdentityContextRegistry : IIdentityContextRegistry
+    public class DevelopmentIdentityContextRegistry : IIdentityContextRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
-        private List<string> _tempDomains = new();
 
         private string _dataStoragePath;
         private string _tempDataStoragePath;
 
-        public IdentityContextRegistry(string dataStoragePath, string tempDataStoragePath)
+        public DevelopmentIdentityContextRegistry(string dataStoragePath, string tempDataStoragePath)
         {
             if (!Directory.Exists(dataStoragePath))
                 throw new InvalidDataException($"Could find or access path at [{dataStoragePath}]");
@@ -53,7 +51,7 @@ namespace Youverse.Core.Services.Registry
         public void Initialize()
         {
             IdentityCertificate samwise =
-                new(Guid.NewGuid(), "samwisegamgee.me", new NameInfo() { GivenName = "Samwise", Surname = "Gamgee" },
+                new(Guid.Parse("AABBCc39-0001-0042-9120-57ef89a00000"), "samwisegamgee.me", new NameInfo() { GivenName = "Samwise", Surname = "Gamgee" },
                     new CertificateLocation()
                     {
                         CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "samwisegamgee.me", "samwisegamgee_me.crt"),
@@ -61,7 +59,7 @@ namespace Youverse.Core.Services.Registry
                     });
 
             IdentityCertificate frodo =
-                new(Guid.NewGuid(), "frodobaggins.me", new NameInfo() { GivenName = "Frodo", Surname = "Baggins" },
+                new(Guid.Parse("AABBCc39-1111-4442-9120-57ef89a11111"), "frodobaggins.me", new NameInfo() { GivenName = "Frodo", Surname = "Baggins" },
                     new CertificateLocation()
                     {
                         CertificatePath = PathUtil.Combine(Environment.CurrentDirectory, "https", "frodobaggins.me", "frodobaggins_me.crt"),
@@ -103,7 +101,19 @@ namespace Youverse.Core.Services.Registry
                 this.CacheDomain(c);
             }
         }
-        
+
+        public Guid ResolveId(string domainName)
+        {
+            var key = _identityMap.LookupName(domainName);
+
+            if (key == Guid.Empty)
+            {
+                throw new InvalidTenantException($"Not tenant with domain [{domainName}]");
+            }
+
+            return key;
+        }
+
         public IdentityCertificate ResolveCertificate(string domainName)
         {
             var key = _identityMap.LookupName(domainName);
@@ -128,17 +138,11 @@ namespace Youverse.Core.Services.Registry
             var result = new TenantStorageConfig(PathUtil.Combine(path, "data"), PathUtil.Combine(tempPath, "temp"));
             return result;
         }
-
-        public IEnumerable<string> GetDomains()
-        {
-            return _tempDomains;
-        }
         
         private void CacheDomain(IdentityCertificate c)
         {
             Console.WriteLine($"Caching cert [{c.DomainName}] in Trie");
             _identityMap.AddDomain(c.DomainName, c.Key);
-            _tempDomains.Add(c.DomainName);
         }
     }
 }
