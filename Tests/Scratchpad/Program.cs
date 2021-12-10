@@ -16,8 +16,8 @@ namespace Scratchpad
 
         static void RunSHA256Calcs()
         {
-            //            const string domain = "frodobaggins.me";
-            const string domain = "it is time to test a really really long 03819~casidsd º™¶£ string";
+            const string domain = "frodobaggins.me";
+            // const string domain = "it is time to test a realky really long 03819~casidsd º™¶£ string";
             string domain2 = domain.Replace(domain.Substring(2, 4), domain.Substring(2, 4).ToUpper());
             Console.WriteLine($"domain2: {domain2}");
 

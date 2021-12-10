@@ -40,7 +40,6 @@ namespace Youverse.Core.Services.Registry
         /// <returns></returns>
         public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
         {
-
             Guid domainId = CalculateDomainId(dotYouId);
             string certificatePath = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "certificate.crt");
             string privateKeyPath  = Path.Combine(rootPath, registryId.ToString(), domainId.ToString(), "private.key");
@@ -68,7 +67,7 @@ namespace Youverse.Core.Services.Registry
             }
         }
         
-        private static Guid CalculateDomainId(DotYouIdentity input)
+        public static Guid CalculateDomainId(DotYouIdentity input)
         {
             var adjustedInput = input.ToString().ToLower();
             using SHA256 hashAlgo = SHA256.Create();
