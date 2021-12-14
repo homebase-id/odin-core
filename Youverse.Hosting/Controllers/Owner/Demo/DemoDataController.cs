@@ -5,14 +5,13 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
-using Youverse.Hosting.Authentication.Owner;
 using Youverse.Services.Messaging.Demo;
 
 namespace Youverse.Hosting.Controllers.Owner.Demo
 {
     [ApiController]
     [Route("api/demodata")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    //[Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
         private IProfileService _profileService;
@@ -33,9 +32,9 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
         [HttpGet("profiledata")]
         public async Task<IActionResult> SetProfileData()
         {
-            await _notificationHandler.SendMessageToAllAsync($"I am a message from the DI of {_dotYouContext.HostDotYouId}.");
+            //await _notificationHandler.SendMessageToAllAsync($"I am a message from the DI of {_dotYouContext.HostDotYouId}.");
             
-            //await _prototrial.SetProfiles();
+            await _prototrial.SetProfiles();
             return new JsonResult(true);
         }
 
