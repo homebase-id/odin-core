@@ -1,12 +1,11 @@
 ﻿using System;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Owner.Media
 {
     [ApiController]
     [Route("api/images")]
