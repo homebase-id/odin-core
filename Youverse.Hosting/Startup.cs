@@ -19,6 +19,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 using Youverse.Hosting.Controllers.TransitPerimeter;
@@ -77,6 +78,7 @@ namespace Youverse.Hosting
             
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
+                .AddAppAuthentication()
                 .AddTransitPerimeterAuthentication();
             
             services.AddAuthorization(policy =>

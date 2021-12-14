@@ -114,6 +114,7 @@ namespace Youverse.Hosting
                                 {
                                     if (!string.IsNullOrEmpty(hostName))
                                     {
+                                        //TODO: add caching of loaded certificates
                                         Guid domainId = _registry.ResolveId(hostName);
                                         DotYouIdentity dotYouId = (DotYouIdentity) hostName;
                                         var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
@@ -129,6 +130,7 @@ namespace Youverse.Hosting
                                     return null;
                                 };
 
+                                
                                 //Let the OS decide
                                 //TODO: revisit if we should let the OS decide
                                 //opts.SslProtocols = SslProtocols.None;
