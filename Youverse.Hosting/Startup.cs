@@ -19,6 +19,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 using Youverse.Hosting.Authentication.YouAuth;
@@ -78,7 +79,6 @@ namespace Youverse.Hosting
             
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
-                .AddYouAuthAuthentication()
                 .AddTransitPerimeterAuthentication();
             
             services.AddAuthorization(policy =>
@@ -144,14 +144,6 @@ namespace Youverse.Hosting
             //app.UseSpaStaticFiles();
 
             app.UseRouting();
-
-            // app.UseCors(options => options
-            //     .AllowAnyMethod()
-            //     .AllowAnyHeader()
-            //     .AllowCredentials()
-            //     .SetIsOriginAllowed(_ => true)
-            // );
-
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
