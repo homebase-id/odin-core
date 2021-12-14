@@ -65,8 +65,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() //this should not be required since it's set on the receiving end
             };
-
-            var profile = await _mgts.GetConnectedProfile() ?? OwnerProfile.Empty;
+            
+            var profile = await _mgts.GetBasicConnectedProfile() ?? BasicProfileInfo.Empty;
 
             //TODO removed so I can test sending friend requests
             //Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
@@ -158,7 +158,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             //Now send back an acknowledgement by establishing a connection
 
-            var p = await _mgts.GetConnectedProfile() ?? OwnerProfile.Empty;
+            var p = await _mgts.GetBasicConnectedProfile() ?? BasicProfileInfo.Empty;
 
             AcknowledgedConnectionRequest acceptedReq = new()
             {

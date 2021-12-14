@@ -8,49 +8,69 @@ using Youverse.Core.Services.Base;
 namespace Youverse.Core.Services.Profile
 {
     /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
-    public class OwnerDataAttributeManagementService :  IOwnerDataAttributeManagementService
+    public class OwnerDataAttributeManagementService : IOwnerDataAttributeManagementService
     {
         private readonly DotYouContext _context;
         private readonly OwnerDataAttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage) 
+        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;
             _das = new OwnerDataAttributeStorage(context, systemStorage);
         }
 
-        public async Task<NameAttribute> GetPrimaryName()
-        {
-            return await _das.GetPrimaryName();
-        }
-
-        public Task SavePrimaryName(NameAttribute name)
-        {
-            return _das.SavePrimaryName(name);
-        }
-
-        public Task SaveConnectedProfile(OwnerProfile humanProfile)
+        public Task SavePublicProfile(params BaseAttribute[] attributes)
         {
             AssertCallerIsOwner();
-            return _das.SaveConnectedProfile(humanProfile);
+            return _das.SavePublicProfile(attributes);
         }
 
-        public async Task<OwnerProfile> GetPublicProfile()
+        public async Task<BasicProfileInfo> GetBasicPublicProfile()
         {
-            return await _das.GetPublicProfile();
+            var name = await _das.GetAttributeByType((int)AttributeTypes.Name, ProfileConstants.PublicProfileCategoryId);
+            var profilePic = await _das.GetAttributeByType((int)AttributeTypes.ProfilePic, ProfileConstants.PublicProfileCategoryId);
+
+            var profile = new BasicProfileInfo()
+            {
+                Name = (NameAttribute)name,
+                Photo = (ProfilePicAttribute) profilePic
+            };
+
+            return profile;
         }
 
-        public async Task<OwnerProfile> GetConnectedProfile()
-        {
-            return await _das.GetConnectedProfile();
-        }
-
-        public Task SavePublicProfile(OwnerProfile profile)
+        public Task SaveConnectedProfile(params BaseAttribute[] attributes)
         {
             AssertCallerIsOwner();
-            return _das.SavePublicProfile(profile);
+            return _das.SavePublicProfile(attributes);
+        }
+
+        public async Task<BasicProfileInfo> GetBasicConnectedProfile()
+        {
+            var name = await _das.GetAttributeByType((int)AttributeTypes.Name, ProfileConstants.ConnectProfileCategoryId);
+            var profilePic = await _das.GetAttributeByType((int)AttributeTypes.ProfilePic, ProfileConstants.ConnectProfileCategoryId);
+
+            var profile = new BasicProfileInfo()
+            {
+                Name = (NameAttribute)name,
+                Photo = (ProfilePicAttribute) profilePic
+            };
+
+            return profile;
+        }
+
+        public async Task<PagedResult<BaseAttribute>> GetPublicProfileAttributeCollection(PageOptions pageOptions)
+        {
+            AssertCallerIsOwner();
+            return await _das.GetPublicProfile(pageOptions);
+        }
+
+        public Task<PagedResult<BaseAttribute>> GetConnectedProfileAttributeCollection(PageOptions pageOptions)
+        {
+            AssertCallerIsOwner();
+            throw new NotImplementedException();
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
@@ -94,8 +114,8 @@ namespace Youverse.Core.Services.Profile
             AssertCallerIsOwner();
             return await _das.GetAttributes(pageOptions, categoryId);
         }
-        
-        protected void AssertCallerIsOwner()
+
+        private void AssertCallerIsOwner()
         {
             //HACK: refactoring profiles
             // if (this._context.Caller.IsOwner == false)

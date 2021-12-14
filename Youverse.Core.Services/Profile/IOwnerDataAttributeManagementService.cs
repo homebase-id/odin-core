@@ -13,28 +13,24 @@ namespace Youverse.Core.Services.Profile
     public interface IOwnerDataAttributeManagementService : IDataAttributeManagementService
     {
         /// <summary>
-        /// Returns a <see cref="NameAttribute"/> for this Digital Identity's primary name.
-        /// </summary>
-        /// <returns></returns>
-        Task<NameAttribute> GetPrimaryName();
-
-        /// <summary>
-        /// Sets the primary name for this Digital Identity
-        /// </summary>
-        /// <param name="name"></param>
-        Task SavePrimaryName(NameAttribute name);
-
-        /// <summary>
         /// Sets the profile information available to the public internet
         /// </summary>
-        /// <param name="profile"></param>
-        /// <returns></returns>
-        Task SavePublicProfile(OwnerProfile profile);
+        Task SavePublicProfile(params BaseAttribute[] attributes);
 
-        Task SaveConnectedProfile(OwnerProfile profile);
+        Task SaveConnectedProfile(params BaseAttribute[] attributes);
 
-        Task<OwnerProfile> GetPublicProfile();
+        /// <summary>
+        /// Returns the most basic information for a public profile.  Essentially it's name, photo, and anything else you use often.
+        /// </summary>
+        Task<BasicProfileInfo> GetBasicPublicProfile();
 
-        Task<OwnerProfile> GetConnectedProfile();
+        /// <summary>
+        /// Returns the most basic information for a connected profile.  Essentially it's name, photo, and anything else you use often.
+        /// </summary>
+        Task<BasicProfileInfo> GetBasicConnectedProfile();
+        
+        Task<PagedResult<BaseAttribute>> GetPublicProfileAttributeCollection(PageOptions pageOptions);
+
+        Task<PagedResult<BaseAttribute>> GetConnectedProfileAttributeCollection(PageOptions pageOptions);
     }
 }

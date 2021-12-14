@@ -11,7 +11,6 @@ namespace Youverse.Core.Identity
         /// </summary>
         public string SslPublicKeyCertificate { get; init; }
 
-        public TransitPublicKey TransitPublicKey { get; init; }
         public string AvatarUri { get; init; }
     }                                                                                                                                                                                                                           
 }
