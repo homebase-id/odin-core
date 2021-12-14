@@ -79,13 +79,12 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddTransitPerimeterAuthentication();
             
-            services.AddYouverseAuthorization();
-
-            services.AddMemoryCache();
-            services.AddSignalR(options => { options.EnableDetailedErrors = true; });
-
-            //services.AddYouVerseScopedServices();
-
+            services.AddAuthorization(policy =>
+            {
+                OwnerPolicies.AddPolicies(policy);
+                TransitPerimeterPolicies.AddPolicies(policy);
+            });
+            
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
             
             // In production, the React files will be served from this directory

@@ -11,10 +11,13 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
 
         public const string MustBeIdentifiedPolicyName = "MustBeIdentified";
 
-        public static readonly Action<AuthorizationPolicyBuilder> MustBeIdentifiedPolicy = pb =>
+        public static void AddPolicies(AuthorizationOptions policy)
         {
-            pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
-            pb.AuthenticationSchemes.Add(TransitPerimeterAuthConstants.TransitAuthScheme);
-        };
+            policy.AddPolicy(MustBeIdentifiedPolicyName, pb =>
+            {
+                pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
+                pb.AuthenticationSchemes.Add(TransitPerimeterAuthConstants.TransitAuthScheme);
+            });
+        }
     }
 }

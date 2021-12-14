@@ -7,11 +7,14 @@ namespace Youverse.Hosting.Authentication.Owner
     public static class OwnerPolicies
     {
         public const string IsDigitalIdentityOwnerPolicyName = "MustOwnThisIdentity";
-        public static readonly Action<AuthorizationPolicyBuilder> IsDigitalIdentityOwnerPolicy = pb =>
-        {
-            pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
-            pb.AuthenticationSchemes.Add(OwnerAuthConstants.DotIdentityOwnerScheme);
-        };
 
+        public static void AddPolicies(AuthorizationOptions policy)
+        {
+            policy.AddPolicy(IsDigitalIdentityOwnerPolicyName, pb =>
+            {
+                pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
+                pb.AuthenticationSchemes.Add(OwnerAuthConstants.DotIdentityOwnerScheme);
+            });
+        }
     }
 }
