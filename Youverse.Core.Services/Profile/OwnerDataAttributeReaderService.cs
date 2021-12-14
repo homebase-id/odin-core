@@ -49,26 +49,15 @@ namespace Youverse.Core.Services.Profile
             return attributes;
         }
 
-        public async Task<DotYouProfile> GetProfile()
+        public async Task<PagedResult<BaseAttribute>> GetProfile()
         {
-            OwnerProfile oProfile = null;
             if (await _circleNetwork.IsConnected(_context.Caller.DotYouId))
             {
-                oProfile = await _das.GetConnectedProfile();
-            }
-            else
-            {
-                oProfile = await _das.GetPublicProfile();
+                throw new NotImplementedException("");
+                //oProfile = await _das.GetConnectedProfile();
             }
 
-            var profile = new DotYouProfile()
-            {
-                DotYouId = _context.HostDotYouId,
-                Name = oProfile?.Name,
-                AvatarUri = oProfile?.Photo?.ProfilePic
-            };
-
-            return profile;
+            return await _das.GetPublicProfile(new PageOptions(1, 100));
         }
         
     }

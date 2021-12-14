@@ -4,13 +4,12 @@ using Youverse.Core.Identity.DataAttribute;
 namespace Youverse.Core.Services.Profile
 {
     /// <summary>
-    /// Profile information 
+    /// Profile information for the owner
     /// </summary>
-    public class OwnerProfile
+    public class BasicProfileInfo
     {
-        public static OwnerProfile Empty = new OwnerProfile()
+        public static BasicProfileInfo Empty = new BasicProfileInfo()
         {
-            Id = Guid.Empty,
             Name = new NameAttribute()
             {
                 Personal = "Unnamed",
@@ -22,8 +21,6 @@ namespace Youverse.Core.Services.Profile
             }
         };
         
-        public Guid Id { get; set; }
-
         public NameAttribute Name { get; set; }
      
         public ProfilePicAttribute Photo { get; set; }

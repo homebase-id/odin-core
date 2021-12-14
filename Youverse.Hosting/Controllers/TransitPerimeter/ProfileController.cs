@@ -26,7 +26,6 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
-            //TODO: determine if we map the avatar uri to one that sends the request back through the user's DI
             var profile = await _reader.GetProfile();
             return new JsonResult(profile);
         }

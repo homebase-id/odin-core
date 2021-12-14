@@ -10,7 +10,7 @@ namespace Youverse.Services.Messaging.Demo
         /// <summary>
         /// Add a set of contacts.  The list of contacts is fixed in a file
         /// </summary>
-        public Task<bool> AddDigitalIdentities();
+        public Task<bool> AddContacts();
 
         Task<bool> AddConnectionRequests();
         

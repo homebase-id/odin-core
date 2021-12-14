@@ -22,26 +22,11 @@ namespace Youverse.Hosting.Controllers.Owner
             _identManagementService = identManagementService;
         }
 
-        [HttpGet("primary")]
-        public async Task<NameAttribute> GetPrimaryName()
-        {
-            var result = await _identManagementService.GetPrimaryName();
-            return result;
-        }
-
         [HttpGet("primary/avatar")]
         public IActionResult GetPrimaryAvatar()
         {
             //TODO: update to send the path of a stored photo
             return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
-        }
-
-        [HttpPost("primary")]
-        public async Task<IActionResult> SavePrimaryName([FromBody] NameAttribute name)
-        {
-            await _identManagementService.SavePrimaryName(name);
-            
-            return new JsonResult(new NoResultResponse(true));
         }
     }
 }

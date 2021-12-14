@@ -43,6 +43,6 @@ namespace Youverse.Core.Services.Profile
         /// s/he will see only the public profile)
         /// </summary>
         /// <returns></returns>
-        Task<DotYouProfile> GetProfile();
+        Task<PagedResult<BaseAttribute>> GetProfile();
     }
 }
