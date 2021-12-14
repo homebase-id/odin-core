@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Hosting.Authentication.Owner;
-using Youverse.Core.Identity.DataAttribute;
-
+using Youverse.Core;
+using Youverse.Core.Services.Profile;
 
 namespace Youverse.Hosting.Controllers.YouAuth.Profile
 {
@@ -14,49 +13,28 @@ namespace Youverse.Hosting.Controllers.YouAuth.Profile
     //TODO: add in Authorize tag when merging with seb
     public class YouAuthProfileDataController : Controller
     {
-        public YouAuthProfileDataController()
+        private readonly IOwnerDataAttributeReaderService _attributeReaderService;
+        public YouAuthProfileDataController(IOwnerDataAttributeReaderService attributeReaderService)
         {
+            _attributeReaderService = attributeReaderService;
         }
         
-        
-        [HttpGet("{attributeId}")]
-        public async Task<IActionResult> Get(Guid attributeId)
+        [HttpPost("search")]
+        public async Task<IActionResult> RetrieveCollection(List<Guid> idList)
         {
-            return new JsonResult("");
+            var list = await _attributeReaderService.GetAttributeCollection(idList);
+            //Note: using object because: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-polymorphism
+            var collection = list.Cast<object>();
+            return new JsonResult(collection);
         }
-
+        
         [HttpGet]
         public async Task<IActionResult> GetList([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
-            return new JsonResult("");
-        }
-
-        /// <summary>
-        /// Returns the public attributes for this digital identity
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("public")]
-        public async Task<IActionResult> GetPublicProfileAttributeSet()
-        {
-            var collection = new List<BaseAttribute>()
-            {
-                new NameAttribute()
-                {
-                    Personal = "Frodo",
-                    Surname = "Baggins"
-                },
-
-                new FaceBookAttribute()
-                {
-                    FaceBook = "frodo.baggins"
-                },
-
-                new TwitterAttribute()
-                {
-                    Twitter = "@captain_underhill"
-                }
-            };
-
+            var attributes = await _attributeReaderService.GetAttributes(new PageOptions(pageNumber, pageSize));
+            
+            //Note: using object because: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-polymorphism
+            var collection = attributes.Results.Cast<object>();
             return new JsonResult(collection);
         }
     }

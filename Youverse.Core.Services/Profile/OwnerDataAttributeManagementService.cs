@@ -11,14 +11,14 @@ namespace Youverse.Core.Services.Profile
     public class OwnerDataAttributeManagementService :  IOwnerDataAttributeManagementService
     {
         private readonly DotYouContext _context;
-        private readonly OwnerDataAttributeStorage<IOwnerDataAttributeManagementService> _das;
+        private readonly OwnerDataAttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
         public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage) 
         {
             _context = context;
             _systemStorage = systemStorage;
-            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeManagementService>(context, logger, systemStorage);
+            _das = new OwnerDataAttributeStorage(context, systemStorage);
         }
 
         public async Task<NameAttribute> GetPrimaryName()

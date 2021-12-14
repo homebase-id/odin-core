@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -13,22 +14,29 @@ namespace Youverse.Core.Services.Profile
     public class OwnerDataAttributeReaderService : IOwnerDataAttributeReaderService
     {
         private readonly DotYouContext _context;
+        private readonly ILogger<IOwnerDataAttributeReaderService> _logger;
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly OwnerDataAttributeStorage<IOwnerDataAttributeReaderService> _das;
+        private readonly OwnerDataAttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
         public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork, ISystemStorage systemStorage)
         {
             _context = context;
+            _logger = logger;
             _circleNetwork = circleNetwork;
             _systemStorage = systemStorage;
-            _das = new OwnerDataAttributeStorage<IOwnerDataAttributeReaderService>(context, logger, systemStorage);
+            _das = new OwnerDataAttributeStorage(context, systemStorage);
+        }
+
+        public async Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList)
+        {
+            var attributes = await _das.GetAttributeCollection(idList);
+            return attributes;
         }
 
         public async Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions)
         {
             //TODO: update query to filter out attributes the caller should not see
-            Expression<Func<BaseAttribute, bool>> predicate = attr => true;
             var attributes = await _das.GetAttributes(pageOptions);
             return attributes;
         }
@@ -62,5 +70,6 @@ namespace Youverse.Core.Services.Profile
 
             return profile;
         }
+        
     }
 }
