@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
@@ -13,14 +15,21 @@ namespace Youverse.Core.Services.Profile
     public interface IOwnerDataAttributeReaderService
     {
         /// <summary>
-        /// Gets all attributes
+        /// Gets a collection of attributes in the <param name="idList">list</param> if it is visible to the caller
+        /// </summary>
+        /// <param name="idList"></param>
+        /// <returns></returns>
+        Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList);
+        
+        /// <summary>
+        /// Gets all attributes visible to the caller
         /// </summary>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
         Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions);
         
         /// <summary>
-        /// Gets all attributes with-in the given category.  Use Guid.Empty
+        /// Gets all attributes with-in the given category visible to the caller.  Use Guid.Empty
         /// to find attributes not assigned to a category
         /// </summary>
         /// <param name="pageOptions"></param>

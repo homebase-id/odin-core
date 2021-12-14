@@ -1,4 +1,7 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
@@ -13,7 +16,7 @@ namespace Youverse.Core.Services.Profile
     /// Specialized storage for the DI Owner's data attributes.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
-    internal sealed class OwnerDataAttributeStorage<T>
+    internal sealed class OwnerDataAttributeStorage
     {
         private const string ADMIN_IDENTITY_COLLECTION = "AdminIdentity";
         private const string PUBLIC_INFO_COLLECTION = "PublicInfo";
@@ -29,7 +32,7 @@ namespace Youverse.Core.Services.Profile
         private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeStorage(DotYouContext context, ILogger<T> logger, ISystemStorage systemStorage)
+        public OwnerDataAttributeStorage(DotYouContext context, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;
@@ -125,6 +128,13 @@ namespace Youverse.Core.Services.Profile
             Expression<Func<BaseAttribute, bool>> predicate = attr => attr.CategoryId == categoryId;
             var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, pageOptions));
             return results;
+        }
+        
+        public async Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList)
+        {
+            Expression<Func<BaseAttribute, bool>> predicate = attr => idList.Contains(attr.Id);
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(ATTRIBUTE_STORAGE, s => s.Find(predicate, new PageOptions(1, Int32.MaxValue)));
+            return results.Results;
         }
         
         protected void AssertCallerIsOwner()
