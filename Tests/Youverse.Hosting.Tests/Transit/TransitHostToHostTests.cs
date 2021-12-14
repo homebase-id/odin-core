@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.Apps;
 using Youverse.Hosting.Tests.Apps;
 
 namespace Youverse.Hosting.Tests.Transit

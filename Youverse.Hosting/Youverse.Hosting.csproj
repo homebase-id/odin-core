@@ -65,6 +65,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Authentication\Apps" />
+    <Folder Include="Authentication\YouAuth" />
+    <Folder Include="Controllers\Apps\LandingPage" />
+    <Folder Include="Controllers\YouAuth" />
     <Folder Include="wwwroot\assets" />
   </ItemGroup>
 

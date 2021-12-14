@@ -16,8 +16,8 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
-using Youverse.Hosting.Security;
-using Youverse.Hosting.Security.Authentication.Owner;
+using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Controllers.Owner;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests

@@ -5,8 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
-using Youverse.Hosting.Security;
-using Youverse.Hosting.Security.Authentication.Owner;
+using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner
 {

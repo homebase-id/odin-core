@@ -6,13 +6,13 @@ using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Profile;
-using Youverse.Hosting.Security.Authentication.Owner;
+using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/identity")]
-    [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class OwnerDataAttributeController : Controller
     {
         private readonly IOwnerDataAttributeManagementService _identManagementService;

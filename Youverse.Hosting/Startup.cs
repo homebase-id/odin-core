@@ -18,8 +18,10 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
-using Youverse.Hosting.Controllers.Perimeter;
 using Youverse.Core.Services.Logging;
+using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -73,7 +75,10 @@ namespace Youverse.Hosting
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
             
-            services.AddYouverseAuthentication();
+            services.AddAuthentication(options => { })
+                .AddOwnerAuthentication()
+                .AddTransitPerimeterAuthentication();
+            
             services.AddYouverseAuthorization();
 
             services.AddMemoryCache();

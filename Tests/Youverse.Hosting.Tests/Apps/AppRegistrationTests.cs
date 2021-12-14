@@ -7,7 +7,7 @@ using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.Apps;
+using Youverse.Hosting.Controllers.Owner.Apps;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.Apps
