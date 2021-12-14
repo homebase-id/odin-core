@@ -2,9 +2,8 @@
 
 namespace Youverse.Hosting.Authentication.Owner
 {
-    public class DotIdentityOwnerAuthenticationSchemeOptions : AuthenticationSchemeOptions
+    public class OwnerAuthenticationSchemeOptions : AuthenticationSchemeOptions
     {
 
-        public string LoginUri { get; set; }
     }
 }

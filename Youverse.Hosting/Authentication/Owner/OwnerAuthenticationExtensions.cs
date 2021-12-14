@@ -12,9 +12,9 @@ namespace Youverse.Hosting.Authentication.Owner
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            return builder.AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, OwnerAuthenticationHandler>(
+            return builder.AddScheme<OwnerAuthenticationSchemeOptions, OwnerAuthenticationHandler>(
                 OwnerAuthConstants.DotIdentityOwnerScheme,
-                op => { op.LoginUri = "/login"; });
+                op => { });
         }
     }
 }

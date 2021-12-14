@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -19,9 +20,9 @@ namespace Youverse.Hosting.Authentication.Owner
     /// <summary>
     /// Handles authenticating owners to their owner-console
     /// </summary>
-    public class OwnerAuthenticationHandler : AuthenticationHandler<DotIdentityOwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
+    public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        public OwnerAuthenticationHandler(IOptionsMonitor<DotIdentityOwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
+        public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
             UrlEncoder encoder, ISystemClock clock)
             : base(options, logger, encoder, clock)
         {
@@ -29,22 +30,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            //HACK: need to review if this makes sense.  maybe instead we just host all API calls on api.frodobaggins.me.
-            if (Context.Request.Path.StartsWithSegments("/api", StringComparison.InvariantCultureIgnoreCase) == false)
-            {
-                return Task.CompletedTask;
-            }
-
-            string returnUri = HttpUtility.UrlDecode(Context.Request.Query["return_uri"]);
-
-            var b = new UriBuilder();
-            b.Host = Context.Request.Host.Host;
-            b.Scheme = Context.Request.Scheme;
-
-            b.Query = $"return_uri={HttpUtility.UrlEncode(returnUri)}";
-            b.Path = this.Options.LoginUri;
-
-            Context.Response.Redirect(b.ToString());
+            Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             return Task.CompletedTask;
         }
 

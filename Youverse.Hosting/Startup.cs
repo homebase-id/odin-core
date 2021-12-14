@@ -152,17 +152,7 @@ namespace Youverse.Hosting
             app.UseEndpoints(endpoints =>
             {
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
-
                 endpoints.MapControllers();
-                //endpoints.MapControllerRoute("api", "api/{controller}/{action=Index}/{id?}");
-                //endpoints.MapFallbackToFile("index.html");
-                // endpoints.MapHub<MessagingHub>("/api/live/chat", o =>
-                // {
-                //     //TODO: for #prototrial, i narrowed this to websockets
-                //     //only so i could disable negotiation from the client
-                //     //as it was causing issues with authentication.
-                //     o.Transports = HttpTransportType.WebSockets;
-                // });
             });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"), adminApp =>
