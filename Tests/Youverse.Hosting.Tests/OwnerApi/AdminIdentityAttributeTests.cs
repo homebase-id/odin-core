@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Profile;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi
@@ -30,36 +31,95 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
-        [Ignore("in the middle of refactoring")]
-        public Task CanSaveAndGetPrimaryNameAttribute()
+        public async Task GetSaveAndGetPublicProfile()
         {
-            
-            return Task.CompletedTask;
-            // Console.WriteLine($"starting");
-            // DotYouIdentity user = scaffold.Frodo;
-            // using var client = scaffold.CreateHttpClient(user);
-            // var svc = RestService.For<IAdminIdentityAttributeClient>(client);
-            //
-            // var name = new NameAttribute()
-            // {
-            //     Personal = "Frodo",
-            //     Surname = "Baggins"
-            // };
-            //
-            // var saveResponse = await svc.SavePrimaryName(name);
-            //
-            // Assert.IsTrue(saveResponse.IsSuccessStatusCode, "Failed to update name");
-            // Assert.IsNotNull(saveResponse.Content, "No content returned");
-            // Assert.IsTrue(saveResponse.Content.Success, "Save did not return a success");
-            //
-            // var getResponse = await svc.GetPrimaryName();
-            //
-            // Assert.IsTrue(getResponse.IsSuccessStatusCode, "Failed to retrieve updated name");
-            // Assert.IsNotNull(getResponse.Content, "No content returned");
-            // var storedName = getResponse.Content;
-            //
-            // Assert.IsTrue(storedName.Personal == "Frodo");
-            // Assert.IsTrue(storedName.Surname == "Baggins");
+            DotYouIdentity user = scaffold.Frodo;
+            using var client = scaffold.CreateHttpClient(user);
+            var svc = RestService.For<IAdminIdentityAttributeClient>(client);
+
+            var profile = new BasicProfileInfo()
+            {
+                Name = new NameAttribute()
+                {
+                    Personal = "Frodo",
+                    Surname = "Baggins"
+                },
+
+                Photo = new ProfilePicAttribute()
+                {
+                    ProfilePic = "https://somephoto.com/photo"
+                }
+            };
+
+            var saveResponse = await svc.SavePublicProfile(profile);
+
+            Assert.IsTrue(saveResponse.IsSuccessStatusCode, "Failed to update public profile");
+            Assert.IsNotNull(saveResponse.Content, "No content returned");
+            Assert.IsTrue(saveResponse.Content.Success, "Save did not return a success");
+
+            var getResponse = await svc.GetPublicProfile();
+
+            Assert.IsTrue(getResponse.IsSuccessStatusCode, "Failed to retrieve updated public profile");
+            Assert.IsNotNull(getResponse.Content, "No content returned");
+            var storedProfile = getResponse.Content;
+
+            Assert.IsTrue(storedProfile.Name.Personal == profile.Name.Personal);
+            Assert.IsTrue(storedProfile.Name.Surname == profile.Name.Surname);
+            Assert.IsTrue(storedProfile.Name.Additional == profile.Name.Additional);
+            Assert.IsTrue(storedProfile.Name.Prefix == profile.Name.Prefix);
+            Assert.IsTrue(storedProfile.Name.Suffix == profile.Name.Suffix);
+            Assert.IsTrue(storedProfile.Name.AttributeType == profile.Name.AttributeType);
+            Assert.IsTrue(storedProfile.Name.CategoryId == ProfileConstants.PublicProfileCategoryId);
+
+            Assert.IsTrue(storedProfile.Photo.ProfilePic == profile.Photo.ProfilePic);
+            Assert.IsTrue(storedProfile.Photo.AttributeType == profile.Photo.AttributeType);
+            Assert.IsTrue(storedProfile.Photo.CategoryId == ProfileConstants.PublicProfileCategoryId);
+        }
+
+        [Test]
+        public async Task GetSaveAndGetConnectedProfile()
+        {
+            DotYouIdentity user = scaffold.Frodo;
+            using var client = scaffold.CreateHttpClient(user);
+            var svc = RestService.For<IAdminIdentityAttributeClient>(client);
+
+            var profile = new BasicProfileInfo()
+            {
+                Name = new NameAttribute()
+                {
+                    Personal = "Frodo",
+                    Surname = "Baggins"
+                },
+
+                Photo = new ProfilePicAttribute()
+                {
+                    ProfilePic = "https://somephoto.com/photo"
+                }
+            };
+
+            var saveResponse = await svc.SaveConnectedProfile(profile);
+
+            Assert.IsTrue(saveResponse.IsSuccessStatusCode, "Failed to update connected profile");
+            Assert.IsNotNull(saveResponse.Content, "No content returned");
+            Assert.IsTrue(saveResponse.Content.Success, "Save did not return a success");
+
+            var getResponse = await svc.GetConnectedProfile();
+
+            Assert.IsTrue(getResponse.IsSuccessStatusCode, "Failed to retrieve updated connected profile");
+            Assert.IsNotNull(getResponse.Content, "No content returned");
+            var storedProfile = getResponse.Content;
+
+            Assert.IsTrue(storedProfile.Name.Personal == profile.Name.Personal);
+            Assert.IsTrue(storedProfile.Name.Surname == profile.Name.Surname);
+            Assert.IsTrue(storedProfile.Name.Additional == profile.Name.Additional);
+            Assert.IsTrue(storedProfile.Name.Prefix == profile.Name.Prefix);
+            Assert.IsTrue(storedProfile.Name.Suffix == profile.Name.Suffix);
+            Assert.IsTrue(storedProfile.Name.AttributeType == profile.Name.AttributeType);
+            Assert.IsTrue(storedProfile.Name.CategoryId == ProfileConstants.ConnectedProfileCategoryId);
+
+            Assert.IsTrue(storedProfile.Photo.ProfilePic == profile.Photo.ProfilePic);
+            Assert.IsTrue(storedProfile.Photo.AttributeType == profile.Photo.AttributeType);
+            Assert.IsTrue(storedProfile.Photo.CategoryId == ProfileConstants.ConnectedProfileCategoryId);
         }
     }
 }
