@@ -1,7 +1,11 @@
 using System;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Configuration;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Contacts.Circle;
 
 namespace Youverse.Core.Services.Base
@@ -24,5 +28,8 @@ namespace Youverse.Core.Services.Base
 
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();
+
+        [Get(YouAuthDefaults.ValidateAuthorizationCodeResponsePath)]
+        Task<ApiResponse<string>> ValidateAuthorizationCodeResponse(string initiator, string ac);
     }
 }

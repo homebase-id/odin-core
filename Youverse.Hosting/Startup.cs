@@ -142,6 +142,14 @@ namespace Youverse.Hosting
             //app.UseSpaStaticFiles();
 
             app.UseRouting();
+
+            // app.UseCors(options => options
+            //     .AllowAnyMethod()
+            //     .AllowAnyHeader()
+            //     .AllowCredentials()
+            //     .SetIsOriginAllowed(_ => true)
+            // );
+
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();

@@ -3,7 +3,7 @@
     "Youverse.Hosting": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "applicationUrl": "https://frodobaggins.me",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

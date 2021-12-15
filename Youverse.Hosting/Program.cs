@@ -22,7 +22,7 @@ namespace Youverse.Hosting
 {
     public static class Program
     {
-        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
+        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
         private static IIdentityContextRegistry _registry;
 
@@ -86,6 +86,11 @@ namespace Youverse.Hosting
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
+                    .MinimumLevel.Override("Youverse.Core.Services.Base.LiteDbSystemStorage", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())

@@ -3,11 +3,11 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Autofac;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
@@ -30,17 +30,12 @@ using Youverse.Services.Messaging.Email;
 namespace Youverse.Hosting
 {
     /// <summary>
-    /// Extension methods for setting up SignalR services in an <see cref="IServiceCollection" />.
+    /// Set up per-tenant services
     /// </summary>
     public static class DependencyInjection
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
-            // cb.RegisterType<CorrelationUniqueIdGenerator>().As<ICorrelationIdGenerator>().SingleInstance();
-            // cb.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
-            // cb.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
-            // cb.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
-
             cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
@@ -48,6 +43,11 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
+            cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
+
+            cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
+            cb.RegisterType<YouAuthSessionManager>().As<IYouAuthSessionManager>().SingleInstance();
+            cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();

@@ -10,6 +10,10 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Security;
+using Youverse.Hosting.Security.Authentication;
+using Youverse.Hosting.Security.Authentication.Owner;
+using Youverse.Hosting.Security.Authentication.YouAuth;
 
 namespace Youverse.Hosting.Authentication.TransitPerimeter
 {
@@ -22,7 +26,27 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            return builder.AddCertificate(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
+            //return builder.AddCertificate(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
+            // if (configureOptions == null)
+            // {
+            //     throw new ArgumentNullException(nameof(configureOptions));
+            // }
+            
+            return services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
+                    options.DefaultChallengeScheme = DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme;
+                })
+                .AddScheme<DotIdentityOwnerAuthenticationSchemeOptions, DotIdentityOwnerAuthenticationHandler>(
+                    OwnerAuthConstants.DotIdentityOwnerScheme, op =>
+                    {
+                        op.LoginUri = "/login";
+                    })
+                .AddScheme<YouAuthAuthenticationSchemeOptions, YouAuthAuthenticationHandler>(
+                    YouAuthAuthenticationDefaults.Scheme, op =>
+                    {
+                    })
+                .AddCertificate(DotYouAuthConstants.ExternalDigitalIdentityClientCertificateScheme, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
