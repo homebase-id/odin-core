@@ -136,12 +136,16 @@ namespace Youverse.Services.Messaging.Demo
 
             if (IsFrodo)
             {
-                primaryName = new NameAttribute() {Personal = "Frodo", Surname = "Baggins"};
-                twitter = new TwitterAttribute() {Twitter = "@ringbearer" };
+                twitter = new TwitterAttribute() {Twitter = "@ringbearer"};
 
-                profilePic = new ProfilePicAttribute()
+                publicProfileInfo = new BasicProfileInfo()
                 {
-                    ProfilePic = "https://i2.wp.com/a1.ec-images.myspacecdn.com/images01/20/849847696a4b587b3e848eddd93c207e/l.jpg?zoom=2"
+                    Name = new NameAttribute() {Personal = "Frodo", Surname = "Baggins"},
+
+                    Photo = new ProfilePicAttribute()
+                    {
+                        ProfilePic = "https://i2.wp.com/a1.ec-images.myspacecdn.com/images01/20/849847696a4b587b3e848eddd93c207e/l.jpg?zoom=2"
+                    }
                 };
 
                 privateProfileInfo = new BasicProfileInfo()
@@ -232,6 +236,7 @@ namespace Youverse.Services.Messaging.Demo
                 };
             }
 
+            // await _adminAttributeManagementService.SavePublicProfile(publicProfileInfo);
             await _adminAttributeManagementService.SavePublicProfile(primaryName, profilePic, twitter);
             // await _adminAttributeManagementService.SaveConnectedProfile(privateProfile);
         }

@@ -22,11 +22,36 @@ namespace Youverse.Hosting.Controllers.Owner
             _identManagementService = identManagementService;
         }
 
-        [HttpGet("primary/avatar")]
-        public IActionResult GetPrimaryAvatar()
+        [HttpGet("public")]
+        public async Task<BasicProfileInfo> GetBasicPublicProfile()
         {
-            //TODO: update to send the path of a stored photo
-            return new JsonResult(new AvatarUri() {Uri = "/assets/unknown.png"});
+            var result = await _identManagementService.GetBasicPublicProfile();
+            return result;
+        }
+        
+        [HttpPost("public")]
+        public async Task<IActionResult> SavePublicProfile([FromBody] BasicProfileInfo profile)
+        {
+            
+            await _identManagementService.SavePublicProfile(profile.Name, profile.Photo);
+            
+            return new JsonResult(new NoResultResponse(true));
+        }
+        
+        [HttpGet("connected")]
+        public async Task<BasicProfileInfo> GetBasicConnectedProfile()
+        {
+            var result = await _identManagementService.GetBasicConnectedProfile();
+            return result;
+        }
+        
+        [HttpPost("connected")]
+        public async Task<IActionResult> SaveConnectedProfile([FromBody] BasicProfileInfo profile)
+        {
+            
+            await _identManagementService.SaveConnectedProfile(profile.Name, profile.Photo);
+            
+            return new JsonResult(new NoResultResponse(true));
         }
     }
 }
