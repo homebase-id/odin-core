@@ -10,15 +10,15 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Profile
 {
-    /// <inheritdoc cref="IOwnerDataAttributeManagementService"/>
-    public class OwnerDataAttributeManagementService : IOwnerDataAttributeManagementService
+    /// <inheritdoc cref="IProfileAttributeManagementService"/>
+    public class ProfileAttributeManagementService : IProfileAttributeManagementService
     {
         private readonly DotYouContext _context;
         private readonly AttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
 
-        public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage)
+        public ProfileAttributeManagementService(DotYouContext context, ILogger<IProfileAttributeManagementService> logger, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;

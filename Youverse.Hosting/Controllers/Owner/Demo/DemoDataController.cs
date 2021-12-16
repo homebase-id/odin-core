@@ -16,11 +16,11 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
     {
         private IProfileService _profileService;
         private IPrototrialDemoDataService _prototrial;
-        private IOwnerDataAttributeManagementService _admin;
+        private IProfileAttributeManagementService _admin;
         private NotificationHandler _notificationHandler;
         private DotYouContext _dotYouContext;
 
-        public DemoDataController(IProfileService profileService, IPrototrialDemoDataService prototrial, IOwnerDataAttributeManagementService admin, NotificationHandler notificationHandler, DotYouContext dotYouContext)
+        public DemoDataController(IProfileService profileService, IPrototrialDemoDataService prototrial, IProfileAttributeManagementService admin, NotificationHandler notificationHandler, DotYouContext dotYouContext)
         {
             _profileService = profileService;
             _prototrial = prototrial;

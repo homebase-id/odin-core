@@ -20,10 +20,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ICircleNetworkService _cns;
         private readonly ILogger<ICircleNetworkRequestService> _logger;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        private readonly IOwnerDataAttributeManagementService _mgts;
+        private readonly IProfileAttributeManagementService _mgts;
         private readonly ISystemStorage _systemStorage;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IOwnerDataAttributeManagementService mgts, ISystemStorage systemStorage)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
         {
             _context = context;
             _cns = cns;

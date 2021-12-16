@@ -15,9 +15,9 @@ namespace Youverse.Hosting.Controllers.Owner
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class OwnerDataAttributeController : Controller
     {
-        private readonly IOwnerDataAttributeManagementService _identManagementService;
+        private readonly IProfileAttributeManagementService _identManagementService;
 
-        public OwnerDataAttributeController(IOwnerDataAttributeManagementService identManagementService)
+        public OwnerDataAttributeController(IProfileAttributeManagementService identManagementService)
         {
             _identManagementService = identManagementService;
         }

@@ -13,10 +13,10 @@ namespace Youverse.Services.Messaging.Demo
     {
         private readonly DotYouContext _context;
         private readonly IProfileService _profileService;
-        private readonly IOwnerDataAttributeManagementService _adminAttributeManagementService;
+        private readonly IProfileAttributeManagementService _adminAttributeManagementService;
         private readonly ICircleNetworkRequestService _circleNetworkService;
 
-        public PrototrialDemoDataService(DotYouContext context, ILogger<IPrototrialDemoDataService> logger, IProfileService profileService, IOwnerDataAttributeManagementService adminAttributeManagementService, ICircleNetworkRequestService circleNetworkService)
+        public PrototrialDemoDataService(DotYouContext context, ILogger<IPrototrialDemoDataService> logger, IProfileService profileService, IProfileAttributeManagementService adminAttributeManagementService, ICircleNetworkRequestService circleNetworkService)
         {
             _context = context;
             _profileService = profileService;
