@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -11,160 +8,86 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     public sealed class YouAuthSessionManager : IYouAuthSessionManager
     {
         private readonly TimeSpan _sessionlifetime;
-        private readonly Dictionary<Guid, YouAuthSession> _sessionBySessionId = new();
-        private readonly Dictionary<string, YouAuthSession> _sessionBySubject = new();
         private readonly ILogger<YouAuthSessionManager> _logger;
-        private readonly ReaderWriterLockSlim _mutex = new();
+        private readonly IYouAuthSessionStorage _youAuthSessionStorage;
+        private readonly object _mutex = new();
 
-        public YouAuthSessionManager(ILogger<YouAuthSessionManager> logger)
+        public YouAuthSessionManager(ILogger<YouAuthSessionManager> logger, IYouAuthSessionStorage youAuthSessionStorage)
         {
             _sessionlifetime = TimeSpan.FromDays(7); // SEB:TODO read config
             _logger = logger;
+            _youAuthSessionStorage = youAuthSessionStorage;
         }
 
         //
 
-        public async ValueTask<YouAuthSession> CreateSession(string subject)
+        public ValueTask<YouAuthSession> CreateSession(string subject)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
                 throw new YouAuthException("Invalid subject");
             }
 
-            var sessionId = Guid.NewGuid();
-            var session = new YouAuthSession(sessionId, subject, _sessionlifetime);
-
-            _mutex.EnterWriteLock();
-            try
+            // NOTE: this lock only works because litedb isn't async
+            lock(_mutex)
             {
-                // Delete existing session, if any
-                await InternalDeleteFromSubject(subject);
+                var session = _youAuthSessionStorage.LoadFromSubject(subject);
+                if (session != null && !session.HasExpired())
+                {
+                    return new ValueTask<YouAuthSession>(session);
+                }
 
-                _sessionBySessionId[sessionId] = session;
-                _sessionBySubject[subject] = session;
+                if (session != null)
+                {
+                    _youAuthSessionStorage.Delete(session);
+                }
 
-                // SEB:TODO storage
+                var sessionId = Guid.NewGuid();
+                session = new YouAuthSession(sessionId, subject, _sessionlifetime);
+                _youAuthSessionStorage.Save(session);
+
+                return new ValueTask<YouAuthSession>(session);
             }
-            finally
-            {
-                _mutex.ExitWriteLock();
-            }
-
-            return session;
         }
 
         //
 
-        public async ValueTask<YouAuthSession?> LoadFromId(Guid id)
+        public ValueTask<YouAuthSession?> LoadFromId(Guid id)
         {
-            YouAuthSession? session;
+            var session = _youAuthSessionStorage.LoadFromId(id);
 
-            _mutex.EnterReadLock();
-            try
+            if (session != null && session.HasExpired())
             {
-                _sessionBySessionId.TryGetValue(id, out session);
-            }
-            finally
-            {
-                _mutex.ExitReadLock();
-            }
-
-            if (session == null || session.HasExpired)
-            {
-                await DeleteFromId(id);
+                _youAuthSessionStorage.Delete(session);
                 session = null;
             }
 
-            return session;
+            return new ValueTask<YouAuthSession?>(session);
         }
 
         //
 
-        public async ValueTask<YouAuthSession?> LoadFromSubject(string subject)
+        public ValueTask<YouAuthSession?> LoadFromSubject(string subject)
         {
-            YouAuthSession? session;
+            var session = _youAuthSessionStorage.LoadFromSubject(subject);
 
-            _mutex.EnterReadLock();
-            try
+            if (session != null && session.HasExpired())
             {
-                _sessionBySubject.TryGetValue(subject, out session);
-            }
-            finally
-            {
-                _mutex.ExitReadLock();
-            }
-
-            if (session == null || session.HasExpired)
-            {
-                await DeleteFromSubject(subject);
+                _youAuthSessionStorage.Delete(session);
                 session = null;
             }
 
-            return session;
+            return new ValueTask<YouAuthSession?>(session);
         }
-
-        //
-
-        public ValueTask DeleteFromId(Guid id)
-        {
-            _mutex.EnterWriteLock();
-            try
-            {
-                return InternalDeleteFromId(id);
-            }
-            finally
-            {
-                _mutex.ExitWriteLock();
-            }
-        }
-
-        //
-
-        private ValueTask InternalDeleteFromId(Guid id)
-        {
-            if (!_mutex.IsWriteLockHeld)
-            {
-                throw new YouAuthException("Must call this while mutex has write lock!");
-            }
-
-            if (_sessionBySessionId.Remove(id, out YouAuthSession? session))
-            {
-                _sessionBySubject.Remove(session.Subject);
-                // SEB:TODO storage
-            }
-
-            return new ValueTask();
-        }
-
 
         //
 
         public ValueTask DeleteFromSubject(string subject)
         {
-            _mutex.EnterWriteLock();
-            try
+            var session = _youAuthSessionStorage.LoadFromSubject(subject);
+            if (session != null)
             {
-                return InternalDeleteFromSubject(subject);
-            }
-            finally
-            {
-                _mutex.ExitWriteLock();
-            }
-        }
-
-        //
-
-        private ValueTask InternalDeleteFromSubject(string subject)
-        {
-            if (!_mutex.IsWriteLockHeld)
-            {
-                throw new YouAuthException("Must call this while mutex has write lock!");
-            }
-
-            if (_sessionBySubject.Remove(subject, out YouAuthSession? session))
-            {
-                _sessionBySessionId.Remove(session.Id);
-                // SEB:TODO storage
+                _youAuthSessionStorage.Delete(session);
             }
 
             return new ValueTask();
@@ -172,40 +95,5 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask DeleteExpired()
-        {
-            List<YouAuthSession> expiredSessions;
-
-            _mutex.EnterReadLock();
-            try
-            {
-                expiredSessions = _sessionBySubject.Values.Where(session => session.HasExpired).ToList();
-            }
-            finally
-            {
-                _mutex.ExitReadLock();
-            }
-
-            if (expiredSessions.Count > 0)
-            {
-                _mutex.EnterWriteLock();
-                try
-                {
-                    foreach (var session in expiredSessions)
-                    {
-                        _sessionBySessionId.Remove(session.Id);
-                        _sessionBySubject.Remove(session.Subject);
-                    }
-                }
-                finally
-                {
-                    _mutex.ExitWriteLock();
-                }
-
-                _logger.LogDebug("Deleted {ExpiredSessionCount} expired sessions", expiredSessions.Count);
-            }
-
-            return new ValueTask();
-        }
     }
 }

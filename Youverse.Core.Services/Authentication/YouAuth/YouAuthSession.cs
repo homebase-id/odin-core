@@ -5,10 +5,10 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public sealed class YouAuthSession
     {
-        public Guid Id { get; }
-        public DateTimeOffset CreatedAt { get; }
-        public DateTimeOffset ExpiresAt { get; }
-        public string Subject { get; }
+        public Guid Id { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset ExpiresAt { get; init; }
+        public string Subject { get; init;  }
 
         public YouAuthSession(Guid id, string subject, TimeSpan lifetime)
         {
@@ -18,6 +18,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             ExpiresAt = CreatedAt + lifetime;
         }
 
-        public bool HasExpired => DateTimeOffset.Now > ExpiresAt;
+        public bool HasExpired() => DateTimeOffset.Now > ExpiresAt;
     }
 }

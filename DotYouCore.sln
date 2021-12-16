@@ -30,6 +30,8 @@ EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Background", "Youverse.Core.Services.Background\Youverse.Core.Services.Background.csproj", "{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Tests", "Tests\Youverse.Core.Services.Tests\Youverse.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +78,10 @@ Global
 		{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -85,6 +91,7 @@ Global
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{0A1A7005-CA7E-41A1-8340-626742A0D3C5} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{1F5F88D2-3F0C-4147-927F-5646AC79A65D} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}
