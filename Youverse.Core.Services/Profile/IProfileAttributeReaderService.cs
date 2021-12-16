@@ -17,7 +17,6 @@ namespace Youverse.Core.Services.Profile
         /// <summary>
         /// Get's a collection
         /// </summary>
-        /// <param name="id"></param>
         /// <returns></returns>
         Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions);
         
