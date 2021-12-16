@@ -8,16 +8,16 @@ using Youverse.Core.Services.Contacts.Circle;
 
 namespace Youverse.Core.Services.Profile
 {
-    /// <inheritdoc cref="IOwnerDataAttributeReaderService"/>
-    public class OwnerDataAttributeReaderService : IOwnerDataAttributeReaderService
+    /// <inheritdoc cref="IProfileAttributeReaderService"/>
+    public class ProfileAttributeReaderService : IProfileAttributeReaderService
     {
         private readonly DotYouContext _context;
-        private readonly ILogger<IOwnerDataAttributeReaderService> _logger;
+        private readonly ILogger<IProfileAttributeReaderService> _logger;
         private readonly ICircleNetworkService _circleNetwork;
         private readonly AttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork, ISystemStorage systemStorage)
+        public ProfileAttributeReaderService(DotYouContext context, ILogger<IProfileAttributeReaderService> logger, ICircleNetworkService circleNetwork, ISystemStorage systemStorage)
         {
             _context = context;
             _logger = logger;

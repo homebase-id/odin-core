@@ -16,9 +16,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     [Authorize(Policy = TransitPerimeterPolicies.MustBeIdentifiedPolicyName, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class ProfileController : ControllerBase
     {
-        private readonly IOwnerDataAttributeReaderService _reader;
+        private readonly IProfileAttributeReaderService _reader;
 
-        public ProfileController(IOwnerDataAttributeReaderService reader)
+        public ProfileController(IProfileAttributeReaderService reader)
         {
             _reader = reader;
         }

@@ -13,8 +13,8 @@ namespace Youverse.Hosting.Controllers.YouAuth.Profile
     //TODO: add in Authorize tag when merging with seb
     public class YouAuthProfileDataController : Controller
     {
-        private readonly IOwnerDataAttributeReaderService _attributeReaderService;
-        public YouAuthProfileDataController(IOwnerDataAttributeReaderService attributeReaderService)
+        private readonly IProfileAttributeReaderService _attributeReaderService;
+        public YouAuthProfileDataController(IProfileAttributeReaderService attributeReaderService)
         {
             _attributeReaderService = attributeReaderService;
         }

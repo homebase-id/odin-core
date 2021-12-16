@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
@@ -9,11 +10,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveResolver _driveResolver;
+        private readonly IProfileAttributeReaderService _profileAttributeReader;
 
-        public LiteDbDriveMetadataIndexer(IDriveResolver driveResolver, ISystemStorage systemStorage)
+        public LiteDbDriveMetadataIndexer(IDriveResolver driveResolver, ISystemStorage systemStorage, IProfileAttributeReaderService profileAttributeReader)
         {
             _driveResolver = driveResolver;
             _systemStorage = systemStorage;
+            _profileAttributeReader = profileAttributeReader;
         }
 
         public async Task RebuildAll()
@@ -48,6 +51,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private async Task RebuildDataAttributes(DriveInfo drive)
         {
+            _profileAttributeReader.GetAttributes()
 
             var item = new IndexedItem()
             {

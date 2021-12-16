@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Profile
     ///
     /// This is not intended to be consumed by any services on the perimeter.
     /// </summary>
-    public interface IOwnerDataAttributeManagementService : IDataAttributeManagementService
+    public interface IProfileAttributeManagementService : IDataAttributeManagementService
     {
         /// <summary>
         /// Sets the profile information available to the public internet

@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Profile
     /// of data assigned to the caller is returned.  (i.e. if this is frodo's digital identity,
     /// it will ensure onlY those in the fellowship know he has the one ring)
     /// </summary>    
-    public interface IOwnerDataAttributeReaderService
+    public interface IProfileAttributeReaderService
     {
         /// <summary>
         /// Get's a collection
