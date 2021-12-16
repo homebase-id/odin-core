@@ -56,7 +56,6 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-
             
             cb.RegisterType<DriveResolver>().As<IDriveResolver>().SingleInstance();
             cb.RegisterType<LiteDbDriveQueryService>().As<IDriveQueryService>().SingleInstance();
@@ -67,7 +66,6 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
             cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
-            cb.RegisterType<ProfileAttributeReaderService>().As<IProfileAttributeReaderService>().SingleInstance();
             cb.RegisterType<MessagingService>().As<IMessagingService>().SingleInstance();
             cb.RegisterType<FileBasedStorageService>().As<IStorageService>().SingleInstance();
             cb.RegisterType<ChatService>().As<IChatService>().SingleInstance();

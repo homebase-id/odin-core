@@ -16,17 +16,18 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     [Authorize(Policy = TransitPerimeterPolicies.MustBeIdentifiedPolicyName, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class ProfileController : ControllerBase
     {
-        private readonly IProfileAttributeReaderService _reader;
+        private readonly IProfileAttributeManagementService _profileAttributeService;
 
-        public ProfileController(IProfileAttributeReaderService reader)
+        public ProfileController(IProfileAttributeManagementService profileAttributeService)
         {
-            _reader = reader;
+            _profileAttributeService = profileAttributeService;
         }
-        
+
+
         [HttpGet]
         public async Task<IActionResult> GetProfile()
         {
-            var profile = await _reader.GetProfile();
+            var profile = await _profileAttributeService.GetBasicPublicProfile();
             return new JsonResult(profile);
         }
     }
