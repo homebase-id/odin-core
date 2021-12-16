@@ -1,7 +1,7 @@
 using System;
 using Newtonsoft.Json.Linq;
 
-namespace Youverse.Core.Services.Container.Query
+namespace Youverse.Core.Services.Drive.Query
 {
     public class MetadataIndexDefinition
     {

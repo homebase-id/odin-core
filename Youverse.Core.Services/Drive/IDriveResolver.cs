@@ -1,21 +1,19 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Container
+namespace Youverse.Core.Services.Drive
 {
     /// <summary>
     /// Resolves information about a container.
     /// </summary>
-    public interface IContainerResolver
+    public interface IDriveResolver
     {
-        Task<ContainerInfo> Resolve(Guid containerId);
+        Task<DriveInfo> Resolve(Guid driveId);
 
         /// <summary>
         /// Returns a list of the containers in the system
         /// </summary>
         /// <returns></returns>
-        Task<PagedResult<ContainerInfo>> GetContainers(PageOptions pageOptions);
+        Task<PagedResult<DriveInfo>> GetDrives(PageOptions pageOptions);
     }
 }

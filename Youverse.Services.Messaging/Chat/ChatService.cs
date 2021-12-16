@@ -12,9 +12,9 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Identity;
 using Youverse.Core.Services.Profile;
-using Youverse.Core.Services.Storage;
 using Youverse.Core.Util;
 
 namespace Youverse.Services.Messaging.Chat

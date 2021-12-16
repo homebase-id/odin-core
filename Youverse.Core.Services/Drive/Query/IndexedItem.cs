@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 
-namespace Youverse.Core.Services.Container.Query
+namespace Youverse.Core.Services.Drive.Query
 {
     public class IndexedItem
     {

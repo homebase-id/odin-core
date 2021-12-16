@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit.Quarantine

@@ -11,13 +11,13 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Container;
-using Youverse.Core.Services.Container.Query;
-using Youverse.Core.Services.Container.Query.LiteDb;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Storage;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Audit;
@@ -58,9 +58,9 @@ namespace Youverse.Hosting
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
 
             
-            cb.RegisterType<ContainerResolver>().As<IContainerResolver>().SingleInstance();
-            cb.RegisterType<LiteDbContainerQueryService>().As<IContainerQueryService>().SingleInstance();
-            cb.RegisterType<LiteDbContainerMetaDataIndexer>().As<IContainerMetadataIndexer>().SingleInstance();
+            cb.RegisterType<DriveResolver>().As<IDriveResolver>().SingleInstance();
+            cb.RegisterType<LiteDbDriveQueryService>().As<IDriveQueryService>().SingleInstance();
+            cb.RegisterType<LiteDbDriveMetadataIndexer>().As<IDriveMetadataIndexer>().SingleInstance();
             
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();

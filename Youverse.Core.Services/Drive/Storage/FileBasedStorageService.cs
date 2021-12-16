@@ -8,7 +8,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.Util;
 
-namespace Youverse.Core.Services.Storage
+namespace Youverse.Core.Services.Drive.Storage
 {
     public class FileBasedStorageService : IStorageService, IDisposable
     {

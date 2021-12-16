@@ -3,8 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Identity;
-using Youverse.Core.Services.Storage;
 
 namespace Youverse.Services.Messaging.Chat
 {

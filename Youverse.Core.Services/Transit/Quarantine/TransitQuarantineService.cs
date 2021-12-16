@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 

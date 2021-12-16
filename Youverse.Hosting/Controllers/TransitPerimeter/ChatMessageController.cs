@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 using Youverse.Services.Messaging;
 using Youverse.Services.Messaging.Chat;

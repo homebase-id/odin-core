@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 

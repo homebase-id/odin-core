@@ -1,13 +1,13 @@
 using System;
 
-namespace Youverse.Core.Services.Container
+namespace Youverse.Core.Services.Drive
 {
     /// <summary>
     /// Information about a container
     /// </summary>
-    public class ContainerInfo
+    public class DriveInfo
     {
-        public Guid ContainerId { get; init; }
+        public Guid DriveId { get; init; }
         
         public string IndexName { get; init; }
     }
