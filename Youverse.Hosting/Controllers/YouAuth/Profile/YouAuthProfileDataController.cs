@@ -18,16 +18,7 @@ namespace Youverse.Hosting.Controllers.YouAuth.Profile
         {
             _attributeReaderService = attributeReaderService;
         }
-        
-        [HttpPost("search")]
-        public async Task<IActionResult> RetrieveCollection(List<Guid> idList)
-        {
-            var list = await _attributeReaderService.GetAttributeCollection(idList);
-            //Note: using object because: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-polymorphism
-            var collection = list.Cast<object>();
-            return new JsonResult(collection);
-        }
-        
+
         [HttpGet]
         public async Task<IActionResult> GetList([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {

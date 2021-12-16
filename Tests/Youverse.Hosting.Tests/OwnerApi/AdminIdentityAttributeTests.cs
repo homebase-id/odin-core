@@ -69,11 +69,11 @@ namespace Youverse.Hosting.Tests.OwnerApi
             Assert.IsTrue(storedProfile.Name.Prefix == profile.Name.Prefix);
             Assert.IsTrue(storedProfile.Name.Suffix == profile.Name.Suffix);
             Assert.IsTrue(storedProfile.Name.AttributeType == profile.Name.AttributeType);
-            Assert.IsTrue(storedProfile.Name.CategoryId == ProfileConstants.PublicProfileCategoryId);
+            Assert.IsTrue(storedProfile.Name.CategoryId == profile.Name.CategoryId);
 
             Assert.IsTrue(storedProfile.Photo.ProfilePic == profile.Photo.ProfilePic);
             Assert.IsTrue(storedProfile.Photo.AttributeType == profile.Photo.AttributeType);
-            Assert.IsTrue(storedProfile.Photo.CategoryId == ProfileConstants.PublicProfileCategoryId);
+            Assert.IsTrue(storedProfile.Photo.CategoryId == profile.Photo.CategoryId);
         }
 
         [Test]
@@ -115,11 +115,11 @@ namespace Youverse.Hosting.Tests.OwnerApi
             Assert.IsTrue(storedProfile.Name.Prefix == profile.Name.Prefix);
             Assert.IsTrue(storedProfile.Name.Suffix == profile.Name.Suffix);
             Assert.IsTrue(storedProfile.Name.AttributeType == profile.Name.AttributeType);
-            Assert.IsTrue(storedProfile.Name.CategoryId == ProfileConstants.ConnectedProfileCategoryId);
+            Assert.IsTrue(storedProfile.Name.CategoryId == profile.Name.CategoryId);
 
             Assert.IsTrue(storedProfile.Photo.ProfilePic == profile.Photo.ProfilePic);
             Assert.IsTrue(storedProfile.Photo.AttributeType == profile.Photo.AttributeType);
-            Assert.IsTrue(storedProfile.Photo.CategoryId == ProfileConstants.ConnectedProfileCategoryId);
+            Assert.IsTrue(storedProfile.Photo.CategoryId == profile.Photo.CategoryId);
         }
     }
 }

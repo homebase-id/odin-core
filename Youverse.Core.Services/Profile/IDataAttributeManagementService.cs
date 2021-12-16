@@ -60,5 +60,21 @@ namespace Youverse.Core.Services.Profile
         /// <param name="categoryId"></param>
         /// <returns></returns>
         Task<PagedResult<BaseAttribute>> GetAttributes(PageOptions pageOptions, Guid categoryId);
+        
+        /// <summary>
+        /// Returns a <see cref="PagedResult{T}"/> of attributes for a given collection
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions);
+
+        /// <summary>
+        /// Saves a set of attributes under a given id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="attributes"></param>
+        /// <returns></returns>
+        Task SaveAttributeCollection(Guid id, params BaseAttribute[] attributes);
     }
 }

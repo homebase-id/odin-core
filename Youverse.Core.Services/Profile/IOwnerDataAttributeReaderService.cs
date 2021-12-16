@@ -15,11 +15,11 @@ namespace Youverse.Core.Services.Profile
     public interface IOwnerDataAttributeReaderService
     {
         /// <summary>
-        /// Gets a collection of attributes in the <param name="idList">list</param> if it is visible to the caller
+        /// Get's a collection
         /// </summary>
-        /// <param name="idList"></param>
+        /// <param name="id"></param>
         /// <returns></returns>
-        Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList);
+        Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions);
         
         /// <summary>
         /// Gets all attributes visible to the caller

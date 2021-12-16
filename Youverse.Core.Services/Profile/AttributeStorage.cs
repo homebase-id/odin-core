@@ -14,65 +14,18 @@ namespace Youverse.Core.Services.Profile
     /// Specialized storage for the DI Owner's data attributes.  This does not enforce data
     /// security.  That should be done by the consuming services.
     /// </summary>
-    internal sealed class OwnerDataAttributeStorage
+    internal sealed class AttributeStorage
     {
         private const string CategoryAttributeStorageCollection = "cdas";
         private const string AttributeStorageCollection = "das";
 
-        private const string PublicProfileAttributeStorageCollection = "pubprofiledas";
-        private const string ConnectedProfileAttributeStorageCollection = "pubprofiledas";
-
         private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
 
-        public OwnerDataAttributeStorage(DotYouContext context, ISystemStorage systemStorage)
+        public AttributeStorage(DotYouContext context, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;
-        }
-
-        public async Task SavePublicProfile(params BaseAttribute[] attributes)
-        {
-            foreach (var attr in attributes)
-            {
-                attr.CategoryId = ProfileConstants.PublicProfileCategoryId;
-
-                var existingAttr = await _systemStorage.WithTenantSystemStorageReturnSingle<BaseAttribute>(PublicProfileAttributeStorageCollection,
-                    s => s.FindOne(_attr => _attr.AttributeType == attr.AttributeType && _attr.CategoryId == attr.CategoryId));
-
-                attr.Id = existingAttr?.Id ?? attr.Id;
-
-                _systemStorage.WithTenantSystemStorage<BaseAttribute>(PublicProfileAttributeStorageCollection, s => s.Save(attr));
-                // this.SaveAttribute(attr);
-            }
-        }
-
-        public async Task<PagedResult<BaseAttribute>> GetConnectedProfile(PageOptions pageOptions)
-        {
-            var page = await this.GetAttributes(pageOptions, ProfileConstants.ConnectedProfileCategoryId);
-            return page;
-        }
-
-        public async Task SaveConnectedProfile(params BaseAttribute[] attributes)
-        {
-            foreach (var attr in attributes)
-            {
-                attr.CategoryId = ProfileConstants.ConnectedProfileCategoryId;
-
-                var existingAttr = await _systemStorage.WithTenantSystemStorageReturnSingle<BaseAttribute>(ConnectedProfileAttributeStorageCollection,
-                    s => s.FindOne(_attr => _attr.AttributeType == attr.AttributeType && _attr.CategoryId == attr.CategoryId));
-
-                attr.Id = existingAttr?.Id ?? attr.Id;
-
-                _systemStorage.WithTenantSystemStorage<BaseAttribute>(ConnectedProfileAttributeStorageCollection, s => s.Save(attr));
-                // this.SaveAttribute(attr);
-            }
-        }
-
-        public async Task<PagedResult<BaseAttribute>> GetPublicProfile(PageOptions pageOptions)
-        {
-            var page = await this.GetAttributes(pageOptions, ProfileConstants.PublicProfileCategoryId);
-            return page;
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
@@ -126,28 +79,40 @@ namespace Youverse.Core.Services.Profile
             var results = await _systemStorage.WithTenantSystemStorageReturnSingle<BaseAttribute>(AttributeStorageCollection, s => s.FindOne(predicate));
             return results;
         }
-        
-        //HACK
-        public async Task<BaseAttribute> GetPublicProfileAttributeByType(int type, Guid categoryId)
+
+
+        public Task SaveAttributeCollection(Guid id, IList<BaseAttribute> attributes)
         {
-            Expression<Func<BaseAttribute, bool>> predicate = attr => attr.AttributeType == type && attr.CategoryId == categoryId;
-            var results = await _systemStorage.WithTenantSystemStorageReturnSingle<BaseAttribute>(PublicProfileAttributeStorageCollection, s => s.FindOne(predicate));
-            return results;
+            string collection = GetAttributeCollectionStorageName(id);
+            foreach (var attr in attributes)
+            {
+                _systemStorage.WithTenantSystemStorage<BaseAttribute>(collection, s => s.Save(attr));
+            }
+
+            return Task.CompletedTask;
         }
-        
-        public async Task<BaseAttribute> GetConnectedProfileAttributeByType(int type, Guid categoryId)
+
+        public async Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions)
         {
-            Expression<Func<BaseAttribute, bool>> predicate = attr => attr.AttributeType == type && attr.CategoryId == categoryId;
-            var results = await _systemStorage.WithTenantSystemStorageReturnSingle<BaseAttribute>(ConnectedProfileAttributeStorageCollection, s => s.FindOne(predicate));
+            string collection = GetAttributeCollectionStorageName(id);
+            var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(collection, s => s.GetList(pageOptions));
             return results;
         }
 
-        public async Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList)
+
+        public async Task<IList<BaseAttribute>> GetAttributeCollectionSubset(Guid attributeCollectionId, IEnumerable<Guid> attributeIdList)
         {
-            Expression<Func<BaseAttribute, bool>> predicate = attr => idList.Contains(attr.Id);
-            var results = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(AttributeStorageCollection, s => s.Find(predicate, new PageOptions(1, Int32.MaxValue)));
-            return results.Results;
+            string collection = GetAttributeCollectionStorageName(attributeCollectionId);
+            Expression<Func<BaseAttribute, bool>> predicate = attr => attributeIdList.Contains(attr.Id);
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<BaseAttribute>(collection, s => s.Find(predicate, PageOptions.Default));
+            return page.Results;
         }
+
+        private string GetAttributeCollectionStorageName(Guid id)
+        {
+            return $"d{id:N}";
+        }
+
 
         private void AssertCallerIsOwner()
         {
