@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private async Task RebuildDataAttributes(DriveInfo drive)
         {
-            _profileAttributeReader.GetAttributes()
+            //_profileAttributeReader.GetAttributes()
 
             var item = new IndexedItem()
             {
