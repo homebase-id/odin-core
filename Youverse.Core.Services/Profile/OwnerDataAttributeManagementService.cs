@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Base;
@@ -10,80 +14,88 @@ namespace Youverse.Core.Services.Profile
     public class OwnerDataAttributeManagementService : IOwnerDataAttributeManagementService
     {
         private readonly DotYouContext _context;
-        private readonly OwnerDataAttributeStorage _das;
+        private readonly AttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
+
 
         public OwnerDataAttributeManagementService(DotYouContext context, ILogger<IOwnerDataAttributeManagementService> logger, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;
-            _das = new OwnerDataAttributeStorage(context, systemStorage);
+            _das = new AttributeStorage(context, systemStorage);
         }
 
-        public Task SavePublicProfile(params BaseAttribute[] attributes)
+        public Task SavePublicProfile(NameAttribute primaryName, ProfilePicAttribute photo, params BaseAttribute[] additionalAttributes)
         {
             AssertCallerIsOwner();
-            return _das.SavePublicProfile(attributes);
+            Guard.Argument(primaryName, nameof(primaryName)).NotNull();
+            Guard.Argument(photo, nameof(photo)).NotNull();
+
+            primaryName.Id = ProfileConstants.PublicProfilePrimaryNameId;
+            photo.Id = ProfileConstants.PublicProfilePhotoId;
+
+            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) { primaryName, photo };
+            return _das.SaveAttributeCollection(ProfileConstants.PublicProfileAttributeCollectionId, allAttributes);
         }
 
         public async Task<BasicProfileInfo> GetBasicPublicProfile()
         {
             AssertCallerIsOwner();
 
-            var name = await _das.GetPublicProfileAttributeByType((int)AttributeTypes.Name, ProfileConstants.PublicProfileCategoryId);
-            var profilePic = await _das.GetPublicProfileAttributeByType((int)AttributeTypes.ProfilePic, ProfileConstants.PublicProfileCategoryId);
-            
-            if (null == name)
-            {
-                return null;
-            }
-            
+            var subset = await _das.GetAttributeCollectionSubset(ProfileConstants.PublicProfileAttributeCollectionId,
+                new[]
+                {
+                    ProfileConstants.PublicProfilePrimaryNameId,
+                    ProfileConstants.PublicProfilePhotoId
+                });
+
+            var name = (NameAttribute)subset.Single(s => s.Id == ProfileConstants.PublicProfilePrimaryNameId);
+            var profilePic = (ProfilePicAttribute)subset.Single(s => s.Id == ProfileConstants.PublicProfilePhotoId);
+
             var profile = new BasicProfileInfo()
             {
-                Name = (NameAttribute)name,
-                Photo = (ProfilePicAttribute) profilePic
+                Name = name,
+                Photo = profilePic
             };
 
             return profile;
         }
-        
-        public async Task<PagedResult<BaseAttribute>> GetPublicProfileAttributeCollection(PageOptions pageOptions)
-        {
-            AssertCallerIsOwner();
-            return await _das.GetPublicProfile(pageOptions);
-        }
 
-        public Task SaveConnectedProfile(params BaseAttribute[] attributes)
+
+        public Task SaveConnectedProfile(NameAttribute primaryName, ProfilePicAttribute photo, params BaseAttribute[] additionalAttributes)
         {
             AssertCallerIsOwner();
-            return _das.SaveConnectedProfile(attributes);
+            Guard.Argument(primaryName, nameof(primaryName)).NotNull();
+            Guard.Argument(photo, nameof(photo)).NotNull();
+
+            primaryName.Id = ProfileConstants.ConnectedProfilePrimaryNameId;
+            photo.Id = ProfileConstants.ConnectedProfilePhotoId;
+
+            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) { primaryName, photo };
+            return _das.SaveAttributeCollection(ProfileConstants.ConnectedProfileAttributeCollectionId, allAttributes);
         }
 
         public async Task<BasicProfileInfo> GetBasicConnectedProfile()
         {
             AssertCallerIsOwner();
 
-            var name = await _das.GetConnectedProfileAttributeByType((int)AttributeTypes.Name, ProfileConstants.ConnectedProfileCategoryId);
-            var profilePic = await _das.GetConnectedProfileAttributeByType((int)AttributeTypes.ProfilePic, ProfileConstants.ConnectedProfileCategoryId);
+            var subset = await _das.GetAttributeCollectionSubset(ProfileConstants.ConnectedProfileAttributeCollectionId,
+                new[]
+                {
+                    ProfileConstants.ConnectedProfilePrimaryNameId,
+                    ProfileConstants.ConnectedProfilePhotoId
+                });
 
-            if (null == name)
-            {
-                return null;
-            }
-            
+            var name = (NameAttribute)subset.Single(s => s.Id == ProfileConstants.ConnectedProfilePrimaryNameId);
+            var profilePic = (ProfilePicAttribute)subset.Single(s => s.Id == ProfileConstants.ConnectedProfilePhotoId);
+
             var profile = new BasicProfileInfo()
             {
-                Name = (NameAttribute)name,
-                Photo = (ProfilePicAttribute) profilePic
+                Name = name,
+                Photo = profilePic
             };
 
             return profile;
-        }
-        
-        public Task<PagedResult<BaseAttribute>> GetConnectedProfileAttributeCollection(PageOptions pageOptions)
-        {
-            AssertCallerIsOwner();
-            throw new NotImplementedException();
         }
 
         public async Task<PagedResult<DataAttributeCategory>> GetCategories(PageOptions pageOptions)
@@ -126,6 +138,18 @@ namespace Youverse.Core.Services.Profile
         {
             AssertCallerIsOwner();
             return await _das.GetAttributes(pageOptions, categoryId);
+        }
+
+        public async Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions)
+        {
+            AssertCallerIsOwner();
+            return await _das.GetAttributeCollection(id, pageOptions);
+        }
+
+        public async Task SaveAttributeCollection(Guid id, params BaseAttribute[] attributes)
+        {
+            AssertCallerIsOwner();
+            await _das.SaveAttributeCollection(id, attributes);
         }
 
         private void AssertCallerIsOwner()

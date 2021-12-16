@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
@@ -16,7 +14,7 @@ namespace Youverse.Core.Services.Profile
         private readonly DotYouContext _context;
         private readonly ILogger<IOwnerDataAttributeReaderService> _logger;
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly OwnerDataAttributeStorage _das;
+        private readonly AttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
         public OwnerDataAttributeReaderService(DotYouContext context, ILogger<IOwnerDataAttributeReaderService> logger, ICircleNetworkService circleNetwork, ISystemStorage systemStorage)
@@ -25,12 +23,12 @@ namespace Youverse.Core.Services.Profile
             _logger = logger;
             _circleNetwork = circleNetwork;
             _systemStorage = systemStorage;
-            _das = new OwnerDataAttributeStorage(context, systemStorage);
+            _das = new AttributeStorage(context, systemStorage);
         }
 
-        public async Task<IList<BaseAttribute>> GetAttributeCollection(IEnumerable<Guid> idList)
+        public async Task<PagedResult<BaseAttribute>> GetAttributeCollection(Guid id, PageOptions pageOptions)
         {
-            var attributes = await _das.GetAttributeCollection(idList);
+            var attributes = await _das.GetAttributeCollection(id, pageOptions);
             return attributes;
         }
 
@@ -51,13 +49,15 @@ namespace Youverse.Core.Services.Profile
 
         public async Task<PagedResult<BaseAttribute>> GetProfile()
         {
-            if (await _circleNetwork.IsConnected(_context.Caller.DotYouId))
-            {
-                throw new NotImplementedException("");
-                //oProfile = await _das.GetConnectedProfile();
-            }
-
-            return await _das.GetPublicProfile(new PageOptions(1, 100));
+            throw new NotImplementedException("need to re-evaluate this given all of the profile refactoring");
+            // if (await _circleNetwork.IsConnected(_context.Caller.DotYouId))
+            // {
+            //     throw new NotImplementedException("");
+            //     //oProfile = await _das.GetConnectedProfile();
+            // }
+            //
+            //
+            // return await _das.GetPublicProfile(new PageOptions(1, 100));
         }
         
     }

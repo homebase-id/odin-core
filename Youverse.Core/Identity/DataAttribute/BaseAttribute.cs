@@ -3,7 +3,6 @@ using Newtonsoft.Json;
 
 namespace Youverse.Core.Identity.DataAttribute
 {
-    // XXX I'd like the Id and AttrType to be readonly 
     public abstract class BaseAttribute
     {
         [JsonProperty("id")]
@@ -12,6 +11,13 @@ namespace Youverse.Core.Identity.DataAttribute
         [JsonProperty("attributeType")]
         public abstract int AttributeType { get; set; }
 
+        /// <summary>
+        /// Enables grouping attributes (i.e. useful for a UI as section headers)  
+        /// </summary>
         public virtual Guid CategoryId { get; set; }
+        
+        public string Label { get; set; }
     }
+    
+    
 }
