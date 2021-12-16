@@ -11,6 +11,9 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Container;
+using Youverse.Core.Services.Container.Query;
+using Youverse.Core.Services.Container.Query.LiteDb;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
@@ -54,6 +57,11 @@ namespace Youverse.Hosting
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
 
+            
+            cb.RegisterType<ContainerResolver>().As<IContainerResolver>().SingleInstance();
+            cb.RegisterType<LiteDbContainerQueryService>().As<IContainerQueryService>().SingleInstance();
+            cb.RegisterType<LiteDbContainerMetaDataIndexer>().As<IContainerMetadataIndexer>().SingleInstance();
+            
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
