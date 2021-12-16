@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
@@ -13,16 +11,18 @@ namespace Youverse.Hosting.Controllers.YouAuth.Profile
     //TODO: add in Authorize tag when merging with seb
     public class YouAuthProfileDataController : Controller
     {
-        private readonly IProfileAttributeReaderService _attributeReaderService;
-        public YouAuthProfileDataController(IProfileAttributeReaderService attributeReaderService)
+        private readonly IProfileAttributeManagementService _profileAttributeService;
+
+        public YouAuthProfileDataController(IProfileAttributeManagementService profileAttributeService)
         {
-            _attributeReaderService = attributeReaderService;
+            _profileAttributeService = profileAttributeService;
         }
+
 
         [HttpGet]
         public async Task<IActionResult> GetList([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
-            var attributes = await _attributeReaderService.GetAttributes(new PageOptions(pageNumber, pageSize));
+            var attributes = await _profileAttributeService.GetAttributes(new PageOptions(pageNumber, pageSize));
             
             //Note: using object because: https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-polymorphism
             var collection = attributes.Results.Cast<object>();

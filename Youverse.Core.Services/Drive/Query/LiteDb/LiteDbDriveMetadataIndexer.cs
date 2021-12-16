@@ -10,13 +10,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveResolver _driveResolver;
-        private readonly IProfileAttributeReaderService _profileAttributeReader;
+        private readonly IProfileAttributeManagementService _profileAttributeService;
 
-        public LiteDbDriveMetadataIndexer(IDriveResolver driveResolver, ISystemStorage systemStorage, IProfileAttributeReaderService profileAttributeReader)
+        public LiteDbDriveMetadataIndexer(IDriveResolver driveResolver, ISystemStorage systemStorage, IProfileAttributeManagementService profileAttributeService)
         {
             _driveResolver = driveResolver;
             _systemStorage = systemStorage;
-            _profileAttributeReader = profileAttributeReader;
+            _profileAttributeService = profileAttributeService;
         }
 
         public async Task RebuildAll()
