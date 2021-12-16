@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject)
+        public async ValueTask<YouAuthSession> CreateSession(string subject)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
@@ -33,11 +33,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             var sessionId = Guid.NewGuid();
             var session = new YouAuthSession(sessionId, subject, _sessionlifetime);
+
             _mutex.EnterWriteLock();
             try
             {
+                // Delete existing session, if any
+                await InternalDeleteFromSubject(subject);
+
                 _sessionBySessionId[sessionId] = session;
                 _sessionBySubject[subject] = session;
+
                 // SEB:TODO storage
             }
             finally
@@ -45,7 +50,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 _mutex.ExitWriteLock();
             }
 
-            return new ValueTask<YouAuthSession>(session);
+            return session;
         }
 
         //
@@ -105,19 +110,32 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             _mutex.EnterWriteLock();
             try
             {
-                if (_sessionBySessionId.Remove(id, out YouAuthSession? session))
-                {
-                    _sessionBySubject.Remove(session.Subject);
-                    // SEB:TODO storage
-                }
+                return InternalDeleteFromId(id);
             }
             finally
             {
                 _mutex.ExitWriteLock();
             }
+        }
+
+        //
+
+        private ValueTask InternalDeleteFromId(Guid id)
+        {
+            if (!_mutex.IsWriteLockHeld)
+            {
+                throw new YouAuthException("Must call this while mutex has write lock!");
+            }
+
+            if (_sessionBySessionId.Remove(id, out YouAuthSession? session))
+            {
+                _sessionBySubject.Remove(session.Subject);
+                // SEB:TODO storage
+            }
 
             return new ValueTask();
         }
+
 
         //
 
@@ -126,15 +144,27 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             _mutex.EnterWriteLock();
             try
             {
-                if (_sessionBySubject.Remove(subject, out YouAuthSession? session))
-                {
-                    _sessionBySessionId.Remove(session.Id);
-                    // SEB:TODO storage
-                }
+                return InternalDeleteFromSubject(subject);
             }
             finally
             {
                 _mutex.ExitWriteLock();
+            }
+        }
+
+        //
+
+        private ValueTask InternalDeleteFromSubject(string subject)
+        {
+            if (!_mutex.IsWriteLockHeld)
+            {
+                throw new YouAuthException("Must call this while mutex has write lock!");
+            }
+
+            if (_sessionBySubject.Remove(subject, out YouAuthSession? session))
+            {
+                _sessionBySessionId.Remove(session.Id);
+                // SEB:TODO storage
             }
 
             return new ValueTask();
@@ -142,7 +172,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        // SEB:TODO some background worker has to call this periodically
         public ValueTask DeleteExpired()
         {
             List<YouAuthSession> expiredSessions;
