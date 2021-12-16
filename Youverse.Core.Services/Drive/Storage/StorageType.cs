@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Storage
+namespace Youverse.Core.Services.Drive.Storage
 {
     public enum StorageType
     {

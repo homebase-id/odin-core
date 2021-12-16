@@ -1,10 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Storage
+namespace Youverse.Core.Services.Drive.Storage
 {
     /// <summary>
     /// Handles the storage, retrieval, and management of <see cref="EncryptedFile"/>s

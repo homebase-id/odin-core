@@ -2,7 +2,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Services.Messaging
 {

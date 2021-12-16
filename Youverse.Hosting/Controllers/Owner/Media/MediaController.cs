@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner.Media

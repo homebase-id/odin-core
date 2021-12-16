@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Storage;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Upload
