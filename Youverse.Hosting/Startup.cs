@@ -79,6 +79,8 @@ namespace Youverse.Hosting
             
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
+                .AddYouAuthAuthentication()
+                .AddAppAuthentication()
                 .AddTransitPerimeterAuthentication();
             
             services.AddAuthorization(policy =>
