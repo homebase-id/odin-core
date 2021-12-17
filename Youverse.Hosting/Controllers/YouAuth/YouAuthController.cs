@@ -8,7 +8,8 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Util;
-using Youverse.Hosting.Security.Authentication.YouAuth;
+using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Authentication.YouAuth;
 
 #nullable enable
 namespace Youverse.Hosting.Controllers.YouAuth
@@ -24,38 +25,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
         }
-
-        //
-
-        [HttpGet(YouAuthDefaults.CreateTokenFlowPath)]
-        [Produces("application/json")]
-        [Authorize(Policy = DotYouPolicyNames.IsDigitalIdentityOwner)] // SEB:TODO this does 302 on access denied. It should do 403.
-        public async Task<ActionResult> CreateTokenFlow([FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
-        {
-            if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out Uri? uri))
-            {
-                return BadRequest($"Missing or bad returnUrl '{returnUrl}'");
-            }
-
-            var initiator = uri.Host;
-            var subject = _currentTenant;
-
-            var authorizationCode = await _youAuthService.CreateAuthorizationCode(initiator, subject);
-
-            var queryString = QueryString.Create(new Dictionary<string, string?>()
-            {
-                {YouAuthDefaults.AuthorizationCode, authorizationCode},
-                {YouAuthDefaults.Subject, subject},
-                {YouAuthDefaults.ReturnUrl, returnUrl},
-            });
-
-            var redirectUrl = $"https://{initiator}".UrlAppend(
-                YouAuthDefaults.ValidateAuthorizationCodeRequestPath,
-                queryString.ToUriComponent());
-
-            return new JsonResult(new { redirectUrl });
-        }
-
+        
         //
 
         [HttpGet(YouAuthDefaults.ValidateAuthorizationCodeRequestPath)]
@@ -128,7 +98,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthDefaults.IsAuthenticated)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthAuthenticationDefaults.Scheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -138,7 +108,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthDefaults.DeleteTokenPath)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthAuthenticationDefaults.Scheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
         public async Task<ActionResult> DeleteToken()
         {
             if (User?.Identity?.Name != null)
@@ -153,7 +123,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet("/home/youauth/test/resource")]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthAuthenticationDefaults.Scheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
         public ActionResult TestResource()
         {
             var subject = User?.Identity?.Name;

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 
-namespace Youverse.Hosting.Security.Authentication.YouAuth
+namespace Youverse.Hosting.Authentication.YouAuth
 {
     public class YouAuthAuthenticationSchemeOptions : AuthenticationSchemeOptions
     {

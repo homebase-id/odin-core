@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication.YouAuth;
 
-namespace Youverse.Hosting.Security.Authentication.YouAuth
+namespace Youverse.Hosting.Authentication.YouAuth
 {
     public class YouAuthAuthenticationHandler : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>
     {

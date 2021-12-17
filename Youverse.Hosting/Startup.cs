@@ -21,6 +21,7 @@ using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.YouAuth;
 using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
@@ -77,6 +78,7 @@ namespace Youverse.Hosting
             
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
+                .AddYouAuthAuthentication()
                 .AddTransitPerimeterAuthentication();
             
             services.AddAuthorization(policy =>
