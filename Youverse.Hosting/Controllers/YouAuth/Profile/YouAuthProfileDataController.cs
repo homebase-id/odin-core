@@ -1,14 +1,16 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Profile;
+using Youverse.Hosting.Authentication.YouAuth;
 
 namespace Youverse.Hosting.Controllers.YouAuth.Profile
 {
     [ApiController]
     [Route("/api/youauth/v1/profile")]
-    //TODO: add in Authorize tag when merging with seb
+    [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
     public class YouAuthProfileDataController : Controller
     {
         private readonly IProfileAttributeManagementService _profileAttributeService;
