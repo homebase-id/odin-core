@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
             Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument((string)header.Recipient, nameof(header.Recipient)).NotNull();
+            Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
             var request = new ConnectionRequest
@@ -65,8 +65,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() //this should not be required since it's set on the receiving end
             };
-            
-            var profile = await _mgts.GetBasicConnectedProfile() ?? BasicProfileInfo.Empty;
+
+            var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
             //TODO removed so I can test sending friend requests
             //Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.Recipient).DeliverConnectionRequest(request);
 
-            if (response.Content is { Success: false })
+            if (response.Content is {Success: false})
             {
                 //TODO: add more info
                 throw new Exception("Failed to establish connection request");
@@ -158,7 +158,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             //Now send back an acknowledgement by establishing a connection
 
-            var p = await _mgts.GetBasicConnectedProfile() ?? BasicProfileInfo.Empty;
+            var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
             AcknowledgedConnectionRequest acceptedReq = new()
             {
@@ -168,7 +168,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
 
-            if (!response.IsSuccessStatusCode || response.Content is not { Success: true })
+            if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
             {
                 //TODO: add more info and clarify
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");

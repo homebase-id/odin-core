@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Profile
             primaryName.Id = ProfileConstants.PublicProfilePrimaryNameId;
             photo.Id = ProfileConstants.PublicProfilePhotoId;
 
-            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) { primaryName, photo };
+            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) {primaryName, photo};
             return _das.SaveAttributeCollection(ProfileConstants.PublicProfileAttributeCollectionId, allAttributes);
         }
 
@@ -49,8 +49,8 @@ namespace Youverse.Core.Services.Profile
                     ProfileConstants.PublicProfilePhotoId
                 });
 
-            var name = (NameAttribute)subset.Single(s => s.Id == ProfileConstants.PublicProfilePrimaryNameId);
-            var profilePic = (ProfilePicAttribute)subset.Single(s => s.Id == ProfileConstants.PublicProfilePhotoId);
+            var name = (NameAttribute) subset.Single(s => s.Id == ProfileConstants.PublicProfilePrimaryNameId);
+            var profilePic = (ProfilePicAttribute) subset.Single(s => s.Id == ProfileConstants.PublicProfilePhotoId);
 
             var profile = new BasicProfileInfo()
             {
@@ -71,11 +71,11 @@ namespace Youverse.Core.Services.Profile
             primaryName.Id = ProfileConstants.ConnectedProfilePrimaryNameId;
             photo.Id = ProfileConstants.ConnectedProfilePhotoId;
 
-            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) { primaryName, photo };
+            var allAttributes = new List<BaseAttribute>(additionalAttributes ?? Array.Empty<BaseAttribute>()) {primaryName, photo};
             return _das.SaveAttributeCollection(ProfileConstants.ConnectedProfileAttributeCollectionId, allAttributes);
         }
 
-        public async Task<BasicProfileInfo> GetBasicConnectedProfile()
+        public async Task<BasicProfileInfo> GetBasicConnectedProfile(bool fallbackToEmpty = false)
         {
             AssertCallerIsOwner();
 
@@ -86,8 +86,19 @@ namespace Youverse.Core.Services.Profile
                     ProfileConstants.ConnectedProfilePhotoId
                 });
 
-            var name = (NameAttribute)subset.Single(s => s.Id == ProfileConstants.ConnectedProfilePrimaryNameId);
-            var profilePic = (ProfilePicAttribute)subset.Single(s => s.Id == ProfileConstants.ConnectedProfilePhotoId);
+
+            var name = (NameAttribute) subset.SingleOrDefault(s => s.Id == ProfileConstants.ConnectedProfilePrimaryNameId);
+            var profilePic = (ProfilePicAttribute) subset.SingleOrDefault(s => s.Id == ProfileConstants.ConnectedProfilePhotoId);
+
+            if (name == null)
+            {
+                if (fallbackToEmpty)
+                {
+                    return BasicProfileInfo.Empty;
+                }
+
+                return null;
+            }
 
             var profile = new BasicProfileInfo()
             {

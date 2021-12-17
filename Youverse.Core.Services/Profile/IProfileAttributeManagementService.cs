@@ -28,7 +28,8 @@ namespace Youverse.Core.Services.Profile
         /// <summary>
         /// Returns the most basic information for a connected profile.  Essentially it's name, photo, and anything else you use often.
         /// </summary>
-        Task<BasicProfileInfo> GetBasicConnectedProfile();
-                
+        /// <param name="fallbackToEmpty">An empty profile is returned if true; otherwise null is returned</param>
+        /// <returns></returns>
+        Task<BasicProfileInfo> GetBasicConnectedProfile(bool fallbackToEmpty = false);
     }
 }

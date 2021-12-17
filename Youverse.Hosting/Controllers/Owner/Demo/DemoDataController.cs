@@ -1,11 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Notifications;
-using Youverse.Core.Services.Profile;
-using Youverse.Services.Messaging.Demo;
 
 namespace Youverse.Hosting.Controllers.Owner.Demo
 {
@@ -14,19 +8,11 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
     //[Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DemoDataController : ControllerBase
     {
-        private IProfileService _profileService;
-        private IPrototrialDemoDataService _prototrial;
-        private IProfileAttributeManagementService _admin;
-        private NotificationHandler _notificationHandler;
-        private DotYouContext _dotYouContext;
+        private DemoDataGenerator _demoDataGenerator;
 
-        public DemoDataController(IProfileService profileService, IPrototrialDemoDataService prototrial, IProfileAttributeManagementService admin, NotificationHandler notificationHandler, DotYouContext dotYouContext)
+        public DemoDataController(DemoDataGenerator demoDataGenerator)
         {
-            _profileService = profileService;
-            _prototrial = prototrial;
-            _admin = admin;
-            _notificationHandler = notificationHandler;
-            _dotYouContext = dotYouContext;
+            _demoDataGenerator = demoDataGenerator;
         }
 
         [HttpGet("profiledata")]
@@ -34,14 +20,14 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
         {
             //await _notificationHandler.SendMessageToAllAsync($"I am a message from the DI of {_dotYouContext.HostDotYouId}.");
             
-            await _prototrial.SetProfiles();
+            await _demoDataGenerator.SetProfiles();
             return new JsonResult(true);
         }
 
         [HttpGet("connectionrequest")]
         public async Task<IActionResult> SendConnectionRequests()
         {
-            await _prototrial.AddConnectionRequests();
+            await _demoDataGenerator.AddConnectionRequests();
             return new JsonResult(true);
         }
     }

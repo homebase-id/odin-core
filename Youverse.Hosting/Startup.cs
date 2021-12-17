@@ -2,12 +2,9 @@ using System;
 using System.IO;
 using System.Text.Json.Serialization;
 using Autofac;
-using Dawn;
 using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -15,7 +12,6 @@ using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
@@ -27,7 +23,6 @@ using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
-using Youverse.Services.Messaging.Chat;
 
 namespace Youverse.Hosting
 {

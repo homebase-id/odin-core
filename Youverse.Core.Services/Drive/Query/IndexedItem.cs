@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Drive.Query
         public Guid CategoryId { get; set; }
 
         /// <summary>
-        /// The FileId of the data stored on disk in <see cref="IStorageService"/>
+        /// The FileId of the data stored on disk in <see cref="IStorageManager"/>
         /// </summary>
         public Guid FileId { get; set; }
 

@@ -15,16 +15,16 @@ namespace Youverse.Core.Services.Transit.Upload
     {
         private readonly DotYouContext _context;
         private readonly IEncryptionService _encryptionService;
-        private readonly IStorageService _storageService;
+        private readonly IStorageManager _storageManager;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
         private byte[] initializationVector;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageService storageService, IEncryptionService encryptionService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageManager storageManager, IEncryptionService encryptionService)
         {
             _context = context;
-            _storageService = storageService;
+            _storageManager = storageManager;
             _encryptionService = encryptionService;
             _packages = new Dictionary<Guid, UploadPackage>();
             _partCounts = new Dictionary<Guid, int>();
@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public Task<Guid> CreatePackage()
         {
             var pkgId = Guid.NewGuid();
-            _packages.Add(pkgId, new UploadPackage(_storageService.CreateId()));
+            _packages.Add(pkgId, new UploadPackage(_storageManager.CreateId()));
             _partCounts.Add(pkgId, 0);
             return Task.FromResult(pkgId);
         }
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
                 initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
 
-                await _storageService.WriteKeyHeader(pkg.FileId, encryptedKeyHeader, StorageType.Temporary);
+                await _storageManager.WriteKeyHeader(pkg.FileId, encryptedKeyHeader, StorageType.Temporary);
                 _partCounts[pkgId]++;
             }
             else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Transit.Upload
                     throw new InvalidDataException($"This header cannot be uploaded from client.  Use {MultipartSectionNames.TransferEncryptedKeyHeader} instead.");
                 }
 
-                await _storageService.WritePartStream(pkg.FileId, filePart, data, StorageType.Temporary);
+                await _storageManager.WritePartStream(pkg.FileId, filePart, data, StorageType.Temporary);
                 _partCounts[pkgId]++;
             }
 

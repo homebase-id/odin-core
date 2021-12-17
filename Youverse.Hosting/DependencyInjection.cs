@@ -26,9 +26,7 @@ using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Services.Messaging.Chat;
-using Youverse.Services.Messaging.Demo;
-using Youverse.Services.Messaging.Email;
+using Youverse.Hosting.Controllers.Owner.Demo;
 
 namespace Youverse.Hosting
 {
@@ -66,9 +64,7 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
             cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
-            cb.RegisterType<MessagingService>().As<IMessagingService>().SingleInstance();
-            cb.RegisterType<FileBasedStorageService>().As<IStorageService>().SingleInstance();
-            cb.RegisterType<ChatService>().As<IChatService>().SingleInstance();
+            cb.RegisterType<FileBasedStorageManager>().As<IStorageManager>().SingleInstance();
             cb.RegisterType<EncryptionService>().As<IEncryptionService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
@@ -79,7 +75,7 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
             cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
-            cb.RegisterType<PrototrialDemoDataService>().As<IPrototrialDemoDataService>().SingleInstance();
+            cb.RegisterType<DemoDataGenerator>().SingleInstance();
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

@@ -10,22 +10,20 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
-    public class FileBasedStorageService : IStorageService, IDisposable
+    public class FileBasedStorageManager : IStorageManager, IDisposable
     {
-        private readonly ILogger<FileBasedStorageService> _logger;
-        private readonly LiteDBSingleCollectionStorage<MediaMetaData> _storage;
+        private readonly ILogger<FileBasedStorageManager> _logger;
+
         private readonly DotYouContext _context;
         
         private const int WriteChunkSize = 1024;
         private const string CollectionName = "md";
-        private const string MediaRoot = "media";
 
-        public FileBasedStorageService(DotYouContext context, ILogger<FileBasedStorageService> logger) 
+        public FileBasedStorageManager(DotYouContext context, ILogger<FileBasedStorageManager> logger) 
         {
             _context = context;
             _logger = logger;
-            string path = PathUtil.Combine(context.StorageConfig.DataStoragePath, MediaRoot);
-            _storage = new LiteDBSingleCollectionStorage<MediaMetaData>(logger, path, CollectionName);
+            string path = PathUtil.Combine(context.StorageConfig.DataStoragePath);
         }
 
         public Guid CreateId()
@@ -197,138 +195,8 @@ namespace Youverse.Core.Services.Drive.Storage
             return new FileInfo(path).Length;
         }
 
-        public async Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false)
-        {
-            _logger.LogDebug($"SaveMedia called - size: {mediaData.Bytes.Length}");
-
-            if (!giveNewId && mediaData.Id == Guid.Empty)
-            {
-                throw new ArgumentException("Id is empty guid.  You must specify giveNewId = true if you pass in an empty guid.");
-            }
-
-            var id = giveNewId ? Guid.NewGuid() : mediaData.Id;
-
-            string path = GetMediaFilePath(id);
-
-            if (File.Exists(path))
-            {
-                throw new Exception($"Media with Id [{id}] already exists.");
-            }
-
-            Console.WriteLine($"Saving media to disk");
-
-            await using var fs = File.Create(path);
-            await fs.WriteAsync(mediaData.Bytes);
-
-            Console.WriteLine($"Saving metadata");
-
-            await _storage.Save(new MediaMetaData()
-            {
-                Id = id,
-                MimeType = mediaData.MimeType
-            });
-
-            _logger.LogDebug($"Image saved:{id}");
-            return id;
-        }
-
-        public async Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false, StorageType storageType = StorageType.LongTerm)
-        {
-            _logger.LogDebug($"SaveMedia - Stream Edition called - size: {stream.Length}");
-
-            if (!giveNewId && metaData.Id == Guid.Empty)
-            {
-                throw new ArgumentException("Id is not a valid guid (it's empty).  You must specify giveNewId = true if you pass in an empty guid.");
-            }
-
-            var id = giveNewId ? Guid.NewGuid() : metaData.Id;
-
-            string path = GetMediaFilePath(id);
-
-            if (File.Exists(path))
-            {
-                throw new Exception($"Media with Id [{id}] already exists.");
-            }
-
-            Console.WriteLine($"Saving media to disk");
-
-            await using var fs = File.Create(path);
-            await stream.CopyToAsync(fs);
-
-            Console.WriteLine($"Saving metadata");
-            metaData.Id = id; //be sure we use the new id
-            await _storage.Save(metaData);
-
-            _logger.LogDebug($"media saved:{id}");
-            return id;
-        }
-
-        public async Task<MediaData> GetMedia(Guid id)
-        {
-            var fileRecord = await _storage.Get(id);
-            if (null == fileRecord)
-            {
-                Console.WriteLine($"No file record found with ID [{id}]");
-                _logger.LogInformation($"No file record found with ID [{id}]");
-                return null;
-            }
-
-            string path = GetMediaFilePath(id);
-            if (File.Exists(path) == false)
-            {
-                Console.WriteLine($"Record exists for ID [{id}] but file not found");
-                _logger.LogInformation($"Record exists for ID [{id}] but file not found");
-                return null;
-            }
-
-            await using var fs = File.OpenRead(path);
-
-            Console.WriteLine($"Path opened at [{path}] with len [{fs.Length}]");
-            var bytes = new byte[fs.Length];
-            await fs.ReadAsync(bytes, 0, (int)fs.Length);
-
-            return new MediaData()
-            {
-                Id = fileRecord.Id,
-                MimeType = fileRecord.MimeType,
-                Bytes = bytes
-            };
-        }
-
-        public async Task<MediaMetaData> GetMetaData(Guid id, StorageType storageType = StorageType.LongTerm)
-        {
-            return await _storage.Get(id);
-        }
-
-        public Task<FileStream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm)
-        {
-            Console.WriteLine($"Streaming media for ID: [{id}]");
-            string path = GetMediaFilePath(id);
-            if (File.Exists(path) == false)
-            {
-                return null;
-            }
-
-            return Task.FromResult(File.OpenRead(path));
-        }
-
         public void Dispose()
         {
-            _storage?.Dispose();
-        }
-
-        private string GetMediaFilePath(Guid id)
-        {
-            string filename = id.ToString(); //TODO: how to handle extension and mimetype?
-            string path = PathUtil.Combine(GetMediaRoot(), filename);
-            return path;
-        }
-
-        private string GetMediaRoot()
-        {
-            string path = PathUtil.Combine(_context.StorageConfig.DataStoragePath, MediaRoot);
-            Directory.CreateDirectory(path);
-            return path;
         }
 
         private string GetFilePath(Guid id, FilePart part, StorageType storageType, bool ensureExists = false)

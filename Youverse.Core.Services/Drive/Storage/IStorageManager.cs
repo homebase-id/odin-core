@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Drive.Storage
     /// <summary>
     /// Handles the storage, retrieval, and management of <see cref="EncryptedFile"/>s
     /// </summary>
-    public interface IStorageService
+    public interface IStorageManager
     {
         /// <summary>
         /// Creates an Id for storing a file
@@ -22,17 +22,7 @@ namespace Youverse.Core.Services.Drive.Storage
         Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageType storageType = StorageType.LongTerm);
 
         Task<long> GetFileSize(Guid id, StorageType storageType = StorageType.LongTerm);
-
-        Task<Guid> SaveMedia(MediaData mediaData, bool giveNewId = false);
-
-        Task<Guid> SaveMedia(MediaMetaData metaData, Stream stream, bool giveNewId = false, StorageType storageType = StorageType.LongTerm);
-
-        Task<MediaData> GetMedia(Guid id);
-
-        Task<MediaMetaData> GetMetaData(Guid id, StorageType storageType = StorageType.LongTerm);
-
-        Task<FileStream> GetMediaStream(Guid id, StorageType storageType = StorageType.LongTerm);
-
+        
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
@@ -47,7 +37,6 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task<StorageType> GetStorageType(Guid fileId);
-
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.

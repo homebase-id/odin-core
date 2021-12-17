@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
-        private readonly IStorageService _storage;
+        private readonly IStorageManager _storage;
         private readonly IOutboxService _outboxService;
         private readonly IInboxService _inboxService;
         private readonly IEncryptionService _encryption;
@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit
         public TransitService(DotYouContext context,
             ILogger<TransitService> logger,
             IOutboxService outboxService,
-            IStorageService storage,
+            IStorageManager storage,
             IEncryptionService encryptionSvc,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
