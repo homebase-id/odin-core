@@ -11,12 +11,12 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Rebuilds the indexes for all configured drives.
         /// </summary>
-        Task RebuildAll();
+        Task RebuildAllIndices();
 
         
         /// <summary>
         /// Rebuilds the index for the specified drive
         /// </summary>
-        Task Rebuild(Guid driveId);
+        Task RebuildIndex(Guid driveId);
     }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -25,7 +27,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _context = context;
         }
 
-        public async Task RebuildAll()
+        public async Task RebuildAllIndices()
         {
             var page = await _driveResolver.GetDrives(new PageOptions(1, Int32.MaxValue));
 
@@ -36,18 +38,28 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        public async Task Rebuild(Guid driveId)
+        public async Task RebuildIndex(Guid driveId)
         {
             var container = await _driveResolver.Resolve(driveId);
             await RebuildInternal(container);
         }
 
-        private async Task RebuildInternal(DriveInfo drive)
+        private async Task RebuildInternal(StorageDrive storageDrive)
         {
-            //HACK:  until we convert data attributes to a real drive
-            if (drive.Id == DriveResolver.DataAttributeDriveId)
+            var status = await _driveResolver.ResolveStatus(storageDrive.Id);
+            
+            //TODO: How do i update the status?  which class?
+            var indexToUse = status.IndexInUse == IndexInUse.Primary ? IndexInUse.Secondary : IndexInUse.Primary;
+            var index = storageDrive.GetIndex(indexToUse);
+            Directory.Delete(index.IndexPath, true);
+            Directory.Delete(index.PermissionIndexPath, true);
+            Directory.CreateDirectory(index.IndexPath);
+            Directory.CreateDirectory(index.PermissionIndexPath);
+
+            //HACK: until we convert data attributes to a real drive
+            if (storageDrive.Id == DriveResolver.DataAttributeDriveId)
             {
-                await RebuildDataAttributes(drive);
+                await RebuildDataAttributes(storageDrive, index);
                 return;
             }
 
@@ -59,11 +71,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             //  create IndexedItem
         }
 
-        private async Task RebuildDataAttributes(DriveInfo drive)
+        private async Task RebuildDataAttributes(StorageDrive storageDrive, StorageDriveIndex index)
         {
             //_profileAttributeReader.GetAttributes()
 
-            using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, drive.IndexPath, drive.IndexName);
+            using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, index.IndexPath, index.IndexName);
             var indexedItem = new IndexedItem()
             {
                 Id = Guid.NewGuid(),
@@ -76,7 +88,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             await indexStorage.Save(indexedItem);
 
-            using var indexPermissionStorage = new LiteDBSingleCollectionStorage<IndexedItemPermissionGrant>(_logger, drive.PermissionIndexPath, drive.PermissionIndexName);
+            using var indexPermissionStorage = new LiteDBSingleCollectionStorage<IndexedItemPermissionGrant>(_logger, index.PermissionIndexPath, index.PermissionIndexName);
 
             var permission = new IndexedItemPermissionGrant()
             {

@@ -10,43 +10,45 @@ namespace Youverse.Core.Services.Drive
     {
         //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
         public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
-
+        private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
 
-        public DriveResolver(DotYouContext context)
+        private const string DriveStatusCollection = "drive_stat";
+
+        public DriveResolver(DotYouContext context, ISystemStorage systemStorage)
         {
             _context = context;
+            _systemStorage = systemStorage;
         }
 
-        public Task<DriveInfo> Resolve(Guid driveId)
+        public Task<StorageDrive> Resolve(Guid driveId)
         {
             var driveRootPath = Path.Combine(_context.StorageConfig.DataStoragePath, driveId.ToString("N"));
-            var indexRootPath = Path.Combine(driveRootPath, "_idx");
-            var indexName = $"d_idx";
-            var permissionIndexName = $"d_prm_idx";
-            
-            var drive = new DriveInfo()
+
+            var drive = new StorageDrive()
             {
                 Id = driveId,
                 RootPath = driveRootPath,
-                IndexName = indexName,  //format is based on what litedb supports for collection names as that's what we used at inception
-                PermissionIndexName = permissionIndexName,
-                IndexPath = Path.Combine(indexRootPath, indexName),
-                PermissionIndexPath = Path.Combine(indexRootPath, permissionIndexName)
             };
 
             return Task.FromResult(drive);
         }
 
-        public Task<PagedResult<DriveInfo>> GetDrives(PageOptions pageOptions)
+        public async Task<StorageDriveStatus> ResolveStatus(Guid driveId)
+        {
+            var status = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveStatus>(DriveStatusCollection, s => s.Get(driveId));
+            return status;
+        }
+
+        public Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
         {
             //TODO:looks these up somewhere
-            var page = new PagedResult<DriveInfo>()
+            var page = new PagedResult<StorageDrive>()
             {
                 Request = pageOptions,
-                Results = new List<DriveInfo>()
+                Results = new List<StorageDrive>()
                 {
-                    new DriveInfo()
+                    new StorageDrive()
                     {
                         Id = DataAttributeDriveId
                     }

@@ -18,8 +18,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
-            var container = await _driveResolver.Resolve(driveId);
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(container.IndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
+            var drive = await _driveResolver.Resolve(driveId);
+            var ds = await _driveResolver.ResolveStatus(driveId);
+            
+            drive.GetIndex()
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(drive.IndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
             
             //apply permissions from the permissions index to reduce the set.
             //
@@ -35,15 +38,15 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
-            var container = await _driveResolver.Resolve(driveId);
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(container.IndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
-
-            if (!includeContent)
-            {
-                StripContent(ref page);
-            }
-
-            return page;
+            // var container = await _driveResolver.Resolve(driveId);
+            // var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(container.IndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
+            //
+            // if (!includeContent)
+            // {
+            //     StripContent(ref page);
+            // }
+            //
+            // return page;
         }
 
         private void StripContent(ref PagedResult<IndexedItem> page)

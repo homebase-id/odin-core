@@ -23,14 +23,14 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
         [HttpPost("rebuildall")]
         public async Task<bool> RebuildAll()
         {
-            await _indexer.RebuildAll();
+            await _indexer.RebuildAllIndices();
             return true;
         }
         
         [HttpPost("rebuild")]
         public async Task<bool> Rebuild(Guid driveId)
         {
-            await _indexer.Rebuild(driveId);
+            await _indexer.RebuildIndex(driveId);
             return true;
         }
     }
