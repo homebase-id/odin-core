@@ -21,6 +21,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             var container = await _driveResolver.Resolve(driveId);
             var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(container.IndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
             
+            //apply permissions from the permissions index to reduce the set.
+            //
+            
+            
             if (!includeContent)
             {
                 StripContent(ref page);

@@ -6,7 +6,7 @@ using Youverse.Core.Services.Transit.Encryption;
 namespace Youverse.Core.Services.Drive.Storage
 {
     /// <summary>
-    /// Handles the storage, retrieval, and management of <see cref="EncryptedFile"/>s
+    /// Handles the storage, retrieval, and management of data storage.
     /// </summary>
     public interface IStorageManager
     {
@@ -19,9 +19,9 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>
-        Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageType storageType = StorageType.LongTerm);
+        Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
-        Task<long> GetFileSize(Guid id, StorageType storageType = StorageType.LongTerm);
+        Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
@@ -29,50 +29,50 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <param name="fileId"></param>
         /// <param name="filePart"></param>
         /// <returns></returns>
-        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageType storageType = StorageType.LongTerm);
+        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Get the <see cref="StorageType"/> for the specified  <param name="fileId"></param>
+        /// Get the <see cref="StorageDisposition"/> for the specified  <param name="fileId"></param>
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
-        Task<StorageType> GetStorageType(Guid fileId);
+        Task<StorageDisposition> GetStorageType(Guid fileId);
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
-        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageType storageType = StorageType.LongTerm);
+        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
         /// <param name="fileId"></param>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
-        void AssertFileIsValid(Guid fileId, StorageType storageType = StorageType.LongTerm);
+        void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Deletes all parts matching <param name="fileId"></param>
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
-        Task Delete(Guid fileId, StorageType storageType = StorageType.LongTerm);
+        Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageType.LongTerm"/>
+        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.LongTerm"/>
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task MoveToLongTerm(Guid fileId);
 
         /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageType.Temporary"/>
+        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.Temporary"/>
         /// </summary>
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task MoveToTemp(Guid fileId);
 
-        Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageType storageType = StorageType.LongTerm);
+        Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
     }
 }

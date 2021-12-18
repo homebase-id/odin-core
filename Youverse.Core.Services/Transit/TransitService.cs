@@ -54,10 +54,10 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
         {
-            _storage.AssertFileIsValid(package.FileId, StorageType.Unknown);
+            _storage.AssertFileIsValid(package.FileId, StorageDisposition.Unknown);
 
             var storageType = await _storage.GetStorageType(package.FileId);
-            if (storageType == StorageType.Temporary)
+            if (storageType == StorageDisposition.Temporary)
             {
                 await _storage.MoveToLongTerm(package.FileId);
             }

@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
                 initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
 
-                await _storageManager.WriteKeyHeader(pkg.FileId, encryptedKeyHeader, StorageType.Temporary);
+                await _storageManager.WriteKeyHeader(pkg.FileId, encryptedKeyHeader, StorageDisposition.Temporary);
                 _partCounts[pkgId]++;
             }
             else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Transit.Upload
                     throw new InvalidDataException($"This header cannot be uploaded from client.  Use {MultipartSectionNames.TransferEncryptedKeyHeader} instead.");
                 }
 
-                await _storageManager.WritePartStream(pkg.FileId, filePart, data, StorageType.Temporary);
+                await _storageManager.WritePartStream(pkg.FileId, filePart, data, StorageDisposition.Temporary);
                 _partCounts[pkgId]++;
             }
 

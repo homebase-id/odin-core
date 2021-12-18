@@ -1,6 +1,6 @@
 namespace Youverse.Core.Services.Drive.Storage
 {
-    public enum StorageType
+    public enum StorageDisposition
     {
         Unknown = 0,
         Temporary = 1,

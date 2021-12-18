@@ -185,7 +185,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
             //remove all other file parts
-            _fileStorage.Delete(tracker.FileId.GetValueOrDefault(), StorageType.Temporary);
+            _fileStorage.Delete(tracker.FileId.GetValueOrDefault(), StorageDisposition.Temporary);
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -219,7 +219,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 tracker.SetFileId(_fileStorage.CreateId());
             }
 
-            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data, StorageType.Temporary);
+            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()
