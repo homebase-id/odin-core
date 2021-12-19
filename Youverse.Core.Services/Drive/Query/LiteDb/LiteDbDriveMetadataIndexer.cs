@@ -15,24 +15,29 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     /// </summary>
     public class LiteDbDriveMetadataIndexer
     {
-        private readonly ILogger<LiteDbDriveMetadataIndexer> _logger;
+        private readonly ILogger _logger;
         private readonly StorageDrive _storageDrive;
         
         private readonly IStorageManager _storageManager;
         private readonly IGranteeResolver _granteeResolver;
         private readonly IProfileAttributeManagementService _profileAttributeService;
 
-        public LiteDbDriveMetadataIndexer(StorageDrive storageDrive, IProfileAttributeManagementService profileAttributeService, IGranteeResolver granteeResolver, IStorageManager storageManager)
+        public LiteDbDriveMetadataIndexer(StorageDrive storageDrive, IProfileAttributeManagementService profileAttributeService, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger logger)
         {
             _storageDrive = storageDrive;
             _profileAttributeService = profileAttributeService;
             _granteeResolver = granteeResolver;
             _storageManager = storageManager;
+            _logger = logger;
         }
 
         public async Task Rebuild(StorageDriveIndex index)
         {
-            Directory.Delete(index.IndexRootPath, true);
+            if (Directory.Exists(index.IndexRootPath))
+            {
+                Directory.Delete(index.IndexRootPath, true);
+            }
+            
             Directory.CreateDirectory(index.IndexRootPath);
 
             //HACK: until we convert data attributes to a real drive

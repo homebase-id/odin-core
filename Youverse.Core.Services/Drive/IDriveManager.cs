@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Drive
     /// </summary>
     public interface IDriveManager
     {
-        Task<StorageDrive> GetDrive(Guid driveId);
+        Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         /// <summary>
         /// Returns a list of the containers in the system

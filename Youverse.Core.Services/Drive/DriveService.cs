@@ -45,10 +45,9 @@ namespace Youverse.Core.Services.Drive
 
         public Task RebuildIndex(Guid driveId)
         {
-            //TODO: need to build in status system indicating when an index is already being rebuilt
-            if (_indexManagers.TryGetValue(driveId, out var mgr))
+            if (TryGetOrLoadIndexManager(driveId, out var manager, onlyReadyManagers: false).GetAwaiter().GetResult())
             {
-                mgr.RebuildIndex();
+                manager.RebuildIndex();
             }
 
             return Task.CompletedTask;
@@ -58,7 +57,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
-            if (TryGetOrLoadIndexManager(driveId, out var indexManager).GetAwaiter().GetResult())
+            if (TryGetOrLoadIndexManager(driveId, out var indexManager).GetAwaiter().GetResult() && indexManager.IndexReadyState == IndexReadyState.Ready)
             {
                 return await indexManager.GetRecentlyCreatedItems(includeContent, pageOptions);
             }
@@ -85,31 +84,40 @@ namespace Youverse.Core.Services.Drive
             }
         }
 
-        private Task<bool> TryGetOrLoadIndexManager(Guid driveId, out IDriveIndexManager manager)
+        private Task<bool> TryGetOrLoadIndexManager(Guid driveId, out IDriveIndexManager manager, bool onlyReadyManagers = true)
         {
-            var drive = _driveManager.GetDrive(driveId).GetAwaiter().GetResult();
-
-            if (_indexManagers.TryGetValue(drive.Id, out manager))
+            if (_indexManagers.TryGetValue(driveId, out manager))
             {
+                if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.NotAvailable)
+                {
+                    manager = null;
+                    return Task.FromResult(false);
+                }
+
                 return Task.FromResult(true);
             }
 
-            return LoadIndexManager(drive, out manager);
+            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            LoadIndexManager(drive, out manager);
+
+            if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.NotAvailable)
+            {
+                manager = null;
+                return Task.FromResult(false);
+            }
+
+            return Task.FromResult(true);
         }
 
-        private Task<bool> LoadIndexManager(StorageDrive drive, out IDriveIndexManager manager)
+        private Task LoadIndexManager(StorageDrive drive, out IDriveIndexManager manager)
         {
-            var dim = new LiteDbDriveIndexManager(drive, _systemStorage, _profileSvc, _granteeResolver, _storageManager);
-            dim.LoadLatestIndex().GetAwaiter().GetResult();
-            if (dim.IndexReadyState == IndexReadyState.Ready)
-            {
-                _indexManagers.TryAdd(drive.Id, dim);
-                manager = dim;
-                return Task.FromResult(true);
-            }
+            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _profileSvc, _granteeResolver, _storageManager);
 
-            manager = null;
-            return Task.FromResult(false);
+            //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
+            _indexManagers.TryAdd(drive.Id, manager);
+            manager.LoadLatestIndex().GetAwaiter().GetResult();
+
+            return Task.CompletedTask;
         }
     }
 }

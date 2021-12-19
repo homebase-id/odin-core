@@ -14,6 +14,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
@@ -54,10 +55,11 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
-            
+
+            cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveManager>().As<IDriveManager>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
-            
+
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();

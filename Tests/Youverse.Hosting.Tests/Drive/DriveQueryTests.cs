@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
@@ -29,6 +30,30 @@ namespace Youverse.Hosting.Tests.Drive
         }
 
         [Test]
+        public async Task FailsWhenNoValidIndex()
+        {
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            {
+                try
+                {
+                    var svc = RestService.For<IOwnerDriveQueryClient>(client);
+                    var response = await svc.GetRecentlyCreatedItems(_driveId, true, 1, 100);
+                }
+                catch (ValidationApiException e)
+                {
+                    Assert.Pass("");
+                    return;
+                }
+                catch (Exception e2)
+                {
+                    string x = "";
+                }
+                
+                Assert.Fail();
+            }
+        }
+
+        [Test]
         public async Task CanQueryDriveByCategory()
         {
         }
@@ -46,13 +71,16 @@ namespace Youverse.Hosting.Tests.Drive
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
                 await indexMgmtSvc.Rebuild(_driveId);
 
+                //HACK: wait on index to be ready
+                Thread.Sleep(2000);
+                
                 var svc = RestService.For<IOwnerDriveQueryClient>(client);
 
                 var response = await svc.GetRecentlyCreatedItems(_driveId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
-                
+
                 //TODO: what to test here?
                 Assert.IsTrue(page.Results.Count > 0);
             }

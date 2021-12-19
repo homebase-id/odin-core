@@ -29,12 +29,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
             _storageManager = storageManager;
-
+            this.Drive = drive;
+            
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.RootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.RootPath);
 
-            this.Drive = drive;
-            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, profileSvc, granteeResolver, storageManager);
+            //TODO: pickup here:
+            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, profileSvc, granteeResolver, storageManager, logger:null);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
@@ -109,7 +110,16 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
 
             _isRebuilding = true;
-            var indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
+            StorageDriveIndex indexToRebuild;
+            if (_currentIndex == null)
+            {
+                indexToRebuild = _primaryIndex;
+            }
+            else
+            {
+                indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
+            }
+            
             await _indexer.Rebuild(indexToRebuild);
             SetCurrentIndex(indexToRebuild);
             _isRebuilding = false;
@@ -124,7 +134,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 _indexReadyState = IndexReadyState.Ready;
             }
 
-            _indexReadyState = IndexReadyState.NoAvailableIndex;
+            _indexReadyState = IndexReadyState.NotAvailable;
         }
 
         private bool IsValidIndex(StorageDriveIndex index)

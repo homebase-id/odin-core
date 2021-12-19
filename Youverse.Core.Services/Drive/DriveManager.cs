@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -14,7 +13,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
 
-        private const string DriveStatusCollection = "drive_stat";
+        private const string DriveCollectionName = "drives";
 
         public DriveManager(DotYouContext context, ISystemStorage systemStorage)
         {
@@ -22,7 +21,7 @@ namespace Youverse.Core.Services.Drive
             _systemStorage = systemStorage;
         }
 
-        public Task<StorageDrive> GetDrive(Guid driveId)
+        public Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
             var driveRootPath = Path.Combine(_context.StorageConfig.DataStoragePath, driveId.ToString("N"));
 
@@ -32,21 +31,24 @@ namespace Youverse.Core.Services.Drive
                 RootPath = driveRootPath,
             };
 
+            if (null == drive && failIfInvalid)
+            {
+                throw new InvalidDriveException(driveId);
+            }
+
             return Task.FromResult(drive);
         }
-        
+
         public Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
         {
+            var d = GetDrive(DataAttributeDriveId).GetAwaiter().GetResult();
             //TODO:looks these up somewhere
             var page = new PagedResult<StorageDrive>()
             {
                 Request = pageOptions,
                 Results = new List<StorageDrive>()
                 {
-                    new StorageDrive()
-                    {
-                        Id = DataAttributeDriveId
-                    }
+                    d
                 },
                 TotalPages = 1
             };

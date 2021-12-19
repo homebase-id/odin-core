@@ -20,4 +20,17 @@ namespace Youverse.Core.Services.Drive.Security
         Task<GranteeIdentity> Resolve(Guid id);
 
     }
+
+    public class GranteeResolver : IGranteeResolver
+    {
+        public Task<GranteeIdentity> Resolve(string domainIdentity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<GranteeIdentity> Resolve(Guid id)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
