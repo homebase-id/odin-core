@@ -6,19 +6,14 @@ namespace Youverse.Core.Services.Drive
     /// <summary>
     /// Resolves information about a container.
     /// </summary>
-    public interface IDriveResolver
+    public interface IDriveManager
     {
-        Task<StorageDrive> Resolve(Guid driveId);
+        Task<StorageDrive> GetDrive(Guid driveId);
 
         /// <summary>
         /// Returns a list of the containers in the system
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions);
-
-        /// <summary>
-        /// Gets the latest status for a <see cref="StorageDrive"/>
-        /// </summary>
-        Task<StorageDriveStatus> ResolveStatus(Guid driveId);
     }
 }

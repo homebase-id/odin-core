@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Tests.Drive
     public class DriveQueryTests
     {
         private TestScaffold _scaffold;
-        private readonly Guid _driveId = DriveResolver.DataAttributeDriveId;
+        private readonly Guid _driveId = DriveManager.DataAttributeDriveId;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()

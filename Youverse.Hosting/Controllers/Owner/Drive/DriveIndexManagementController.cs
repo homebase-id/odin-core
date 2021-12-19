@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Hosting.Authentication.Owner;
 
@@ -13,24 +14,24 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DriveIndexManagementController : ControllerBase
     {
-        private readonly IDriveMetadataIndexer _indexer;
+        private readonly IDriveService _driveService;
 
-        public DriveIndexManagementController(IDriveMetadataIndexer indexer)
+        public DriveIndexManagementController(IDriveService driveService)
         {
-            _indexer = indexer;
+            _driveService = driveService;
         }
         
         [HttpPost("rebuildall")]
         public async Task<bool> RebuildAll()
         {
-            await _indexer.RebuildAllIndices();
+            await _driveService.RebuildAllIndices();
             return true;
         }
         
         [HttpPost("rebuild")]
         public async Task<bool> Rebuild(Guid driveId)
         {
-            await _indexer.RebuildIndex(driveId);
+            await _driveService.RebuildIndex(driveId);
             return true;
         }
     }
