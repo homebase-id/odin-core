@@ -14,7 +14,6 @@ namespace Youverse.Core.Services.Drive
         private readonly string _folderName;
         
         private readonly StorageDriveBase _inner;
-        
 
         public StorageDrive(string longTermDataRootPath, string tempDataRootPath, StorageDriveBase inner)
         {

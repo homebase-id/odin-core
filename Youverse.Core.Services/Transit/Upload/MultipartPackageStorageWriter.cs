@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public Task<Guid> CreatePackage()
         {
             var pkgId = Guid.NewGuid();
-            _packages.Add(pkgId, new UploadPackage(_storageManager.CreateFileId()));
+            _packages.Add(pkgId, new UploadPackage(_storageManager.CreateFileId(driveId)));
             _partCounts.Add(pkgId, 0);
             return Task.FromResult(pkgId);
         }

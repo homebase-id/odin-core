@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Http;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using AppContext = Youverse.Core.Services.Base.AppContext;
@@ -57,8 +59,14 @@ namespace Youverse.Hosting.Middleware
             var appId = user.FindFirstValue(DotYouClaimTypes.AppId);
             var deviceUid = user.FindFirstValue(DotYouClaimTypes.DeviceUid);
             bool isAdminApp = bool.Parse(user.FindFirstValue(DotYouClaimTypes.IsAdminApp) ?? bool.FalseString);
-            var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp);
+            
+            //todo: Lookup from app registration
+            var driveId = ProfileIndexManager.DataAttributeDriveId;
 
+            var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp, driveId);
+            
+            //how to specify the destination drive?
+            
             dotYouContext.HostDotYouId = (DotYouIdentity)tenant.Name;
             dotYouContext.AppContext = app;
             dotYouContext.Caller = caller;
