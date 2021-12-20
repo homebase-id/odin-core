@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ISystemStorage _systemStorage;
 
         public TransitPerimeterService(
-            DotYouContext context, 
+            DotYouContext context,
             ILogger<ITransitPerimeterService> logger,
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
@@ -56,14 +56,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 throw new InvalidDataException("Corresponding part has been rejected");
             }
 
-            if (tracker.HasAcquiredQuarantinedPart()) 
+            if (tracker.HasAcquiredQuarantinedPart())
             {
                 //quarantine the rest
                 return await QuarantinePart(tracker, part, data);
             }
 
             var filterResponse = await _quarantineService.ApplyFirstStageFilters(tracker.Id, part, data);
-    
+
             switch (filterResponse.Code)
             {
                 case FinalFilterAction.Accepted:
@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (tracker.IsCompleteAndValid())
             {
-                _transitService.Accept(tracker.Id, tracker.FileId.GetValueOrDefault());
+                _transitService.Accept(tracker.Id, tracker.File.GetValueOrDefault());
 
                 var result = new CollectiveFilterResult()
                 {
@@ -186,7 +186,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
             //remove all other file parts
-            _fileStorage.Delete(tracker.FileId.GetValueOrDefault(), StorageDisposition.Temporary);
+            _fileStorage.Delete(tracker.File.GetValueOrDefault(), StorageDisposition.Temporary);
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -211,16 +211,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             data.Position = 0;
             tracker.SetAccepted(part);
-
-            //write the part to long term storage but it will not be complete or accessible until we
-            //tell the transit service to complete the transfer
-
-            if (!tracker.FileId.HasValue)
+            
+            //TODO: validate 
+            if (tracker.File == null)
             {
-                tracker.SetFileId(_fileStorage.CreateFileId());
+                tracker.SetStorageInfo(_fileStorage.CreateFileId(_context.AppContext.DriveId));
             }
 
-            await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
+            await _fileStorage.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()
@@ -230,8 +228,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             return result;
         }
-        
-                private struct PartState
+
+        private struct PartState
         {
             /// <summary>
             /// Specifies the part has been provided to the perimeter service
@@ -273,8 +271,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 this.Id = id;
             }
 
+            /// <summary>
+            /// The id of this tracker
+            /// </summary>
             public Guid Id { get; init; }
-            public Guid? FileId { get; set; }
+
+            public DriveFileId? File { get; set; }
 
             public PartState HeaderState;
             public PartState MetadataState;
@@ -322,19 +324,17 @@ namespace Youverse.Core.Services.Transit.Quarantine
             /// <summary>
             /// Sets the FileId to be used when storing the file
             /// </summary>
-            /// <param name="id"></param>
-            public void SetFileId(Guid id)
+            public void SetStorageInfo(DriveFileId file)
             {
-                Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
+                Guard.Argument(file, nameof(file)).Require(file.IsValid());
 
-                if (FileId.HasValue)
+                if (File.HasValue)
                 {
-                    throw new Exception("FileId is already set");
+                    throw new Exception("Drive and/or FileId is already set");
                 }
 
-                FileId = id;
+                File = file;
             }
         }
-
     }
 }

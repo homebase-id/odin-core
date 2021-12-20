@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -19,8 +20,8 @@ namespace Youverse.Core.Services.Transit
         /// Accepts an incoming transfer as complete and valid.
         /// </summary>
         /// <param name="trackerId">The trackerId to be used during auditing</param>
-        /// <param name="fileId">The file Id in storage</param>
-        void Accept(Guid trackerId, Guid fileId);
+        /// <param name="file">The file Id in storage</param>
+        void Accept(Guid trackerId, DriveFileId file);
 
         /// <summary>
         /// Sends a collection if <see cref="OutboxItem"/>s

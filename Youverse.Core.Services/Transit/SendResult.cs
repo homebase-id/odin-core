@@ -1,5 +1,6 @@
 ﻿using System;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -10,7 +11,7 @@ namespace Youverse.Core.Services.Transit
 
         public TransferFailureReason? FailureReason { get; set; }
 
-        public Guid FileId { get; set; }
+        public DriveFileId File { get; set; }
 
         public UInt64 Timestamp { get; set; }
         public Guid OutboxItemId { get; set; }

@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// Prepares an item to be collected and returns an Id you will use to send parts of an upload as they are received.
         /// </summary>
         /// <returns></returns>
-        Task<Guid> CreatePackage();
+        Task<Guid> CreatePackage(Guid driveId);
 
         /// <summary>
         /// Accepts a part of a Multipart stream.  When all required parts are received

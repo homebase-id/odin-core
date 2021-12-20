@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Inbox
 {
@@ -33,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Inbox
         /// <param name="recipient"></param>
         /// <param name="fileId"></param>
         /// <returns></returns>
-        Task Remove(DotYouIdentity recipient, Guid fileId);
+        Task Remove(DotYouIdentity recipient, DriveFileId file);
 
         Task<InboxItem> GetItem(Guid id);
 

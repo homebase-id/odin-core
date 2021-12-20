@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Outbox
@@ -102,12 +103,18 @@ namespace Youverse.Core.Services.Transit.Outbox
             return await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
         }
 
-        public async Task Remove(DotYouIdentity recipient, Guid fileId)
+        public async Task Remove(DotYouIdentity recipient, DriveFileId file)
         {
             //TODO: need to make a better queue here
-            Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.FileId == fileId;
+            Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.File == file;
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
             _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
+        }
+        
+        public Task Remove(Guid id)
+        {
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
+            return Task.CompletedTask;
         }
 
         public async Task<OutboxItem> GetItem(Guid id)

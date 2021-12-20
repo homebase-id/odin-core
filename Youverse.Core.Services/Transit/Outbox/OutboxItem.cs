@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
@@ -11,6 +13,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             this.Id = Guid.NewGuid();
             this.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             this.Attempts = new List<TransferAttempt>();
+            this.File = new DriveFileId();
         }
 
         public Guid Id { get; set; }
@@ -26,8 +29,8 @@ namespace Youverse.Core.Services.Transit.Outbox
         public string DeviceUid { get; set; }
         
         public DotYouIdentity Recipient { get; set; }
-
-        public Guid FileId { get; set; }
+        
+        public DriveFileId File { get; set; }
         
         /// <summary>
         /// Specifies how this item should be prioritized by the Outbox Sending

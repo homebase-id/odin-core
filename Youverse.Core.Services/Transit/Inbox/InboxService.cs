@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Inbox
@@ -59,10 +60,10 @@ namespace Youverse.Core.Services.Transit.Inbox
             return await _systemStorage.WithTenantSystemStorageReturnList<InboxItem>(InboxItemsCollection, s => s.GetList(pageOptions));
         }
 
-        public async Task Remove(DotYouIdentity recipient, Guid fileId)
+        public async Task Remove(DotYouIdentity recipient, DriveFileId file)
         {
             //TODO: need to make a better queue here
-            Expression<Func<InboxItem, bool>> predicate = item => item.Sender == recipient && item.FileId == fileId;
+            Expression<Func<InboxItem, bool>> predicate = item => item.Sender == recipient && item.File == file;
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.FindOne(predicate));
             _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(item.Id));
         }

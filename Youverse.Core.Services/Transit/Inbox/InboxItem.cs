@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Inbox
 {
@@ -22,7 +23,7 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         public DotYouIdentity Sender { get; set; }
 
-        public Guid FileId { get; set; }
+        public DriveFileId File { get; set; }
 
         /// <summary>
         /// The Id used to track the reception of this inbox item

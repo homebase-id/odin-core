@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -7,14 +8,14 @@ namespace Youverse.Core.Services.Transit.Upload
     /// </summary>
     public class UploadPackage
     {
-        public UploadPackage(Guid fileId)
+        public UploadPackage(DriveFileId fileId)
         {
-            this.FileId = fileId;
+            this.File = fileId;
         }
 
         public RecipientList RecipientList { get; set; }
-        
-        public Guid FileId { get; set; }
-        
+
+        public DriveFileId File { get; set; }
+
     }
 }

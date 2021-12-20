@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit
         private readonly ILogger<TransitService> _logger;
         private readonly ISystemStorage _systemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        
+
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
@@ -38,8 +38,8 @@ namespace Youverse.Core.Services.Transit
             IEncryptionService encryptionSvc,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
-            IInboxService inboxService, 
-            ISystemStorage systemStorage, 
+            IInboxService inboxService,
+            ISystemStorage systemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
         {
             _context = context;
@@ -55,12 +55,12 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
         {
-            _storage.AssertFileIsValid(package.FileId, StorageDisposition.Unknown);
+            _storage.AssertFileIsValid(package.File, StorageDisposition.Unknown);
 
-            var storageType = await _storage.GetStorageType(package.FileId);
+            var storageType = await _storage.GetStorageType(package.File);
             if (storageType == StorageDisposition.Temporary)
             {
-                await _storage.MoveToLongTerm(package.FileId);
+                await _storage.MoveToLongTerm(package.File);
             }
 
             //TODO: consider if the recipient transfer key header should go directly in the outbox
@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Transit
             //that will pick up the items and attempt to send.
             await _outboxService.Add(package.RecipientList.Recipients.Select(r => new OutboxItem()
             {
-                FileId = package.FileId,
+                File = package.File,
                 Recipient = r,
                 AppId = this._context.AppContext.AppId,
                 DeviceUid = this._context.AppContext.DeviceUid
@@ -82,18 +82,18 @@ namespace Youverse.Core.Services.Transit
 
             var result = new TransferResult()
             {
-                FileId = package.FileId,
+                FileId = package.File.FileId,
                 RecipientStatus = keyStatus
             };
 
             return result;
         }
 
-        public void Accept(Guid trackerId, Guid fileId)
+        public void Accept(Guid trackerId, DriveFileId file)
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
 
-            _logger.LogInformation($"TransitService.Accept fileId:{fileId}");
+            _logger.LogInformation($"TransitService.Accept fileId:{file.FileId} driveId:{file.DriveId}");
 
             //TODO: app routing, app notification and so on
             //Get the app Inbox storage
@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 Sender = this._context.Caller.DotYouId,
                 AppId = this._context.AppContext.AppId,
-                FileId = fileId, 
+                File = file,
                 TrackerId = trackerId
             };
 
@@ -113,7 +113,7 @@ namespace Youverse.Core.Services.Transit
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _storage.GetKeyHeader(package.FileId);
+            var encryptedKeyHeader = await _storage.GetKeyHeader(package.File);
 
             foreach (var recipient in package.RecipientList.Recipients)
             {
@@ -133,7 +133,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         Recipient = recipient,
                         Header = header,
-                        FileId = package.FileId
+                        File = package.File
                     };
 
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
@@ -159,7 +159,7 @@ namespace Youverse.Core.Services.Transit
             */
             var appEncryptionKey = this._context.AppContext.GetAppEncryptionKey();
 
-            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
+            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {
                 EncryptionVersion = 1,
@@ -174,7 +174,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
-                FileId = package.FileId,
+                FileId = package.File.FileId,
                 AppId = _context.AppContext.AppId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -202,33 +202,32 @@ namespace Youverse.Core.Services.Transit
                 var sendResult = task.Result;
                 if (sendResult.Success)
                 {
-                    _outboxService.Remove(sendResult.Recipient, sendResult.FileId);
+                    _outboxService.Remove(sendResult.OutboxItemId);
                 }
                 else
                 {
                     _outboxService.MarkFailure(sendResult.OutboxItemId, sendResult.FailureReason.GetValueOrDefault());
                 }
             });
-
         }
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
             DotYouIdentity recipient = outboxItem.Recipient;
-            Guid fileId = outboxItem.FileId;
+            var file = outboxItem.File;
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             try
             {
                 //look up transfer key
-                EncryptedRecipientTransferKeyHeader transferKeyHeader = await this.GetTransferKeyFromCache(recipient, fileId);
+                EncryptedRecipientTransferKeyHeader transferKeyHeader = await this.GetTransferKeyFromCache(recipient, file);
                 if (null == transferKeyHeader)
                 {
                     return new SendResult()
                     {
                         OutboxItemId = outboxItem.Id,
-                        FileId = fileId,
+                        File = file,
                         Recipient = recipient,
                         Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Success = false,
@@ -236,8 +235,8 @@ namespace Youverse.Core.Services.Transit
                     };
                 }
 
-                var metaDataStream = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
-                var payload = new StreamPart(await _storage.GetFilePartStream(fileId, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
+                var metaDataStream = new StreamPart(await _storage.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
+                var payload = new StreamPart(await _storage.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
@@ -266,7 +265,7 @@ namespace Youverse.Core.Services.Transit
 
             return new SendResult()
             {
-                FileId = fileId,
+                File = file,
                 Recipient = recipient,
                 OutboxItemId = outboxItem.Id,
                 Success = success,
@@ -275,9 +274,9 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<EncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, Guid fileId)
+        private async Task<EncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, DriveFileId file)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.FileId == fileId));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
             return item?.Header;
         }
 
@@ -287,7 +286,7 @@ namespace Youverse.Core.Services.Transit
             return new TransitPublicKey()
             {
                 Crc = 0,
-                Expiration = (UInt64)DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
+                Expiration = (UInt64) DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
                 PublicKey = Guid.Empty.ToByteArray()
             };
 

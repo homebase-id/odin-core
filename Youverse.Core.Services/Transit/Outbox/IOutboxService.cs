@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
@@ -34,10 +35,15 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <summary>
         /// Removes the outbox item for the given recipient and file
         /// </summary>
-        /// <param name="recipient"></param>
-        /// <param name="fileId"></param>
         /// <returns></returns>
-        Task Remove(DotYouIdentity recipient, Guid fileId);
+        Task Remove(DotYouIdentity recipient, DriveFileId file);
+        
+
+        /// <summary>
+        /// Removes the outbox item for the give id
+        /// </summary>
+        Task Remove(Guid id);
+
 
         Task<OutboxItem> GetItem(Guid id);
         

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
@@ -20,11 +21,13 @@ namespace Youverse.Hosting.Controllers.Owner.Transit
     {
         private readonly ITransitService _transitService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
+        private readonly DotYouContext _context;
 
-        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService)
+        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context)
         {
             _packageStorageWriter = packageStorageWriter;
             _transitService = transitService;
+            _context = context;
         }
 
         /// <summary>
@@ -54,7 +57,9 @@ namespace Youverse.Hosting.Controllers.Owner.Transit
             //the logic and routing of tenant-specific data.  We don't
             //want that in the http controllers
 
-            var packageId = await _packageStorageWriter.CreatePackage();
+            //TODO: determine which is the right drive to use
+            var driveId = _context.AppContext.DriveId;
+            var packageId = await _packageStorageWriter.CreatePackage(driveId);
             bool isComplete = false;
             while (section != null || !isComplete)
             {

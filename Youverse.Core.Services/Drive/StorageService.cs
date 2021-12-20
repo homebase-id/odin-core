@@ -61,57 +61,63 @@ namespace Youverse.Core.Services.Drive
             return converted;
         }
 
-        public Guid CreateFileId(Guid driveId)
+        public DriveFileId CreateFileId(Guid driveId)
+        {
+            var df = new DriveFileId()
+            {
+                FileId = Guid.NewGuid(),
+                DriveId = driveId,
+            };
+
+            return df;
+        }
+
+        public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public Task WritePartStream(Guid driveId, Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public Task<long> GetFileSize(Guid driveId, Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public Task<Stream> GetFilePartStream(Guid driveId, Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<StorageDisposition> GetStorageType(DriveFileId file)
         {
             throw new NotImplementedException();
         }
 
-        public Task<StorageDisposition> GetStorageType(Guid driveId, Guid fileId)
+        public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public Task<EncryptedKeyHeader> GetKeyHeader(Guid driveId, Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public void AssertFileIsValid(Guid driveId, Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
 
-        public Task Delete(Guid driveId, Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task MoveToLongTerm(DriveFileId file)
         {
             throw new NotImplementedException();
         }
 
-        public Task MoveToLongTerm(Guid driveId, Guid fileId)
+        public Task MoveToTemp(DriveFileId file)
         {
             throw new NotImplementedException();
         }
 
-        public Task MoveToTemp(Guid driveId, Guid fileId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task WriteKeyHeader(Guid driveId, Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             throw new NotImplementedException();
         }
