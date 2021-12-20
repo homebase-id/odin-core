@@ -1,12 +1,14 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
@@ -25,10 +27,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
 
-        private ILogger _logger;
+        private ILogger<object> _logger;
         public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
 
-        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger logger)
+        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
@@ -77,7 +79,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
+            using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, _currentIndex.GetQueryIndexPath(), _currentIndex.QueryIndexName);
+            var page = await indexStorage.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp);
+            
+            //var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
 
             //apply permissions from the permissions index to reduce the set.
             //
@@ -94,8 +99,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
-
+            // var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
+            using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, _currentIndex.GetQueryIndexPath(), _currentIndex.QueryIndexName);
+            var page = await indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
+            
             if (!includeContent)
             {
                 StripContent(ref page);
@@ -137,13 +144,18 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 _currentIndex = index;
                 _indexReadyState = IndexReadyState.Ready;
             }
-
-            _indexReadyState = IndexReadyState.NotAvailable;
+            else
+            {
+                _indexReadyState = IndexReadyState.NotAvailable;
+            }
         }
 
         private bool IsValidIndex(StorageDriveIndex index)
         {
-            return File.Exists(index.GetQueryIndexPath()) && File.Exists(index.GetPermissionIndexPath());
+            //TODO: this needs more rigor than just checking the number of files
+            var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
+            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
+            return qFileCount > 0 && pFileCount > 0;
         }
 
         private void StripContent(ref PagedResult<IndexedItem> page)

@@ -1,7 +1,9 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
@@ -22,18 +24,21 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
-        
-        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IStorageManager storageManager)
+
+        private readonly ILogger<object> _logger;
+
+        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
             _storageManager = storageManager;
+            _logger = logger;
             this.Drive = drive;
-            
+
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.RootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.RootPath);
-            
-            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, storageManager, logger:null);
+
+            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, storageManager, _logger);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
@@ -69,12 +74,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            
+
             var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
 
             //apply permissions from the permissions index to reduce the set.
             //
-            
+
             if (!includeContent)
             {
                 StripContent(ref page);
@@ -86,7 +91,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            
+
             var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
 
             if (!includeContent)
@@ -99,9 +104,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public async Task RebuildIndex()
         {
-            
             //TODO: add locking?
-            
+
             if (_isRebuilding)
             {
                 return;
@@ -131,13 +135,18 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 _currentIndex = index;
                 _indexReadyState = IndexReadyState.Ready;
             }
-
-            _indexReadyState = IndexReadyState.NotAvailable;
+            else
+            {
+                _indexReadyState = IndexReadyState.NotAvailable;
+            }
         }
 
         private bool IsValidIndex(StorageDriveIndex index)
         {
-            return File.Exists(index.GetQueryIndexPath()) && File.Exists(index.GetPermissionIndexPath());
+            //TODO: this needs more rigor than just checking the number of files
+            var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
+            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
+            return qFileCount > 0 && pFileCount > 0;
         }
 
         private void StripContent(ref PagedResult<IndexedItem> page)

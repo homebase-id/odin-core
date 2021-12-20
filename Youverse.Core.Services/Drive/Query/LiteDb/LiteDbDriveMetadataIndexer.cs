@@ -20,13 +20,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     /// </summary>
     public class LiteDbDriveMetadataIndexer : IDriveMetadataIndexer
     {
-        private readonly ILogger _logger;
+        private readonly ILogger<object> _logger;
         private readonly StorageDrive _storageDrive;
         
         private readonly IStorageManager _storageManager;
         private readonly IGranteeResolver _granteeResolver;
         
-        public LiteDbDriveMetadataIndexer(StorageDrive storageDrive, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger logger)
+        public LiteDbDriveMetadataIndexer(StorageDrive storageDrive, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
         {
             _storageDrive = storageDrive;
             _granteeResolver = granteeResolver;

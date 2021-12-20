@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.Drive
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
-                await indexMgmtSvc.Rebuild(_profileDriveId);
+                var rebuildResponse = await indexMgmtSvc.Rebuild(_profileDriveId);
 
                 //HACK: wait on index to be ready
                 Thread.Sleep(2000);

@@ -23,11 +23,11 @@ namespace Youverse.Core.Services.Drive
         private readonly IStorageManager _storageManager;
         private readonly DotYouContext _context;
 
-        private readonly ILogger _logger;
+        private readonly ILogger<object> _logger;
         //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
         private readonly IProfileAttributeManagementService _profileSvc;
 
-        public DriveService(IDriveManager driveManager, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, DotYouContext context, ILogger logger)
+        public DriveService(IDriveManager driveManager, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, DotYouContext context, ILogger<object> logger)
         {
             _driveManager = driveManager;
             _systemStorage = systemStorage;
@@ -57,6 +57,7 @@ namespace Youverse.Core.Services.Drive
             if (TryGetOrLoadIndexManager(driveId, out var manager, onlyReadyManagers: false).GetAwaiter().GetResult())
             {
                 manager.RebuildIndex();
+                
             }
 
             return Task.CompletedTask;
@@ -66,7 +67,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
-            if (TryGetOrLoadIndexManager(driveId, out var indexManager).GetAwaiter().GetResult() && indexManager.IndexReadyState == IndexReadyState.Ready)
+            if (await TryGetOrLoadIndexManager(driveId, out var indexManager))
             {
                 return await indexManager.GetRecentlyCreatedItems(includeContent, pageOptions);
             }
@@ -76,7 +77,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
-            if (TryGetOrLoadIndexManager(driveId, out var indexManager).GetAwaiter().GetResult())
+            if (await TryGetOrLoadIndexManager(driveId, out var indexManager))
             {
                 return await indexManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
             }
@@ -97,7 +98,7 @@ namespace Youverse.Core.Services.Drive
         {
             if (_indexManagers.TryGetValue(driveId, out manager))
             {
-                if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.NotAvailable)
+                if (onlyReadyManagers && manager.IndexReadyState == IndexReadyState.NotAvailable)
                 {
                     manager = null;
                     return Task.FromResult(false);
@@ -127,7 +128,7 @@ namespace Youverse.Core.Services.Drive
             var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadIndexManager(drive, out manager);
 
-            if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.NotAvailable)
+            if (onlyReadyManagers && manager.IndexReadyState == IndexReadyState.NotAvailable)
             {
                 manager = null;
                 return Task.FromResult(false);
@@ -138,7 +139,7 @@ namespace Youverse.Core.Services.Drive
 
         private Task LoadIndexManager(StorageDrive drive, out IDriveIndexManager manager)
         {
-            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _granteeResolver, _storageManager);
+            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _granteeResolver, _storageManager, _logger);
 
             //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
             _indexManagers.TryAdd(drive.Id, manager);
