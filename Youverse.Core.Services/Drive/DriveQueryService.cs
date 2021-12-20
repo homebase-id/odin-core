@@ -13,27 +13,28 @@ using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveService : IDriveService
+    public class DriveQueryService : IDriveQueryService
     {
         private readonly ISystemStorage _systemStorage;
-        private readonly IDriveManager _driveManager;
+        private readonly IStorageService _storageService;
         private readonly ConcurrentDictionary<Guid, IDriveIndexManager> _indexManagers;
 
         private readonly IGranteeResolver _granteeResolver;
-        private readonly IStorageManager _storageManager;
+        private readonly IDriveManager _driveManager;
         private readonly DotYouContext _context;
 
         private readonly ILogger<object> _logger;
+
         //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
         private readonly IProfileAttributeManagementService _profileSvc;
 
-        public DriveService(IDriveManager driveManager, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, DotYouContext context, ILogger<object> logger)
+        public DriveQueryService(IStorageService storageService, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IDriveManager driveManager, DotYouContext context, ILogger<object> logger)
         {
-            _driveManager = driveManager;
+            _storageService = storageService;
             _systemStorage = systemStorage;
             _profileSvc = profileSvc;
             _granteeResolver = granteeResolver;
-            _storageManager = storageManager;
+            _driveManager = driveManager;
             _context = context;
             _logger = logger;
             _indexManagers = new ConcurrentDictionary<Guid, IDriveIndexManager>();
@@ -57,13 +58,11 @@ namespace Youverse.Core.Services.Drive
             if (TryGetOrLoadIndexManager(driveId, out var manager, onlyReadyManagers: false).GetAwaiter().GetResult())
             {
                 manager.RebuildIndex();
-                
             }
 
             return Task.CompletedTask;
         }
-
-        public IStorageManager StorageManager => this._storageManager;
+        
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
@@ -87,7 +86,7 @@ namespace Youverse.Core.Services.Drive
 
         private async void InitializeQueryServices()
         {
-            var allDrives = await _driveManager.GetDrives(new PageOptions(1, Int32.MaxValue));
+            var allDrives = await _storageService.GetDrives(new PageOptions(1, Int32.MaxValue));
             foreach (var drive in allDrives.Results)
             {
                 await this.LoadIndexManager(drive, out var _);
@@ -110,13 +109,13 @@ namespace Youverse.Core.Services.Drive
             //HACK: 
             if (driveId == ProfileIndexManager.DataAttributeDriveId)
             {
-                var pDrive = new StorageDrive(_context.StorageConfig.DataStoragePath, new StorageDriveBase()
+                var pDrive = new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, new StorageDriveBase()
                 {
                     Id = driveId,
                     Name = "profile hack"
                 });
 
-                manager = new ProfileIndexManager(pDrive, _systemStorage, _profileSvc, _granteeResolver,_storageManager, _logger);
+                manager = new ProfileIndexManager(pDrive, _systemStorage, _profileSvc, _granteeResolver, _driveManager, _logger);
 
                 //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
                 _indexManagers.TryAdd(driveId, manager);
@@ -125,7 +124,7 @@ namespace Youverse.Core.Services.Drive
                 return Task.FromResult(true);
             }
 
-            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var drive = _storageService.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadIndexManager(drive, out manager);
 
             if (onlyReadyManagers && manager.IndexReadyState == IndexReadyState.NotAvailable)
@@ -139,7 +138,7 @@ namespace Youverse.Core.Services.Drive
 
         private Task LoadIndexManager(StorageDrive drive, out IDriveIndexManager manager)
         {
-            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _granteeResolver, _storageManager, _logger);
+            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _granteeResolver, _driveManager, _logger);
 
             //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
             _indexManagers.TryAdd(drive.Id, manager);

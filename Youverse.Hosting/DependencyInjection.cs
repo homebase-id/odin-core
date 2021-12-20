@@ -57,15 +57,14 @@ namespace Youverse.Hosting
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
 
             cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
-            cb.RegisterType<DriveManager>().As<IDriveManager>().SingleInstance();
-            cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
+            cb.RegisterType<StorageService>().As<IStorageService>().SingleInstance();
+            cb.RegisterType<DriveQueryService>().As<IDriveQueryService>().SingleInstance();
 
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
             cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
-            cb.RegisterType<FileBasedStorageManager>().As<IStorageManager>().SingleInstance();
             cb.RegisterType<EncryptionService>().As<IEncryptionService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();

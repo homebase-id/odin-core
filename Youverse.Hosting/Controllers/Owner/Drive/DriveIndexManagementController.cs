@@ -14,24 +14,24 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DriveIndexManagementController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly IDriveQueryService _driveQueryService;
 
-        public DriveIndexManagementController(IDriveService driveService)
+        public DriveIndexManagementController(IDriveQueryService driveQueryService)
         {
-            _driveService = driveService;
+            _driveQueryService = driveQueryService;
         }
         
         [HttpPost("rebuildall")]
         public async Task<bool> RebuildAll()
         {
-            await _driveService.RebuildAllIndices();
+            await _driveQueryService.RebuildAllIndices();
             return true;
         }
         
         [HttpPost("rebuild")]
         public async Task<bool> Rebuild(Guid driveId)
         {
-            await _driveService.RebuildIndex(driveId);
+            await _driveQueryService.RebuildIndex(driveId);
             return true;
         }
     }

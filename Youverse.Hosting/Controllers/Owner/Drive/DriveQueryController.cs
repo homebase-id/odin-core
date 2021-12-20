@@ -13,24 +13,24 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class DriveQueryController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly IDriveQueryService _driveQueryService;
 
-        public DriveQueryController(IDriveService driveService)
+        public DriveQueryController(IDriveQueryService driveQueryService)
         {
-            _driveService = driveService;
+            _driveQueryService = driveQueryService;
         }
 
         [HttpGet("category")]
         public async Task<IActionResult> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, int pageNumber, int pageSize)
         {
-            var page = await _driveService.GetItemsByCategory(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetItemsByCategory(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
         
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveId,  bool includeContent, int pageNumber, int pageSize)
         {
-            var page = await _driveService.GetRecentlyCreatedItems(driveId, includeContent, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeContent, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
     }

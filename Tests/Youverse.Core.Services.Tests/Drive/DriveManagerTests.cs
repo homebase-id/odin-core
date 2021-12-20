@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CreateDrive()
         {
-            var driveManager = new DriveManager(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new StorageService(_scaffold.Context, _scaffold.SystemStorage);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveManager.CreateDrive(driveName);
@@ -40,20 +40,20 @@ namespace Youverse.Core.Services.Tests.Drive
 
             Assert.AreEqual(storageDrive.Id, retrievedStorageDrive.Id);
             Assert.AreEqual(storageDrive.Name, retrievedStorageDrive.Name);
-            Assert.AreEqual(storageDrive.RootPath, retrievedStorageDrive.RootPath);
+            Assert.AreEqual(storageDrive.LongTermDataRootPath, retrievedStorageDrive.LongTermDataRootPath);
         }
 
         [Test]
         public async Task FailIfInvalidDriveRequested()
         {
-            var driveManager = new DriveManager(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new StorageService(_scaffold.Context, _scaffold.SystemStorage);
             Assert.ThrowsAsync<InvalidDriveException>(async () => await driveManager.GetDrive(Guid.NewGuid(), failIfInvalid: true));
         }
         
         [Test]
         public async Task NullReturnedForInvalidDrive()
         {
-            var driveManager = new DriveManager(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new StorageService(_scaffold.Context, _scaffold.SystemStorage);
             var drive =  await driveManager.GetDrive(Guid.NewGuid(), failIfInvalid: false);
             Assert.IsNull(drive);
         }

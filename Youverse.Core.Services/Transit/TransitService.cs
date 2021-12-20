@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -17,7 +18,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
-        private readonly IStorageManager _storage;
+        private readonly IStorageService _storage;
         private readonly IOutboxService _outboxService;
         private readonly IInboxService _inboxService;
         private readonly IEncryptionService _encryption;
@@ -33,7 +34,7 @@ namespace Youverse.Core.Services.Transit
         public TransitService(DotYouContext context,
             ILogger<TransitService> logger,
             IOutboxService outboxService,
-            IStorageManager storage,
+            IStorageService storage,
             IEncryptionService encryptionSvc,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,

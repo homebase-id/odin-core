@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Drive
     /// <summary>
     /// Access to configured drives, their files
     /// </summary>
-    public interface IDriveService
+    public interface IDriveQueryService
     {
         Task RebuildAllIndices();
 
@@ -18,8 +18,6 @@ namespace Youverse.Core.Services.Drive
         /// <param name="driveId"></param>
         /// <returns></returns>
         Task RebuildIndex(Guid driveId);
-
-        IStorageManager StorageManager { get; }
 
         Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions);
 

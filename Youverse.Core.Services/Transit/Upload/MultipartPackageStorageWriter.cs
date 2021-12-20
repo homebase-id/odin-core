@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -15,13 +16,13 @@ namespace Youverse.Core.Services.Transit.Upload
     {
         private readonly DotYouContext _context;
         private readonly IEncryptionService _encryptionService;
-        private readonly IStorageManager _storageManager;
+        private readonly IStorageService _storageManager;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
         private byte[] initializationVector;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageManager storageManager, IEncryptionService encryptionService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IStorageService storageManager, IEncryptionService encryptionService)
         {
             _context = context;
             _storageManager = storageManager;
@@ -33,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public Task<Guid> CreatePackage()
         {
             var pkgId = Guid.NewGuid();
-            _packages.Add(pkgId, new UploadPackage(_storageManager.CreateId()));
+            _packages.Add(pkgId, new UploadPackage(_storageManager.CreateFileId()));
             _partCounts.Add(pkgId, 0);
             return Task.FromResult(pkgId);
         }

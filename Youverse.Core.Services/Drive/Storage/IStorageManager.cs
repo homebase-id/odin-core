@@ -8,26 +8,24 @@ namespace Youverse.Core.Services.Drive.Storage
     /// <summary>
     /// Handles the storage, retrieval, and management of data storage.
     /// </summary>
-    public interface IStorageManager
+    public interface IDriveManager
     {
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
         /// <returns></returns>
-        Guid CreateId();
+        Guid CreateFileId();
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>
-        Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
-        Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<long> GetFileSize(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
-        /// <param name="fileId"></param>
-        /// <param name="filePart"></param>
         /// <returns></returns>
         Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
@@ -41,21 +39,18 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
-        /// <param name="fileId"></param>
         /// <returns></returns>
         Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
-        /// <param name="fileId"></param>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
         void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Deletes all parts matching <param name="fileId"></param>
         /// </summary>
-        /// <param name="fileId"></param>
         /// <returns></returns>
         Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 

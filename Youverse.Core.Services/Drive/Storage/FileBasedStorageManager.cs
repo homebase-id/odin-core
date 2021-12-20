@@ -1,43 +1,46 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.SystemStorage;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
-    public class FileBasedStorageManager : IStorageManager, IDisposable
+    public class FileBasedStorageManager : IDriveManager
     {
         private readonly ILogger<FileBasedStorageManager> _logger;
 
         private readonly DotYouContext _context;
-        
+        private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
-        private const string CollectionName = "md";
 
-        public FileBasedStorageManager(DotYouContext context, ILogger<FileBasedStorageManager> logger) 
+        public FileBasedStorageManager(DotYouContext context, ILogger<FileBasedStorageManager> logger, StorageDrive drive)
         {
+            Guard.Argument(drive, nameof(drive)).NotNull();
+            Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath));
+            Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath));
+            
             _context = context;
             _logger = logger;
-            string path = PathUtil.Combine(context.StorageConfig.DataStoragePath);
+            _drive = drive;
         }
 
-        public Guid CreateId()
+        public Guid CreateFileId()
         {
             //TODO: Create a date-based
             return Guid.NewGuid();
         }
 
-        public async Task WritePartStream(Guid id, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public async Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 
-            string filePath = GetFilePath(id, filePart, storageDisposition, true);
+            string filePath = GetFilePath(fileId, filePart, storageDisposition, true);
 
             await using var output = new FileStream(filePath, FileMode.Append);
             do
@@ -75,7 +78,7 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             using var stream = File.Open(GetFilePath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
             var json = await new StreamReader(stream).ReadToEndAsync();
-            var ekh  = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
+            var ekh = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
 
             // var ekh = new EncryptedKeyHeader()
             // {
@@ -195,13 +198,9 @@ namespace Youverse.Core.Services.Drive.Storage
             return new FileInfo(path).Length;
         }
 
-        public void Dispose()
-        {
-        }
-
         private string GetFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
         {
-            string path = GetStorageRoot(storageDisposition);
+            string path = _drive.GetStoragePath(storageDisposition);
             string dir = PathUtil.Combine(path, id.ToString());
 
             if (ensureExists)
@@ -210,12 +209,6 @@ namespace Youverse.Core.Services.Drive.Storage
             }
 
             return PathUtil.Combine(dir, part.ToString());
-        }
-
-        private string GetStorageRoot(StorageDisposition storageDisposition)
-        {
-            var path = storageDisposition == StorageDisposition.Temporary ? _context.StorageConfig.TempStoragePath : _context.StorageConfig.DataStoragePath;
-            return path;
         }
     }
 }

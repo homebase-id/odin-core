@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 
@@ -18,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly string RSA_KEY_STORAGE = "transitrks";
         private readonly DotYouContext _context;
         private readonly ITransitService _transitService;
-        private readonly IStorageManager _fileStorage;
+        private readonly IStorageService _fileStorage;
         private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
         private readonly ISystemStorage _systemStorage;
@@ -29,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             ITransitQuarantineService quarantineService,
-            IStorageManager fileStorage, ISystemStorage systemStorage) : base(auditWriter)
+            IStorageService fileStorage, ISystemStorage systemStorage) : base(auditWriter)
         {
             _context = context;
             _transitService = transitService;
@@ -216,7 +217,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (!tracker.FileId.HasValue)
             {
-                tracker.SetFileId(_fileStorage.CreateId());
+                tracker.SetFileId(_fileStorage.CreateFileId());
             }
 
             await _fileStorage.WritePartStream(tracker.FileId.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
