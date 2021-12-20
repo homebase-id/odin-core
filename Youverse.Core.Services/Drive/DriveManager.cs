@@ -7,8 +7,6 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveManager : IDriveManager
     {
-        //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
-        public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
 
@@ -54,15 +52,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
         {
-            var pDrive = ToStorageDrive(new StorageDriveBase()
-            {
-                Id = DataAttributeDriveId,
-                Name = "ProfileStoreHack"
-            });
-
             var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.GetList(pageOptions));
-            page.Results.Add(pDrive);
-
             var storageDrives = page.Results.Select(ToStorageDrive).ToList();
             var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
             return converted;

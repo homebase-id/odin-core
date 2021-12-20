@@ -2,13 +2,15 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
-    public class LiteDbDriveIndexManager : IDriveIndexManager
+    public class ProfileIndexManager : IDriveIndexManager
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveMetadataIndexer _indexer;
@@ -22,18 +24,23 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
-        
-        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IStorageManager storageManager)
+
+        private ILogger _logger;
+        public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
+
+        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
             _storageManager = storageManager;
+            _logger = logger;
             this.Drive = drive;
-            
+
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.RootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.RootPath);
-            
-            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, storageManager, logger:null);
+
+            //TODO: pickup here:
+            _indexer = new ProfileDataIndexer(granteeResolver, storageManager, _logger, profileSvc);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
@@ -69,12 +76,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            
+
             var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
 
             //apply permissions from the permissions index to reduce the set.
             //
-            
+
             if (!includeContent)
             {
                 StripContent(ref page);
@@ -86,7 +93,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            
+
             var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
 
             if (!includeContent)
@@ -99,9 +106,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public async Task RebuildIndex()
         {
-            
             //TODO: add locking?
-            
+
             if (_isRebuilding)
             {
                 return;

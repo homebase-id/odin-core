@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.Drive
@@ -13,7 +14,7 @@ namespace Youverse.Hosting.Tests.Drive
     public class DriveQueryTests
     {
         private TestScaffold _scaffold;
-        private readonly Guid _driveId = DriveManager.DataAttributeDriveId;
+        private readonly Guid _profileDriveId = ProfileIndexManager.DataAttributeDriveId;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -37,7 +38,7 @@ namespace Youverse.Hosting.Tests.Drive
                 try
                 {
                     var svc = RestService.For<IOwnerDriveQueryClient>(client);
-                    var response = await svc.GetRecentlyCreatedItems(_driveId, true, 1, 100);
+                    var response = await svc.GetRecentlyCreatedItems(_profileDriveId, true, 1, 100);
                 }
                 catch (ValidationApiException e)
                 {
@@ -69,14 +70,14 @@ namespace Youverse.Hosting.Tests.Drive
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
-                await indexMgmtSvc.Rebuild(_driveId);
+                await indexMgmtSvc.Rebuild(_profileDriveId);
 
                 //HACK: wait on index to be ready
                 Thread.Sleep(2000);
                 
                 var svc = RestService.For<IOwnerDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(_driveId, true, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(_profileDriveId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -92,11 +93,11 @@ namespace Youverse.Hosting.Tests.Drive
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
-                await indexMgmtSvc.Rebuild(_driveId);
+                await indexMgmtSvc.Rebuild(_profileDriveId);
 
                 var svc = RestService.For<IOwnerDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(_driveId, false, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(_profileDriveId, false, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);

@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -16,17 +19,23 @@ namespace Youverse.Core.Services.Drive
         private readonly IDriveManager _driveManager;
         private readonly ConcurrentDictionary<Guid, IDriveIndexManager> _indexManagers;
 
-        private readonly IProfileAttributeManagementService _profileSvc;
         private readonly IGranteeResolver _granteeResolver;
         private readonly IStorageManager _storageManager;
+        private readonly DotYouContext _context;
 
-        public DriveService(IDriveManager driveManager, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager)
+        private readonly ILogger _logger;
+        //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
+        private readonly IProfileAttributeManagementService _profileSvc;
+
+        public DriveService(IDriveManager driveManager, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, DotYouContext context, ILogger logger)
         {
             _driveManager = driveManager;
             _systemStorage = systemStorage;
             _profileSvc = profileSvc;
             _granteeResolver = granteeResolver;
             _storageManager = storageManager;
+            _context = context;
+            _logger = logger;
             _indexManagers = new ConcurrentDictionary<Guid, IDriveIndexManager>();
 
             InitializeQueryServices();
@@ -97,6 +106,24 @@ namespace Youverse.Core.Services.Drive
                 return Task.FromResult(true);
             }
 
+            //HACK: 
+            if (driveId == ProfileIndexManager.DataAttributeDriveId)
+            {
+                var pDrive = new StorageDrive(_context.StorageConfig.DataStoragePath, new StorageDriveBase()
+                {
+                    Id = driveId,
+                    Name = "profile hack"
+                });
+
+                manager = new ProfileIndexManager(pDrive, _systemStorage, _profileSvc, _granteeResolver,_storageManager, _logger);
+
+                //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
+                _indexManagers.TryAdd(driveId, manager);
+                manager.LoadLatestIndex().GetAwaiter().GetResult();
+
+                return Task.FromResult(true);
+            }
+
             var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadIndexManager(drive, out manager);
 
@@ -111,7 +138,7 @@ namespace Youverse.Core.Services.Drive
 
         private Task LoadIndexManager(StorageDrive drive, out IDriveIndexManager manager)
         {
-            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _profileSvc, _granteeResolver, _storageManager);
+            manager = new LiteDbDriveIndexManager(drive, _systemStorage, _granteeResolver, _storageManager);
 
             //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
             _indexManagers.TryAdd(drive.Id, manager);
