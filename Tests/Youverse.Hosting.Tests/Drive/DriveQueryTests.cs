@@ -95,6 +95,9 @@ namespace Youverse.Hosting.Tests.Drive
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
                 await indexMgmtSvc.Rebuild(_profileDriveId);
 
+                //HACK: wait on index to be ready
+                Thread.Sleep(2000);
+                
                 var svc = RestService.For<IOwnerDriveQueryClient>(client);
 
                 var response = await svc.GetRecentlyCreatedItems(_profileDriveId, false, 1, 100);
