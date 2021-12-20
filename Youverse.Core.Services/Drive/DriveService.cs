@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,17 +9,20 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class StorageService : IStorageService
+    public class DriveService : IDriveService
     {
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
-
+        private readonly ConcurrentDictionary<Guid, IStorageManager> _storageDrives;
         private const string DriveCollectionName = "drives";
 
-        public StorageService(DotYouContext context, ISystemStorage systemStorage)
+        public DriveService(DotYouContext context, ISystemStorage systemStorage)
         {
             _context = context;
             _systemStorage = systemStorage;
+            _storageDrives = new ConcurrentDictionary<Guid, IStorageManager>();
+
+            InitializeStorageDrives();
         }
 
         //TODO: add storage dek here
@@ -63,6 +67,7 @@ namespace Youverse.Core.Services.Drive
 
         public DriveFileId CreateFileId(Guid driveId)
         {
+            //TODO: use time based guid
             var df = new DriveFileId()
             {
                 FileId = Guid.NewGuid(),
@@ -74,7 +79,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            //look up the drive for the file.driveid
         }
 
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -125,6 +130,12 @@ namespace Youverse.Core.Services.Drive
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)
         {
             return new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, sdb);
+        }
+
+        private async Task InitializeStorageDrives()
+        {
+            var drives = await this.GetDrives(PageOptions.All);
+            
         }
     }
 }

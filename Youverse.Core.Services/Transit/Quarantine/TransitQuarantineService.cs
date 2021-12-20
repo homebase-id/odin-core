@@ -13,13 +13,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitQuarantineService : TransitServiceBase<ITransitQuarantineService>, ITransitQuarantineService
     {
-        private readonly IStorageService _storage;
+        private readonly IDriveService _drive;
         private readonly DotYouContext _context;
 
-        public TransitQuarantineService(DotYouContext context, ILogger<ITransitQuarantineService> logger, IStorageService storage, ITransitAuditWriterService auditWriter) : base(auditWriter)
+        public TransitQuarantineService(DotYouContext context, ILogger<ITransitQuarantineService> logger, IDriveService drive, ITransitAuditWriterService auditWriter) : base(auditWriter)
         {
             _context = context;
-            _storage = storage;
+            _drive = drive;
         }
 
         public async Task<CollectiveFilterResult> ApplyFirstStageFilters(Guid trackerId, FilePart part, Stream data)

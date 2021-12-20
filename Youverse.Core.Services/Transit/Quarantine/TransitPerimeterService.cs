@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly string RSA_KEY_STORAGE = "transitrks";
         private readonly DotYouContext _context;
         private readonly ITransitService _transitService;
-        private readonly IStorageService _fileStorage;
+        private readonly IDriveService _fileDrive;
         private readonly IDictionary<Guid, FileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
         private readonly ISystemStorage _systemStorage;
@@ -30,12 +30,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             ITransitQuarantineService quarantineService,
-            IStorageService fileStorage, ISystemStorage systemStorage) : base(auditWriter)
+            IDriveService fileDrive, ISystemStorage systemStorage) : base(auditWriter)
         {
             _context = context;
             _transitService = transitService;
             _quarantineService = quarantineService;
-            _fileStorage = fileStorage;
+            _fileDrive = fileDrive;
             _systemStorage = systemStorage;
             _fileTrackers = new Dictionary<Guid, FileTracker>();
         }
@@ -186,7 +186,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
         {
             //remove all other file parts
-            _fileStorage.Delete(tracker.File.GetValueOrDefault(), StorageDisposition.Temporary);
+            _fileDrive.Delete(tracker.File.GetValueOrDefault(), StorageDisposition.Temporary);
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -215,10 +215,10 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //TODO: validate 
             if (tracker.File == null)
             {
-                tracker.SetStorageInfo(_fileStorage.CreateFileId(_context.AppContext.DriveId));
+                tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId));
             }
 
-            await _fileStorage.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
+            await _fileDrive.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
 
             //triage, decrypt, route the payload
             var result = new AddPartResponse()

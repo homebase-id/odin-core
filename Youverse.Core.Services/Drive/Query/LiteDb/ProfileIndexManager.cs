@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private readonly StorageDriveIndex _secondaryIndex;
 
         private readonly IGranteeResolver _granteeResolver;
-        private readonly IDriveManager _driveManager;
+        private readonly IStorageManager _storageManager;
 
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
@@ -30,11 +30,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private ILogger<object> _logger;
         public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
 
-        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IDriveManager driveManager, ILogger<object> logger)
+        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
-            _driveManager = driveManager;
+            _storageManager = storageManager;
             _logger = logger;
             this.Drive = drive;
 
@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
 
             //TODO: pickup here:
-            _indexer = new ProfileDataIndexer(granteeResolver, driveManager, _logger, profileSvc);
+            _indexer = new ProfileDataIndexer(granteeResolver, storageManager, _logger, profileSvc);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;

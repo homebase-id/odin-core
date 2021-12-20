@@ -6,9 +6,9 @@ using Youverse.Core.Services.Transit.Encryption;
 namespace Youverse.Core.Services.Drive.Storage
 {
     /// <summary>
-    /// Handles the storage, retrieval, and management of data storage.
+    /// Handles the storage, retrieval, and management of data storage for a single <see cref="StorageDrive"/>.
     /// </summary>
-    public interface IDriveManager
+    public interface IStorageManager
     {
         /// <summary>
         /// Creates an Id for storing a file

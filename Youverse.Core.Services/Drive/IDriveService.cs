@@ -7,9 +7,9 @@ using Youverse.Core.Services.Transit.Encryption;
 namespace Youverse.Core.Services.Drive
 {
     /// <summary>
-    /// Resolves information about a container.
+    /// Offers creation, read, write of data on drives.
     /// </summary>
-    public interface IStorageService
+    public interface IDriveService
     {
         /// <summary>
         /// Creates a new storage drive
@@ -64,19 +64,19 @@ namespace Youverse.Core.Services.Drive
         void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Deletes all parts matching <param name="fileId"></param>
+        /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
         Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.LongTerm"/>
+        /// Moves the specified <param name="file"></param> to <see cref="StorageDisposition.LongTerm"/>
         /// </summary>
         /// <returns></returns>
         Task MoveToLongTerm(DriveFileId file);
 
         /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.Temporary"/>
+        /// Moves the specified <param name="file"></param> to <see cref="StorageDisposition.Temporary"/>
         /// </summary>
         /// <returns></returns>
         Task MoveToTemp(DriveFileId file);

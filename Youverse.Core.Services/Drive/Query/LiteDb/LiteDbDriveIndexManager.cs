@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private readonly StorageDriveIndex _secondaryIndex;
 
         private readonly IGranteeResolver _granteeResolver;
-        private readonly IDriveManager _driveManager;
+        private readonly IStorageManager _storageManager;
 
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
@@ -27,18 +27,18 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private readonly ILogger<object> _logger;
 
-        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IDriveManager driveManager, ILogger<object> logger)
+        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
-            _driveManager = driveManager;
+            _storageManager = storageManager;
             _logger = logger;
             this.Drive = drive;
 
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.LongTermDataRootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
 
-            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, driveManager, _logger);
+            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, storageManager, _logger);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;

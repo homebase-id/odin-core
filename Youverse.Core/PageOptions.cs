@@ -11,7 +11,8 @@ namespace Youverse.Core
     [MessagePackObject]
     public class PageOptions
     {
-        public readonly static PageOptions Default = new PageOptions(1, 55);
+        public static readonly PageOptions Default = new PageOptions(1, 55);
+        public static readonly PageOptions All = new PageOptions(1, Int32.MaxValue);
 
         public PageOptions() { }
         public PageOptions(int pageNumber, int pageSize)

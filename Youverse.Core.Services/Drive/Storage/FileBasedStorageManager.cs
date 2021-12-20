@@ -10,7 +10,7 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
-    public class FileBasedStorageManager : IDriveManager
+    public class FileBasedStorageManager : IStorageManager
     {
         private readonly ILogger<FileBasedStorageManager> _logger;
 
