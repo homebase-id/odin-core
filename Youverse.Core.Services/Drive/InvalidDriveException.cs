@@ -3,7 +3,7 @@ using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Drive
 {
-    internal class InvalidDriveException : YouverseException
+    public class InvalidDriveException : YouverseException
     {
         public InvalidDriveException(Guid driveId): base($"No valid index for drive {driveId}")
         {

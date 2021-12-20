@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
 
@@ -21,39 +20,57 @@ namespace Youverse.Core.Services.Drive
             _systemStorage = systemStorage;
         }
 
-        public Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
+        //TODO: add storage dek here
+        public Task<StorageDrive> CreateDrive(string name)
         {
-            var driveRootPath = Path.Combine(_context.StorageConfig.DataStoragePath, driveId.ToString("N"));
-
-            var drive = new StorageDrive()
+            var id = Guid.NewGuid();
+            var sdb = new StorageDriveBase()
             {
-                Id = driveId,
-                RootPath = driveRootPath,
+                Id = id,
+                Name = name,
             };
 
-            if (null == drive && failIfInvalid)
-            {
-                throw new InvalidDriveException(driveId);
-            }
+            _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
 
-            return Task.FromResult(drive);
+            return Task.FromResult(ToStorageDrive(sdb));
         }
 
-        public Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
+        public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var d = GetDrive(DataAttributeDriveId).GetAwaiter().GetResult();
-            //TODO:looks these up somewhere
-            var page = new PagedResult<StorageDrive>()
+            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.Get(driveId));
+            if (null == sdb)
             {
-                Request = pageOptions,
-                Results = new List<StorageDrive>()
+                if(failIfInvalid)
                 {
-                    d
-                },
-                TotalPages = 1
-            };
+                    throw new InvalidDriveException(driveId);
+                }
 
-            return Task.FromResult(page);
+                return null;
+            }
+
+            var drive = ToStorageDrive(sdb);
+            return drive;
+        }
+
+        public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
+        {
+            var pDrive = ToStorageDrive(new StorageDriveBase()
+            {
+                Id = DataAttributeDriveId,
+                Name = "ProfileStoreHack"
+            });
+
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.GetList(pageOptions));
+            page.Results.Add(pDrive);
+
+            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
+            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
+            return converted;
+        }
+
+        private StorageDrive ToStorageDrive(StorageDriveBase sdb)
+        {
+            return new StorageDrive(_context.StorageConfig.DataStoragePath, sdb);
         }
     }
 }
