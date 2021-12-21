@@ -50,6 +50,9 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
+            
+            //TODO: update index
+            
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 

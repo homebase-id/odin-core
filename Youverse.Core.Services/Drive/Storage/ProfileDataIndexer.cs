@@ -43,6 +43,8 @@ namespace Youverse.Core.Services.Drive.Storage
             //_profileAttributeReader.GetAttributes()
 
             using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, index.GetQueryIndexPath(), index.QueryIndexName);
+            await indexStorage.EnsureIndex(x => x.FileId, true);
+            
             var indexedItem = new IndexedItem()
             {
                 Id = Guid.NewGuid(),
