@@ -12,19 +12,17 @@ namespace Youverse.Core.Services.Drive.Storage
 {
     public class FileBasedStorageManager : IStorageManager
     {
-        private readonly ILogger<FileBasedStorageManager> _logger;
+        private readonly ILogger<IStorageManager> _logger;
 
-        private readonly DotYouContext _context;
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
 
-        public FileBasedStorageManager(DotYouContext context, ILogger<FileBasedStorageManager> logger, StorageDrive drive)
+        public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath));
             Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath));
-            
-            _context = context;
+
             _logger = logger;
             _drive = drive;
         }

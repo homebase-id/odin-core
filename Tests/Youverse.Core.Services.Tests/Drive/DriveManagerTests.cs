@@ -18,6 +18,7 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold = new ServiceTestScaffold(folder);
             _scaffold.CreateContext();
             _scaffold.CreateSystemStorage();
+            _scaffold.CreateLoggerFactory();
         }
 
         [TearDown]
@@ -29,7 +30,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CreateDrive()
         {
-            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveManager.CreateDrive(driveName);
@@ -46,14 +47,14 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task FailIfInvalidDriveRequested()
         {
-            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
             Assert.ThrowsAsync<InvalidDriveException>(async () => await driveManager.GetDrive(Guid.NewGuid(), failIfInvalid: true));
         }
         
         [Test]
         public async Task NullReturnedForInvalidDrive()
         {
-            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage);
+            var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
             var drive =  await driveManager.GetDrive(Guid.NewGuid(), failIfInvalid: false);
             Assert.IsNull(drive);
         }

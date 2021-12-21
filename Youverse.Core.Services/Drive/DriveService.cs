@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -13,16 +14,19 @@ namespace Youverse.Core.Services.Drive
     {
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
-        private readonly ConcurrentDictionary<Guid, IStorageManager> _storageDrives;
+        private readonly ConcurrentDictionary<Guid, IStorageManager> _storageManagers;
         private const string DriveCollectionName = "drives";
 
-        public DriveService(DotYouContext context, ISystemStorage systemStorage)
+        private readonly ILoggerFactory _loggerFactory;
+
+        public DriveService(DotYouContext context, ISystemStorage systemStorage, ILoggerFactory loggerFactory)
         {
             _context = context;
             _systemStorage = systemStorage;
-            _storageDrives = new ConcurrentDictionary<Guid, IStorageManager>();
+            _loggerFactory = loggerFactory;
+            _storageManagers = new ConcurrentDictionary<Guid, IStorageManager>();
 
-            InitializeStorageDrives();
+            InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
         //TODO: add storage dek here
@@ -79,52 +83,52 @@ namespace Youverse.Core.Services.Drive
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            //look up the drive for the file.driveid
+            return GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
         }
 
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).GetFileSize(file.FileId, storageDisposition);
         }
 
         public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, filePart, storageDisposition);
         }
 
         public Task<StorageDisposition> GetStorageType(DriveFileId file)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).GetStorageType(file.FileId);
         }
 
         public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
         }
 
         public void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            GetStorageManager(file.DriveId).AssertFileIsValid(file.FileId, storageDisposition);
         }
 
         public Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).Delete(file.FileId, storageDisposition);
         }
 
         public Task MoveToLongTerm(DriveFileId file)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
         }
 
         public Task MoveToTemp(DriveFileId file)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).MoveToTemp(file.FileId);
         }
 
         public Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new NotImplementedException();
+            return GetStorageManager(file.DriveId).WriteKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
 
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)
@@ -135,7 +139,34 @@ namespace Youverse.Core.Services.Drive
         private async Task InitializeStorageDrives()
         {
             var drives = await this.GetDrives(PageOptions.All);
-            
+            foreach (var drive in drives.Results)
+            {
+                Load(drive, out var _);
+            }
+        }
+
+        private IStorageManager GetStorageManager(Guid driveId)
+        {
+            if (_storageManagers.TryGetValue(driveId, out var manager))
+            {
+                return manager;
+            }
+
+            var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var success = Load(sd, out manager);
+            if (!success)
+            {
+                throw new StorageException(driveId);
+            }
+
+            return manager;
+        }
+
+        private bool Load(StorageDrive drive, out IStorageManager manager)
+        {
+            var logger = _loggerFactory.CreateLogger<IStorageManager>();
+            manager = new FileBasedStorageManager(drive, logger);
+            return _storageManagers.TryAdd(drive.Id, manager);
         }
     }
 }

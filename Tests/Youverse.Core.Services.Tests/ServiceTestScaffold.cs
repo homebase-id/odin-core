@@ -13,8 +13,9 @@ namespace Youverse.Core.Services.Tests
         private string? _dataStoragePath;
         private string? _tempStoragePath;
         public ISystemStorage? SystemStorage { get; private set; }
-        public DotYouContext Context { get; private set; }
-
+        public DotYouContext? Context { get; private set; }
+        public ILoggerFactory LoggerFactory { get; private set; }
+        
         public ServiceTestScaffold(string folder)
         {
             _folder = folder;
@@ -42,6 +43,11 @@ namespace Youverse.Core.Services.Tests
             SystemStorage = new LiteDbSystemStorage(logger, Context);
         }
 
+        public void CreateLoggerFactory()
+        {
+            LoggerFactory  = Substitute.For<ILoggerFactory>();;
+        }
+        
         public void Cleanup()
         {
             if (!string.IsNullOrWhiteSpace(_dataStoragePath))
