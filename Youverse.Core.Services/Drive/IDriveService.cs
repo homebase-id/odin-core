@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -82,6 +83,13 @@ namespace Youverse.Core.Services.Drive
         Task MoveToTemp(DriveFileId file);
 
         Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+
+        /// <summary>
+        /// Returns the current index which should be used for a given drive.
+        /// </summary>
+        /// <param name="driveId"></param>
+        /// <returns></returns>
+        StorageDriveIndex GetCurrentIndex(Guid driveId);
         
         Task RebuildAllIndices();
 

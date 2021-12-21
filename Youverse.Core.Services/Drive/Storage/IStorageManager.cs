@@ -78,5 +78,13 @@ namespace Youverse.Core.Services.Drive.Storage
         
         Task RebuildIndex();
 
+        Task LoadLatestIndex();
+
+        /// <summary>
+        /// Gets the current index which should be used to query this drive
+        /// </summary>
+        /// <returns></returns>
+        StorageDriveIndex GetCurrentIndex();
+
     }
 }

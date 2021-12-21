@@ -7,53 +7,21 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
-    public class LiteDbDriveIndexManager : IDriveIndexManager
+    public class LiteDbDriveQueryManager : IDriveQueryManager
     {
         private readonly ISystemStorage _systemStorage;
-
-        private readonly StorageDriveIndex _primaryIndex;
-        private readonly StorageDriveIndex _secondaryIndex;
 
         private StorageDriveIndex _currentIndex;
         private IndexReadyState _indexReadyState;
 
-        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage)
+        public LiteDbDriveQueryManager(StorageDrive drive, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
             this.Drive = drive;
-
-            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.LongTermDataRootPath);
-            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
-
-        public Task LoadLatestIndex()
-        {
-            //load the most recently used index
-            var primaryIsValid = IsValidIndex(_primaryIndex);
-            var secondaryIsValid = IsValidIndex(_secondaryIndex);
-
-            if (primaryIsValid && secondaryIsValid)
-            {
-                var pf = new FileInfo(_primaryIndex.IndexRootPath);
-                var sf = new FileInfo(_secondaryIndex.IndexRootPath);
-                SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
-            }
-
-            if (primaryIsValid)
-            {
-                SetCurrentIndex(_primaryIndex);
-            }
-
-            if (secondaryIsValid)
-            {
-                SetCurrentIndex(_secondaryIndex);
-            }
-
-            return Task.CompletedTask;
-        }
-
+        
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
@@ -87,7 +55,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
         
-        private void SetCurrentIndex(StorageDriveIndex index)
+        public Task SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))
             {
@@ -99,6 +67,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 _indexReadyState = IndexReadyState.NotAvailable;
             }
+
+            return Task.CompletedTask;
         }
 
         private bool IsValidIndex(StorageDriveIndex index)

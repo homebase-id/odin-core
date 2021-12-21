@@ -1,13 +1,14 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 
 namespace Youverse.Core.Services.Drive.Query
 {
     /// <summary>
     /// Offers query and indexing features for a specific <see cref="StorageDrive"/>
     /// </summary>
-    public interface IDriveIndexManager
+    public interface IDriveQueryManager
     {
         /// <summary>
         /// Specifies the drive being managed (indexed and queried)
@@ -18,12 +19,12 @@ namespace Youverse.Core.Services.Drive.Query
         /// 
         /// </summary>
         IndexReadyState IndexReadyState { get; }
-        
+
         /// <summary>
         /// Loads the latest available index.  After calling, you should check IndexReadyState.
         /// </summary>
         /// <returns></returns>
-        Task LoadLatestIndex();
+        Task SetCurrentIndex(StorageDriveIndex index);
 
         /// <summary>
         /// Returns the most recently created <see cref="IndexedItem"/>s.  Items are returned CreateTimestamp descending

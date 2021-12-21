@@ -268,6 +268,37 @@ namespace Youverse.Core.Services.Drive.Storage
             _isRebuilding = false;
         }
         
+        public Task LoadLatestIndex()
+        {
+            //load the most recently used index
+            var primaryIsValid = IsValidIndex(_primaryIndex);
+            var secondaryIsValid = IsValidIndex(_secondaryIndex);
+
+            if (primaryIsValid && secondaryIsValid)
+            {
+                var pf = new FileInfo(_primaryIndex.IndexRootPath);
+                var sf = new FileInfo(_secondaryIndex.IndexRootPath);
+                SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
+            }
+
+            if (primaryIsValid)
+            {
+                SetCurrentIndex(_primaryIndex);
+            }
+
+            if (secondaryIsValid)
+            {
+                SetCurrentIndex(_secondaryIndex);
+            }
+
+            return Task.CompletedTask;
+        }
+        
+        public StorageDriveIndex GetCurrentIndex()
+        {
+            return _currentIndex;
+        }
+        
         private void SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))

@@ -6,71 +6,27 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
-    public class ProfileIndexManager : IDriveIndexManager
+    public class ProfileQueryManager : IDriveQueryManager
     {
-        private readonly ISystemStorage _systemStorage;
-        private readonly IDriveMetadataIndexer _indexer;
-
-        private readonly StorageDriveIndex _primaryIndex;
-        private readonly StorageDriveIndex _secondaryIndex;
-
-        private readonly IGranteeResolver _granteeResolver;
-
         private StorageDriveIndex _currentIndex;
-        private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
 
         private ILogger<object> _logger;
         public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
 
-        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, ILogger<object> logger)
+        public ProfileQueryManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, ILogger<object> logger)
         {
-            _systemStorage = systemStorage;
-            _granteeResolver = granteeResolver;
             _logger = logger;
             this.Drive = drive;
-
-            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.LongTermDataRootPath);
-            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
-
-            //TODO: pickup here:
-            _indexer = new ProfileDataIndexer(granteeResolver, _logger, profileSvc);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
-
-        public Task LoadLatestIndex()
-        {
-            //load the most recently used index
-            var primaryIsValid = IsValidIndex(_primaryIndex);
-            var secondaryIsValid = IsValidIndex(_secondaryIndex);
-
-            if (primaryIsValid && secondaryIsValid)
-            {
-                var pf = new FileInfo(_primaryIndex.IndexRootPath);
-                var sf = new FileInfo(_secondaryIndex.IndexRootPath);
-                SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
-            }
-
-            if (primaryIsValid)
-            {
-                SetCurrentIndex(_primaryIndex);
-            }
-
-            if (secondaryIsValid)
-            {
-                SetCurrentIndex(_secondaryIndex);
-            }
-
-            return Task.CompletedTask;
-        }
-
+        
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
@@ -108,33 +64,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             return page;
         }
-
-        public async Task RebuildIndex()
-        {
-            //TODO: add locking?
-
-            if (_isRebuilding)
-            {
-                return;
-            }
-
-            _isRebuilding = true;
-            StorageDriveIndex indexToRebuild;
-            if (_currentIndex == null)
-            {
-                indexToRebuild = _primaryIndex;
-            }
-            else
-            {
-                indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
-            }
-
-            await _indexer.Rebuild(indexToRebuild);
-            SetCurrentIndex(indexToRebuild);
-            _isRebuilding = false;
-        }
-
-        private void SetCurrentIndex(StorageDriveIndex index)
+        
+        public Task SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))
             {
@@ -146,6 +77,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 _indexReadyState = IndexReadyState.NotAvailable;
             }
+
+            return Task.CompletedTask;
         }
 
         private bool IsValidIndex(StorageDriveIndex index)

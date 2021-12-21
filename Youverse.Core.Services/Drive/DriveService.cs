@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -131,6 +132,11 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).WriteKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
 
+        public StorageDriveIndex GetCurrentIndex(Guid driveId)
+        {
+            return GetStorageManager(driveId).GetCurrentIndex();
+        }
+
         public Task RebuildAllIndices()
         {
             //TODO: optimize by making this parallel processed or something
@@ -182,6 +188,7 @@ namespace Youverse.Core.Services.Drive
         {
             var logger = _loggerFactory.CreateLogger<IStorageManager>();
             manager = new FileBasedStorageManager(drive, logger);
+            manager.LoadLatestIndex().GetAwaiter().GetResult();
             return _storageManagers.TryAdd(drive.Id, manager);
         }
     }

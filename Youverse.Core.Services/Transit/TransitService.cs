@@ -282,14 +282,6 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
         {
-            //HACK: waiting on bouncy castle
-            return new TransitPublicKey()
-            {
-                Crc = 0,
-                Expiration = (UInt64) DateTimeOffset.UtcNow.AddDays(100).ToUnixTimeMilliseconds(),
-                PublicKey = Guid.Empty.ToByteArray()
-            };
-
             //TODO: optimize by reading a dictionary cache
             var tpk = await _systemStorage.WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
 

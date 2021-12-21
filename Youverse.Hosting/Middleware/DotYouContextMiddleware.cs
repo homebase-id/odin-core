@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Middleware
             bool isAdminApp = bool.Parse(user.FindFirstValue(DotYouClaimTypes.IsAdminApp) ?? bool.FalseString);
             
             //todo: Lookup from app registration
-            var driveId = ProfileIndexManager.DataAttributeDriveId;
+            var driveId = ProfileQueryManager.DataAttributeDriveId;
 
             var app = new AppContext(appId, deviceUid, appEncryptionKey, sharedSecretKey, isAdminApp, driveId);
             
