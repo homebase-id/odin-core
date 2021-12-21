@@ -2,10 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive
@@ -20,7 +22,7 @@ namespace Youverse.Core.Services.Drive
         private readonly DotYouContext _context;
 
         private readonly ILogger<object> _logger;
-        
+
         //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
         private readonly IProfileAttributeManagementService _profileSvc;
 
@@ -34,9 +36,26 @@ namespace Youverse.Core.Services.Drive
             _logger = logger;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
+            _driveService.FileMetaDataChanged += DriveServiceOnFileMetaDataChanged;
             InitializeQueryManagers();
         }
-        
+
+        private void DriveServiceOnFileMetaDataChanged(object? sender, DriveFileChangedArgs e)
+        {
+            // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
+            //TODO: read metadata from _driveService
+            var metadata = new MetadataIndexDefinition()
+            {
+                CategoryId = Guid.NewGuid(),
+                JsonContent = new JObject(new {some = "metadata"}),
+                ContentIsComplete = false,
+                ContentIsEncrypted = false
+            };
+            this.TryGetOrLoadIndexManager(e.File.DriveId, out var manager, false);
+            manager.UpdateIndex(e.File, metadata);
+            
+        }
+
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
             if (await TryGetOrLoadIndexManager(driveId, out var indexManager))
@@ -88,7 +107,7 @@ namespace Youverse.Core.Services.Drive
                     Name = "profile hack"
                 });
 
-                manager = new ProfileQueryManager(pDrive, _systemStorage, _profileSvc, _granteeResolver,  _logger);
+                manager = new ProfileQueryManager(pDrive, _systemStorage, _profileSvc, _granteeResolver, _logger);
 
                 //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
                 _queryManagers.TryAdd(driveId, manager);

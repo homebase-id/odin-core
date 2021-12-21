@@ -43,5 +43,9 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions);
 
+        /// <summary>
+        /// Updates the current index.
+        /// </summary>
+        void UpdateIndex(DriveFileId file, MetadataIndexDefinition metadata);
     }
 }

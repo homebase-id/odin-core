@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -57,21 +58,7 @@ namespace Youverse.Core.Services.Transit.Upload
             }
             else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
             {
-                //todo: convert to streaming for memory reduction if needed.
-                if (null == initializationVector)
-                {
-                    throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
-                }
-
-                byte[] encryptedBytes;
-                await using (var ms = new MemoryStream())
-                {
-                    await data.CopyToAsync(ms);
-                    encryptedBytes = ms.ToArray();
-                }
-
-                var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
-                var list = JsonConvert.DeserializeObject<RecipientList>(json);
+                var list = await DecryptDeserializeFromAppSharedSecret<RecipientList>(data);
                 if (list?.Recipients.Count <= 0)
                 {
                     throw new Exception("No recipients specified");
@@ -92,11 +79,39 @@ namespace Youverse.Core.Services.Transit.Upload
                     throw new InvalidDataException($"This header cannot be uploaded from client.  Use {MultipartSectionNames.TransferEncryptedKeyHeader} instead.");
                 }
 
-                await _driveManager.WritePartStream(pkg.File, filePart, data, StorageDisposition.Temporary);
+                if (filePart == FilePart.Metadata)
+                {
+                    var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetaData>(data);
+                    await _driveManager.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
+                }
+                else
+                {
+                    await _driveManager.WritePartStream(pkg.File, filePart, data, StorageDisposition.Temporary);
+                }
+
                 _partCounts[pkgId]++;
             }
 
             return _partCounts[pkgId] == 4;
+        }
+
+        private async Task<T> DecryptDeserializeFromAppSharedSecret<T>(Stream data)
+        {
+            if (null == initializationVector)
+            {
+                throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
+            }
+            
+            byte[] encryptedBytes;
+            await using (var ms = new MemoryStream())
+            {
+                await data.CopyToAsync(ms);
+                encryptedBytes = ms.ToArray();
+            }
+
+            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
+            var t = JsonConvert.DeserializeObject<T>(json);
+            return t;
         }
 
         public async Task<UploadPackage> GetPackage(Guid packageId)

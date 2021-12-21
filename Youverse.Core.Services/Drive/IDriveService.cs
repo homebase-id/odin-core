@@ -19,6 +19,8 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<StorageDrive> CreateDrive(string name);
 
+        event EventHandler<DriveFileChangedArgs> FileMetaDataChanged;
+        
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         /// <summary>
@@ -32,7 +34,9 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         DriveFileId CreateFileId(Guid driveId);
-
+        
+        Task WriteMetaData(DriveFileId file,FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>

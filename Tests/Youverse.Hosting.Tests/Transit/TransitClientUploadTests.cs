@@ -4,11 +4,15 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -37,7 +41,7 @@ namespace Youverse.Hosting.Tests.Transit
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = new KeyHeader()
@@ -46,8 +50,22 @@ namespace Youverse.Hosting.Tests.Transit
                 AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
             };
 
-            var metadataJson = "{metadata:true, message:'pie on sky'}";
-            var metaDataCipher = TransitTestUtils.GetEncryptedStream(metadataJson, keyHeader);
+            // var metadataJson = "{metadata:true, message:'pie on sky'}";
+            // var metaDataCipher = TransitTestUtils.GetEncryptedStream(metadataJson, keyHeader);
+
+            var metadata = new FileMetaData()
+            {
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                AppData = new AppFileMetaData()
+                {
+                    CategoryId = Guid.Empty,
+                    ContentIsComplete = true,
+                    JsonContent = new JObject(new {message = "We're going to the beach"})
+                }
+            };
+
+            var metadataJson = JsonConvert.SerializeObject(metadata);
+            var metaDataCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadJson = "{payload:true, image:'b64 data'}";
             var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadJson, keyHeader);
@@ -57,7 +75,7 @@ namespace Youverse.Hosting.Tests.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { _scaffold.Frodo } };
+            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());

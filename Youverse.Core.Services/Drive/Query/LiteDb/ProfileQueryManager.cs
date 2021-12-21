@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
-        
+
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
@@ -64,7 +64,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             return page;
         }
-        
+
+        public void UpdateIndex(DriveFileId file, MetadataIndexDefinition metadata)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))

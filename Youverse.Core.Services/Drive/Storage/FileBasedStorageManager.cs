@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drive.Storage
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
-        
+
         public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
             _logger = logger;
             _drive = drive;
-            
+
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, _drive.LongTermDataRootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, _drive.LongTermDataRootPath);
         }
@@ -50,9 +50,6 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            
-            //TODO: update index
-            
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 
@@ -64,11 +61,12 @@ namespace Youverse.Core.Services.Drive.Storage
                 bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 output.Write(buffer, 0, bytesRead);
             } while (bytesRead > 0);
+            
         }
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return Task.FromResult((Stream)File.OpenRead(GetFilePath(fileId, filePart, storageDisposition)));
+            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart, storageDisposition)));
         }
 
         public Task<StorageDisposition> GetStorageType(Guid fileId)
@@ -233,7 +231,7 @@ namespace Youverse.Core.Services.Drive.Storage
             {
                 Directory.Delete(index.IndexRootPath, true);
             }
-            
+
             Directory.CreateDirectory(index.IndexRootPath);
 
 
@@ -245,7 +243,7 @@ namespace Youverse.Core.Services.Drive.Storage
             //     //  create IndexedItem
             // }
         }
-        
+
         public async Task RebuildIndex()
         {
             //TODO: add locking?
@@ -270,7 +268,7 @@ namespace Youverse.Core.Services.Drive.Storage
             SetCurrentIndex(indexToRebuild);
             _isRebuilding = false;
         }
-        
+
         public Task LoadLatestIndex()
         {
             //load the most recently used index
@@ -296,12 +294,12 @@ namespace Youverse.Core.Services.Drive.Storage
 
             return Task.CompletedTask;
         }
-        
+
         public StorageDriveIndex GetCurrentIndex()
         {
             return _currentIndex;
         }
-        
+
         private void SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))

@@ -2,8 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
@@ -45,6 +47,8 @@ namespace Youverse.Core.Services.Drive
             return Task.FromResult(ToStorageDrive(sdb));
         }
 
+        public event EventHandler<DriveFileChangedArgs> FileMetaDataChanged;
+
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
             var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.Get(driveId));
@@ -82,9 +86,24 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
+        public Task WriteMetaData(DriveFileId file, FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            var json = JsonConvert.SerializeObject(data);
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
+            OnFileMetadataChanged(file);
+            return task;
+        }
+
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
+            if (filePart == FilePart.Metadata)
+            {
+                
+            }
+            var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
+            OnFileMetadataChanged(file);
+            return task;
         }
 
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -144,7 +163,7 @@ namespace Youverse.Core.Services.Drive
             {
                 sm.RebuildIndex();
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -152,7 +171,16 @@ namespace Youverse.Core.Services.Drive
         {
             return GetStorageManager(driveId).RebuildIndex();
         }
-        
+
+        private void OnFileMetadataChanged(DriveFileId file)
+        {
+            EventHandler<DriveFileChangedArgs> handler = this.FileMetaDataChanged;
+            if (null != handler)
+            {
+                handler(this, new DriveFileChangedArgs() {File = file});
+            }
+        }
+
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)
         {
             return new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, sdb);
