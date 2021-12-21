@@ -3,26 +3,25 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.SystemStorage;
 
-namespace Youverse.Core.Services.Drive.Query.LiteDb
+namespace Youverse.Core.Services.Drive.Storage
 {
     public class ProfileDataIndexer : IDriveMetadataIndexer
     {
         private readonly ILogger<object> _logger;
 
-        private readonly IStorageManager _storageManager;
         private readonly IGranteeResolver _granteeResolver;
 
         private readonly IProfileAttributeManagementService _profileService;
 
-        public ProfileDataIndexer(IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger, IProfileAttributeManagementService profileService)
+        public ProfileDataIndexer(IGranteeResolver granteeResolver, ILogger<object> logger, IProfileAttributeManagementService profileService)
         {
             _granteeResolver = granteeResolver;
-            _storageManager = storageManager;
             _logger = logger;
             _profileService = profileService;
         }

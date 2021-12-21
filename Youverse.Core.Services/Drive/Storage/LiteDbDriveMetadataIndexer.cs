@@ -1,20 +1,11 @@
-using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Profile;
-using Youverse.Core.SystemStorage;
 
-namespace Youverse.Core.Services.Drive.Query.LiteDb
+namespace Youverse.Core.Services.Drive.Storage
 {
-    public interface IDriveMetadataIndexer
-    {
-        Task Rebuild(StorageDriveIndex index);
-    }
-
     /// <summary>
     /// Indexes data for a given drive an index
     /// </summary>

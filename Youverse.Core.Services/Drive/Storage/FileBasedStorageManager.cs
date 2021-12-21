@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Util;
 
@@ -17,6 +19,14 @@ namespace Youverse.Core.Services.Drive.Storage
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
 
+        private readonly StorageDriveIndex _primaryIndex;
+        private readonly StorageDriveIndex _secondaryIndex;
+
+
+        private StorageDriveIndex _currentIndex;
+        private bool _isRebuilding;
+        private IndexReadyState _indexReadyState;
+        
         public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
@@ -25,7 +35,12 @@ namespace Youverse.Core.Services.Drive.Storage
 
             _logger = logger;
             _drive = drive;
+            
+            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, _drive.LongTermDataRootPath);
+            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, _drive.LongTermDataRootPath);
         }
+
+        public StorageDrive Drive => _drive;
 
         public Guid CreateFileId()
         {
@@ -207,6 +222,72 @@ namespace Youverse.Core.Services.Drive.Storage
             }
 
             return PathUtil.Combine(dir, part.ToString());
+        }
+
+        public async Task Rebuild(StorageDriveIndex index)
+        {
+            if (Directory.Exists(index.IndexRootPath))
+            {
+                Directory.Delete(index.IndexRootPath, true);
+            }
+            
+            Directory.CreateDirectory(index.IndexRootPath);
+
+
+            // var fileList = _storageManager.GetFileList();
+            // foreach (var file in fileList)
+            // {
+            //     //  read permission from the fileid.acl
+            //     //      create IndexedItemPermission
+            //     //  create IndexedItem
+            // }
+        }
+        
+        public async Task RebuildIndex()
+        {
+            //TODO: add locking?
+
+            if (_isRebuilding)
+            {
+                return;
+            }
+
+            _isRebuilding = true;
+            StorageDriveIndex indexToRebuild;
+            if (_currentIndex == null)
+            {
+                indexToRebuild = _primaryIndex;
+            }
+            else
+            {
+                indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
+            }
+
+            await this.Rebuild(indexToRebuild);
+            SetCurrentIndex(indexToRebuild);
+            _isRebuilding = false;
+        }
+        
+        private void SetCurrentIndex(StorageDriveIndex index)
+        {
+            if (IsValidIndex(index))
+            {
+                //TODO: do i need to lock here?
+                _currentIndex = index;
+                _indexReadyState = IndexReadyState.Ready;
+            }
+            else
+            {
+                _indexReadyState = IndexReadyState.NotAvailable;
+            }
+        }
+
+        private bool IsValidIndex(StorageDriveIndex index)
+        {
+            //TODO: this needs more rigor than just checking the number of files
+            var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
+            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
+            return qFileCount > 0 && pFileCount > 0;
         }
     }
 }

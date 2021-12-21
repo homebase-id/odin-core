@@ -3,42 +3,27 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
     public class LiteDbDriveIndexManager : IDriveIndexManager
     {
         private readonly ISystemStorage _systemStorage;
-        private readonly IDriveMetadataIndexer _indexer;
 
         private readonly StorageDriveIndex _primaryIndex;
         private readonly StorageDriveIndex _secondaryIndex;
 
-        private readonly IGranteeResolver _granteeResolver;
-        private readonly IStorageManager _storageManager;
-
         private StorageDriveIndex _currentIndex;
-        private bool _isRebuilding;
         private IndexReadyState _indexReadyState;
 
-        private readonly ILogger<object> _logger;
-
-        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
+        public LiteDbDriveIndexManager(StorageDrive drive, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
-            _granteeResolver = granteeResolver;
-            _storageManager = storageManager;
-            _logger = logger;
             this.Drive = drive;
 
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, Drive.LongTermDataRootPath);
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
-
-            _indexer = new LiteDbDriveMetadataIndexer(this.Drive, granteeResolver, storageManager, _logger);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
@@ -101,32 +86,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             return page;
         }
-
-        public async Task RebuildIndex()
-        {
-            //TODO: add locking?
-
-            if (_isRebuilding)
-            {
-                return;
-            }
-
-            _isRebuilding = true;
-            StorageDriveIndex indexToRebuild;
-            if (_currentIndex == null)
-            {
-                indexToRebuild = _primaryIndex;
-            }
-            else
-            {
-                indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
-            }
-
-            await _indexer.Rebuild(indexToRebuild);
-            SetCurrentIndex(indexToRebuild);
-            _isRebuilding = false;
-        }
-
+        
         private void SetCurrentIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))

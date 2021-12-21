@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive.Storage
@@ -10,6 +11,11 @@ namespace Youverse.Core.Services.Drive.Storage
     /// </summary>
     public interface IStorageManager
     {
+        /// <summary>
+        /// The drive managed by this instance
+        /// </summary>
+        StorageDrive Drive { get; }
+        
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
@@ -69,5 +75,8 @@ namespace Youverse.Core.Services.Drive.Storage
         Task MoveToTemp(Guid fileId);
 
         Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
+        Task RebuildIndex();
+
     }
 }

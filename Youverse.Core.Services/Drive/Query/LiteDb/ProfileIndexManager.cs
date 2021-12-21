@@ -21,7 +21,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private readonly StorageDriveIndex _secondaryIndex;
 
         private readonly IGranteeResolver _granteeResolver;
-        private readonly IStorageManager _storageManager;
 
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
@@ -30,11 +29,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private ILogger<object> _logger;
         public static readonly Guid DataAttributeDriveId = Guid.Parse("11111234-2931-4fa1-0000-CCCC40000001");
 
-        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, IStorageManager storageManager, ILogger<object> logger)
+        public ProfileIndexManager(StorageDrive drive, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, ILogger<object> logger)
         {
             _systemStorage = systemStorage;
             _granteeResolver = granteeResolver;
-            _storageManager = storageManager;
             _logger = logger;
             this.Drive = drive;
 
@@ -42,7 +40,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, Drive.LongTermDataRootPath);
 
             //TODO: pickup here:
-            _indexer = new ProfileDataIndexer(granteeResolver, storageManager, _logger, profileSvc);
+            _indexer = new ProfileDataIndexer(granteeResolver, _logger, profileSvc);
         }
 
         public IndexReadyState IndexReadyState => _indexReadyState;
@@ -81,7 +79,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, _currentIndex.GetQueryIndexPath(), _currentIndex.QueryIndexName);
             var page = await indexStorage.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp);
-            
+
             //var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
 
             //apply permissions from the permissions index to reduce the set.
@@ -102,7 +100,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             // var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
             using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, _currentIndex.GetQueryIndexPath(), _currentIndex.QueryIndexName);
             var page = await indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
-            
+
             if (!includeContent)
             {
                 StripContent(ref page);

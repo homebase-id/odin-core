@@ -10,15 +10,6 @@ namespace Youverse.Core.Services.Drive
     /// </summary>
     public interface IDriveQueryService
     {
-        Task RebuildAllIndices();
-
-        /// <summary>
-        /// Rebuilds the index for a given Drive
-        /// </summary>
-        /// <param name="driveId"></param>
-        /// <returns></returns>
-        Task RebuildIndex(Guid driveId);
-
         Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions);
 
         Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions);

@@ -131,6 +131,22 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).WriteKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
 
+        public Task RebuildAllIndices()
+        {
+            //TODO: optimize by making this parallel processed or something
+            foreach (var sm in _storageManagers.Values)
+            {
+                sm.RebuildIndex();
+            }
+            
+            return Task.CompletedTask;
+        }
+
+        public Task RebuildIndex(Guid driveId)
+        {
+            return GetStorageManager(driveId).RebuildIndex();
+        }
+        
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)
         {
             return new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, sdb);

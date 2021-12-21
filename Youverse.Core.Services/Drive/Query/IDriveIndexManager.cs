@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace Youverse.Core.Services.Drive.Query
 {
     /// <summary>
-    /// Offers query features for finding data with in storage containers
+    /// Offers query and indexing features for a specific <see cref="StorageDrive"/>
     /// </summary>
     public interface IDriveIndexManager
     {
@@ -42,9 +42,5 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions);
 
-        /// <summary>
-        /// Rebuilds the index
-        /// </summary>
-        Task RebuildIndex();
     }
 }

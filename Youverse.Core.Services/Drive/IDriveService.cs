@@ -82,5 +82,14 @@ namespace Youverse.Core.Services.Drive
         Task MoveToTemp(DriveFileId file);
 
         Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
+        Task RebuildAllIndices();
+
+        /// <summary>
+        /// Rebuilds the index for a given Drive
+        /// </summary>
+        /// <param name="driveId"></param>
+        /// <returns></returns>
+        Task RebuildIndex(Guid driveId);
     }
 }
