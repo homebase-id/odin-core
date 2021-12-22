@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Hosting.Tests
 {
-    public static class TransitTestUtils
+    public static class UploadEncryptionUtils
     {
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {

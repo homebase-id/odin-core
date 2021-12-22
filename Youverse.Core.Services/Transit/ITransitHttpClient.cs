@@ -7,7 +7,7 @@ using Youverse.Core.Services.Transit.Outbox;
 namespace Youverse.Core.Services.Transit
 {
     /// <summary>
-    /// The interface for 
+    /// The interface for transit
     /// </summary>
     public interface ITransitHttpClient
     {

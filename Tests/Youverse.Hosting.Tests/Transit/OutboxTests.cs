@@ -165,10 +165,10 @@ namespace Youverse.Hosting.Tests.Transit
             };
 
             var metadataJson = "{metadata:true, message:'pie on sky}";
-            var metaDataCipher = TransitTestUtils.GetEncryptedStream(metadataJson, keyHeader);
+            var metaDataCipher = UploadEncryptionUtils.GetEncryptedStream(metadataJson, keyHeader);
 
             var payloadJson = "{payload:true, image:'b64 data'}";
-            var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadJson, keyHeader);
+            var payloadCipher = UploadEncryptionUtils.GetEncryptedStream(payloadJson, keyHeader);
 
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
@@ -178,7 +178,7 @@ namespace Youverse.Hosting.Tests.Transit
             var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
-            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
+            var recipientCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();

@@ -12,6 +12,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -63,21 +64,16 @@ namespace Youverse.Hosting.Tests.Storage
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
+            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadData, keyHeader);
+            var payloadCipher = UploadEncryptionUtils.GetEncryptedStream(payloadData, keyHeader);
 
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
-
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
-            var recipientJson = JsonConvert.SerializeObject(recipientList);
-
-            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
-
+            
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
@@ -85,76 +81,22 @@ namespace Youverse.Hosting.Tests.Storage
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
-                var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var uploadSvc = RestService.For<IUploadHttpClient>(client);
 
-                var response = await transitSvc.SendFile(
+                var response = await uploadSvc.Store(
                     new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
-                    new StreamPart(recipientCipher, "recipientlist.encrypted", "application/json", "recipients"),
                     new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
-                var transferResult = response.Content;
-                Assert.IsNotNull(transferResult);
-                Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
-                Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
+                var uploadResult = response.Content;
+                Assert.IsNotNull(uploadResult);
+                Assert.IsFalse(uploadResult.FileId == Guid.Empty, "FileId was not set");
+                Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
+                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
+                Assert.IsTrue(uploadResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
 
-                //there should be a record in the outbox for this transfer
-                var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
-                Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
-
-                //In this test framework, we sent one item so there
-                //should be one item in the outbox.  Be sure the outbox
-                //processor is not enabled
-                var outboxItems = outboxItemsResponse.Content;
-                Assert.IsNotNull(outboxItems);
-                Assert.IsTrue(outboxItems.Results.Count == 1);
-
-                var item = outboxItems.Results.First();
-                Assert.IsTrue(item.Recipient == _scaffold.Frodo);
-                Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);
-
-                //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
-                //TODO: how do i check Pending Transfer Queue?
-
-                await transitSvc.ProcessOutbox();
             }
-
-            // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
-            // using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
-            // {
-            //     //TODO: query for the message to see if 
-            //
-            //     var expectedMessage = sentMessage;
-            //
-            //     //Check audit 
-            //     var transitSvc = RestService.For<ITransitTestHttpClient>(client);
-            //     var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
-            //
-            //     Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-            //     var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int) TransitAuditEvent.Accepted);
-            //     Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
-            //
-            //     //I guess I need an api that says give me all transfers from a given DI
-            //     // so in this case I could ge that transfer and compare the file contents?
-            //     //this api is needed for everything - so yea. let's do that
-            // }
-
-
-            //TODO: determine if we should check outgoing audit to show it was sent
-            // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
-            // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-
-
-            /*
-             *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
-             * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
-             * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
-             */
         }
-
-        
     }
 }

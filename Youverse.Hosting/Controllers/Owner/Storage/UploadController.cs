@@ -39,8 +39,8 @@ namespace Youverse.Hosting.Controllers.Owner.Storage
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
-        [HttpPost("SendPackage")]
-        public async Task<IActionResult> SendPackage()
+        [HttpPost("store")]
+        public async Task<IActionResult> Store()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {

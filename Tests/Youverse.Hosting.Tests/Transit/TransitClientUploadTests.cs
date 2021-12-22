@@ -63,10 +63,10 @@ namespace Youverse.Hosting.Tests.Transit
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
+            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = TransitTestUtils.GetEncryptedStream(payloadData, keyHeader);
+            var payloadCipher = UploadEncryptionUtils.GetEncryptedStream(payloadData, keyHeader);
 
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.Transit
             var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
-            var recipientCipher = TransitTestUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
+            var recipientCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
