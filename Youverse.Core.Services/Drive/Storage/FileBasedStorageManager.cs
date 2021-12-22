@@ -51,6 +51,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
+            throw new Exception("TODO: this is appending rather than overwriting data!! durh, but the coffee shop is closing so will fix when i get home.");
             var buffer = new byte[WriteChunkSize];
             var bytesRead = 0;
 
