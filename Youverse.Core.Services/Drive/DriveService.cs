@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Drive
             {
                 OnLongTermFileChanged(file, data);
             }
-            
+
             return task;
         }
 
@@ -112,7 +112,6 @@ namespace Youverse.Core.Services.Drive
             //TODO: who sets the checksum?
             //metadata.FileChecksum
             await this.WriteMetaData(file, metadata, storageDisposition);
-
         }
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -159,9 +158,13 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).Delete(file.FileId, storageDisposition);
         }
 
-        public Task MoveToLongTerm(DriveFileId file)
+        public async Task MoveToLongTerm(DriveFileId file)
         {
-            return GetStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
+            await GetStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
+            
+            //HACK: I don't like having to call getmetadata when i move a file.  i wonder if there's a better way
+            var metadata = await this.GetMetadata(file, StorageDisposition.LongTerm);
+            OnLongTermFileChanged(file, metadata);
         }
 
         public Task MoveToTemp(DriveFileId file)

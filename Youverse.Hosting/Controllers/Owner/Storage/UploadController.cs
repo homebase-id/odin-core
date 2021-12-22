@@ -8,33 +8,33 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Transit
+namespace Youverse.Hosting.Controllers.Owner.Storage
 {
     [ApiController]
-    [Route("/api/transit/client")]
+    [Route("/api/owner/v1/storage")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
     public class UploadController : ControllerBase
     {
-        private readonly ITransitService _transitService;
+        private readonly IDriveService _driveService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
         private readonly DotYouContext _context;
 
-        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context)
+        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
         {
             _packageStorageWriter = packageStorageWriter;
-            _transitService = transitService;
             _context = context;
+            _driveService = driveService;
         }
 
         /// <summary>
         /// Accepts a multipart upload.  The 'name' parameter in the upload must be specified.  The following parts are required:
         ///
-        /// name: "recipients": an encrypted list of recipients in json format. { recipients:["recipient1", "recipient2"] } 
-        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of oct 27, 2021)
+        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of dec 21, 2021)
         /// name: "payload": the encrypted payload of data
         /// </summary>
         /// <returns></returns>
@@ -75,9 +75,10 @@ namespace Youverse.Hosting.Controllers.Owner.Transit
             }
 
             var package = await _packageStorageWriter.GetPackage(packageId);
-            var status = await _transitService.PrepareTransfer(package);
+            
+            await _driveService.MoveToLongTerm(package.File);
 
-            return new JsonResult(status);
+            return new JsonResult(true);
         }
 
         private static bool IsMultipartContentType(string contentType)
@@ -107,6 +108,5 @@ namespace Youverse.Hosting.Controllers.Owner.Transit
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-
     }
 }

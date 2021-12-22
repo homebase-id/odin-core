@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
-        private readonly IDriveService _drive;
+        private readonly IDriveService _driveService;
         private readonly IOutboxService _outboxService;
         private readonly IInboxService _inboxService;
         private readonly IEncryptionService _encryption;
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit
         public TransitService(DotYouContext context,
             ILogger<TransitService> logger,
             IOutboxService outboxService,
-            IDriveService drive,
+            IDriveService driveService,
             IEncryptionService encryptionSvc,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Transit
         {
             _context = context;
             _outboxService = outboxService;
-            _drive = drive;
+            _driveService = driveService;
             _encryption = encryptionSvc;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _inboxService = inboxService;
@@ -55,12 +55,12 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
         {
-            _drive.AssertFileIsValid(package.File, StorageDisposition.Unknown);
+            _driveService.AssertFileIsValid(package.File, StorageDisposition.Unknown);
 
-            var storageType = await _drive.GetStorageType(package.File);
+            var storageType = await _driveService.GetStorageType(package.File);
             if (storageType == StorageDisposition.Temporary)
             {
-                await _drive.MoveToLongTerm(package.File);
+                await _driveService.MoveToLongTerm(package.File);
             }
 
             //TODO: consider if the recipient transfer key header should go directly in the outbox
@@ -113,7 +113,7 @@ namespace Youverse.Core.Services.Transit
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _drive.GetKeyHeader(package.File);
+            var encryptedKeyHeader = await _driveService.GetKeyHeader(package.File);
 
             foreach (var recipient in package.RecipientList.Recipients)
             {
@@ -235,8 +235,8 @@ namespace Youverse.Core.Services.Transit
                     };
                 }
 
-                var metaDataStream = new StreamPart(await _drive.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
-                var payload = new StreamPart(await _drive.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
+                var metaDataStream = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
+                var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 

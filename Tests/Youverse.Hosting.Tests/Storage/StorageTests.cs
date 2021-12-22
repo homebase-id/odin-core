@@ -17,9 +17,9 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Hosting.Tests.Storage
 {
-    public class TransitClientUploadTests
+    public class StorageTests
     {
         private TestScaffold _scaffold;
 
@@ -38,8 +38,8 @@ namespace Youverse.Hosting.Tests.Transit
         }
 
 
-        [Test(Description = "Test basic transfer")]
-        public async Task TestBasicTransfer()
+        [Test]
+        public async Task TestBasicUpload()
         {
             var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
@@ -155,19 +155,6 @@ namespace Youverse.Hosting.Tests.Transit
              */
         }
 
-        // [Test(Description = "")]
-        // public async Task TestCanRecoverFromRecipientExpiredPublic()
-        // {
-        // }
-        //
-        // [Test(Description = "")]
-        // public async Task TestCanRecoverFromRecipientNotConnected()
-        // {
-        // }
-        //
-        // [Test(Description = "")]
-        // public async Task TestCanRecoverFromRecipientServerDown()
-        // {
-        // }
+        
     }
 }
