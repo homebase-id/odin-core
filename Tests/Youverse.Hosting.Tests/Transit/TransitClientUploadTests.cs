@@ -44,11 +44,7 @@ namespace Youverse.Hosting.Tests.Transit
             var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var keyHeader = new KeyHeader()
-            {
-                Iv = ByteArrayUtil.GetRndByteArray(16),
-                AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
-            };
+            var keyHeader = KeyHeader.NewRandom16();
             
             var metadata = new FileMetaData()
             {
@@ -58,7 +54,7 @@ namespace Youverse.Hosting.Tests.Transit
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach"})
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
@@ -66,10 +62,9 @@ namespace Youverse.Hosting.Tests.Transit
             var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = UploadEncryptionUtils.GetEncryptedStream(payloadData, keyHeader);
+            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
-
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 

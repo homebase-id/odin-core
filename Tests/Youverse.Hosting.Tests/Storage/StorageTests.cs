@@ -1,22 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.Storage
 {
@@ -45,12 +39,8 @@ namespace Youverse.Hosting.Tests.Storage
             var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var keyHeader = new KeyHeader()
-            {
-                Iv = ByteArrayUtil.GetRndByteArray(16),
-                AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
-            };
-            
+            var keyHeader = KeyHeader.NewRandom16();
+
             var metadata = new FileMetaData()
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
@@ -67,13 +57,13 @@ namespace Youverse.Hosting.Tests.Storage
             var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = UploadEncryptionUtils.GetEncryptedStream(payloadData, keyHeader);
+            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
-            
+
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
@@ -95,7 +85,6 @@ namespace Youverse.Hosting.Tests.Storage
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
                 Assert.IsTrue(uploadResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
-
             }
         }
     }

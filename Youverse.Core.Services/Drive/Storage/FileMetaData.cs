@@ -12,7 +12,6 @@ namespace Youverse.Core.Services.Drive.Storage
         public UInt64 Updated { get; set; }
         public string ContentType { get; set; }
         
-        public FileChecksum FileChecksum { get; set; }
         public AppFileMetaData AppData { get; set; }
     }
 }

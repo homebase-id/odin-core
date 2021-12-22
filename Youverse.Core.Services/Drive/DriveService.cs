@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Concurrent;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
@@ -36,6 +36,8 @@ namespace Youverse.Core.Services.Drive
         //TODO: add storage dek here
         public Task<StorageDrive> CreateDrive(string name)
         {
+            Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
+
             var id = Guid.NewGuid();
             var sdb = new StorageDriveBase()
             {
@@ -77,13 +79,12 @@ namespace Youverse.Core.Services.Drive
 
         public DriveFileId CreateFileId(Guid driveId)
         {
-            //TODO: use time based guid
             var df = new DriveFileId()
             {
-                FileId = Guid.NewGuid(),
+                FileId = GetStorageManager(driveId).CreateFileId(),
                 DriveId = driveId,
             };
-
+            
             return df;
         }
 
@@ -120,6 +121,11 @@ namespace Youverse.Core.Services.Drive
             return task;
         }
 
+        public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
+        }
+
         public async Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Metadata, storageDisposition);
@@ -128,6 +134,12 @@ namespace Youverse.Core.Services.Drive
             return metadata;
         }
 
+        public async Task<Stream> GetPayload(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, storageDisposition);
+            return stream;
+        }
+        
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             return GetStorageManager(file.DriveId).GetFileSize(file.FileId, storageDisposition);
@@ -142,12 +154,7 @@ namespace Youverse.Core.Services.Drive
         {
             return GetStorageManager(file.DriveId).GetStorageType(file.FileId);
         }
-
-        public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
-        {
-            return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
-        }
-
+        
         public void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             GetStorageManager(file.DriveId).AssertFileIsValid(file.FileId, storageDisposition);
@@ -161,7 +168,7 @@ namespace Youverse.Core.Services.Drive
         public async Task MoveToLongTerm(DriveFileId file)
         {
             await GetStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
-            
+
             //HACK: I don't like having to call getmetadata when i move a file.  i wonder if there's a better way
             var metadata = await this.GetMetadata(file, StorageDisposition.LongTerm);
             OnLongTermFileChanged(file, metadata);

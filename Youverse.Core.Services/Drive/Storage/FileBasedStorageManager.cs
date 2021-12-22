@@ -29,9 +29,11 @@ namespace Youverse.Core.Services.Drive.Storage
         public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
-            Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath));
-            Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath));
+            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
+            // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath), sd => $"No directory for drive storage at {sd.TempDataRootPath}");
 
+            Directory.CreateDirectory(drive.LongTermDataRootPath);
+            Directory.CreateDirectory(drive.TempDataRootPath);
             _logger = logger;
             _drive = drive;
 
@@ -43,7 +45,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Guid CreateFileId()
         {
-            //TODO: Create a date-based
+            //TODO: Create a datetime-based
             return Guid.NewGuid();
         }
 
@@ -60,7 +62,6 @@ namespace Youverse.Core.Services.Drive.Storage
                 bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 output.Write(buffer, 0, bytesRead);
             } while (bytesRead > 0);
-            
         }
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)

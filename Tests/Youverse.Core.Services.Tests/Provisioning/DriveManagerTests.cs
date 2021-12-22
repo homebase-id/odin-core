@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Tests.Drive
+namespace Youverse.Core.Services.Tests.Provisioning
 {
     [TestFixture]
     public class DriveManagerTests
@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Tests.Drive
         }
 
         [Test]
-        public async Task CreateDrive()
+        public async Task CanCreateDrive()
         {
             var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
 
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Tests.Drive
         }
 
         [Test]
-        public async Task FailIfInvalidDriveRequested()
+        public async Task WillFailIfInvalidDriveRequested()
         {
             var driveManager = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
             Assert.ThrowsAsync<InvalidDriveException>(async () => await driveManager.GetDrive(Guid.NewGuid(), failIfInvalid: true));

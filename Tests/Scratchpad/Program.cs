@@ -11,7 +11,15 @@ namespace Scratchpad
     {
         static void Main(string[] args)
         {
+
+            byte[] iv = new byte[16];
+            var key = new byte[16];
+            
+            Array.Fill(iv,(byte)1);
+            Array.Fill(key, (byte)1);
+            
             RunSHA256Calcs();
+
         }
 
         static void RunSHA256Calcs()

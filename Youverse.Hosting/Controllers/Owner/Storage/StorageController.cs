@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
@@ -18,13 +17,13 @@ namespace Youverse.Hosting.Controllers.Owner.Storage
     [ApiController]
     [Route("/api/owner/v1/storage")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
-    public class UploadController : ControllerBase
+    public class StorageController : ControllerBase
     {
         private readonly IDriveService _driveService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
         private readonly DotYouContext _context;
 
-        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
+        public StorageController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
         {
             _packageStorageWriter = packageStorageWriter;
             _context = context;
