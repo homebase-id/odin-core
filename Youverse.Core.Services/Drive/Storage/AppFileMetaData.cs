@@ -5,6 +5,9 @@ namespace Youverse.Core.Services.Drive.Storage
 {
     public class AppFileMetaData
     {
+        /// <summary>
+        /// A CategoryId specific to an app.  This is indexed and can be used to query data.
+        /// </summary>
         public Guid CategoryId { get; set; }
 
         /// <summary>

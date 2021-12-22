@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<StorageDrive> CreateDrive(string name);
 
-        event EventHandler<DriveFileChangedArgs> FileMetaDataChanged;
+        event EventHandler<DriveFileChangedArgs> FileChanged;
         
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
@@ -38,10 +38,27 @@ namespace Youverse.Core.Services.Drive
         Task WriteMetaData(DriveFileId file,FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         /// <summary>
-        /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
+        /// Writes the payload stream
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="stream"></param>
+        /// <param name="storageDisposition"></param>
+        /// <returns></returns>
+        Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
+        /// <summary>
+        /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
         Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
+        /// <summary>
+        /// Gets the <see cref="FileMetaData"/>
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="storageDisposition"></param>
+        /// <returns></returns>
+        Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
         Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>

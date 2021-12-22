@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,6 +11,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -47,7 +49,7 @@ namespace Youverse.Core.Services.Drive
             return Task.FromResult(ToStorageDrive(sdb));
         }
 
-        public event EventHandler<DriveFileChangedArgs> FileMetaDataChanged;
+        public event EventHandler<DriveFileChangedArgs> FileChanged;
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
@@ -91,19 +93,42 @@ namespace Youverse.Core.Services.Drive
             var json = JsonConvert.SerializeObject(data);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
-            OnFileMetadataChanged(file);
+
+            if (storageDisposition == StorageDisposition.LongTerm)
+            {
+                OnFileChanged(file);
+            }
+            
             return task;
+        }
+
+        public async Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            await GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream, storageDisposition);
+
+            //update the metadata file - updated date
+            var metadata = await GetMetadata(file);
+            metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
+
+            //TODO: who sets the checksum?
+            //metadata.FileChecksum
+            await this.WriteMetaData(file, metadata, storageDisposition);
+
         }
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            if (filePart == FilePart.Metadata)
-            {
-                
-            }
             var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
-            OnFileMetadataChanged(file);
+            OnFileChanged(file);
             return task;
+        }
+
+        public async Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Metadata, storageDisposition);
+            var json = await new StreamReader(stream).ReadToEndAsync();
+            var metadata = JsonConvert.DeserializeObject<FileMetaData>(json);
+            return metadata;
         }
 
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -172,9 +197,9 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(driveId).RebuildIndex();
         }
 
-        private void OnFileMetadataChanged(DriveFileId file)
+        private void OnFileChanged(DriveFileId file)
         {
-            EventHandler<DriveFileChangedArgs> handler = this.FileMetaDataChanged;
+            EventHandler<DriveFileChangedArgs> handler = this.FileChanged;
             if (null != handler)
             {
                 handler(this, new DriveFileChangedArgs() {File = file});

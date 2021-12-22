@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
@@ -36,24 +37,25 @@ namespace Youverse.Core.Services.Drive
             _logger = logger;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
-            _driveService.FileMetaDataChanged += DriveServiceOnFileMetaDataChanged;
+            _driveService.FileChanged += DriveServiceOnFileMetaDataChanged;
             InitializeQueryManagers();
         }
 
         private void DriveServiceOnFileMetaDataChanged(object? sender, DriveFileChangedArgs e)
         {
             // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
-            //TODO: read metadata from _driveService
+            //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
+            var metaData = e.FileMetaData;
             var metadata = new MetadataIndexDefinition()
             {
-                CategoryId = Guid.NewGuid(),
-                JsonContent = new JObject(new {some = "metadata"}),
-                ContentIsComplete = false,
-                ContentIsEncrypted = false
+                
+                CategoryId = metaData.AppData.CategoryId,
+                ContentIsComplete = metaData.AppData.ContentIsComplete,
+                JsonContent = metaData.AppData.JsonContent.ToString(Formatting.None)
             };
+            
             this.TryGetOrLoadIndexManager(e.File.DriveId, out var manager, false);
             manager.UpdateIndex(e.File, metadata);
-            
         }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)

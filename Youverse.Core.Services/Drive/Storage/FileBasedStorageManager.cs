@@ -22,7 +22,6 @@ namespace Youverse.Core.Services.Drive.Storage
         private readonly StorageDriveIndex _primaryIndex;
         private readonly StorageDriveIndex _secondaryIndex;
 
-
         private StorageDriveIndex _currentIndex;
         private bool _isRebuilding;
         private IndexReadyState _indexReadyState;

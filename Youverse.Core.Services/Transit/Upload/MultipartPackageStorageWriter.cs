@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -84,9 +83,14 @@ namespace Youverse.Core.Services.Transit.Upload
                     var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetaData>(data);
                     await _driveManager.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
                 }
+                if(filePart == FilePart.Payload)
+                {
+                    await _driveManager.WritePayload(pkg.File, data, StorageDisposition.Temporary);
+                }
                 else
                 {
-                    await _driveManager.WritePartStream(pkg.File, filePart, data, StorageDisposition.Temporary);
+                    //Not sure how we got here but just in case
+                    throw new InvalidDataException($"Part name [{name}] not recognized");
                 }
 
                 _partCounts[pkgId]++;
