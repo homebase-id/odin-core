@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
 {
@@ -46,6 +47,6 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Updates the current index.
         /// </summary>
-        void UpdateIndex(DriveFileId file, MetadataIndexDefinition metadata);
+        void UpdateIndex(DriveFileId file, FileMetaData metadata);
     }
 }

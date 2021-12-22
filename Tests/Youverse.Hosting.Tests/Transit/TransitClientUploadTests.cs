@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.Transit
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = new JObject(new {message = "We're going to the beach"})
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach"})
                 }
             };
 

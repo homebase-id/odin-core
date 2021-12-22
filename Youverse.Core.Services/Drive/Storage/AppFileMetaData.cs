@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// The JsonPayload to be included in the index.  This is not searchable but rather available to be returned
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
-        public JObject JsonContent { get; set; }
+        public string JsonContent { get; set; }
         
     }
 }

@@ -106,7 +106,7 @@ namespace Youverse.Hosting.Tests.Drive
                 Assert.IsNotNull(page);
 
                 Assert.IsTrue(page.Results.Count > 0);
-                Assert.IsTrue(page.Results.All(item => string.IsNullOrEmpty(item.JsonPayload)), "One or more items had content");
+                Assert.IsTrue(page.Results.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
         }
     }

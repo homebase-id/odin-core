@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.SystemStorage;
 
@@ -65,7 +66,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
 
-        public void UpdateIndex(DriveFileId file, MetadataIndexDefinition metadata)
+        public void UpdateIndex(DriveFileId file, FileMetaData metadata)
         {
             throw new NotImplementedException();
         }
@@ -100,7 +101,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             //the alternative is casting but I don't think that's needed right now
             foreach (var indexedItem in page.Results)
             {
-                indexedItem.JsonPayload = string.Empty;
+                indexedItem.JsonContent = string.Empty;
             }
         }
 

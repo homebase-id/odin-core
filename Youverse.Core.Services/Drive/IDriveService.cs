@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Drive
         Task<StorageDrive> CreateDrive(string name);
 
         event EventHandler<DriveFileChangedArgs> FileChanged;
-        
+
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         /// <summary>
@@ -34,9 +34,9 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         DriveFileId CreateFileId(Guid driveId);
-        
-        Task WriteMetaData(DriveFileId file,FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
+        Task WriteMetaData(DriveFileId file, FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+
         /// <summary>
         /// Writes the payload stream
         /// </summary>
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="storageDisposition"></param>
         /// <returns></returns>
         Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="storageDisposition"></param>
         /// <returns></returns>
         Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
         Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="driveId"></param>
         /// <returns></returns>
         StorageDriveIndex GetCurrentIndex(Guid driveId);
-        
+
         Task RebuildAllIndices();
 
         /// <summary>

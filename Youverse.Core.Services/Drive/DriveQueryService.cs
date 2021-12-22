@@ -3,12 +3,10 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive
@@ -45,22 +43,17 @@ namespace Youverse.Core.Services.Drive
         {
             // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
             //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
+
             var metaData = e.FileMetaData;
-            var metadata = new MetadataIndexDefinition()
-            {
-                
-                CategoryId = metaData.AppData.CategoryId,
-                ContentIsComplete = metaData.AppData.ContentIsComplete,
-                JsonContent = metaData.AppData.JsonContent.ToString(Formatting.None)
-            };
+           
             
-            this.TryGetOrLoadIndexManager(e.File.DriveId, out var manager, false);
-            manager.UpdateIndex(e.File, metadata);
+            this.TryGetOrLoadQueryManager(e.File.DriveId, out var manager, false);
+            manager.UpdateIndex(e.File, e.FileMetaData);
         }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
-            if (await TryGetOrLoadIndexManager(driveId, out var indexManager))
+            if (await TryGetOrLoadQueryManager(driveId, out var indexManager))
             {
                 return await indexManager.GetRecentlyCreatedItems(includeContent, pageOptions);
             }
@@ -70,7 +63,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
-            if (await TryGetOrLoadIndexManager(driveId, out var indexManager))
+            if (await TryGetOrLoadQueryManager(driveId, out var indexManager))
             {
                 return await indexManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
             }
@@ -87,7 +80,7 @@ namespace Youverse.Core.Services.Drive
             }
         }
 
-        private Task<bool> TryGetOrLoadIndexManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
+        private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
         {
             if (_queryManagers.TryGetValue(driveId, out manager))
             {
@@ -133,7 +126,7 @@ namespace Youverse.Core.Services.Drive
 
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
-            manager = new LiteDbDriveQueryManager(drive, _systemStorage);
+            manager = new LiteDbDriveQueryManager(drive, _logger);
 
             //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
             _queryManagers.TryAdd(drive.Id, manager);

@@ -217,7 +217,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId));
             }
-
+            
             await _fileDrive.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
 
             //triage, decrypt, route the payload

@@ -11,7 +11,6 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -96,7 +95,7 @@ namespace Youverse.Core.Services.Drive
 
             if (storageDisposition == StorageDisposition.LongTerm)
             {
-                OnFileChanged(file);
+                OnLongTermFileChanged(file, data);
             }
             
             return task;
@@ -119,7 +118,6 @@ namespace Youverse.Core.Services.Drive
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
-            OnFileChanged(file);
             return task;
         }
 
@@ -197,12 +195,16 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(driveId).RebuildIndex();
         }
 
-        private void OnFileChanged(DriveFileId file)
+        private void OnLongTermFileChanged(DriveFileId file, FileMetaData metaData)
         {
             EventHandler<DriveFileChangedArgs> handler = this.FileChanged;
             if (null != handler)
             {
-                handler(this, new DriveFileChangedArgs() {File = file});
+                handler(this, new DriveFileChangedArgs()
+                {
+                    File = file,
+                    FileMetaData = metaData
+                });
             }
         }
 

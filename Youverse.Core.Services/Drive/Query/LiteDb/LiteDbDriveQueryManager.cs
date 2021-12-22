@@ -3,20 +3,24 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
-        private readonly ISystemStorage _systemStorage;
-
+        private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
         private StorageDriveIndex _currentIndex;
         private IndexReadyState _indexReadyState;
+        private readonly ILogger<object> _logger;
 
-        public LiteDbDriveQueryManager(StorageDrive drive, ISystemStorage systemStorage)
+        public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger)
         {
-            _systemStorage = systemStorage;
+            _logger = logger;
             this.Drive = drive;
         }
 
@@ -27,8 +31,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp));
+            var page = await _indexStorage.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp);
 
             //apply permissions from the permissions index to reduce the set.
             //
@@ -45,7 +48,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
+            var page = await _indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
 
             if (!includeContent)
             {
@@ -55,19 +58,19 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
 
-        public void UpdateIndex(DriveFileId file, MetadataIndexDefinition metadata)
+        public void UpdateIndex(DriveFileId file, FileMetaData metadata)
         {
-
             var item = new IndexedItem()
             {
-                Id = Guid.NewGuid(),
                 FileId = file.FileId,
                 CreatedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 LastUpdatedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                CategoryId = Guid.Empty,
+                CategoryId = metadata.AppData.CategoryId,
+                ContentIsComplete = metadata.AppData.ContentIsComplete,
+                JsonContent = metadata.AppData.JsonContent
             };
 
-            _systemStorage.WithTenantSystemStorage<IndexedItem>(_currentIndex.QueryIndexName, s => s.Save(item));
+            _indexStorage.Save(item);
         }
 
         public Task SetCurrentIndex(StorageDriveIndex index)
@@ -76,6 +79,14 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 //TODO: do i need to lock here?
                 _currentIndex = index;
+
+                if (null != _indexStorage)
+                {
+                    _indexStorage.Dispose();
+                }
+
+                var indexPath = _currentIndex.GetQueryIndexPath();
+                _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
                 _indexReadyState = IndexReadyState.Ready;
             }
             else
@@ -100,7 +111,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             //the alternative is casting but I don't think that's needed right now
             foreach (var indexedItem in page.Results)
             {
-                indexedItem.JsonPayload = string.Empty;
+                indexedItem.JsonContent = string.Empty;
             }
         }
 
