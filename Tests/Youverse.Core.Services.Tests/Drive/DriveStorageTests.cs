@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NuGet.Frameworks;
@@ -36,8 +37,8 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
 
-            Array.Fill(_ekh_Iv, (byte) 1);
-            Array.Fill(_ekh_Key, (byte) 1);
+            Array.Fill(_ekh_Iv, (byte)1);
+            Array.Fill(_ekh_Key, (byte)1);
         }
 
         [TearDown]
@@ -70,7 +71,7 @@ namespace Youverse.Core.Services.Tests.Drive
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach"})
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach" })
                 }
             };
 
@@ -91,21 +92,24 @@ namespace Youverse.Core.Services.Tests.Drive
 
             Assert.IsTrue(metadata.Created == storedMetadata.Created);
             Assert.IsTrue(metadata.ContentType == storedMetadata.ContentType);
-            // Assert.IsTrue(metadata.Updated == storedMetadata.Updated);
+            
+            Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
             Assert.IsNotNull(storedMetadata.AppData);
             Assert.IsTrue(metadata.AppData.CategoryId == storedMetadata.AppData.CategoryId);
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
-            
-            var storedPayload = await driveService.GetPayload(file, StorageDisposition.LongTerm);
+
+            await using var storedPayload = await driveService.GetPayload(file, StorageDisposition.LongTerm);
             var storedPayloadBytes = StreamToBytes(storedPayload);
+            
             var payloadCipherBytes = StreamToBytes(payloadCipherStream);
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
         }
 
         private byte[] StreamToBytes(Stream stream)
         {
-            MemoryStream ms = new MemoryStream();
+            MemoryStream ms = new ();
+            stream.Position = 0; //reset due to other readers
             stream.CopyToAsync(ms).GetAwaiter().GetResult();
             return ms.ToArray();
         }

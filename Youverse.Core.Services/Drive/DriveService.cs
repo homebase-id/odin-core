@@ -109,7 +109,7 @@ namespace Youverse.Core.Services.Drive
             //update the metadata file - updated date
             var metadata = await GetMetadata(file);
             metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
-
+            
             //TODO: who sets the checksum?
             //metadata.FileChecksum
             await this.WriteMetaData(file, metadata, storageDisposition);
@@ -130,6 +130,7 @@ namespace Youverse.Core.Services.Drive
         {
             var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Metadata, storageDisposition);
             var json = await new StreamReader(stream).ReadToEndAsync();
+            stream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetaData>(json);
             return metadata;
         }

@@ -49,25 +49,44 @@ namespace Youverse.Core.Services.Drive.Storage
             return Guid.NewGuid();
         }
 
-        public async Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            throw new Exception("TODO: this is appending rather than overwriting data!! durh, but the coffee shop is closing so will fix when i get home.");
-            var buffer = new byte[WriteChunkSize];
-            var bytesRead = 0;
-
-            string filePath = GetFilePath(fileId, filePart, storageDisposition, true);
-
-            await using var output = new FileStream(filePath, FileMode.Append);
-            do
+            //TODO: this is probably highly inefficient and probably need to revisit 
+            string filePath = GetFilePath(fileId, part, storageDisposition, true);
+            string tempFilePath = GetTempFilePath(fileId, part, storageDisposition);
+            try
             {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                output.Write(buffer, 0, bytesRead);
-            } while (bytesRead > 0);
+                if (File.Exists(filePath))
+                {
+                    WriteStream(stream, tempFilePath);
+                    lock (filePath)
+                    {
+                        //TODO: need to know if this replace method is faster than renaming files
+                        File.Replace(tempFilePath, filePath, null, true);
+                    }
+                }
+                else
+                {
+                    WriteStream(stream, filePath);
+                }
+            }
+            finally
+            {
+                //TODO: should clean up the temp file in case of failure?
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return Task.FromResult((Stream) File.OpenRead(GetFilePath(fileId, filePart, storageDisposition)));
+            string path = GetFilePath(fileId, filePart, storageDisposition);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+            return Task.FromResult((Stream)fileStream);
         }
 
         public Task<StorageDisposition> GetStorageType(Guid fileId)
@@ -206,14 +225,14 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
-        public async Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             //TODO: make more efficient by reading metadata or something else?
             var path = GetFilePath(id, FilePart.Payload, storageDisposition);
-            return new FileInfo(path).Length;
+            return Task.FromResult(new FileInfo(path).Length);
         }
-
-        private string GetFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        
+        private string GetFileDirectory(Guid id, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(storageDisposition);
             string dir = PathUtil.Combine(path, id.ToString());
@@ -223,9 +242,22 @@ namespace Youverse.Core.Services.Drive.Storage
                 Directory.CreateDirectory(dir);
             }
 
-            return PathUtil.Combine(dir, part.ToString());
+            return dir;
         }
 
+        private string GetFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        {
+            string dir = GetFileDirectory(id, storageDisposition, ensureExists);
+            return PathUtil.Combine(dir, part.ToString());
+        }
+        
+        private string GetTempFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        {
+            string dir = GetFileDirectory(id, storageDisposition, ensureExists);
+            string filename = $"{Guid.NewGuid()}{part}.tmp";
+            return Path.Combine(dir, filename);
+        }
+        
         public async Task Rebuild(StorageDriveIndex index)
         {
             if (Directory.Exists(index.IndexRootPath))
@@ -299,6 +331,23 @@ namespace Youverse.Core.Services.Drive.Storage
         public StorageDriveIndex GetCurrentIndex()
         {
             return _currentIndex;
+        }
+        
+        private void WriteStream(Stream stream, string filePath)
+        {
+            var buffer = new byte[WriteChunkSize];
+            var bytesRead = 0;
+
+            using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+            {
+                do
+                {
+                    bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    output.Write(buffer, 0, bytesRead);
+                } while (bytesRead > 0);
+                
+                output.Close();
+            }
         }
 
         private void SetCurrentIndex(StorageDriveIndex index)

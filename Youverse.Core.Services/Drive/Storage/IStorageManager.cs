@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
         /// </summary>
-        Task WritePartStream(Guid fileId, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         Task<long> GetFileSize(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
