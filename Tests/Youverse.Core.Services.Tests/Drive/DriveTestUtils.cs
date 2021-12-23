@@ -1,0 +1,83 @@
+﻿using System;
+using System.IO;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using NUnit.Framework;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit.Encryption;
+
+namespace Youverse.Core.Services.Tests.Drive
+{
+    public static class DriveTestUtils
+    {
+        private static readonly byte[] InitializationVector = new byte[16];
+        private static readonly byte[] EncryptionKey = new byte[16];
+
+        static DriveTestUtils()
+        {
+            Array.Fill(InitializationVector, (byte)1);
+            Array.Fill(EncryptionKey, (byte)1);
+        }
+
+        public static byte[] StreamToBytes(Stream stream)
+        {
+            MemoryStream ms = new();
+            stream.Position = 0; //reset due to other readers
+            stream.CopyToAsync(ms).GetAwaiter().GetResult();
+            return ms.ToArray();
+        }
+
+        public static async Task<DriveFileId> AddFile(DriveService driveService, Guid driveId, TestFileProps testFileProps)
+        {
+            var file = driveService.CreateFileId(driveId);
+
+            var keyHeader = KeyHeader.NewRandom16();
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, InitializationVector, EncryptionKey);
+            await driveService.WriteKeyHeader(file, ekh, StorageDisposition.LongTerm);
+
+            var metadata = new FileMetaData()
+            {
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                ContentType = testFileProps.PayloadContentType,
+                AppData = new AppFileMetaData()
+                {
+                    CategoryId = testFileProps.CategoryId,
+                    ContentIsComplete = testFileProps.ContentIsComplete,
+                    JsonContent = JsonConvert.SerializeObject(testFileProps.MetadataJsonContent)
+                }
+            };
+
+            await driveService.WriteMetaData(file, metadata, StorageDisposition.LongTerm);
+
+            var payloadCipherStream = keyHeader.GetEncryptedStreamAes(testFileProps.PayloadData);
+            await driveService.WritePayload(file, payloadCipherStream, StorageDisposition.LongTerm);
+
+            var storedEkh = await driveService.GetKeyHeader(file, StorageDisposition.LongTerm);
+
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.Data, storedEkh.Data));
+            ByteArrayUtil.EquiByteArrayCompare(ekh.Iv, storedEkh.Iv);
+            Assert.IsTrue(ekh.Type == storedEkh.Type);
+            Assert.IsTrue(ekh.EncryptionVersion == storedEkh.EncryptionVersion);
+
+            var storedMetadata = await driveService.GetMetadata(file, StorageDisposition.LongTerm);
+
+            Assert.IsTrue(metadata.Created == storedMetadata.Created);
+            Assert.IsTrue(metadata.ContentType == storedMetadata.ContentType);
+
+            Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
+            Assert.IsNotNull(storedMetadata.AppData);
+            Assert.IsTrue(metadata.AppData.CategoryId == storedMetadata.AppData.CategoryId);
+            Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
+            Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
+
+            await using var storedPayload = await driveService.GetPayloadStream(file, StorageDisposition.LongTerm);
+            var storedPayloadBytes = StreamToBytes(storedPayload);
+            var payloadCipherBytes = StreamToBytes(payloadCipherStream);
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
+
+            return file;
+        }
+    }
+}

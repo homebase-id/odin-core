@@ -1,16 +1,18 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
+    [DebuggerDisplay("Tier={Tier}, Path={IndexRootPath}")]
     public sealed class StorageDriveIndex
     {
-        public IndexTier IndexTier { get; }
+        public IndexTier Tier { get; }
 
-        public StorageDriveIndex(IndexTier indexIndexTier, string rootPath)
+        public StorageDriveIndex(IndexTier tier, string rootPath)
         {
-            IndexTier = indexIndexTier;
-            string folder = IndexTier == IndexTier.Primary ? "p" : "s";
+            Tier = tier;
+            string folder = Tier == IndexTier.Primary ? "p" : "s";
             IndexRootPath = Path.Combine(rootPath, "_idx", folder);
         }
 

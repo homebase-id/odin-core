@@ -7,6 +7,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive
@@ -26,6 +27,7 @@ namespace Youverse.Core.Services.Drive
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             _driveService.FileChanged += DriveServiceOnFileMetaDataChanged;
+            
             InitializeQueryManagers();
         }
 
@@ -38,11 +40,23 @@ namespace Youverse.Core.Services.Drive
             manager.UpdateIndex(e.File, e.FileMetaData);
         }
 
+        private async Task RebuildIndex(Guid driveId)
+        {
+            var metaDataList = await _driveService.GetMetadataFiles(driveId);
+            
+            await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
+            
+            foreach (FileMetaData md in metaDataList)
+            {
+                manager.UpdateIndex(file, md);
+            }
+        }
+
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
         {
-            if (await TryGetOrLoadQueryManager(driveId, out var indexManager))
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                return await indexManager.GetRecentlyCreatedItems(includeContent, pageOptions);
+                return await queryManager.GetRecentlyCreatedItems(includeContent, pageOptions);
             }
 
             throw new NoValidIndexException(driveId);
@@ -50,9 +64,9 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
-            if (await TryGetOrLoadQueryManager(driveId, out var indexManager))
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                return await indexManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
+                return await queryManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
             }
 
             throw new NoValidIndexException(driveId);

@@ -259,7 +259,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 Directory.Delete(index.IndexRootPath, true);
             }
 
-            Directory.CreateDirectory(index.IndexRootPath);
+            //Directory.CreateDirectory(index.IndexRootPath);
 
 
             // var fileList = _storageManager.GetFileList();
@@ -288,7 +288,7 @@ namespace Youverse.Core.Services.Drive.Storage
             }
             else
             {
-                indexToRebuild = _currentIndex.IndexTier == _primaryIndex.IndexTier ? _secondaryIndex : _primaryIndex;
+                indexToRebuild = _currentIndex.Tier == _primaryIndex.Tier ? _secondaryIndex : _primaryIndex;
             }
 
             await this.Rebuild(indexToRebuild);
