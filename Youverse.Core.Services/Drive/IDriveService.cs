@@ -59,13 +59,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
-        /// <summary>
-        /// Returns the payload for the file
-        /// </summary>
-        /// <param name="file"></param>
-        /// <param name="storageDisposition"></param>
-        /// <returns></returns>
-        Task<Stream> GetPayload(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 

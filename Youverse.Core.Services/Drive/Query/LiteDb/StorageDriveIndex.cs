@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             IndexTier = indexIndexTier;
             string folder = IndexTier == IndexTier.Primary ? "p" : "s";
-            IndexRootPath = Path.Combine(rootPath, folder, "_idx");
+            IndexRootPath = Path.Combine(rootPath, "_idx", folder);
         }
 
         public string QueryIndexName => "dq_idx";

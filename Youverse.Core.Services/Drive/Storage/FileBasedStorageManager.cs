@@ -110,18 +110,11 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            using var stream = File.Open(GetFilePath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
+            await using var stream = File.Open(GetFilePath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
             var json = await new StreamReader(stream).ReadToEndAsync();
+            stream.Close();
+
             var ekh = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
-
-            // var ekh = new EncryptedKeyHeader()
-            // {
-            //     EncryptionVersion = 1,
-            //     Iv = 
-            //     Type = EncryptionType.Aes,
-            //     Data = ms.ToArray()
-            // };
-
             return ekh;
         }
 
@@ -130,13 +123,14 @@ namespace Youverse.Core.Services.Drive.Storage
             var json = JsonConvert.SerializeObject(keyHeader);
             var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
             await this.WritePartStream(fileId, FilePart.Header, stream, storageDisposition);
+            stream.Close();
         }
 
         public void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             if (fileId == Guid.Empty)
             {
-                throw new Exception("Invalid transfer, no file specified");
+                throw new Exception("No file specified");
             }
 
             //check both
@@ -231,7 +225,7 @@ namespace Youverse.Core.Services.Drive.Storage
             var path = GetFilePath(id, FilePart.Payload, storageDisposition);
             return Task.FromResult(new FileInfo(path).Length);
         }
-        
+
         private string GetFileDirectory(Guid id, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(storageDisposition);
@@ -250,14 +244,14 @@ namespace Youverse.Core.Services.Drive.Storage
             string dir = GetFileDirectory(id, storageDisposition, ensureExists);
             return PathUtil.Combine(dir, part.ToString());
         }
-        
+
         private string GetTempFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string dir = GetFileDirectory(id, storageDisposition, ensureExists);
             string filename = $"{Guid.NewGuid()}{part}.tmp";
             return Path.Combine(dir, filename);
         }
-        
+
         public async Task Rebuild(StorageDriveIndex index)
         {
             if (Directory.Exists(index.IndexRootPath))
@@ -325,14 +319,35 @@ namespace Youverse.Core.Services.Drive.Storage
                 SetCurrentIndex(_secondaryIndex);
             }
 
+            //neither index is valid; so let us default
+            //to primary.  It will be built as files are added.
+            SetCurrentIndex(_primaryIndex);
+
+            //if there were files but neither index is valid
+            //let's kick off a background rebuild on the secondary
+            //index to pickup all the files
+            var fileCount = this.GetFileCount().GetAwaiter().GetResult();
+            if (fileCount > 0)
+            {
+                //let it run on its own
+                this.RebuildIndex();
+            }
+
             return Task.CompletedTask;
+        }
+
+        public Task<Int64> GetFileCount()
+        {
+            //TODO: This really won't perform
+            var dirs = Directory.GetDirectories(_drive.GetStoragePath(StorageDisposition.LongTerm));
+            return Task.FromResult(dirs.LongLength);
         }
 
         public StorageDriveIndex GetCurrentIndex()
         {
             return _currentIndex;
         }
-        
+
         private void WriteStream(Stream stream, string filePath)
         {
             var buffer = new byte[WriteChunkSize];
@@ -345,23 +360,16 @@ namespace Youverse.Core.Services.Drive.Storage
                     bytesRead = stream.Read(buffer, 0, buffer.Length);
                     output.Write(buffer, 0, bytesRead);
                 } while (bytesRead > 0);
-                
+
                 output.Close();
             }
         }
 
         private void SetCurrentIndex(StorageDriveIndex index)
         {
-            if (IsValidIndex(index))
-            {
-                //TODO: do i need to lock here?
-                _currentIndex = index;
-                _indexReadyState = IndexReadyState.Ready;
-            }
-            else
-            {
-                _indexReadyState = IndexReadyState.NotAvailable;
-            }
+            //TODO: do i need to lock here?
+            _currentIndex = index;
+            _indexReadyState = IsValidIndex(index) ? IndexReadyState.Ready : IndexReadyState.NotAvailable;
         }
 
         private bool IsValidIndex(StorageDriveIndex index)

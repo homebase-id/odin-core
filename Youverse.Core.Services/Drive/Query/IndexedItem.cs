@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// </summary>
         public UInt64 LastUpdatedTimestamp { get; set; }
 
-        public Guid CategoryId { get; set; }
+        public Guid? CategoryId { get; set; }
         
         //TODO:what is this?
         //public string FileType { get; set; }

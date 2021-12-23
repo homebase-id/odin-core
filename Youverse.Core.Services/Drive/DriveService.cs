@@ -135,7 +135,7 @@ namespace Youverse.Core.Services.Drive
             return metadata;
         }
 
-        public async Task<Stream> GetPayload(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public async Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, storageDisposition);
             return stream;

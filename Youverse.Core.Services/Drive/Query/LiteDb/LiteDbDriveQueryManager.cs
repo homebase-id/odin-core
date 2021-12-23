@@ -63,8 +63,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             var item = new IndexedItem()
             {
                 FileId = file.FileId,
-                CreatedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                LastUpdatedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                CreatedTimestamp = metadata.Created,
+                LastUpdatedTimestamp = metadata.Updated,
                 CategoryId = metadata.AppData.CategoryId,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent
@@ -75,24 +75,17 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public Task SetCurrentIndex(StorageDriveIndex index)
         {
-            if (IsValidIndex(index))
-            {
-                //TODO: do i need to lock here?
-                _currentIndex = index;
+            //TODO: do i need to lock here?
+            _currentIndex = index;
 
-                if (null != _indexStorage)
-                {
-                    _indexStorage.Dispose();
-                }
-
-                var indexPath = _currentIndex.GetQueryIndexPath();
-                _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
-                _indexReadyState = IndexReadyState.Ready;
-            }
-            else
+            if (null != _indexStorage)
             {
-                _indexReadyState = IndexReadyState.NotAvailable;
+                _indexStorage.Dispose();
             }
+
+            var indexPath = _currentIndex.GetQueryIndexPath();
+            _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
+            _indexReadyState = IndexReadyState.Ready;
 
             return Task.CompletedTask;
         }
@@ -117,6 +110,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private void AssertValidIndexLoaded()
         {
+            if (_indexReadyState == IndexReadyState.Ready)
+            {
+                return;
+            }
+
+            //keep checking in-case a background index rebuild makes the index available
+            _indexReadyState = IsValidIndex(_currentIndex) ? IndexReadyState.Ready : IndexReadyState.NotAvailable;
             if (_indexReadyState != IndexReadyState.Ready)
             {
                 throw new NoValidIndexException(this.Drive.Id);

@@ -13,26 +13,16 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveQueryService : IDriveQueryService
     {
-        private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
-
         private readonly IGranteeResolver _granteeResolver;
-        private readonly DotYouContext _context;
-
-        private readonly ILogger<object> _logger;
-
-        //HACK: total hack.  define the data attributes as a fixed drive until we move them to use the actual storage 
-        private readonly IProfileAttributeManagementService _profileSvc;
-
-        public DriveQueryService(DotYouContext context, IDriveService driveService, ISystemStorage systemStorage, IProfileAttributeManagementService profileSvc, IGranteeResolver granteeResolver, ILogger<object> logger)
+        private readonly ILoggerFactory _loggerFactory;
+        
+        public DriveQueryService(IDriveService driveService, IGranteeResolver granteeResolver, ILoggerFactory loggerFactory)
         {
             _driveService = driveService;
-            _systemStorage = systemStorage;
-            _profileSvc = profileSvc;
             _granteeResolver = granteeResolver;
-            _context = context;
-            _logger = logger;
+            _loggerFactory = loggerFactory;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             _driveService.FileChanged += DriveServiceOnFileMetaDataChanged;
@@ -43,9 +33,6 @@ namespace Youverse.Core.Services.Drive
         {
             // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
             //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
-
-            var metaData = e.FileMetaData;
-           
             
             this.TryGetOrLoadQueryManager(e.File.DriveId, out var manager, false);
             manager.UpdateIndex(e.File, e.FileMetaData);
@@ -93,25 +80,6 @@ namespace Youverse.Core.Services.Drive
                 return Task.FromResult(true);
             }
 
-            //HACK: 
-            if (driveId == ProfileQueryManager.DataAttributeDriveId)
-            {
-                var pDrive = new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, new StorageDriveBase()
-                {
-                    Id = driveId,
-                    Name = "profile hack"
-                });
-
-                manager = new ProfileQueryManager(pDrive, _systemStorage, _profileSvc, _granteeResolver, _logger);
-
-                //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
-                _queryManagers.TryAdd(driveId, manager);
-                var index = _driveService.GetCurrentIndex(driveId);
-                manager.SetCurrentIndex(index);
-
-                return Task.FromResult(true);
-            }
-
             var drive = _driveService.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadQueryManager(drive, out manager);
 
@@ -126,9 +94,11 @@ namespace Youverse.Core.Services.Drive
 
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
-            manager = new LiteDbDriveQueryManager(drive, _logger);
+            var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
+            manager = new LiteDbDriveQueryManager(drive, logger);
 
-            //add it first in case load latest fails.  we want to ensure the rebuild process can still access this manager to rebuild its index
+            //add it first in case load latest fails.  we want to ensure the
+            //rebuild process can still access this manager to rebuild its index
             _queryManagers.TryAdd(drive.Id, manager);
 
             var index = _driveService.GetCurrentIndex(drive.Id);
