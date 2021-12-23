@@ -221,7 +221,11 @@ namespace Youverse.Core.Services.Drive
 
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)
         {
-            return new StorageDrive(_context.StorageConfig.DataStoragePath, _context.StorageConfig.TempStoragePath, sdb);
+            //TODO: this should probably go in config
+            const string driveFolder = "drives";
+            return new StorageDrive(
+                Path.Combine(_context.StorageConfig.DataStoragePath, driveFolder), 
+                Path.Combine(_context.StorageConfig.TempStoragePath, driveFolder), sdb);
         }
 
         private async Task InitializeStorageDrives()
