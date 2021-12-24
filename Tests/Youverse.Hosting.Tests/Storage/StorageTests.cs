@@ -41,7 +41,14 @@ namespace Youverse.Hosting.Tests.Storage
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
-            var metadata = new FileMetaData()
+            //TODO: for the test setup, i need to create a drive and update the API to accept a driveId
+            var file = new DriveFileId()
+            {
+                DriveId = Guid.Empty,
+                FileId = Guid.Empty
+            };
+            
+            var metadata = new FileMetaData(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",

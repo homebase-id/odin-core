@@ -8,10 +8,12 @@ using Microsoft.AspNetCore.Builder;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using NUnit.Framework.Constraints;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -45,8 +47,15 @@ namespace Youverse.Hosting.Tests.Transit
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
+
+            //TODO: need to update api to accept a driveId
+            var file = new DriveFileId()
+            {
+                DriveId = Guid.Empty,
+                FileId = Guid.Empty
+            };
             
-            var metadata = new FileMetaData()
+            var metadata = new FileMetaData(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",

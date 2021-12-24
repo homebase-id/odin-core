@@ -19,13 +19,8 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// 
         /// </summary>
-        IndexReadyState IndexReadyState { get; }
+        IndexReadyState IndexReadyState { get; set; }
 
-        /// <summary>
-        /// Loads the latest available index.  After calling, you should check IndexReadyState.
-        /// </summary>
-        /// <returns></returns>
-        Task SetCurrentIndex(StorageDriveIndex index);
 
         /// <summary>
         /// Returns the most recently created <see cref="IndexedItem"/>s.  Items are returned CreateTimestamp descending
@@ -44,9 +39,31 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions);
 
+
         /// <summary>
-        /// Updates the current index.
+        /// Switches from the current index in use to the backup index.  Use after a rebuild
         /// </summary>
-        void UpdateIndex(DriveFileId file, FileMetaData metadata);
+        /// <returns></returns>
+        Task SwitchIndex();
+
+        /// <summary>
+        /// Updates the current index that is in use.
+        /// </summary>
+        Task UpdateCurrentIndex(FileMetaData metadata);
+
+        /// <summary>
+        /// Updates the index that is not currently in use.  Use when performing a rebuild.
+        /// </summary>
+        /// <param name="metadata"></param>
+        Task UpdateBackupIndex(FileMetaData metadata);
+
+        /// <summary>
+        /// Removes all data from the index not currently in use.  Use before performing a rebuild.
+        /// </summary>
+        /// <returns></returns>
+        Task TruncateBackupIndex();
+
+        Task LoadLatestIndex();
+
     }
 }

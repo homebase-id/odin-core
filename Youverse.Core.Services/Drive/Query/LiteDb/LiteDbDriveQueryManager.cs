@@ -4,8 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Base;
+using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
@@ -18,13 +17,29 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private IndexReadyState _indexReadyState;
         private readonly ILogger<object> _logger;
 
+        private readonly StorageDriveIndex _primaryIndex;
+        private readonly StorageDriveIndex _secondaryIndex;
+
         public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger)
         {
             _logger = logger;
             this.Drive = drive;
+
+            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, drive.LongTermDataRootPath);
+            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, drive.LongTermDataRootPath);
         }
 
-        public IndexReadyState IndexReadyState => _indexReadyState;
+        public IndexReadyState IndexReadyState
+        {
+            get
+            {
+                return this._indexReadyState;
+            }
+            set
+            {
+                this._indexReadyState = value;
+            }
+        }
 
         public StorageDrive Drive { get; init; }
 
@@ -58,11 +73,19 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
 
-        public void UpdateIndex(DriveFileId file, FileMetaData metadata)
+        public Task SwitchIndex()
+        {
+            //TODO: do i need to lock here?
+            var index = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;
+            SetCurrentIndex(index);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateCurrentIndex(FileMetaData metadata)
         {
             var item = new IndexedItem()
             {
-                FileId = file.FileId,
+                FileId = metadata.File.FileId,
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
                 CategoryId = metadata.AppData.CategoryId,
@@ -71,13 +94,58 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             };
 
             _indexStorage.Save(item);
+
+            return Task.CompletedTask;
         }
 
-        public Task SetCurrentIndex(StorageDriveIndex index)
+        public Task UpdateBackupIndex(FileMetaData metadata)
         {
-            //TODO: do i need to lock here?
-            _currentIndex = index;
+            throw new NotImplementedException();
+        }
 
+        public Task TruncateBackupIndex()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task LoadLatestIndex()
+        {
+            //load the most recently used index
+            var primaryIsValid = IsValidIndex(_primaryIndex);
+            var secondaryIsValid = IsValidIndex(_secondaryIndex);
+
+            if (primaryIsValid && secondaryIsValid)
+            {
+                var pf = new FileInfo(_primaryIndex.IndexRootPath);
+                var sf = new FileInfo(_secondaryIndex.IndexRootPath);
+                SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
+                _indexReadyState = IndexReadyState.Ready;
+            }
+
+            if (primaryIsValid)
+            {
+                SetCurrentIndex(_primaryIndex);
+                _indexReadyState = IndexReadyState.Ready;
+
+            }
+
+            if (secondaryIsValid)
+            {
+                SetCurrentIndex(_secondaryIndex);
+                _indexReadyState = IndexReadyState.Ready;
+            }
+
+            //neither index is valid; so let us default
+            //to primary.  It will be built as files are added.
+            SetCurrentIndex(_primaryIndex);
+            _indexReadyState = IndexReadyState.RequiresRebuild;
+            
+            return Task.CompletedTask;
+        }
+
+        private void SetCurrentIndex(StorageDriveIndex index)
+        {
+            _currentIndex = index;
             if (null != _indexStorage)
             {
                 _indexStorage.Dispose();
@@ -86,8 +154,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             var indexPath = _currentIndex.GetQueryIndexPath();
             _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
             _indexReadyState = IndexReadyState.Ready;
-
-            return Task.CompletedTask;
         }
 
         private bool IsValidIndex(StorageDriveIndex index)
@@ -115,8 +181,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 return;
             }
 
-            //keep checking in-case a background index rebuild makes the index available
-            _indexReadyState = IsValidIndex(_currentIndex) ? IndexReadyState.Ready : IndexReadyState.NotAvailable;
+            //keep checking in-case a background indexing makes the index available
+            _indexReadyState = IsValidIndex(_currentIndex) ? IndexReadyState.Ready : IndexReadyState.RequiresRebuild;
             if (_indexReadyState != IndexReadyState.Ready)
             {
                 throw new NoValidIndexException(this.Drive.Id);

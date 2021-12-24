@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,6 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -121,6 +121,11 @@ namespace Youverse.Core.Services.Drive
             return task;
         }
 
+        public Task<IEnumerable<FileMetaData>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
+        {
+            return GetStorageManager(driveId).GetMetadataFiles(pageOptions);
+        }
+        
         public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
@@ -128,10 +133,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Metadata, storageDisposition);
-            var json = await new StreamReader(stream).ReadToEndAsync();
-            stream.Close();
-            var metadata = JsonConvert.DeserializeObject<FileMetaData>(json);
+            var metadata = await GetStorageManager(file.DriveId).GetMetadata(file.FileId, storageDisposition);
             return metadata;
         }
 
@@ -184,27 +186,7 @@ namespace Youverse.Core.Services.Drive
         {
             return GetStorageManager(file.DriveId).WriteKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
-
-        public StorageDriveIndex GetCurrentIndex(Guid driveId)
-        {
-            return GetStorageManager(driveId).GetCurrentIndex();
-        }
-
-        public Task RebuildAllIndices()
-        {
-            //TODO: optimize by making this parallel processed or something
-            foreach (var sm in _storageManagers.Values)
-            {
-                sm.RebuildIndex();
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public Task RebuildIndex(Guid driveId)
-        {
-            return GetStorageManager(driveId).RebuildIndex();
-        }
+        
 
         private void OnLongTermFileChanged(DriveFileId file, FileMetaData metaData)
         {
@@ -258,7 +240,6 @@ namespace Youverse.Core.Services.Drive
         {
             var logger = _loggerFactory.CreateLogger<IStorageManager>();
             manager = new FileBasedStorageManager(drive, logger);
-            manager.LoadLatestIndex().GetAwaiter().GetResult();
             return _storageManagers.TryAdd(drive.Id, manager);
         }
     }

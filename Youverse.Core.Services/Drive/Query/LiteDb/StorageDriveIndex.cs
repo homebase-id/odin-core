@@ -8,12 +8,14 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     public sealed class StorageDriveIndex
     {
         public IndexTier Tier { get; }
+        
+        public const string IndexFolder = "_idx";
 
         public StorageDriveIndex(IndexTier tier, string rootPath)
         {
             Tier = tier;
             string folder = Tier == IndexTier.Primary ? "p" : "s";
-            IndexRootPath = Path.Combine(rootPath, "_idx", folder);
+            IndexRootPath = Path.Combine(rootPath, IndexFolder, folder);
         }
 
         public string QueryIndexName => "dq_idx";

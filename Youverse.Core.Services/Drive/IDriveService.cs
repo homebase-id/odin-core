@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -70,7 +70,7 @@ namespace Youverse.Core.Services.Drive
         Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Get the <see cref="StorageDisposition"/> for the specified  <param name="fileId"></param>
+        /// Get the <see cref="StorageDisposition"/> for the specified
         /// </summary>
         /// <returns></returns>
         Task<StorageDisposition> GetStorageType(DriveFileId file);
@@ -106,21 +106,7 @@ namespace Youverse.Core.Services.Drive
         Task MoveToTemp(DriveFileId file);
 
         Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-
-        /// <summary>
-        /// Returns the current index which should be used for a given drive.
-        /// </summary>
-        /// <param name="driveId"></param>
-        /// <returns></returns>
-        StorageDriveIndex GetCurrentIndex(Guid driveId);
-
-        Task RebuildAllIndices();
-
-        /// <summary>
-        /// Rebuilds the index for a given Drive
-        /// </summary>
-        /// <param name="driveId"></param>
-        /// <returns></returns>
-        Task RebuildIndex(Guid driveId);
+        
+        Task<IEnumerable<FileMetaData>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
     }
 }

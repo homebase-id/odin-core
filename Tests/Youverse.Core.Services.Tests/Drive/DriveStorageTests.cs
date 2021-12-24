@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Tests.Drive
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, _ekh_Iv, _ekh_Key);
             await driveService.WriteKeyHeader(file, ekh, StorageDisposition.LongTerm);
 
-            var metadata = new FileMetaData()
+            var metadata = new FileMetaData(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",

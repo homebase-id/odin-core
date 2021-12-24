@@ -2,7 +2,8 @@ namespace Youverse.Core.Services.Drive.Query
 {
     public enum IndexReadyState
     {
-        NotAvailable = 0,
+        RequiresRebuild = 0,
         Ready = 2,
+        IsRebuilding = 3
     }
 }

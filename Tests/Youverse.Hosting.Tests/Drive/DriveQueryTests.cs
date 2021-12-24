@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Tests.Drive
     public class DriveQueryTests
     {
         private TestScaffold _scaffold;
-        private readonly Guid _profileDriveId = ProfileQueryManager.DataAttributeDriveId;
+        private readonly Guid _profileDriveId = Guid.Empty;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()

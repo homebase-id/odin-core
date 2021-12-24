@@ -12,7 +12,7 @@ using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
-    public class ProfileQueryManager : IDriveQueryManager
+    public class ProfileQueryManager //: IDriveQueryManager
     {
         private StorageDriveIndex _currentIndex;
         private IndexReadyState _indexReadyState;
@@ -66,12 +66,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
 
-        public void UpdateIndex(DriveFileId file, FileMetaData metadata)
+        public void UpdateCurrentIndex(DriveFileId file, FileMetaData metadata)
         {
             throw new NotImplementedException();
         }
 
-        public Task SetCurrentIndex(StorageDriveIndex index)
+        public Task SwitchIndex(StorageDriveIndex index)
         {
             if (IsValidIndex(index))
             {
@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
             else
             {
-                _indexReadyState = IndexReadyState.NotAvailable;
+                _indexReadyState = IndexReadyState.RequiresRebuild;
             }
 
             return Task.CompletedTask;
@@ -109,7 +109,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             if (_indexReadyState != IndexReadyState.Ready)
             {
-                throw new NoValidIndexException(this.Drive.Id);
             }
         }
     }

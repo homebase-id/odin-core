@@ -2,13 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -18,7 +15,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
         private readonly IGranteeResolver _granteeResolver;
         private readonly ILoggerFactory _loggerFactory;
-        
+
         public DriveQueryService(IDriveService driveService, IGranteeResolver granteeResolver, ILoggerFactory loggerFactory)
         {
             _driveService = driveService;
@@ -27,7 +24,7 @@ namespace Youverse.Core.Services.Drive
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             _driveService.FileChanged += DriveServiceOnFileMetaDataChanged;
-            
+
             InitializeQueryManagers();
         }
 
@@ -35,21 +32,38 @@ namespace Youverse.Core.Services.Drive
         {
             // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
             //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
-            
+
             this.TryGetOrLoadQueryManager(e.File.DriveId, out var manager, false);
-            manager.UpdateIndex(e.File, e.FileMetaData);
+            manager.UpdateCurrentIndex(e.FileMetaData);
         }
 
-        private async Task RebuildIndex(Guid driveId)
+        public Task RebuildAllIndices()
         {
-            var metaDataList = await _driveService.GetMetadataFiles(driveId);
-            
+            //TODO: optimize by making this parallel processed or something
+            foreach (var qm in _queryManagers.Values)
+            {
+                //intentionally not awaiting the result
+                this.RebuildBackupIndex(qm.Drive.Id);
+            }
+
+            return Task.CompletedTask;
+        }
+        
+        public async Task RebuildBackupIndex(Guid driveId)
+        {
+            //TODO: add looping for paging so we work in chunks instead of all files at once.
+            var paging = PageOptions.All;
+            var metaDataList = await _driveService.GetMetadataFiles(driveId, paging);
+
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
-            
+            await manager.TruncateBackupIndex();
             foreach (FileMetaData md in metaDataList)
             {
-                manager.UpdateIndex(file, md);
+                //intentionally letting this run w/o await
+                manager.UpdateBackupIndex(md);
             }
+
+            await manager.SwitchIndex();
         }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
@@ -81,11 +95,29 @@ namespace Youverse.Core.Services.Drive
             }
         }
 
+        private async Task RebuildCurrentIndex(Guid driveId)
+        {
+            //TODO: add looping for paging so we work in chunks instead of all files at once.
+            var paging = PageOptions.All;
+            var metaDataList = await _driveService.GetMetadataFiles(driveId, paging);
+
+            await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
+            manager.IndexReadyState = IndexReadyState.IsRebuilding;
+
+            foreach (FileMetaData md in metaDataList)
+            {
+                //intentionally letting this run w/o await
+                manager.UpdateCurrentIndex(md);
+            }
+
+            manager.IndexReadyState = IndexReadyState.Ready;
+        }
+
         private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
         {
             if (_queryManagers.TryGetValue(driveId, out manager))
             {
-                if (onlyReadyManagers && manager.IndexReadyState == IndexReadyState.NotAvailable)
+                if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.Ready)
                 {
                     manager = null;
                     return Task.FromResult(false);
@@ -97,7 +129,7 @@ namespace Youverse.Core.Services.Drive
             var drive = _driveService.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadQueryManager(drive, out manager);
 
-            if (onlyReadyManagers && manager.IndexReadyState == IndexReadyState.NotAvailable)
+            if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.Ready)
             {
                 manager = null;
                 return Task.FromResult(false);
@@ -114,9 +146,12 @@ namespace Youverse.Core.Services.Drive
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index
             _queryManagers.TryAdd(drive.Id, manager);
-
-            var index = _driveService.GetCurrentIndex(drive.Id);
-            manager.SetCurrentIndex(index);
+            manager.LoadLatestIndex().GetAwaiter().GetResult();
+            if (manager.IndexReadyState == IndexReadyState.RequiresRebuild)
+            {
+                //start a rebuild in the background for this index
+                this.RebuildCurrentIndex(drive.Id);
+            }
 
             return Task.CompletedTask;
         }

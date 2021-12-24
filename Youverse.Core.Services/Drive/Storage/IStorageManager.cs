@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive.Storage
@@ -76,15 +76,13 @@ namespace Youverse.Core.Services.Drive.Storage
 
         Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
-        Task RebuildIndex();
-
-        Task LoadLatestIndex();
-
         /// <summary>
-        /// Gets the current index which should be used to query this drive
+        /// Returns an enumeration of <see cref="FileMetaData"/>; ordered by the most recently modified
         /// </summary>
+        /// <param name="pageOptions"></param>
         /// <returns></returns>
-        StorageDriveIndex GetCurrentIndex();
+        Task<IEnumerable<FileMetaData>> GetMetadataFiles(PageOptions pageOptions);
 
+        Task<FileMetaData> GetMetadata(Guid fileId, StorageDisposition storageDisposition);
     }
 }

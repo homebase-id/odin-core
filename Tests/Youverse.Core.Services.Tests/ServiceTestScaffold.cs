@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Common;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -15,7 +16,9 @@ namespace Youverse.Core.Services.Tests
         public ISystemStorage? SystemStorage { get; private set; }
         public DotYouContext? Context { get; private set; }
         public ILoggerFactory LoggerFactory { get; private set; }
-        
+
+        public string? DataStoragePath => _dataStoragePath;
+
         public ServiceTestScaffold(string folder)
         {
             _folder = folder;
@@ -27,14 +30,14 @@ namespace Youverse.Core.Services.Tests
             _dataStoragePath = Path.Combine(tempPath, _folder, "data");
             _tempStoragePath = Path.Combine(tempPath, _folder, "temp");
 
-            Console.WriteLine($"_dataStoragePath: [{_dataStoragePath}]");
+            Console.WriteLine($"_dataStoragePath: [{DataStoragePath}]");
             Console.WriteLine($"_tempStoragePath: [{_tempStoragePath}]");
 
-            Directory.CreateDirectory(_dataStoragePath);
+            Directory.CreateDirectory(DataStoragePath);
             Directory.CreateDirectory(_tempStoragePath);
 
             Context = Substitute.For<DotYouContext>();
-            Context.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
+            Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
         }
 
         public void CreateSystemStorage()
@@ -45,14 +48,34 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateLoggerFactory()
         {
-            LoggerFactory  = Substitute.For<ILoggerFactory>();;
+            LoggerFactory = Substitute.For<ILoggerFactory>();
+            ;
         }
-        
+
+        public void LogDataPath()
+        {
+            if (!Directory.Exists(DataStoragePath))
+            {
+                Console.WriteLine($"Data path does not exist: {DataStoragePath}");
+            }
+
+            var files = Directory.EnumerateFiles(DataStoragePath, "", SearchOption.AllDirectories);
+            
+            Console.WriteLine($"Directories and files in :{DataStoragePath}\n\n");
+            Console.ForegroundColor = ConsoleColor.Blue;
+            foreach (var f in files)
+            {
+                Console.WriteLine(f);
+            }
+            
+            Console.ResetColor();
+        }
+
         public void Cleanup()
         {
-            if (!string.IsNullOrWhiteSpace(_dataStoragePath))
+            if (!string.IsNullOrWhiteSpace(DataStoragePath))
             {
-                Directory.Delete(_dataStoragePath, true);
+                Directory.Delete(DataStoragePath, true);
             }
 
             if (!string.IsNullOrWhiteSpace(_tempStoragePath))

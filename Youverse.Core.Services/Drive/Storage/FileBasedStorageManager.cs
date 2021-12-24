@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -52,7 +53,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             //TODO: this is probably highly inefficient and probably need to revisit 
-            string filePath = GetFilePath(fileId, part, storageDisposition, true);
+            string filePath = GetFilenameAndPath(fileId, part, storageDisposition, true);
             string tempFilePath = GetTempFilePath(fileId, part, storageDisposition);
             try
             {
@@ -84,22 +85,22 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            string path = GetFilePath(fileId, filePart, storageDisposition);
+            string path = GetFilenameAndPath(fileId, filePart, storageDisposition);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-            return Task.FromResult((Stream)fileStream);
+            return Task.FromResult((Stream) fileStream);
         }
 
         public Task<StorageDisposition> GetStorageType(Guid fileId)
         {
             //just check for the header, this assumes the file is valid
-            var longTermPath = GetFilePath(fileId, FilePart.Header, StorageDisposition.LongTerm);
+            var longTermPath = GetFilenameAndPath(fileId, FilePart.Header, StorageDisposition.LongTerm);
 
             if (File.Exists(longTermPath))
             {
                 return Task.FromResult(StorageDisposition.LongTerm);
             }
 
-            var tempPath = GetFilePath(fileId, FilePart.Header, StorageDisposition.Temporary);
+            var tempPath = GetFilenameAndPath(fileId, FilePart.Header, StorageDisposition.Temporary);
             if (File.Exists(tempPath))
             {
                 return Task.FromResult(StorageDisposition.Temporary);
@@ -110,7 +111,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            await using var stream = File.Open(GetFilePath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
+            await using var stream = File.Open(GetFilenameAndPath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
 
@@ -155,28 +156,28 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private bool IsFileValid(Guid fileId, StorageDisposition storageDisposition)
         {
-            string header = GetFilePath(fileId, FilePart.Header, storageDisposition);
-            string metadata = GetFilePath(fileId, FilePart.Metadata, storageDisposition);
-            string payload = GetFilePath(fileId, FilePart.Payload, storageDisposition);
+            string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata, storageDisposition);
+            string payload = GetFilenameAndPath(fileId, FilePart.Payload, storageDisposition);
 
             return File.Exists(header) && File.Exists(metadata) && File.Exists(payload);
         }
 
         public Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            string header = GetFilePath(fileId, FilePart.Header, storageDisposition);
+            string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
             if (File.Exists(header))
             {
                 File.Delete(header);
             }
 
-            string metadata = GetFilePath(fileId, FilePart.Metadata, storageDisposition);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata, storageDisposition);
             if (File.Exists(metadata))
             {
                 File.Delete(metadata);
             }
 
-            string payload = GetFilePath(fileId, FilePart.Payload, storageDisposition);
+            string payload = GetFilenameAndPath(fileId, FilePart.Payload, storageDisposition);
 
             if (File.Exists(payload))
             {
@@ -194,8 +195,8 @@ namespace Youverse.Core.Services.Drive.Storage
             foreach (var p in parts)
             {
                 FilePart part = Enum.Parse<FilePart>(p);
-                var source = GetFilePath(fileId, part, StorageDisposition.Temporary);
-                var dest = GetFilePath(fileId, part, StorageDisposition.LongTerm, ensureExists: true);
+                var source = GetFilenameAndPath(fileId, part, StorageDisposition.Temporary);
+                var dest = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm, ensureExists: true);
 
                 File.Move(source, dest);
 
@@ -211,8 +212,8 @@ namespace Youverse.Core.Services.Drive.Storage
             foreach (var p in parts)
             {
                 FilePart part = Enum.Parse<FilePart>(p);
-                var source = GetFilePath(fileId, part, StorageDisposition.LongTerm);
-                var dest = GetFilePath(fileId, part, StorageDisposition.Temporary, ensureExists: true);
+                var source = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm);
+                var dest = GetFilenameAndPath(fileId, part, StorageDisposition.Temporary, ensureExists: true);
                 File.Move(source, dest);
             }
 
@@ -222,8 +223,45 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             //TODO: make more efficient by reading metadata or something else?
-            var path = GetFilePath(id, FilePart.Payload, storageDisposition);
+            var path = GetFilenameAndPath(id, FilePart.Payload, storageDisposition);
             return Task.FromResult(new FileInfo(path).Length);
+        }
+
+        public async Task<IEnumerable<FileMetaData>> GetMetadataFiles(PageOptions pageOptions)
+        {
+            string path = this.Drive.GetStoragePath(StorageDisposition.LongTerm);
+            var options = new EnumerationOptions()
+            {
+                MatchCasing = MatchCasing.CaseInsensitive,
+                RecurseSubdirectories = true,
+                ReturnSpecialDirectories = false,
+                IgnoreInaccessible = false,
+                MatchType = MatchType.Simple
+            };
+
+            var results = new List<FileMetaData>();
+            var directories = Directory.EnumerateDirectories(path, "*", options);
+            foreach (string dir in directories)
+            {
+                int offset = Path.EndsInDirectorySeparator(dir) ? 2 : 1;
+                var parts = dir.Split(Path.DirectorySeparatorChar);
+                string dirName = parts[parts.Length - offset];
+
+                Guid fileId = Guid.Parse(dirName);
+                var md = await this.GetMetadata(fileId, StorageDisposition.LongTerm);
+                results.Add(md);
+            }
+
+            return results;
+        }
+
+        public async Task<FileMetaData> GetMetadata(Guid fileId, StorageDisposition storageDisposition)
+        {
+            var stream = await this.GetFilePartStream(fileId, FilePart.Metadata, storageDisposition);
+            var json = await new StreamReader(stream).ReadToEndAsync();
+            stream.Close();
+            var metadata = JsonConvert.DeserializeObject<FileMetaData>(json);
+            return metadata;
         }
 
         private string GetFileDirectory(Guid id, StorageDisposition storageDisposition, bool ensureExists = false)
@@ -239,10 +277,15 @@ namespace Youverse.Core.Services.Drive.Storage
             return dir;
         }
 
-        private string GetFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetFilename(FilePart part)
+        {
+            return part.ToString().ToLower();
+        }
+
+        private string GetFilenameAndPath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string dir = GetFileDirectory(id, storageDisposition, ensureExists);
-            return PathUtil.Combine(dir, part.ToString());
+            return Path.Combine(dir, GetFilename(part));
         }
 
         private string GetTempFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
@@ -252,100 +295,11 @@ namespace Youverse.Core.Services.Drive.Storage
             return Path.Combine(dir, filename);
         }
 
-        public async Task Rebuild(StorageDriveIndex index)
-        {
-            if (Directory.Exists(index.IndexRootPath))
-            {
-                Directory.Delete(index.IndexRootPath, true);
-            }
-
-            //Directory.CreateDirectory(index.IndexRootPath);
-
-
-            // var fileList = _storageManager.GetFileList();
-            // foreach (var file in fileList)
-            // {
-            //     //  read permission from the fileid.acl
-            //     //      create IndexedItemPermission
-            //     //  create IndexedItem
-            // }
-        }
-
-        public async Task RebuildIndex()
-        {
-            //TODO: add locking?
-
-            if (_isRebuilding)
-            {
-                return;
-            }
-
-            _isRebuilding = true;
-            StorageDriveIndex indexToRebuild;
-            if (_currentIndex == null)
-            {
-                indexToRebuild = _primaryIndex;
-            }
-            else
-            {
-                indexToRebuild = _currentIndex.Tier == _primaryIndex.Tier ? _secondaryIndex : _primaryIndex;
-            }
-
-            await this.Rebuild(indexToRebuild);
-            SetCurrentIndex(indexToRebuild);
-            _isRebuilding = false;
-        }
-
-        public Task LoadLatestIndex()
-        {
-            //load the most recently used index
-            var primaryIsValid = IsValidIndex(_primaryIndex);
-            var secondaryIsValid = IsValidIndex(_secondaryIndex);
-
-            if (primaryIsValid && secondaryIsValid)
-            {
-                var pf = new FileInfo(_primaryIndex.IndexRootPath);
-                var sf = new FileInfo(_secondaryIndex.IndexRootPath);
-                SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
-            }
-
-            if (primaryIsValid)
-            {
-                SetCurrentIndex(_primaryIndex);
-            }
-
-            if (secondaryIsValid)
-            {
-                SetCurrentIndex(_secondaryIndex);
-            }
-
-            //neither index is valid; so let us default
-            //to primary.  It will be built as files are added.
-            SetCurrentIndex(_primaryIndex);
-
-            //if there were files but neither index is valid
-            //let's kick off a background rebuild on the secondary
-            //index to pickup all the files
-            var fileCount = this.GetFileCount().GetAwaiter().GetResult();
-            if (fileCount > 0)
-            {
-                //let it run on its own
-                this.RebuildIndex();
-            }
-
-            return Task.CompletedTask;
-        }
-
         public Task<Int64> GetFileCount()
         {
             //TODO: This really won't perform
             var dirs = Directory.GetDirectories(_drive.GetStoragePath(StorageDisposition.LongTerm));
             return Task.FromResult(dirs.LongLength);
-        }
-
-        public StorageDriveIndex GetCurrentIndex()
-        {
-            return _currentIndex;
         }
 
         private void WriteStream(Stream stream, string filePath)
@@ -363,21 +317,6 @@ namespace Youverse.Core.Services.Drive.Storage
 
                 output.Close();
             }
-        }
-
-        private void SetCurrentIndex(StorageDriveIndex index)
-        {
-            //TODO: do i need to lock here?
-            _currentIndex = index;
-            _indexReadyState = IsValidIndex(index) ? IndexReadyState.Ready : IndexReadyState.NotAvailable;
-        }
-
-        private bool IsValidIndex(StorageDriveIndex index)
-        {
-            //TODO: this needs more rigor than just checking the number of files
-            var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
-            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
-            return qFileCount > 0 && pFileCount > 0;
         }
     }
 }
