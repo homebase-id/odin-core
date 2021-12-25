@@ -11,15 +11,49 @@ namespace Scratchpad
     {
         static void Main(string[] args)
         {
+            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow));
+            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddMinutes(31)));
+            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddMinutes(31)));
+            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddHours(1)));
 
-            byte[] iv = new byte[16];
-            var key = new byte[16];
-            
-            Array.Fill(iv,(byte)1);
-            Array.Fill(key, (byte)1);
-            
-            RunSHA256Calcs();
+            var parts = CreateTimeBasedGuid(DateTimeOffset.UtcNow).ToString().Split("-");
+            Array.Resize(ref parts, 3);
+            Console.WriteLine(string.Join("-", parts));
+        }
 
+        static Guid CreateTimeBasedGuid(DateTimeOffset datetime)
+        {
+            var random = new Random();
+            var rnd = new byte[5];
+            random.NextBytes(rnd);
+
+            //byte[] offset = BitConverter.GetBytes(datetime.Offset.TotalMinutes);
+            var year = BitConverter.GetBytes((short)datetime.Year);
+            var bytes = new byte[16]
+            {
+                year[0],
+                year[1],
+                (byte)datetime.Month,
+                (byte)datetime.Day,
+                (byte)datetime.Hour,
+                (byte)datetime.Minute,
+                0,
+                0,
+                255, //variant: unknown
+                (byte)datetime.Second,
+                (byte)datetime.Millisecond,
+                rnd[0],
+                rnd[1],
+                rnd[2],
+                rnd[3],
+                rnd[4]
+            };
+
+            // set the version to be compliant with rfc; not sure it matters
+            bytes[7] &= 0x0f;
+            bytes[7] |= 0x04 << 4;
+
+            return new Guid(bytes);
         }
 
         static void RunSHA256Calcs()
@@ -35,8 +69,8 @@ namespace Scratchpad
 
             var b1Reduced = ReduceSHA256Hash(b1);
             var b2Reduced = ReduceSHA256Hash(b2);
-            
-            Console.WriteLine($"b1Reduced: {string.Join(" ",b1Reduced)}");
+
+            Console.WriteLine($"b1Reduced: {string.Join(" ", b1Reduced)}");
             Console.WriteLine($"b2Reduced: {string.Join(" ", b2Reduced)}");
 
             var reducedMatch = ByteArrayUtil.EquiByteArrayCompare(b1Reduced, b2Reduced);
@@ -46,7 +80,7 @@ namespace Scratchpad
             Console.WriteLine($"Reduced Value:{string.Join(" ", b1Reduced)}");
             Console.WriteLine($"Reduced Guid: {new Guid(b1Reduced)}");
         }
-        
+
         static byte[] CalculateSHA256Hash(string input)
         {
             var adjustedInput = input.ToLower();
