@@ -13,6 +13,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
         private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
+        private LiteDBSingleCollectionStorage<IndexedItem> _backupIndexStorage;
         private StorageDriveIndex _currentIndex;
         private IndexReadyState _indexReadyState;
         private readonly ILogger<object> _logger;
@@ -105,7 +106,23 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public Task UpdateBackupIndex(FileMetaData metadata)
         {
-            throw new NotImplementedException();
+            var backupIndex = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;
+            var indexPath = backupIndex.GetQueryIndexPath();
+            _backupIndexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
+
+            var item = new IndexedItem()
+            {
+                FileId = metadata.File.FileId,
+                CreatedTimestamp = metadata.Created,
+                LastUpdatedTimestamp = metadata.Updated,
+                CategoryId = metadata.AppData.CategoryId,
+                ContentIsComplete = metadata.AppData.ContentIsComplete,
+                JsonContent = metadata.AppData.JsonContent
+            };
+            
+            _backupIndexStorage.Save(item);
+
+            return Task.CompletedTask;
         }
 
         public Task TruncateBackupIndex()
