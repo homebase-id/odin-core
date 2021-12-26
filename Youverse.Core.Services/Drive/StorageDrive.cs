@@ -11,24 +11,19 @@ namespace Youverse.Core.Services.Drive
     {
         private readonly string _longTermDataRootPath;
         private readonly string _tempDataRootPath;
-        private readonly string _folderName;
-        
+        private readonly string _driveFolderName;
+
         private readonly StorageDriveBase _inner;
 
         public StorageDrive(string longTermDataRootPath, string tempDataRootPath, StorageDriveBase inner)
         {
             _inner = inner;
-            
-            _folderName = this.Id.ToString("N");
-            _tempDataRootPath = Path.Combine(tempDataRootPath, _folderName);
-            _longTermDataRootPath = Path.Combine(longTermDataRootPath, _folderName);
+            _driveFolderName = this.Id.ToString("N");
+            _longTermDataRootPath = Path.Combine(longTermDataRootPath, _driveFolderName);
+            _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
         }
 
-        public string LongTermDataRootPath => this._longTermDataRootPath;
-
-        public string TempDataRootPath => this._tempDataRootPath;
-
-        public string FolderName => _folderName;
+        public string DriveFolderName => _driveFolderName;
 
         public override Guid Id
         {
@@ -45,7 +40,19 @@ namespace Youverse.Core.Services.Drive
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
-            return path;
+            return Path.Combine(path, "files");
+        }
+
+        public string GetIndexPath()
+        {
+            return Path.Combine(this._longTermDataRootPath, "idx");
+        }
+
+        public void EnsureDirectories()
+        {
+            Directory.CreateDirectory(this.GetStoragePath(StorageDisposition.LongTerm));
+            Directory.CreateDirectory(this.GetStoragePath(StorageDisposition.Temporary));
+            Directory.CreateDirectory(this.GetIndexPath());
         }
     }
 

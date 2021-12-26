@@ -7,8 +7,10 @@ namespace Youverse.Core.Services.Drive.Storage
     {
         public FileMetaData(DriveFileId file)
         {
-            // Guard.Argument(file, nameof(file)).Require(file.FileId != Guid.Empty);
-            // Guard.Argument(file, nameof(file)).Require(file.DriveId != Guid.Empty);
+            Guard.Argument(file, nameof(file)).Require(file.FileId != Guid.Empty);
+            Guard.Argument(file, nameof(file)).Require(file.DriveId != Guid.Empty);
+
+            this.File = file;
             this.AppData = new AppFileMetaData();
         }
         

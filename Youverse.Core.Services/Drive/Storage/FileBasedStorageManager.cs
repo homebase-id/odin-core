@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Util;
 
@@ -19,35 +16,56 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
-
-        private readonly StorageDriveIndex _primaryIndex;
-        private readonly StorageDriveIndex _secondaryIndex;
-
-        private StorageDriveIndex _currentIndex;
-        private bool _isRebuilding;
-        private IndexReadyState _indexReadyState;
-
+        
         public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.TempDataRootPath), sd => $"No directory for drive storage at {sd.TempDataRootPath}");
 
-            Directory.CreateDirectory(drive.LongTermDataRootPath);
-            Directory.CreateDirectory(drive.TempDataRootPath);
+            drive.EnsureDirectories();
+
             _logger = logger;
             _drive = drive;
-
-            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, _drive.LongTermDataRootPath);
-            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, _drive.LongTermDataRootPath);
         }
 
         public StorageDrive Drive => _drive;
 
         public Guid CreateFileId()
         {
-            //TODO: Create a datetime-based
-            return Guid.NewGuid();
+            var datetime = DateTimeOffset.UtcNow;
+
+            var random = new Random();
+            var rnd = new byte[7];
+            random.NextBytes(rnd);
+
+            //byte[] offset = BitConverter.GetBytes(datetime.Offset.TotalMinutes);
+            var year = BitConverter.GetBytes((short)datetime.Year);
+            var bytes = new byte[16]
+            {
+                (byte)datetime.Day,
+                (byte)datetime.Month,
+                year[0],
+                year[1],
+                (byte)datetime.Minute,
+                (byte)datetime.Hour,
+                (byte)datetime.Second,
+                (byte)datetime.Millisecond,
+                255, //variant: unknown
+                rnd[0],
+                rnd[1],
+                rnd[2],
+                rnd[3],
+                rnd[4],
+                rnd[5],
+                rnd[6]
+            };
+
+            // set the version to be compliant with rfc; not sure it matters
+            bytes[7] &= 0x0f;
+            bytes[7] |= 0x04 << 4;
+
+            return new Guid(bytes);
         }
 
         public Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -87,7 +105,7 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             string path = GetFilenameAndPath(fileId, filePart, storageDisposition);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-            return Task.FromResult((Stream) fileStream);
+            return Task.FromResult((Stream)fileStream);
         }
 
         public Task<StorageDisposition> GetStorageType(Guid fileId)
@@ -236,18 +254,15 @@ namespace Youverse.Core.Services.Drive.Storage
                 RecurseSubdirectories = true,
                 ReturnSpecialDirectories = false,
                 IgnoreInaccessible = false,
-                MatchType = MatchType.Simple
+                MatchType = MatchType.Win32
             };
 
             var results = new List<FileMetaData>();
-            var directories = Directory.EnumerateDirectories(path, "*", options);
-            foreach (string dir in directories)
+            var filePaths = Directory.EnumerateFiles(path, $"*.{FilePart.Metadata.ToString().ToLower()}", options);
+            foreach (string filePath in filePaths)
             {
-                int offset = Path.EndsInDirectorySeparator(dir) ? 2 : 1;
-                var parts = dir.Split(Path.DirectorySeparatorChar);
-                string dirName = parts[parts.Length - offset];
-
-                Guid fileId = Guid.Parse(dirName);
+                string filename = Path.GetFileNameWithoutExtension(filePath);
+                Guid fileId = Guid.Parse(filename);
                 var md = await this.GetMetadata(fileId, StorageDisposition.LongTerm);
                 results.Add(md);
             }
@@ -264,10 +279,23 @@ namespace Youverse.Core.Services.Drive.Storage
             return metadata;
         }
 
-        private string GetFileDirectory(Guid id, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetFileDirectory(Guid fileId, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(storageDisposition);
-            string dir = PathUtil.Combine(path, id.ToString());
+
+            //07e5070f-173b-473b-ff03-ffec2aa1b7b8
+            //The positions in the time guid are hex values as follows
+            //from new DateTimeOffset(2021, 7, 21, 23, 59, 59, TimeSpan.Zero);
+            //07e5=year,07=month,0f=day,17=hour,3b=minute
+
+            var parts = fileId.ToString().Split("-");
+            var yearMonthDay = parts[0];
+            var year = yearMonthDay.Substring(0, 4);
+            var month = yearMonthDay.Substring(4, 2);
+            var day = yearMonthDay.Substring(6, 2);
+            var hourMinute = parts[1];
+            
+            string dir = PathUtil.Combine(path, year, month, day, hourMinute);
 
             if (ensureExists)
             {
@@ -277,15 +305,15 @@ namespace Youverse.Core.Services.Drive.Storage
             return dir;
         }
 
-        private string GetFilename(FilePart part)
+        private string GetFilename(Guid fileId, FilePart part)
         {
-            return part.ToString().ToLower();
+            return $"{fileId.ToString()}.{part.ToString().ToLower()}";
         }
 
-        private string GetFilenameAndPath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetFilenameAndPath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
         {
-            string dir = GetFileDirectory(id, storageDisposition, ensureExists);
-            return Path.Combine(dir, GetFilename(part));
+            string dir = GetFileDirectory(fileId, storageDisposition, ensureExists);
+            return Path.Combine(dir, GetFilename(fileId,part));
         }
 
         private string GetTempFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)

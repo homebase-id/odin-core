@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [TearDown]
         public void Cleanup()
         {
-            _scaffold.Cleanup();
+            //_scaffold.Cleanup();
         }
 
         [Test]

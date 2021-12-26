@@ -150,7 +150,7 @@ namespace Youverse.Core.Services.Drive
             if (manager.IndexReadyState == IndexReadyState.RequiresRebuild)
             {
                 //start a rebuild in the background for this index
-                this.RebuildCurrentIndex(drive.Id);
+                //this.RebuildCurrentIndex(drive.Id);
             }
 
             return Task.CompletedTask;

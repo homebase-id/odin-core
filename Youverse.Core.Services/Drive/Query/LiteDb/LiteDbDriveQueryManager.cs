@@ -25,8 +25,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _logger = logger;
             this.Drive = drive;
 
-            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, drive.LongTermDataRootPath);
-            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, drive.LongTermDataRootPath);
+            _primaryIndex = new StorageDriveIndex(IndexTier.Primary, drive.GetIndexPath());
+            _secondaryIndex = new StorageDriveIndex(IndexTier.Secondary, drive.GetIndexPath());
         }
 
         public IndexReadyState IndexReadyState
@@ -94,6 +94,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             };
 
             _indexStorage.Save(item);
+            
+            //technically the index is ready because it has at least one item in it
+            //this, however, means we need to build a way for apps to understand the
+            //actual state of the index so they can notify users
+            _indexReadyState = IndexReadyState.Ready;
 
             return Task.CompletedTask;
         }
@@ -126,7 +131,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 SetCurrentIndex(_primaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
-
             }
 
             if (secondaryIsValid)

@@ -41,7 +41,6 @@ namespace Youverse.Core.Services.Tests.Provisioning
 
             Assert.AreEqual(storageDrive.Id, retrievedStorageDrive.Id);
             Assert.AreEqual(storageDrive.Name, retrievedStorageDrive.Name);
-            Assert.AreEqual(storageDrive.LongTermDataRootPath, retrievedStorageDrive.LongTermDataRootPath);
         }
 
         [Test]

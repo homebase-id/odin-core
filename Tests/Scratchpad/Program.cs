@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -11,42 +12,51 @@ namespace Scratchpad
     {
         static void Main(string[] args)
         {
-            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow));
-            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddMinutes(31)));
-            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddMinutes(31)));
-            Console.WriteLine(CreateTimeBasedGuid(DateTimeOffset.UtcNow.AddHours(1)));
+            var datetime = new DateTimeOffset(2021, 7, 21, 23, 59, 59, 999, TimeSpan.Zero);
+            var g = CreateTimeBasedGuid(datetime);
+            Console.WriteLine(g);
+            Console.WriteLine(CreateTimeBasedGuid(datetime.AddDays(1).AddMinutes(7)));
+            Console.WriteLine(CreateTimeBasedGuid(datetime.AddDays(1).AddHours(3).AddMinutes(5)));
+            Console.WriteLine(CreateTimeBasedGuid(datetime.AddDays(2)));
+            Console.WriteLine(CreateTimeBasedGuid(datetime.AddMonths(1)));
 
-            var parts = CreateTimeBasedGuid(DateTimeOffset.UtcNow).ToString().Split("-");
-            Array.Resize(ref parts, 3);
-            Console.WriteLine(string.Join("-", parts));
+            var parts = g.ToString().Split("-");
+            var yearMonthDay = parts[0];
+            var year = yearMonthDay.Substring(0, 4);
+            var month = yearMonthDay.Substring(4, 2);
+            var day = yearMonthDay.Substring(6, 2);
+            var hourMinute = parts[1];
+
+            string dir = Path.Combine( year, month, day, hourMinute, g.ToString());
+            Console.WriteLine($"Path will be:[{dir}]");
         }
 
         static Guid CreateTimeBasedGuid(DateTimeOffset datetime)
         {
             var random = new Random();
-            var rnd = new byte[5];
+            var rnd = new byte[7];
             random.NextBytes(rnd);
 
             //byte[] offset = BitConverter.GetBytes(datetime.Offset.TotalMinutes);
             var year = BitConverter.GetBytes((short)datetime.Year);
             var bytes = new byte[16]
             {
+                (byte)datetime.Day,
+                (byte)datetime.Month,
                 year[0],
                 year[1],
-                (byte)datetime.Month,
-                (byte)datetime.Day,
-                (byte)datetime.Hour,
                 (byte)datetime.Minute,
-                0,
-                0,
-                255, //variant: unknown
+                (byte)datetime.Hour,
                 (byte)datetime.Second,
                 (byte)datetime.Millisecond,
+                255, //variant: unknown
                 rnd[0],
                 rnd[1],
                 rnd[2],
                 rnd[3],
-                rnd[4]
+                rnd[4],
+                rnd[5],
+                rnd[6]
             };
 
             // set the version to be compliant with rfc; not sure it matters

@@ -11,10 +11,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Utility" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
       <Reference Include="BouncyCastle.Crypto, Version=1.9.0.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
         <HintPath>Assemblies\BouncyCastle.Crypto.dll</HintPath>
