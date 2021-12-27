@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public Guid ApplicationId { get; set; }
         public string Name { get; set; }
 
-        public SymKeyData EncryptedAppDek { get; set; }
+        public SymmetricKeyEncrypted EncryptedAppDek { get; set; }
 
         // public byte[] EncryptedAppDeK { get; set; }
 

@@ -18,7 +18,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKey()
         {
             var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymKeyData(secret);
+            var key = new SymmetricKeyEncrypted(secret);
 
             var sk = key.DecryptKey(secret.GetKey());
 
@@ -30,7 +30,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKeyFail()
         {
             var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymKeyData(secret);
+            var key = new SymmetricKeyEncrypted(secret);
             var garbage = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
 
             try

@@ -6,22 +6,23 @@ namespace Youverse.Core.Cryptography.Data
     /// <summary>
     /// Holding an encrypted symmetric key (AES key)
     /// </summary>
-    public class SymKeyData
+    public class SymmetricKeyEncrypted
     {
-        private SecureKey _decryptedKey;
+        private SecureKey _decryptedKey;  // Cache value to only decrypt once
 
-        public byte[] EncryptedSymKey  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
-        public byte[] KeyIV            { get; set; } // IV used for AES encryption above
-        public byte[] Check            { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
+        public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
+        public byte[] KeyIV         { get; set; } // IV used for AES encryption above
+        public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 
-        public SymKeyData(SecureKey secret)
+        public SymmetricKeyEncrypted(SecureKey secret)
         {
             var newKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
             // _decryptedKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
 
-            (KeyIV, EncryptedSymKey) = AesCbc.EncryptBytesToBytes_Aes(newKey.GetKey(), secret.GetKey());
-            Check = YouSHA.ReduceSHA256Hash(newKey.GetKey());
+            (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(newKey.GetKey(), secret.GetKey());
+            KeyHash = YouSHA.ReduceSHA256Hash(newKey.GetKey());
+            _decryptedKey = null; // It's null until someone decrypts the key.
 
             newKey.Wipe();
             // Another option is to keep the _decryptedKey. For now, for testing primarily, I wipe it.
@@ -38,9 +39,9 @@ namespace Youverse.Core.Cryptography.Data
         {
             if (_decryptedKey == null)
             {
-                var key = AesCbc.DecryptBytesFromBytes_Aes(EncryptedSymKey, secret, KeyIV);
+                var key = AesCbc.DecryptBytesFromBytes_Aes(KeyEncrypted, secret, KeyIV);
 
-                if (!ByteArrayUtil.EquiByteArrayCompare(Check, YouSHA.ReduceSHA256Hash(key)))
+                if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
                     throw new Exception();
 
                 _decryptedKey = new SecureKey(key);

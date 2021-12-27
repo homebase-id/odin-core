@@ -31,6 +31,6 @@ namespace Youverse.Core.Cryptography.Data
         /// LoginTokenData when the client and server halves meet. The KeK is sent
         /// RSA encrypted from the client to the host.
         /// </summary>
-        public SymKeyData EncryptedDek { get; set; }
+        public SymmetricKeyEncrypted EncryptedDek { get; set; }
     }
 }

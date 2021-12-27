@@ -31,7 +31,7 @@ namespace Youverse.Core.Cryptography
             // TODO: Hm, I really DONT like that we pass the KEK as a string.
             // gives me the shivers...
             var KekKey = new SecureKey(Convert.FromBase64String(KeK64));
-            passwordKey.EncryptedDek = new SymKeyData(KekKey);
+            passwordKey.EncryptedDek = new SymmetricKeyEncrypted(KekKey);
 
             return passwordKey;
         }
@@ -50,7 +50,7 @@ namespace Youverse.Core.Cryptography
             return GetDek(passwordKey.EncryptedDek, KeK);
         }
 
-        public static SecureKey GetDek(SymKeyData EncryptedDek, byte[] KeK)
+        public static SecureKey GetDek(SymmetricKeyEncrypted EncryptedDek, byte[] KeK)
         {
             return EncryptedDek.DecryptKey(KeK);
         }

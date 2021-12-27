@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Notifications;
+
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            var key = new SymKeyData(this._context.Caller.GetLoginDek());
+            var key = new SymmetricKeyEncrypted(this._context.Caller.GetLoginDek());
 
             var appReg = new AppRegistration()
             {
