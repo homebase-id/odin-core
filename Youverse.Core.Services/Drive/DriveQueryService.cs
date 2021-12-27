@@ -56,11 +56,11 @@ namespace Youverse.Core.Services.Drive
             var metaDataList = await _driveService.GetMetadataFiles(driveId, paging);
 
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
-            await manager.TruncateBackupIndex();
+            await manager.PrepareSecondaryIndexForRebuild();
             foreach (FileMetaData md in metaDataList)
             {
                 //intentionally letting this run w/o await
-                manager.UpdateBackupIndex(md);
+                manager.UpdateSecondaryIndex(md);
             }
 
             await manager.SwitchIndex();

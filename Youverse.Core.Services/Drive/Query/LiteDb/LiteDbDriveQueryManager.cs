@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
@@ -21,6 +20,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private readonly StorageDriveIndex _primaryIndex;
         private readonly StorageDriveIndex _secondaryIndex;
 
+        private readonly string IndexCollectionName = "index";
+
         public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger)
         {
             _logger = logger;
@@ -32,14 +33,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public IndexReadyState IndexReadyState
         {
-            get
-            {
-                return this._indexReadyState;
-            }
-            set
-            {
-                this._indexReadyState = value;
-            }
+            get { return this._indexReadyState; }
+            set { this._indexReadyState = value; }
         }
 
         public StorageDrive Drive { get; init; }
@@ -84,18 +79,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public Task UpdateCurrentIndex(FileMetaData metadata)
         {
-            var item = new IndexedItem()
-            {
-                FileId = metadata.File.FileId,
-                CreatedTimestamp = metadata.Created,
-                LastUpdatedTimestamp = metadata.Updated,
-                CategoryId = metadata.AppData.CategoryId,
-                ContentIsComplete = metadata.AppData.ContentIsComplete,
-                JsonContent = metadata.AppData.JsonContent
-            };
+            _indexStorage.Save(ConvertMetadata(metadata));
 
-            _indexStorage.Save(item);
-            
             //technically the index is ready because it has at least one item in it
             //this, however, means we need to build a way for apps to understand the
             //actual state of the index so they can notify users
@@ -104,30 +89,36 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return Task.CompletedTask;
         }
 
-        public Task UpdateBackupIndex(FileMetaData metadata)
+        public Task UpdateSecondaryIndex(FileMetaData metadata)
         {
-            var backupIndex = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;
-            var indexPath = backupIndex.GetQueryIndexPath();
-            _backupIndexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
-
-            var item = new IndexedItem()
+            if (null == _backupIndexStorage)
             {
-                FileId = metadata.File.FileId,
-                CreatedTimestamp = metadata.Created,
-                LastUpdatedTimestamp = metadata.Updated,
-                CategoryId = metadata.AppData.CategoryId,
-                ContentIsComplete = metadata.AppData.ContentIsComplete,
-                JsonContent = metadata.AppData.JsonContent
-            };
-            
-            _backupIndexStorage.Save(item);
+                throw new Exception("Backup index not ready; call PrepareBackupIndexForRebuild before calling UpdateBackupIndex");
+            }
+
+            _backupIndexStorage.Save(ConvertMetadata(metadata));
 
             return Task.CompletedTask;
         }
 
-        public Task TruncateBackupIndex()
+        public Task PrepareSecondaryIndexForRebuild()
         {
-            throw new NotImplementedException();
+            var backupIndex = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;
+            var indexPath = backupIndex.GetQueryIndexPath();
+            if (null != _backupIndexStorage)
+            {
+                _backupIndexStorage.Dispose();
+                _backupIndexStorage = null;
+            }
+
+            if (Directory.Exists(indexPath))
+            {
+                Directory.Delete(indexPath, true);
+            }
+
+            _backupIndexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, IndexCollectionName);
+
+            return Task.CompletedTask;
         }
 
         public Task LoadLatestIndex()
@@ -160,7 +151,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             //to primary.  It will be built as files are added.
             SetCurrentIndex(_primaryIndex);
             _indexReadyState = IndexReadyState.RequiresRebuild;
-            
+
             return Task.CompletedTask;
         }
 
@@ -173,7 +164,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
 
             var indexPath = _currentIndex.GetQueryIndexPath();
-            _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, "index");
+            _indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, IndexCollectionName);
             _indexReadyState = IndexReadyState.Ready;
         }
 
@@ -195,6 +186,19 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
+        private IndexedItem ConvertMetadata(FileMetaData metadata)
+        {
+            return new IndexedItem()
+            {
+                FileId = metadata.File.FileId,
+                CreatedTimestamp = metadata.Created,
+                LastUpdatedTimestamp = metadata.Updated,
+                CategoryId = metadata.AppData.CategoryId,
+                ContentIsComplete = metadata.AppData.ContentIsComplete,
+                JsonContent = metadata.AppData.JsonContent
+            };
+        }
+        
         private void AssertValidIndexLoaded()
         {
             if (_indexReadyState == IndexReadyState.Ready)
