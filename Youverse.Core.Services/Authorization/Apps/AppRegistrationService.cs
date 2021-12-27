@@ -31,15 +31,15 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            AppEncryptionKey key = AppRegistrationManager.CreateAppDek(this._context.Caller.GetLoginDek().GetKey());
+            var key = new SymKeyData(this._context.Caller.GetLoginDek());
 
             var appReg = new AppRegistration()
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 Name = name,
-                AppIV = key.AppIV,
-                EncryptedAppDeK = key.EncryptedAppDeK
+                AppIV = key.KeyIV,
+                EncryptedAppDek = key
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -91,13 +91,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
-            var appEnc = new AppEncryptionKey()
-            {
-                AppIV = savedApp.AppIV,
-                EncryptedAppDeK = savedApp.EncryptedAppDeK
-            };
-
-            var decryptedAppDek = AppRegistrationManager.DecryptAppDekWithLoginDek(appEnc, this._context.Caller.GetLoginDek());
+            var decryptedAppDek = savedApp.EncryptedAppDek.DecryptKey(this._context.Caller.GetLoginDek().GetKey());
             var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
             decryptedAppDek.Wipe();
 

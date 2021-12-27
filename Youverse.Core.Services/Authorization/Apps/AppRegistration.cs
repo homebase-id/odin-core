@@ -1,4 +1,5 @@
 ﻿using System;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -9,7 +10,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         public Guid ApplicationId { get; set; }
         public string Name { get; set; }
 
-        public byte[] EncryptedAppDeK { get; set; }
+        public SymKeyData EncryptedAppDek { get; set; }
+
+        // public byte[] EncryptedAppDeK { get; set; }
 
         public byte[] AppIV { get; set; }
         

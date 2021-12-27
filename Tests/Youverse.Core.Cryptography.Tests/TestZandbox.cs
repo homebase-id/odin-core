@@ -1,6 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using NUnit.Framework;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Cryptography.Tests
 {
@@ -9,6 +10,38 @@ namespace Youverse.Core.Cryptography.Tests
         [SetUp]
         public void Setup()
         {
+        }
+
+
+        [Test]
+        // Should split this into its own file.
+        public void TestSymKey()
+        {
+            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SymKeyData(secret);
+
+            var sk = key.DecryptKey(secret.GetKey());
+
+            Assert.Pass();
+        }
+
+        [Test]
+        // Should split this into its own file.
+        public void TestSymKeyFail()
+        {
+            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SymKeyData(secret);
+            var garbage = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+
+            try
+            {
+                key.DecryptKey(garbage.GetKey());
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
         }
 
         [Test]

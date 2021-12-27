@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Cryptography.Tests
 {
@@ -25,11 +26,11 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppRegistrationManager.CreateAppDek(loginDek.GetKey());
+            var appToken = new SymKeyData(loginDek);
 
             // Now create a mapping from a client device/app to the application token above
 
-            var applicationDek = AppRegistrationManager.DecryptAppDekWithLoginDek(appToken, loginDek);
+            var applicationDek = appToken.DecryptKey(loginDek.GetKey());
 
             Assert.Pass();
         }
@@ -47,12 +48,12 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = AppRegistrationManager.CreateAppDek(loginDek.GetKey()); //simulate pre-existing
+            var appToken = new SymKeyData(loginDek); //simulate pre-existing
 
             // Now create a mapping from a client device/app to the application token above
 
             // First get the application DEK
-            var appDekViaLogin = AppRegistrationManager.DecryptAppDekWithLoginDek(appToken, loginDek);
+            var appDekViaLogin = appToken.DecryptKey(loginDek.GetKey());
 
             // Now create the mapping
             // TODO: xxx the id needs to be removed

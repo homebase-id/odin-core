@@ -67,23 +67,14 @@ namespace Youverse.Core.Services.Authentication
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            var encryptedDek = new SecureKey(pk.XorEncryptedDek);
             var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
 
-            var dek = LoginKeyManager.GetDek(encryptedDek.GetKey(), loginKek.GetKey());
+            var dek = pk.EncryptedDek.DecryptKey(loginKek.GetKey());
 
-            var isValid = LoginKeyManager.IsValidAdminDek(pk.VerificationIv, dek, pk.EncryptedVerificationValue, pk.VerificationValue);
-
-            if(!isValid)
-            {
-                throw new InvalidDataException("Invalid Owner login data");
-            }
-
-            encryptedDek.Wipe();
             loginKek.Wipe();
             loginToken.Dispose();
 
-            return new SecureKey(dek);
+            return dek;
         }
 
         public async Task<SaltsPackage> GetStoredSalts()
