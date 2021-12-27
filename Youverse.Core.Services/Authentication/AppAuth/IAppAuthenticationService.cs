@@ -11,9 +11,8 @@ namespace Youverse.Core.Services.Authentication.AppAuth
     public interface IAppAuthenticationService
     {
         /// <summary>
-        /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
+        /// Authenticates the specified app.
         /// </summary>
-        /// <param name="reply"></param>
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice);

@@ -23,6 +23,12 @@ namespace Youverse.Core.Services.Authentication.AppAuth
 
         public async Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice)
         {
+            //TODO: check against the owner authentication service to ensure the owner has a valid session
+            
+            //TODO: need to validate the app is not revoked
+
+            //TODO: need to validate that this deviceUid has not been rejected/blocked
+            
             return new DotYouAuthenticationResult()
             {
                 SessionToken = Guid.Empty,
