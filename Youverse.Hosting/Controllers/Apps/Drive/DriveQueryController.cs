@@ -6,7 +6,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Drive
+namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route("/api/owner/v1/drive/query")]
@@ -32,6 +32,14 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
         {
             var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeContent, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
+        }
+        
+       
+        [HttpPost("rebuild")]
+        public async Task<bool> Rebuild(Guid driveId)
+        {
+            await _driveQueryService.RebuildBackupIndex(driveId);
+            return true;
         }
     }
 }

@@ -12,11 +12,11 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
     [ApiController]
     [Route("/api/owner/v1/drive/index")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
-    public class DriveIndexManagementController : ControllerBase
+    public class DriveManagementController : ControllerBase
     {
         private readonly IDriveQueryService _queryService;
 
-        public DriveIndexManagementController(IDriveQueryService queryService)
+        public DriveManagementController(IDriveQueryService queryService)
         {
             _queryService = queryService;
         }

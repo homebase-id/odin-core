@@ -296,7 +296,7 @@ namespace Youverse.Core.Services.Drive.Storage
             var hourMinute = parts[1];
             var hour = hourMinute[..2];
             
-            string dir = PathUtil.Combine(path, year, month, day, hour);
+            string dir = Path.Combine(path, year, month, day, hour);
 
             if (ensureExists)
             {

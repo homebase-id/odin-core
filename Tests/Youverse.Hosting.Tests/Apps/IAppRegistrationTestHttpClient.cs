@@ -5,7 +5,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Hosting.Controllers.Owner;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.Owner.Apps;
+using Youverse.Hosting.Controllers.Owner.AppManagement;
 
 namespace Youverse.Hosting.Tests.Apps
 {

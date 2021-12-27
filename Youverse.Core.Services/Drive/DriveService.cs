@@ -47,7 +47,9 @@ namespace Youverse.Core.Services.Drive
 
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
 
-            return Task.FromResult(ToStorageDrive(sdb));
+            var sd = ToStorageDrive(sdb);
+            sd.EnsureDirectories();
+            return Task.FromResult(sd);
         }
 
         public event EventHandler<DriveFileChangedArgs> FileChanged;

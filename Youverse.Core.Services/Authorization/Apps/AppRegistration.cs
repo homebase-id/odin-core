@@ -15,5 +15,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         public byte[] AppIV { get; set; }
         
         public bool IsRevoked { get; set; }
+        
+        /// <summary>
+        /// The drive associated with this app.
+        /// </summary>
+        public Guid? DriveId { get; set; }
     }
 }

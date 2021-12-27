@@ -10,8 +10,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <param name="applicationId"></param>
         /// <param name="name"></param>
+        /// <param name="createDrive"></param>
         /// <returns></returns>
-        Task<Guid> RegisterApp(Guid applicationId, string name);
+        Task<Guid> RegisterApp(Guid applicationId, string name, bool createDrive = false);
 
         Task<AppRegistration> GetAppRegistration(Guid applicationId);
 
@@ -77,7 +78,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="uniqueDeviceId"></param>
         /// <returns></returns>
         Task RevokeAppDevice(Guid applicationId, byte[] uniqueDeviceId);
-        
+
         /// <summary>
         /// Revokes an specific application on a specific device from accessing this host and its data.
         /// </summary>
@@ -86,4 +87,4 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId);
     }
-}   
+}

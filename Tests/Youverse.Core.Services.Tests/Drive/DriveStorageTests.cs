@@ -55,6 +55,9 @@ namespace Youverse.Core.Services.Tests.Drive
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
             Assert.IsNotNull(storageDrive);
+            Assert.IsTrue(Directory.Exists(storageDrive.GetStoragePath(StorageDisposition.Temporary)));
+            Assert.IsTrue(Directory.Exists(storageDrive.GetStoragePath(StorageDisposition.LongTerm)));
+            Assert.IsTrue(Directory.Exists(storageDrive.GetIndexPath()));
 
             var driveId = storageDrive.Id;
             var file = driveService.CreateFileId(driveId);

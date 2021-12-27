@@ -7,7 +7,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner
+namespace Youverse.Hosting.Controllers.Owner.Auth
 {
     [ApiController]
     [Route("/api/admin/authentication")]

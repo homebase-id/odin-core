@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.JsonPatch.Internal;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.Owner.Apps;
-using Youverse.Hosting.Tests.ApiClient;
+using Youverse.Hosting.Controllers.Owner.AppManagement;
 
 namespace Youverse.Hosting.Tests.Apps
 {
@@ -32,6 +28,14 @@ namespace Youverse.Hosting.Tests.Apps
 
         [Test]
         public async Task RegisterNewApp()
+        {
+            var appId = Guid.NewGuid();
+            var name = "API Tests Sample App-register";
+            var newId = await AddSampleApp(appId, name);
+        }
+        
+        [Test]
+        public async Task RegisterNewAppWithDrive()
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-register";

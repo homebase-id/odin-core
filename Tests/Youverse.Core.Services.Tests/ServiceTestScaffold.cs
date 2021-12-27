@@ -3,6 +3,10 @@ using System.Data.Common;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.Core;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 
@@ -26,7 +30,7 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateContext()
         {
-            var tempPath = Path.GetTempPath();
+            var tempPath = Path.Combine(Path.GetTempPath(), "yttests");
             _dataStoragePath = Path.Combine(tempPath, _folder, "data");
             _tempStoragePath = Path.Combine(tempPath, _folder, "temp");
 
@@ -38,6 +42,7 @@ namespace Youverse.Core.Services.Tests
 
             Context = Substitute.For<DotYouContext>();
             Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
+            Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SecureKey(new byte[16]));
         }
 
         public void CreateSystemStorage()

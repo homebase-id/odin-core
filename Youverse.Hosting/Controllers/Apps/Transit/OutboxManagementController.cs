@@ -4,12 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Youverse.Core;
-using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Transit
+namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     /// <summary>
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working

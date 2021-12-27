@@ -7,39 +7,39 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Storage
+namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
-    [Route("/api/owner/v1/storage")]
+    [Route("/api/transit/client")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
-    public class StorageController : ControllerBase
+    public class UploadController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly ITransitService _transitService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
         private readonly DotYouContext _context;
 
-        public StorageController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
+        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context)
         {
             _packageStorageWriter = packageStorageWriter;
+            _transitService = transitService;
             _context = context;
-            _driveService = driveService;
         }
 
         /// <summary>
         /// Accepts a multipart upload.  The 'name' parameter in the upload must be specified.  The following parts are required:
         ///
-        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of dec 21, 2021)
+        /// name: "recipients": an encrypted list of recipients in json format. { recipients:["recipient1", "recipient2"] } 
+        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of oct 27, 2021)
         /// name: "payload": the encrypted payload of data
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
-        [HttpPost("store")]
-        public async Task<IActionResult> Store()
+        [HttpPost("SendPackage")]
+        public async Task<IActionResult> SendPackage()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -74,10 +74,9 @@ namespace Youverse.Hosting.Controllers.Owner.Storage
             }
 
             var package = await _packageStorageWriter.GetPackage(packageId);
-            
-            await _driveService.MoveToLongTerm(package.File);
+            var status = await _transitService.PrepareTransfer(package);
 
-            return new JsonResult(true);
+            return new JsonResult(status);
         }
 
         private static bool IsMultipartContentType(string contentType)
@@ -107,5 +106,6 @@ namespace Youverse.Hosting.Controllers.Owner.Storage
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
+
     }
 }

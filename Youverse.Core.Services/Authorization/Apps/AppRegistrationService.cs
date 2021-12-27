@@ -1,30 +1,37 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
-    public class AppRegistrationService: IAppRegistrationService
+    public class AppRegistrationService : IAppRegistrationService
     {
         private const string AppRegistrationStorageName = "ars";
         private const string AppDeviceRegistrationStorageName = "adrs";
 
         private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
-        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger,  ISystemStorage systemStorage)
+        private readonly IDriveService _driveService;
+
+        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
             _context = context;
             _systemStorage = systemStorage;
+            _driveService = driveService;
         }
 
-        public Task<Guid> RegisterApp(Guid applicationId, string name)
+        public async Task<Guid> RegisterApp(Guid applicationId, string name, bool createDrive = false)
         {
+            Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
+            Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
+            
             //TODO: 
             //AssertCallerIsOwner();
 
@@ -33,18 +40,28 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             AppEncryptionKey key = AppRegistrationManager.CreateAppDek(this._context.Caller.GetLoginDek().GetKey());
 
+            Guid? driveId = null;
+            if (createDrive)
+            {
+                //TODO: create integrate Storage DEK and associate to app DEK
+                 
+                 var sd = await _driveService.CreateDrive($"{name}-drive");
+                 driveId = sd.Id;
+            }
+            
             var appReg = new AppRegistration()
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 Name = name,
                 AppIV = key.AppIV,
-                EncryptedAppDeK = key.EncryptedAppDeK
+                EncryptedAppDeK = key.EncryptedAppDeK,
+                DriveId = driveId
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
-
-            return Task.FromResult(appReg.Id);
+            
+            return appReg.Id;
         }
 
         public async Task<AppRegistration> GetAppRegistration(Guid applicationId)
@@ -62,6 +79,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
             }
 
+            //TODO: do we do anything with storage DEK here?
+            
             //TODO: Send notification?
         }
 
@@ -74,6 +93,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
             }
 
+            //TODO: do we do anything with storage DEK here?
+            
             //TODO: Send notification?
         }
 
@@ -159,6 +180,5 @@ namespace Youverse.Core.Services.Authorization.Apps
             var apps = await _systemStorage.WithTenantSystemStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
             return apps;
         }
-
     }
 }
