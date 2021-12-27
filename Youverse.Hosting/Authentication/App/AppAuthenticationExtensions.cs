@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.App
             }
 
             return builder.AddScheme<AppAuthenticationSchemeOptions, AppAuthenticationHandler>(
-                AppAuthConstants.AppAuthSchemeName,
+                AppAuthConstants.SchemeName,
                 op => { });
         }
     }

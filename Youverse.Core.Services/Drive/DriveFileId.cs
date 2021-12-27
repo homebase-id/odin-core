@@ -34,5 +34,10 @@ namespace Youverse.Core.Services.Drive
             var d2 = (DriveFileId) obj;
             return this == d2;
         }
+
+        public override int GetHashCode()
+        {
+            return this.DriveId.GetHashCode() + this.FileId.GetHashCode();
+        }
     }
 }

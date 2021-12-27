@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Youverse.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Services.Authentication.Owner
 {
     class RsaKeyStorage
     {

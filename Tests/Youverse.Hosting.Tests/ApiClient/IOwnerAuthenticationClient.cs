@@ -4,6 +4,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.Owner;
 
 namespace Youverse.Hosting.Tests.ApiClient
 {

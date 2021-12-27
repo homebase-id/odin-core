@@ -9,13 +9,14 @@ using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
     [Route("/api/transit/client")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class UploadController : ControllerBase
     {
         private readonly ITransitService _transitService;

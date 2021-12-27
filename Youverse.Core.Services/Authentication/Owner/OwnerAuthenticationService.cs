@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -7,7 +6,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
-using Youverse.Core.SystemStorage;
 
 /// <summary>
 /// Goals here are that:
@@ -18,17 +16,16 @@ using Youverse.Core.SystemStorage;
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
 /// 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Services.Authentication.Owner
 {
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
     public class OwnerAuthenticationService :  IOwnerAuthenticationService
     {
-        protected readonly ISystemStorage _systemStorage;
-        protected readonly IOwnerSecretService _secretService;
-        // private readonly LiteDBSingleCollectionStorage<LoginTokenData> _tokenStorage;
-        protected const string AUTH_TOKEN_COLLECTION = "tko";
+        private readonly ISystemStorage _systemStorage;
+        private readonly IOwnerSecretService _secretService;
+        private const string AUTH_TOKEN_COLLECTION = "tko";
 
         public OwnerAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {

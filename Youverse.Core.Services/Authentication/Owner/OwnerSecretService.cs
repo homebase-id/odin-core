@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -8,7 +7,7 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Services.Authentication.Owner
 {
     public class OwnerSecretService :  IOwnerSecretService
     {

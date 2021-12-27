@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Services.Authentication.Owner
 {
     public sealed class ClientNoncePackage
     {

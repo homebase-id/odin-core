@@ -8,7 +8,7 @@ namespace Youverse.Hosting.Controllers.Apps.Profile
 {
     [ApiController]
     [Route("/api/app/v1/profile")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.AppAuthSchemeName)]
+    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class ProfileDataController : Controller
     {
         public ProfileDataController()

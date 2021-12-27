@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Transit
@@ -15,7 +16,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     /// </summary>
     [ApiController]
     [Route("/api/transit/client/outbox")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class OutboxManagementController : ControllerBase
     {
         private readonly ILogger<OutboxManagementController> _logger;
