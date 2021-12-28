@@ -25,25 +25,24 @@ namespace Youverse.Hosting.Middleware
         private readonly RequestDelegate _next;
         private readonly IIdentityContextRegistry _registry;
         private readonly ITenantProvider _tenantProvider;
-        
+
         public DotYouContextMiddleware(RequestDelegate next, IIdentityContextRegistry registry, ITenantProvider tenantProvider)
         {
             _next = next;
             _registry = registry;
             _tenantProvider = tenantProvider;
         }
-        
+
         public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
+            string authType = httpContext.User.Identity?.AuthenticationType;
 
-            if (tenant?.Name == null || string.IsNullOrEmpty(httpContext.User?.Identity?.AuthenticationType) || null == httpContext.User?.Identity)
+            if (tenant?.Name == null || string.IsNullOrEmpty(authType))
             {
                 await _next(httpContext);
                 return;
             }
-
-            string authType =  httpContext.User.Identity?.AuthenticationType ?? "";
 
             if (authType == OwnerAuthConstants.SchemeName)
             {
@@ -68,9 +67,9 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == TransitPerimeterAuthConstants.TransitAuthScheme)
             {
-                
+                await LoadTransitContext(httpContext, dotYouContext);
             }
-            
+
             await _next(httpContext);
         }
 
@@ -114,6 +113,31 @@ namespace Youverse.Hosting.Middleware
                 deviceUid: deviceUid,
                 appEncryptionKey: new SecureKey(appReg.EncryptedAppDeK),
                 appSharedSecret: new SecureKey(deviceReg.SharedSecret),
+                isAdminApp: false,
+                driveId: driveId);
+        }
+
+        private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            var user = httpContext.User;
+            var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
+
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var appReg = await appRegSvc.GetAppRegistration(appId);
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity.Name,
+                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                loginDek: null
+            );
+
+            //how to specify the destination drive?
+            var driveId = Guid.Empty;
+            dotYouContext.AppContext = new AppContext(
+                appId: appId.ToString(),
+                deviceUid: null,
+                appEncryptionKey: new SecureKey(appReg.EncryptedAppDeK),
+                appSharedSecret: null,
                 isAdminApp: false,
                 driveId: driveId);
         }
