@@ -12,9 +12,9 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.AppAPI.Storage
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
-    public class StorageTests
+    public class DriveStorageTests
     {
         private TestScaffold _scaffold;
 
@@ -34,14 +34,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Storage
 
 
         [Test]
-        public async Task TestBasicUpload()
+        public async Task CanUploadUsingAppDrive()
         {
+            
+            //TODO: provision an app with a drive
             var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
-            //TODO: for the test setup, i need to create a drive and update the API to accept a driveId
             var file = new DriveFileId()
             {
                 DriveId = Guid.Empty,
@@ -78,9 +79,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Storage
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
-                var uploadSvc = RestService.For<IUploadHttpClient>(client);
+                var uploadSvc = RestService.For<IDriveStorageHttpClient>(client);
 
-                var response = await uploadSvc.Store(
+                var response = await uploadSvc.StoreUsingAppDrive(
                     new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
                     new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));

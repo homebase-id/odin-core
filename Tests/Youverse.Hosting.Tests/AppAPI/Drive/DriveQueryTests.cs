@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Hosting.Tests.ApiClient;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {

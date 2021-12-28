@@ -19,6 +19,7 @@ using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner;
 using Youverse.Hosting.Tests.ApiClient;
+using Youverse.Hosting.Tests.OwnerApi;
 
 namespace Youverse.Hosting.Tests
 {

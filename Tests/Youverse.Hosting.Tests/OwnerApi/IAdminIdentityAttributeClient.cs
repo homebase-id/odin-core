@@ -1,11 +1,9 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Profile;
 
-namespace Youverse.Hosting.Tests.ApiClient
+namespace Youverse.Hosting.Tests.OwnerApi
 {
     public interface IAdminIdentityAttributeClient
     {

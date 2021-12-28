@@ -16,15 +16,19 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
-    [Route("/api/owner/v1/storage")]
+    [Route("/api/owner/v1/drive")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
-    public class StorageController : ControllerBase
+    public class DriveStorageController : ControllerBase
     {
         private readonly IDriveService _driveService;
+        
+        //Note: the _packageStorageWriter exists so we have a service that holds
+        //the logic and routing of tenant-specific data.  We don't
+        //want that in the http controllers
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
         private readonly DotYouContext _context;
 
-        public StorageController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
+        public DriveStorageController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
         {
             _packageStorageWriter = packageStorageWriter;
             _context = context;
@@ -40,7 +44,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
         [HttpPost("store")]
-        public async Task<IActionResult> Store()
+        public async Task<IActionResult> Store(Guid? driveId)
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -50,17 +54,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            //NOTE: the first section MUST BE the app id so we can validate it
-            var section = await reader.ReadNextSectionAsync();
-
-            //Note: the _packageStorageWriter exists so we have a service that holds
-            //the logic and routing of tenant-specific data.  We don't
-            //want that in the http controllers
-
-            //TODO: determine which is the right drive to use
-            var driveId = _context.AppContext.DriveId;
-            var packageId = await _packageStorageWriter.CreatePackage(driveId.GetValueOrDefault());
+            var drive = driveId ?? _context.AppContext.DriveId.GetValueOrDefault();
+            var packageId = await _packageStorageWriter.CreatePackage(drive);
+            
             bool isComplete = false;
+            var section = await reader.ReadNextSectionAsync();
             while (section != null || !isComplete)
             {
                 var partName = GetSectionName(section.ContentDisposition);

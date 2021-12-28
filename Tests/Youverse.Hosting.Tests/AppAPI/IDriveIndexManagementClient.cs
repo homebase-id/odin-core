@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Hosting.Tests.ApiClient
+namespace Youverse.Hosting.Tests.AppAPI
 {
     public interface IOwnerDriveIndexManagementClient
     {

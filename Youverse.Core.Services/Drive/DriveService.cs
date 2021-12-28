@@ -90,15 +90,17 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public Task WriteMetaData(DriveFileId file, FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WriteMetaData(DriveFileId file, FileMetaData metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            var json = JsonConvert.SerializeObject(data);
+            metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embeded
+            
+            var json = JsonConvert.SerializeObject(metadata);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
 
             if (storageDisposition == StorageDisposition.LongTerm)
             {
-                OnLongTermFileChanged(file, data);
+                OnLongTermFileChanged(file, metadata);
             }
 
             return task;

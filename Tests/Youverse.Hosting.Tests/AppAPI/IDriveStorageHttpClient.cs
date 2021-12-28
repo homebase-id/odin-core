@@ -2,18 +2,22 @@
 using Refit;
 using Youverse.Core.Services.Transit;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Hosting.Tests.AppAPI
 {
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IUploadHttpClient
+    public interface IDriveStorageHttpClient
     {
-        private const string ClientRootEndpoint = "/api/owner/v1/storage";
+        private const string ClientRootEndpoint = "/api/owner/v1/drive";
 
+        /// <summary>
+        /// Stores a file using the drive associated with the App
+        /// </summary>
+        /// <returns></returns>
         [Multipart]
         [Post(ClientRootEndpoint + "/store")]
-        Task<ApiResponse<TransferResult>> Store(
+        Task<ApiResponse<TransferResult>> StoreUsingAppDrive(
             [AliasAs("tekh")] StreamPart transferEncryptedKeyHeader,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);

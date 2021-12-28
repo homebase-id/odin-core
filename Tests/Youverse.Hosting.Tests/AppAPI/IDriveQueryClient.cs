@@ -4,8 +4,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Drive.Query;
 
-
-namespace Youverse.Hosting.Tests.ApiClient
+namespace Youverse.Hosting.Tests.AppAPI
 {
     public interface IOwnerDriveQueryClient
     {

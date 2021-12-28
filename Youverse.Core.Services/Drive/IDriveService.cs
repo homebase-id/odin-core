@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         DriveFileId CreateFileId(Guid driveId);
 
-        Task WriteMetaData(DriveFileId file, FileMetaData data, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteMetaData(DriveFileId file, FileMetaData metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Writes the payload stream
