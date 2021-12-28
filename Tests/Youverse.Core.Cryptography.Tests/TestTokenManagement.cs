@@ -26,7 +26,7 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = new SymmetricKeyEncrypted(loginDek);
+            var appToken = new SymmetricKeyEncryptedAes(loginDek);
 
             // Now create a mapping from a client device/app to the application token above
 
@@ -48,7 +48,7 @@ namespace Youverse.Core.Cryptography.Tests
             // (app-kek,app-dek). Both are encrypted with the loginKek and
             // can later be retrieved with the loginKek.
             //
-            var appToken = new SymmetricKeyEncrypted(loginDek); //simulate pre-existing
+            var appToken = new SymmetricKeyEncryptedAes(loginDek); //simulate pre-existing
 
             // Now create a mapping from a client device/app to the application token above
 

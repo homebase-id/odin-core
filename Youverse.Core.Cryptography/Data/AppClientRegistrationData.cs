@@ -14,6 +14,7 @@ namespace Youverse.Core.Cryptography.Data
         public Guid applicationId; // 16-byte guid id to lookup the Application entry
 
         public Guid deviceApplicationId;      // Random 16-byte secure HTTP only client cookie
+
         public byte[] halfAdek;      // Random 16-byte client cookie needed to calculate the application DeK
 
         public byte[] SharedSecret;  // The secret shared with the client. We need one per client

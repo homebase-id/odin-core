@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            var key = new SymmetricKeyEncrypted(this._context.Caller.GetLoginDek());
+            var key = new SymmetricKeyEncryptedAes(this._context.Caller.GetLoginDek());
 
             var appReg = new AppRegistration()
             {

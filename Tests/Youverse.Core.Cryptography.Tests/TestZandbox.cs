@@ -15,10 +15,10 @@ namespace Youverse.Core.Cryptography.Tests
 
         [Test]
         // Should split this into its own file.
-        public void TestSymKey()
+        public void TestSymKeyAes()
         {
             var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncrypted(secret);
+            var key = new SymmetricKeyEncryptedAes(secret);
 
             var sk = key.DecryptKey(secret.GetKey());
 
@@ -27,15 +27,52 @@ namespace Youverse.Core.Cryptography.Tests
 
         [Test]
         // Should split this into its own file.
-        public void TestSymKeyFail()
+        public void TestSymKeyFailAes()
         {
             var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncrypted(secret);
+            var key = new SymmetricKeyEncryptedAes(secret);
             var garbage = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
                 key.DecryptKey(garbage.GetKey());
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
+        }
+
+        [Test]
+        // Should split this into its own file.
+        public void TestSymKeyXor()
+        {
+            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            // byte[] halfKey;
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+            var decryptKey = key.DecryptKey(halfKey);
+
+            if (ByteArrayUtil.EquiByteArrayCompare(decryptKey.GetKey(), secret.GetKey()))
+                Assert.Pass();
+            else
+                Assert.Fail();
+        }
+
+
+        [Test]
+        // Should split this into its own file.
+        public void TestSymKeyFailXor()
+        {
+            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            // byte[] halfKey;
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+
+            var garbage = ByteArrayUtil.GetRndByteArray(16);
+
+            try
+            {
+                var decryptKey = key.DecryptKey(garbage);
                 Assert.Fail();
             }
             catch
