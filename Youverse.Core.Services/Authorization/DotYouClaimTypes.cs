@@ -9,8 +9,6 @@ namespace Youverse.Core.Services.Authorization
     {
         public static string YouFoundationIssuer = "YouFoundation";
 
-        public static string LoginDek = "https://schemas.youfoundation.id/2021/3/identity/LoginToken";
-        
         public static string AppId = "https://schemas.youfoundation.id/2021/11/apps/AppId";
         
         public static string DeviceUid64 = "https://schemas.youfoundation.id/2021/11/apps/DeviceUid";
@@ -32,10 +30,6 @@ namespace Youverse.Core.Services.Authorization
 
         public static string PublicKeyCertificate = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
         
-        public static string IsAdminApp = "https://schemas.youfoundation.id/2021/3/identity/IsAdminApp";
-
-        public static string AppDeviceSharedSecret64 = "https://schemas.youfoundation.id/2021/3/identity/AppDeviceSharedSecret";
-        
-        public static string AppEncryptionKey64 = "https://schemas.youfoundation.id/2021/3/identity/AppEncryptionKey64";
+        public static string AuthResult  = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
     }
 }

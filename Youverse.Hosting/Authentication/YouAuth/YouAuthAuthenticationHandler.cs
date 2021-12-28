@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication.YouAuth;
+using Youverse.Core.Services.Authorization;
 
 namespace Youverse.Hosting.Authentication.YouAuth
 {
@@ -45,6 +46,8 @@ namespace Youverse.Hosting.Authentication.YouAuth
             var claims = new[]
             {
                 new Claim(YouAuthDefaults.IdentityClaim, session.Subject),
+                new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, nameof(YouAuthAuthenticationHandler));

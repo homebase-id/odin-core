@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            Context.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
             return Task.CompletedTask;
         }
 
@@ -45,29 +45,20 @@ namespace Youverse.Hosting.Authentication.Owner
                 {
                     var deviceUid = Context.Request.Cookies[DotYouHeaderNames.DeviceUid] ?? "";
 
-                    //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-
                     //TODO: this needs to be pulled from context rather than the domain
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
-
-                    //TODO: we need to avoid using a claim to hold the login kek.  it should just be set during the Startup.ResolveContext method
-                    var loginDek = await authService.GetOwnerDek(authResult.SessionToken, authResult.ClientHalfKek);
-                    var b64 = Convert.ToBase64String(loginDek.GetKey());
-
+                    
                     var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        
-                        new Claim(DotYouClaimTypes.LoginDek, b64, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+
+                        new Claim(DotYouClaimTypes.AuthResult, authResult.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid64, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.AppId, "owner-console", ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
-                        //note: the isAdminApp flag can be set true since the authService.GetOwnerDek did not throw an exception (it verifies the owner password was used)
-                        new Claim(DotYouClaimTypes.IsAdminApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                     };
 
                     var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);

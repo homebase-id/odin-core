@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -23,18 +25,14 @@ namespace Youverse.Hosting.Middleware
         private readonly RequestDelegate _next;
         private readonly IIdentityContextRegistry _registry;
         private readonly ITenantProvider _tenantProvider;
-
-        //
-
+        
         public DotYouContextMiddleware(RequestDelegate next, IIdentityContextRegistry registry, ITenantProvider tenantProvider)
         {
             _next = next;
             _registry = registry;
             _tenantProvider = tenantProvider;
         }
-
-        //
-
+        
         public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
@@ -45,66 +43,79 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            var user = httpContext.User;
-
-            var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
-            var deviceUid = Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.DeviceUid64));
-
-            dotYouContext.HostDotYouId = (DotYouIdentity)tenant.Name;
-
-            string authType = user.Identity?.AuthenticationType ?? "";
+            string authType =  httpContext.User.Identity?.AuthenticationType ?? "";
 
             if (authType == OwnerAuthConstants.SchemeName)
             {
-                var kek = user.FindFirstValue(DotYouClaimTypes.LoginDek);
-                SecureKey chk = kek == null ? null : new SecureKey(Convert.FromBase64String(kek));
-                var caller = new CallerContext(
-                    dotYouId: (DotYouIdentity)user.Identity.Name,
-                    isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                    loginDek: chk
-                );
-
-                dotYouContext.Caller = caller;
-
-                bool isAdminApp = bool.Parse(user.FindFirstValue(DotYouClaimTypes.IsAdminApp) ?? bool.FalseString);
-            }
-
-            if (authType == YouAuthConstants.Scheme)
-            {
+                await LoadOwnerContext(httpContext, dotYouContext);
+                await _next(httpContext);
+                return;
             }
 
             if (authType == AppAuthConstants.SchemeName)
             {
-                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                var appReg = await appRegSvc.GetAppRegistration(appId);
-                var deviceReg = await appRegSvc.GetAppDeviceRegistration(appId, deviceUid);
+                await LoadAppContext(httpContext, dotYouContext);
+                await _next(httpContext);
+                return;
+            }
 
-                //how to specify the destination drive?
-                var driveId = Guid.Empty;
-                dotYouContext.AppContext = new AppContext(appId.ToString(), deviceUid, new SecureKey(appReg.EncryptedAppDeK), new SecureKey(deviceReg.SharedSecret), false, driveId);
-
-                dotYouContext.Caller = new CallerContext(
-                    dotYouId: (DotYouIdentity)user.Identity.Name,
-                    isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                    loginDek: null
-                );
+            if (authType == YouAuthConstants.Scheme)
+            {
+                //TODO: is there anything special here for youauth?
+                await _next(httpContext);
+                return;
             }
 
             if (authType == TransitPerimeterAuthConstants.TransitAuthScheme)
             {
+                
             }
-
-
-            // var appEncryptionKey = new SecureKey(Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.AppEncryptionKey64)));
-            // var sharedSecretKey = new SecureKey(Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.AppDeviceSharedSecret64)));
-            var appEncryptionKey = new SecureKey(Array.Empty<byte>());
-            var sharedSecretKey = new SecureKey(Array.Empty<byte>());
-
-
-            //todo: Lookup from app registration
-
-
+            
             await _next(httpContext);
+        }
+
+        private async Task LoadOwnerContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            var user = httpContext.User;
+
+            var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
+            var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
+            var loginDek = await authService.GetOwnerDek(authResult.SessionToken, authResult.ClientHalfKek);
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity.Name,
+                isOwner: true,
+                loginDek: loginDek
+            );
+
+            dotYouContext.AppContext = null;
+        }
+
+        private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            var user = httpContext.User;
+            var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
+            var deviceUid = Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.DeviceUid64));
+
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var appReg = await appRegSvc.GetAppRegistration(appId);
+            var deviceReg = await appRegSvc.GetAppDeviceRegistration(appId, deviceUid);
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity.Name,
+                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                loginDek: null
+            );
+
+            //how to specify the destination drive?
+            var driveId = Guid.Empty;
+            dotYouContext.AppContext = new AppContext(
+                appId: appId.ToString(),
+                deviceUid: deviceUid,
+                appEncryptionKey: new SecureKey(appReg.EncryptedAppDeK),
+                appSharedSecret: new SecureKey(deviceReg.SharedSecret),
+                isAdminApp: false,
+                driveId: driveId);
         }
     }
 }

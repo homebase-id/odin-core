@@ -91,6 +91,9 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
+            
+            //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
+            
             var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             return IsAuthTokenEntryValid(entry);
         }

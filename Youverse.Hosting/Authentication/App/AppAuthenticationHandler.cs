@@ -60,7 +60,6 @@ namespace Youverse.Hosting.Authentication.App
                         new Claim(DotYouClaimTypes.AppId, appDevice.ApplicationId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid64, Convert.ToBase64String(appDevice.DeviceUid), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
-                        new Claim(DotYouClaimTypes.IsAdminApp, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
                     };
 
