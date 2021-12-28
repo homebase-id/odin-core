@@ -6,6 +6,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.AppAuth
@@ -14,11 +15,15 @@ namespace Youverse.Core.Services.Authentication.AppAuth
     public class AppAuthenticationService : IAppAuthenticationService
     {
         private readonly ISystemStorage _systemStorage;
+        private readonly IAppRegistrationService _appRegistrationService;
+        private readonly ILogger<IAppAuthenticationService> _logger;
         private const string AppAuthTokenCollection = "apptko";
 
-        public AppAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, ISystemStorage systemStorage)
+        public AppAuthenticationService(DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ILogger<IAppAuthenticationService> logger)
         {
             _systemStorage = systemStorage;
+            _appRegistrationService = appRegistrationService;
+            _logger = logger;
         }
 
         public async Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice)
@@ -36,21 +41,36 @@ namespace Youverse.Core.Services.Authentication.AppAuth
             };
         }
 
-        public Task<bool> IsValidAppDevice(Guid sessionToken, out AppDevice appDevice)
+        public async Task<AppDevice> ValidateSessionToken(Guid token)
         {
-            //TODO: look up from token storage
-            
-            //TODO: need to validate the app is not revoked
+            //TODO: look up appdevice from token storage
 
-            //TODO: need to validate that this deviceUid has not been rejected/blocked
-
-            appDevice = new AppDevice()
+            var appDevice = new AppDevice()
             {
-                AppId = "super bob",
+                ApplicationId = Guid.Empty,
                 DeviceUid = Guid.Empty.ToByteArray()
             };
 
-            return Task.FromResult(true);
+            
+            //TODO: need to validate the app is not revoked
+            // var appReg = await _appRegistrationService.GetAppRegistration(appDevice.ApplicationId);
+            // if (null == appReg || appReg.IsRevoked)
+            // {
+            //     //TODO: security audit
+            //     _logger.LogInformation($"Revoked app attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
+            //     return null;
+            // }
+            //
+            // //TODO: need to validate that this deviceUid has not been rejected/blocked
+            // var deviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            // if (null == deviceReg || deviceReg.IsRevoked)
+            // {
+            //     //TODO: security audit
+            //     _logger.LogInformation($"Revoked device attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
+            //     return null;
+            // }
+            
+            return appDevice;
         }
 
         public Task ExtendTokenLife(Guid token, int ttlSeconds)

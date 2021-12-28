@@ -5,7 +5,7 @@
         /// <summary>
         /// Scheme for authenticating an individual to the Digital Identity they own
         /// </summary>
-        public const string DotIdentityOwnerScheme = "digital-identity-owner";
+        public const string SchemeName = "digital-identity-owner";
 
         /// <summary>
         /// The name of the key used to store the token in cookies, dictionaries, etc.

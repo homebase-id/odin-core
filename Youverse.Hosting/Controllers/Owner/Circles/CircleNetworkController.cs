@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.Owner.Circles
 
     [ApiController]
     [Route("api/circlenetwork/connections")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class CircleNetworkController : ControllerBase
     {
         readonly ICircleNetworkService _circleNetwork;

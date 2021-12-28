@@ -23,22 +23,6 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
             _ss = ss;
         }
 
-        [HttpGet("verifyDeviceToken")]
-        public async Task<IActionResult> VerifyDeviceToken(Guid token)
-        {
-            //note: this will intentionally ignore any error, including token parsing errors
-            try
-            {
-                var isValid = await _authService.IsValidDeviceToken(token);
-                return new JsonResult(isValid);
-            }
-            catch
-            {
-                return new JsonResult(false);
-            }
-        }
-
-
         [HttpGet("verifyToken")]
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
@@ -69,28 +53,6 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
 
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
                 return new JsonResult(true);
-            }
-            catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
-            {
-                return new JsonResult(false);
-            }
-        }
-
-        [HttpPost("device")]
-        public async Task<IActionResult> AuthenticateDevice([FromBody] PasswordReply package)
-        {
-            try
-            {
-                var deviceAuth = await _authService.AuthenticateDevice(package);
-
-                //set the cookies like normal to keep the browser logged in.  this will ensure
-                //the user does not have to authenticate across multiple apps
-                var value = $"{deviceAuth.AuthenticationResult.SessionToken}|{deviceAuth.AuthenticationResult.ClientHalfKek}";
-                var options = new CookieOptions() {HttpOnly = true, IsEssential = true, Secure = true};
-                Response.Cookies.Append(OwnerAuthConstants.CookieName, value, options);
-
-                //return only the device token to be used from the app, etc
-                return new JsonResult(deviceAuth.DeviceToken);
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
             {

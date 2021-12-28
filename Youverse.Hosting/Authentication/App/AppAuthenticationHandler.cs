@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Hosting.Authentication.Owner;
 
@@ -41,8 +42,12 @@ namespace Youverse.Hosting.Authentication.App
             var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
             if (GetAppId(out var appIdentity))
             {
-                if (await authService.IsValidAppDevice(appIdentity.SessionToken, out var appDevice))
+                var appDevice = await authService.ValidateSessionToken(appIdentity.SessionToken);
+                if (null != appDevice)
                 {
+                    //TODO: Optimize by returning the device shared secret and app encryption key from the ValidateSessionToken call above
+                    
+                    
                     //TODO: this needs to be pulled from context rather than the domain
                     string domain = this.Context.Request.Host.Host;
 
@@ -51,13 +56,12 @@ namespace Youverse.Hosting.Authentication.App
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        
-                        new Claim(DotYouClaimTypes.AppId, appDevice.AppId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.DeviceUid, Convert.ToBase64String(appDevice.DeviceUid), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
-                        new Claim(DotYouClaimTypes.LoginDek, "", ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.AppId, appDevice.ApplicationId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.DeviceUid64, Convert.ToBase64String(appDevice.DeviceUid), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+
                         new Claim(DotYouClaimTypes.IsAdminApp, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
                     };
 
                     var identity = new ClaimsIdentity(claims, AppAuthConstants.SchemeName);
@@ -110,9 +114,5 @@ namespace Youverse.Hosting.Authentication.App
             result = null;
             return false;
         }
-        
-    
     }
-
-    
 }

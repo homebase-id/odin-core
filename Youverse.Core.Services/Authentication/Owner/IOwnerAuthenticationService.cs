@@ -19,20 +19,6 @@ namespace Youverse.Core.Services.Authentication.Owner
         Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply);
 
         /// <summary>
-        /// Used for authenticating mobile apps and other mobile devices
-        /// </summary>
-        /// <param name="reply"></param>
-        /// <returns></returns>
-        Task<DeviceAuthenticationResult> AuthenticateDevice(IPasswordReply reply);
-
-        /// <summary>
-        /// Determines if the device <paramref name="token"/> is valid and has not expired.  
-        /// </summary>
-        /// <param name="token">The token to be validated</param>
-        /// <returns></returns>
-        Task<bool> IsValidDeviceToken(Guid token);
-        
-        /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  
         /// </summary>
         /// <param name="token">The token to be validated</param>

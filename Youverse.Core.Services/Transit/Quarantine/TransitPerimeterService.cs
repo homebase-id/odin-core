@@ -215,7 +215,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //TODO: validate 
             if (tracker.File == null)
             {
-                tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId));
+                tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId.GetValueOrDefault()));
             }
             
             await _fileDrive.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);

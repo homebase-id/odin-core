@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
@@ -13,13 +14,18 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
     [Route("/api/apps/v1/auth")]
     public class AppAuthenticationController : Controller
     {
-        private readonly IOwnerAuthenticationService _authService;
-        private readonly IOwnerSecretService _ss;
+        private readonly IAppAuthenticationService _authService;
 
-        public AppAuthenticationController(IOwnerAuthenticationService authService, IOwnerSecretService ss)
+        public AppAuthenticationController(IAppAuthenticationService authService)
         {
             _authService = authService;
-            _ss = ss;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Authenticate([FromBody] AppDevice appDevice)
+        {
+            var result = await _authService.Authenticate(appDevice);
+            return new JsonResult(result);
         }
 
         [HttpGet("verifyDeviceToken")]
@@ -28,8 +34,9 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
             //note: this will intentionally ignore any error, including token parsing errors
             var value = Request.Cookies[AppAuthConstants.CookieName];
             var result = DotYouAuthenticationResult.Parse(value);
-            var isValid = await _authService.IsValidDeviceToken(result.SessionToken);
-            return new JsonResult(isValid);
+            var appDevice = await _authService.ValidateSessionToken(result.SessionToken);
+
+            return new JsonResult(null != appDevice);
         }
 
         [HttpPost("expire")]

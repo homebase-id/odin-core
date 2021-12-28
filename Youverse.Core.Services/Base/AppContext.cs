@@ -13,12 +13,12 @@ namespace Youverse.Core.Services.Base
         private readonly SecureKey _appEncryptionKey;
         private readonly SecureKey _appSharedSecret;
         private readonly string _appId;
-        private readonly string _deviceUid;
+        private readonly byte[] _deviceUid;
         private readonly bool _isAdminApp;
 
-        private readonly Guid _driveId;
+        private readonly Guid? _driveId;
 
-        public AppContext(string appId, string deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret, bool isAdminApp, Guid driveId)
+        public AppContext(string appId, byte[] deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret, bool isAdminApp, Guid? driveId)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -31,14 +31,14 @@ namespace Youverse.Core.Services.Base
             this._deviceUid = deviceUid;
         }
 
-        public string DeviceUid => this._deviceUid;
+        public byte[] DeviceUid => this._deviceUid;
 
         public string AppId => this._appId;
 
         /// <summary>
         /// Specifies the drive associated with this app
         /// </summary>
-        public Guid DriveId => this._driveId;
+        public Guid? DriveId => this._driveId;
 
         /// <summary>
         /// Returns the shared secret between the client app and

@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
 
             //TODO: determine which is the right drive to use
             var driveId = _context.AppContext.DriveId;
-            var packageId = await _packageStorageWriter.CreatePackage(driveId);
+            var packageId = await _packageStorageWriter.CreatePackage(driveId.GetValueOrDefault());
             bool isComplete = false;
             while (section != null || !isComplete)
             {

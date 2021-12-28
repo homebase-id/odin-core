@@ -16,14 +16,14 @@ namespace Youverse.Core.Services.Authentication.AppAuth
         /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice);
-        
-        
+
+
         /// <summary>
-        /// Determines if the app and device paired with its token is valid and has not expired.  
+        /// Determines if the app and device paired with its token are valid, not revoked, and have not expired.  
         /// </summary>
         /// <param name="token">The token to be validated</param>
         /// <returns></returns>
-        Task<bool> IsValidAppDevice(Guid sessionToken, out AppDevice appDevice);
+        Task<AppDevice> ValidateSessionToken(Guid token);
         
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown

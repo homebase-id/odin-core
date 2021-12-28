@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Transit
                 File = package.File,
                 Recipient = r,
                 AppId = this._context.AppContext.AppId,
-                DeviceUid = this._context.AppContext.DeviceUid
+                DeviceUid = Convert.ToBase64String(this._context.AppContext.DeviceUid)
             }));
 
             var result = new TransferResult()

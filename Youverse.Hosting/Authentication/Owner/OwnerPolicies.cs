@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.Owner
             policy.AddPolicy(IsDigitalIdentityOwnerPolicyName, pb =>
             {
                 pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
-                pb.AuthenticationSchemes.Add(OwnerAuthConstants.DotIdentityOwnerScheme);
+                pb.AuthenticationSchemes.Add(OwnerAuthConstants.SchemeName);
             });
         }
     }

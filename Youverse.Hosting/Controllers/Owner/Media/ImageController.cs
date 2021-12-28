@@ -9,7 +9,7 @@ namespace Youverse.Hosting.Controllers.Owner.Media
 {
     [ApiController]
     [Route("api/images")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class ImageController : ControllerBase
     {
         IProfileService _profileService;

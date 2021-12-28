@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.Owner
             }
 
             return builder.AddScheme<OwnerAuthenticationSchemeOptions, OwnerAuthenticationHandler>(
-                OwnerAuthConstants.DotIdentityOwnerScheme,
+                OwnerAuthConstants.SchemeName,
                 op => { });
         }
     }

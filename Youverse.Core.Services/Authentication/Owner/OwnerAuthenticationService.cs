@@ -89,35 +89,6 @@ namespace Youverse.Core.Services.Authentication.Owner
             };
         }
 
-
-        public async Task<DeviceAuthenticationResult> AuthenticateDevice(IPasswordReply reply)
-        {
-            var authResult = await Authenticate(reply);
-
-            //TODO: extra device auth stuff here - like seeing if it's an authorized device, etc.
-            //HACK: hard coded until we integrate michael's stuff
-            var deviceToken = Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462");
-
-            var result = new DeviceAuthenticationResult()
-            {
-                AuthenticationResult = authResult,
-                DeviceToken = deviceToken
-            };
-
-            return result;
-        }
-
-        public async Task<bool> IsValidDeviceToken(Guid token)
-        {
-            //HACK
-            if (token == Guid.Parse("9cc5adc2-4f8a-419a-b340-8d69cba6c462"))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
             var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
@@ -135,7 +106,6 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             return await _secretService.GetDek(loginToken, clientHalfKek);
         }
-
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
         {
