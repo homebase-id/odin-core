@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         // public byte[] EncryptedAppDeK { get; set; }
 
-        public byte[] AppIV { get; set; }
+        // public byte[] AppIV { get; set; }
         
         public bool IsRevoked { get; set; }
     }

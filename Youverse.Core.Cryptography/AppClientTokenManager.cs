@@ -36,39 +36,36 @@ namespace Youverse.Core.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] clientAppToken, AppClientRegistrationData serverRegData) CreateClientToken(byte[] appDek, byte[] sharedSecret = null)
+        public static (byte[] clientAppToken, AppClientRegistrationData serverRegData) CreateClientToken(SecureKey appKek, byte[] sharedSecret = null)
         {
-            var token = new AppClientRegistrationData
+            var serverRegData = new AppClientRegistrationData
             {
                 deviceApplicationId = new Guid(ByteArrayUtil.GetRndByteArray(16)),
             };
 
-            var deviceAppToken = ByteArrayUtil.GetRndByteArray(16);
-            token.halfAdek = XorManagement.XorEncrypt(appDek, deviceAppToken);
+            // var deviceAppToken = ByteArrayUtil.GetRndByteArray(16);
+            // token.halfAdek = XorManagement.XorEncrypt(appDek, deviceAppToken);
+
+            serverRegData.keyHalfKek = new SymmetricKeyEncryptedXor(appKek, out var clientAppToken);
 
             if (sharedSecret == null)
-                token.SharedSecret = ByteArrayUtil.GetRndByteArray(16);
+                serverRegData.SharedSecret = ByteArrayUtil.GetRndByteArray(16);
             else
             {
                 if (sharedSecret.Length != 16)
                     throw new Exception("Shared secret expected 16 bytes");
-                token.SharedSecret = sharedSecret;
+                serverRegData.SharedSecret = sharedSecret;
             }
 
-            return (deviceAppToken, token);
+            return (clientAppToken, serverRegData);
         }
 
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey DecryptAppDekWithClientToken(AppClientRegistrationData clientToken, byte[] serverToken)
+        public static SecureKey DecryptAppKekWithClientToken(AppClientRegistrationData serverReg, byte[] clientToken)
         {
-            return DecryptAppDekWithClientToken(clientToken.halfAdek, serverToken);
-        }
-
-        public static SecureKey DecryptAppDekWithClientToken(byte[] clientToken, byte[] serverToken)
-        {
-            return new SecureKey(XorManagement.XorDecrypt(clientToken, serverToken));
+            return serverReg.keyHalfKek.DecryptKey(clientToken);
         }
     }
 }

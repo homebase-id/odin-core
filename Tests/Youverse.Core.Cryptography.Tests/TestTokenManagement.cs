@@ -57,13 +57,13 @@ namespace Youverse.Core.Cryptography.Tests
 
             // Now create the mapping
             // TODO: xxx the id needs to be removed
-            var (serverToken, clientToken) = AppClientTokenManager.CreateClientToken(appDekViaLogin.GetKey(), ByteArrayUtil.GetRndByteArray(16));
+            var (clientToken, srvRegData) = AppClientTokenManager.CreateClientToken(appDekViaLogin, ByteArrayUtil.GetRndByteArray(16));
 
             // The two cookies / keys to give to the client are:
             //   clientToken.TokenId ["Token"]
             //   cookie2             ["Half"]
 
-            var appDekViaCookies = AppClientTokenManager.DecryptAppDekWithClientToken(clientToken.halfAdek, serverToken);
+            var appDekViaCookies = srvRegData.keyHalfKek.DecryptKey(clientToken);
 
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()), "DeK does not match"); 
         }

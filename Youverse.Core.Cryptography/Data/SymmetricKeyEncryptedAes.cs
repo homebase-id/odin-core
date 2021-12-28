@@ -11,7 +11,7 @@ namespace Youverse.Core.Cryptography.Data
         private SecureKey _decryptedKey;  // Cache value to only decrypt once
 
         public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
-        public byte[] KeyIV         { get; set; } // IV used for AES encryption above
+        public byte[] KeyIV         { get; set; } // IV used for AES encryption of the key
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 

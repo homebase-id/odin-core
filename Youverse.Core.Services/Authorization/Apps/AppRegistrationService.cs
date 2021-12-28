@@ -38,7 +38,6 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 Name = name,
-                AppIV = key.KeyIV,
                 EncryptedAppDek = key
             };
 
@@ -92,7 +91,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             var decryptedAppDek = savedApp.EncryptedAppDek.DecryptKey(this._context.Caller.GetLoginDek().GetKey());
-            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
+            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
             decryptedAppDek.Wipe();
 
             //Note: never store deviceAppToken
@@ -103,7 +102,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                HalfAdek = serverRegData.halfAdek,
+                keyHalfKek = serverRegData.keyHalfKek,
                 IsRevoked = false
             };
 
