@@ -1,14 +1,8 @@
-﻿using System;
-using System.Reflection;
-using System.Text;
+﻿using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Tests.Apps;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class TransitHostToHostTests
     {

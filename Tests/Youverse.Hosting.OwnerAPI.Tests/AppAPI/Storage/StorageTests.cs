@@ -12,7 +12,7 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.Storage
+namespace Youverse.Hosting.Tests.AppAPI.Storage
 {
     public class StorageTests
     {

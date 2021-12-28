@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Hosting", "Youvers
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A98EA801-5CF3-4550-920B-F48963F4C123}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Hosting.Tests", "Tests\Youverse.Hosting.Tests\Youverse.Hosting.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Hosting.OwnerAPI.Tests", "Tests\Youverse.Hosting.OwnerAPI.Tests\Youverse.Hosting.OwnerAPI.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Tests", "Tests\Youverse.Core.Tests\Youverse.Core.Tests.csproj", "{99F77839-75B5-4C90-9E5C-213DEB23D5DC}"
 EndProject

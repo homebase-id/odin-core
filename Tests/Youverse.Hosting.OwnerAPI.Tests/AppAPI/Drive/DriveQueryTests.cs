@@ -5,11 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Hosting.Tests.ApiClient;
 
-namespace Youverse.Hosting.Tests.Drive
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveQueryTests
     {

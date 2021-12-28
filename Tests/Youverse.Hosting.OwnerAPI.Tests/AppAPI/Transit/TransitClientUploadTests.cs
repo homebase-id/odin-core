@@ -4,11 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
@@ -19,7 +16,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class TransitClientUploadTests
     {

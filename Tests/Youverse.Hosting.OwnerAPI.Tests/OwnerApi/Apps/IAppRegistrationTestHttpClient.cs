@@ -2,12 +2,10 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Hosting.Controllers.Owner;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 
-namespace Youverse.Hosting.Tests.Apps
+namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
     public interface IAppRegistrationTestHttpClient
     {

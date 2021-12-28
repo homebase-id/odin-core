@@ -13,7 +13,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.Transit
+namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class OutboxTests
     {

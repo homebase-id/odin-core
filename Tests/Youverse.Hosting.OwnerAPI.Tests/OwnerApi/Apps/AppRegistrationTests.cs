@@ -6,7 +6,7 @@ using Refit;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 
-namespace Youverse.Hosting.Tests.Apps
+namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
     public class AppRegistrationTests
     {

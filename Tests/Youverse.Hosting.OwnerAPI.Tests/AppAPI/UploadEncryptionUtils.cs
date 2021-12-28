@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests
+namespace Youverse.Hosting.Tests.AppAPI
 {
     public static class UploadEncryptionUtils
     {
