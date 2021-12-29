@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Authentication
                 
             }
             
-            var publicKey = RsaKeyManagement.publicPem(key);
+            var publicKey = key.publicPem();
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);
 

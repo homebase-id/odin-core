@@ -16,7 +16,7 @@ namespace Youverse.Core.Cryptography.Data
                 Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltPassword64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
                 SaltKek64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                PublicPem = RsaKeyManagement.publicPem(keyData),
+                PublicPem = keyData.publicPem(),
                 CRC = keyData.crc32c
             };
 
