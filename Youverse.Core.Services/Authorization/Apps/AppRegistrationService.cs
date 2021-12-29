@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<Guid> RegisterApp(Guid applicationId, string name, bool createDrive = false)
+        public async Task<AppRegistrationSimple> RegisterApp(Guid applicationId, string name, bool createDrive = false)
         {
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
@@ -60,8 +60,15 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
-            
-            return appReg.Id;
+
+            return new AppRegistrationSimple()
+            {
+                ApplicationId = appReg.ApplicationId,
+                Name = appReg.Name,
+                DriveId = appReg.DriveId,
+                IsRevoked = appReg.IsRevoked
+            };
+
         }
 
         public async Task<AppRegistration> GetAppRegistration(Guid applicationId)

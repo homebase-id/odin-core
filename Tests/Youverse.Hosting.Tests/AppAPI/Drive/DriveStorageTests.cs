@@ -1,16 +1,20 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Security.Principal;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Tests.OwnerApi.Apps;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -36,8 +40,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanUploadUsingAppDrive()
         {
-            
             //TODO: provision an app with a drive
+            //this takes a call to the owner's api to create an app
+            Guid applicationId = Guid.NewGuid();
+            var app = this.AddAppWithDrive(applicationId, "Test-Upload-App");
+
             var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -48,7 +55,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DriveId = Guid.Empty,
                 FileId = Guid.Empty
             };
-            
+
             var metadata = new FileMetaData(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
@@ -93,6 +100,31 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
                 Assert.IsTrue(uploadResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
+            }
+        }
+
+
+        private async Task<AppRegistrationSimple> AddAppWithDrive(Guid applicationId, string name)
+        {
+            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            {
+                var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
+                var payload = new AppRegistrationPayload
+                {
+                    Name = name,
+                    ApplicationId = applicationId,
+                    CreateDrive = true
+                };
+
+                var response = await svc.RegisterApp(payload);
+
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var appRegistrationSimple = response.Content;
+                Assert.IsTrue(appRegistrationSimple.ApplicationId == payload.ApplicationId);
+                Assert.IsTrue(appRegistrationSimple.DriveId.HasValue);
+                Assert.IsTrue(appRegistrationSimple.DriveId != Guid.Empty);
+
+                return appRegistrationSimple;
             }
         }
     }

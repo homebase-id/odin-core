@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         Task<ApiResponse<AppRegistration>> GetRegisteredApp(Guid appId);
 
         [Post(RootPath)]
-        Task<ApiResponse<Guid>> RegisterApp([Body] AppRegistrationPayload appRegistration);
+        Task<ApiResponse<AppRegistrationSimple>> RegisterApp([Body] AppRegistrationPayload appRegistration);
 
         [Post(RootPath + "/revoke/{appId}")]
         Task<ApiResponse<NoResultResponse>> RevokeApp(Guid appId);

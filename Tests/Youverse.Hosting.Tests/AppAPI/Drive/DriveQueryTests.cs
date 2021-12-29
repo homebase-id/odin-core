@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //HACK: wait on index to be ready
                 Thread.Sleep(2000);
                 
-                var svc = RestService.For<IOwnerDriveQueryClient>(client);
+                var svc = RestService.For<IDriveQueryClient>(client);
 
                 var response = await svc.GetRecentlyCreatedItems(_profileDriveId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //HACK: wait on index to be ready
                 Thread.Sleep(2000);
                 
-                var svc = RestService.For<IOwnerDriveQueryClient>(client);
+                var svc = RestService.For<IDriveQueryClient>(client);
 
                 var response = await svc.GetRecentlyCreatedItems(_profileDriveId, false, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);

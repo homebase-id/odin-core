@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="name"></param>
         /// <param name="createDrive"></param>
         /// <returns></returns>
-        Task<Guid> RegisterApp(Guid applicationId, string name, bool createDrive = false);
+        Task<AppRegistrationSimple> RegisterApp(Guid applicationId, string name, bool createDrive = false);
 
         Task<AppRegistration> GetAppRegistration(Guid applicationId);
 

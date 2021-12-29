@@ -6,7 +6,7 @@ using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Hosting.Tests.AppAPI
 {
-    public interface IOwnerDriveQueryClient
+    public interface IDriveQueryClient
     {
         private const string RootPath = "/api/owner/v1/drive/query";
 
