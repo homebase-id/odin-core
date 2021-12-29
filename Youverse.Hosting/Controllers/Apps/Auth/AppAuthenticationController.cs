@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
-using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 
