@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         //     
         //     //TODO: add support to CreateHttpClient which allows us to choose a different AppId and deviceUid
         //     // so we can ensure no cross calling; unless allowed
-        //     // using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise, false, true))
+        //     // using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise, false, true))
         //     // {
         //     // }
         // }
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetInboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanRemoveInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient( _scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient( DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -118,8 +118,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
         private async Task SendTransfer()
         {
-            var sender = _scaffold.Samwise;
-            var recipient = _scaffold.Frodo;
+            var sender = DotYouIdentities.Samwise;
+            var recipient = DotYouIdentities.Frodo;
             
             var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
             var transferIv = ByteArrayUtil.GetRndByteArray(16);

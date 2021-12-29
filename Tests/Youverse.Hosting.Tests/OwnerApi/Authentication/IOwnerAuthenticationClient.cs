@@ -5,11 +5,11 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.Owner;
 
-namespace Youverse.Hosting.Tests.OwnerApi
+namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {
     public interface IOwnerAuthenticationClient
     {
-        private const string RootPath = "/api/admin/authentication";
+        private const string RootPath = "/owner/api/v1/authentication";
 
         [Post(RootPath)]
         Task<ApiResponse<bool>> Authenticate([Body] IPasswordReply package);

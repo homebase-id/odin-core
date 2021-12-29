@@ -23,7 +23,7 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
         [HttpPost]
         public async Task<IActionResult> Authenticate([FromBody] AppDevice appDevice)
         {
-            var result = await _authService.Authenticate(appDevice);
+            var result = await _authService.CreateSessionToken(appDevice);
             return new JsonResult(result);
         }
 
@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
         {
             var value = Request.Cookies[AppAuthConstants.CookieName];
             var result = DotYouAuthenticationResult.Parse(value);
-            _authService.ExpireToken(result.SessionToken);
+            _authService.ExpireSession(result.SessionToken);
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
 

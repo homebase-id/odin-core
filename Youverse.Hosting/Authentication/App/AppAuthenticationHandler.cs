@@ -42,9 +42,10 @@ namespace Youverse.Hosting.Authentication.App
             var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
             if (GetAppId(out var appIdentity))
             {
-                var appDevice = await authService.ValidateSessionToken(appIdentity.SessionToken);
-                if (null != appDevice)
+                var validationResult = await authService.ValidateSessionToken(appIdentity.SessionToken);
+                if (validationResult.IsValid)
                 {
+                    var appDevice = validationResult.AppDevice;
                     //TODO: Optimize by returning the device shared secret and app encryption key from the ValidateSessionToken call above
                     
                     

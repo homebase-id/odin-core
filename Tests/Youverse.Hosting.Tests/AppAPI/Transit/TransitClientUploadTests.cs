@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {_scaffold.Frodo}};
+            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {DotYouIdentities.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var recipientCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -99,8 +99,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(transferResult);
                 Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(transferResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
+                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(DotYouIdentities.Frodo), "Could not find matching recipient");
+                Assert.IsTrue(transferResult.RecipientStatus[DotYouIdentities.Frodo] == TransferStatus.TransferKeyCreated);
 
                 //there should be a record in the outbox for this transfer
                 var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
@@ -114,7 +114,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsTrue(outboxItems.Results.Count == 1);
 
                 var item = outboxItems.Results.First();
-                Assert.IsTrue(item.Recipient == _scaffold.Frodo);
+                Assert.IsTrue(item.Recipient == DotYouIdentities.Frodo);
                 Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);
 
                 //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
@@ -124,7 +124,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             }
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
-            // using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo, true))
+            // using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, true))
             // {
             //     //TODO: query for the message to see if 
             //

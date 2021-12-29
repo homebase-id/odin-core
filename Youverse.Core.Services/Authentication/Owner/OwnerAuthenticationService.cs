@@ -146,7 +146,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {
-                throw new AuthenticationException();
+                throw new YouverseSecurityException();
             }
         }
 

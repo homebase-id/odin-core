@@ -44,6 +44,8 @@ namespace Youverse.Hosting.Middleware
 
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
+            //TODO: examine exceptoins that inheit from YouverseSecurityException and audit in security log
+
             const int status = 500;
             const string title = "Internal Server Error";
 

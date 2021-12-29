@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
                 var revokeResponse = await svc.RevokeApp(appId);
@@ -72,7 +72,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
 
@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistrationResponse?> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
                 var request = new AppRegistrationRequest
@@ -133,7 +133,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistration> GetSampleApp(Guid applicationId)
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
                 var appResponse = await svc.GetRegisteredApp(applicationId);

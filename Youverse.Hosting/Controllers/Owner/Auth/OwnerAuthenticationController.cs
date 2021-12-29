@@ -11,7 +11,7 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Owner.Auth
 {
     [ApiController]
-    [Route("/api/admin/authentication")]
+    [Route("/owner/api/v1/authentication")]
     public class OwnerAuthenticationController : Controller
     {
         private readonly IOwnerAuthenticationService _authService;

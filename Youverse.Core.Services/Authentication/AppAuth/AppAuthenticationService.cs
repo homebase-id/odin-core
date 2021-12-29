@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -17,95 +18,127 @@ namespace Youverse.Core.Services.Authentication.AppAuth
         private readonly ISystemStorage _systemStorage;
         private readonly IAppRegistrationService _appRegistrationService;
         private readonly ILogger<IAppAuthenticationService> _logger;
-        private const string AppAuthTokenCollection = "apptko";
+        private const string AppAuthSessionCollection = "apptko";
+
+        private readonly Dictionary<Guid, AppAuthAuthorizationCode> _authCodes;
 
         public AppAuthenticationService(DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ILogger<IAppAuthenticationService> logger)
         {
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _logger = logger;
+
+            _authCodes = new Dictionary<Guid, AppAuthAuthorizationCode>();
         }
 
-        public async Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice)
+        public async Task<Guid> CreateSessionToken(AppDevice appDevice)
         {
-            //TODO: check against the owner authentication service to ensure the owner has a valid session
-            
-            //TODO: need to validate the app is not revoked
+            //TODO: might need check against the owner authentication
+            //service to ensure the owner has a valid session.  this is done
+            //by the webapi so not sure if its needed 
 
-            //TODO: need to validate that this deviceUid has not been rejected/blocked
-            
+            var appReg = await _appRegistrationService.GetAppRegistration(appDevice.ApplicationId);
+            if (null == appReg || appReg.IsRevoked)
+            {
+                throw new YouverseSecurityException($"App [{appDevice.ApplicationId}] is revoked or not registered");
+            }
+
+            var appDeviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            if (null == appDeviceReg || appDeviceReg.IsRevoked)
+            {
+                throw new YouverseSecurityException($"Device [{string.Join("-", appDevice.DeviceUid)}] is revoked or not registered");
+            }
+
+            //TODO: determine the default length of sessions
+            var session = new AppAuthSession(Guid.NewGuid(), appDevice, TimeSpan.FromDays(100));
+
+            var authCode = Guid.NewGuid();
+
+            //TODO: config
+            if (!_authCodes.TryAdd(authCode, new AppAuthAuthorizationCode(session, TimeSpan.FromSeconds(15))))
+            {
+                throw new YouverseSecurityException("Failed to create session token");
+            }
+
+            return authCode;
+        }
+
+        public async Task<DotYouAuthenticationResult> ExchangeAuthCode(Guid authCode)
+        {
+            if (!_authCodes.Remove(authCode, out var code) || null == code.Session || code.HasExpired())
+            {
+                throw new YouverseSecurityException($"Invalid authcode during exchange: {authCode}");
+            }
+
+            //Note: we do not store the client 1/2 kek in the auth session
+            this._systemStorage.WithTenantSystemStorage<AppAuthSession>(AppAuthSessionCollection, s => s.Save(code.Session));
+
+            //TODO: read the client half kek and return with auth result.
             return new DotYouAuthenticationResult()
             {
-                SessionToken = Guid.Empty,
+                SessionToken = code.Session.Id,
                 ClientHalfKek = new SecureKey(Guid.Empty.ToByteArray())
             };
         }
 
-        public async Task<AppDevice> ValidateSessionToken(Guid token)
+        public async Task<SessionValidationResult> ValidateSessionToken(Guid token)
         {
-            //TODO: look up appdevice from token storage
+            var session = await this._systemStorage.WithTenantSystemStorageReturnSingle<AppAuthSession>(AppAuthSessionCollection, s => s.Get(token));
 
-            var appDevice = new AppDevice()
+            if (null == session || session.HasExpired())
             {
-                ApplicationId = Guid.Empty,
-                DeviceUid = Guid.Empty.ToByteArray()
-            };
+                return new SessionValidationResult() {IsValid = false, AppDevice = null};
+            }
 
-            
-            //TODO: need to validate the app is not revoked
-            // var appReg = await _appRegistrationService.GetAppRegistration(appDevice.ApplicationId);
-            // if (null == appReg || appReg.IsRevoked)
-            // {
-            //     //TODO: security audit
-            //     _logger.LogInformation($"Revoked app attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
-            //     return null;
-            // }
-            //
-            // //TODO: need to validate that this deviceUid has not been rejected/blocked
-            // var deviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
-            // if (null == deviceReg || deviceReg.IsRevoked)
-            // {
-            //     //TODO: security audit
-            //     _logger.LogInformation($"Revoked device attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
-            //     return null;
-            // }
-            
-            return appDevice;
+            var appDevice = session.AppDevice;
+
+            var appReg = await _appRegistrationService.GetAppRegistration(appDevice.ApplicationId);
+            if (null == appReg || appReg.IsRevoked)
+            {
+                _logger.LogInformation($"Revoked app attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
+                return new SessionValidationResult() {IsValid = false, AppDevice = null};
+            }
+
+            var deviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            if (null == deviceReg || deviceReg.IsRevoked)
+            {
+                //TODO: security audit
+                _logger.LogInformation($"Revoked device attempted validation [{appDevice.ApplicationId}] on device [{appDevice.DeviceUid}]");
+                return new SessionValidationResult() {IsValid = false, AppDevice = null};
+            }
+
+            return new SessionValidationResult
+            {
+                IsValid = true,
+                AppDevice = appDevice
+            };
         }
 
         public Task ExtendTokenLife(Guid token, int ttlSeconds)
         {
-            return Task.CompletedTask;
+            throw new NotImplementedException("");
         }
 
-        public void ExpireToken(Guid token)
+        public void ExpireSession(Guid token)
         {
+            this._systemStorage.WithTenantSystemStorage<AppAuthSession>(AppAuthSessionCollection, s => s.Delete(token));
         }
 
-        // private async Task<LoginTokenData> GetValidatedEntry(Guid token)
-        // {
-        //     var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AppAuthTokenCollection, s => s.Get(token));
-        //     AssertTokenIsValid(entry);
-        //     return entry;
-        // }
-        //
-        // private bool IsAuthTokenEntryValid(LoginTokenData entry)
-        // {
-        //     var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        //     var valid =
-        //         null != entry &&
-        //         entry.Id != Guid.Empty &&
-        //         entry.ExpiryUnixTime > now;
-        //
-        //     return valid;
-        // }
-        //
-        // private void AssertTokenIsValid(LoginTokenData entry)
-        // {
-        //     if (IsAuthTokenEntryValid(entry) == false)
-        //     {
-        //         throw new AuthenticationException();
-        //     }
-        // }
+        private class AppAuthAuthorizationCode
+        {
+            public UInt64 CreatedAt { get; }
+            public UInt64 ExpiresAt { get; }
+
+            public AppAuthSession Session { get; }
+
+            public AppAuthAuthorizationCode(AppAuthSession session, TimeSpan lifetime)
+            {
+                this.Session = session;
+                CreatedAt = DateTimeExtensions.UnixTimeMilliseconds();
+                ExpiresAt = CreatedAt + (UInt64) lifetime.TotalMilliseconds;
+            }
+
+            public bool HasExpired() => DateTimeExtensions.UnixTimeMilliseconds() > ExpiresAt;
+        }
     }
 }

@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Tests
     {
         private string _folder;
         private IHost _webserver;
-        private Dictionary<string, DotYouAuthenticationResult> tokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, DotYouAuthenticationResult> tokens = new (StringComparer.InvariantCultureIgnoreCase);
 
         DevelopmentIdentityContextRegistry _registry;
 
@@ -35,9 +35,6 @@ namespace Youverse.Hosting.Tests
         {
             this._folder = folder;
         }
-
-        public DotYouIdentity Frodo = (DotYouIdentity)"frodobaggins.me";
-        public DotYouIdentity Samwise = (DotYouIdentity)"samwisegamgee.me";
 
         public Guid ApplicationId = Guid.Parse("99950012-0012-5555-5555-777777777777");
         public byte[] DeviceUid = Guid.Parse("00000001-0000-3333-3333-888888888888").ToByteArray();
@@ -111,76 +108,7 @@ namespace Youverse.Hosting.Tests
                 _webserver.Dispose();
             }
         }
-
-        public async Task ForceNewPassword(string identity, string password)
-        {
-            var handler = new HttpClientHandler();
-            var jar = new CookieContainer();
-            handler.CookieContainer = jar;
-            handler.UseCookies = true;
-
-            using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
-            authClient.BaseAddress = new Uri($"https://{identity}");
-            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-
-            Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
-
-            var saltResponse = await svc.GenerateNewSalts();
-            Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
-            Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
-            var clientSalts = saltResponse.Content;
-            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
-            {
-                Nonce64 = clientSalts.Nonce64
-            };
-            var saltyReply = LoginKeyManager.CalculatePasswordReply(password, saltyNonce);
-
-            var newPasswordResponse = await svc.SetNewPassword(saltyReply);
-            Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
-        }
-
-        public async Task<DotYouAuthenticationResult> LoginToOwnerConsole(string identity, string password)
-        {
-            var handler = new HttpClientHandler();
-            var jar = new CookieContainer();
-            handler.CookieContainer = jar;
-            handler.UseCookies = true;
-
-            using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
-            authClient.BaseAddress = new Uri($"https://{identity}");
-            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-
-            var uri = new Uri($"https://{identity}");
-
-            Console.WriteLine($"authenticating to {uri}");
-            var nonceResponse = await svc.GenerateNonce();
-            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
-            var clientNonce = nonceResponse.Content;
-
-            //HACK: need to refactor types and drop the clientnoncepackage
-            var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
-            {
-                Nonce64 = clientNonce.Nonce64
-            };
-            var reply = LoginKeyManager.CalculatePasswordReply(password, nonce);
-            var response = await svc.Authenticate(reply);
-
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
-            Assert.IsTrue(response.Content, $"Failed to authenticate {identity}");
-
-            var cookies = jar.GetCookies(authClient.BaseAddress);
-            var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
-
-            Assert.IsTrue(DotYouAuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
-
-            var newToken = result.SessionToken;
-            Assert.IsTrue(newToken != Guid.Empty);
-            Assert.IsTrue(result.ClientHalfKek.IsSet());
-            return result;
-        }
-
+        
         private async Task<DotYouAuthenticationResult> EnsureAuthToken(DotYouIdentity identity)
         {
             if (tokens.TryGetValue(identity, out var authResult))

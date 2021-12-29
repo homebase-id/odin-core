@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
-        /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
+        /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply);
 

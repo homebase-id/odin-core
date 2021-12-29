@@ -20,10 +20,10 @@ using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner;
 using Youverse.Hosting.Tests.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi;
+using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests
 {
-   
     public class OwnerConsoleTestScaffold
     {
         private string _folder;
@@ -36,9 +36,6 @@ namespace Youverse.Hosting.Tests
         {
             this._folder = folder;
         }
-
-        public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
-        public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
 
         public string DeviceUid = "WebApiTestsDeviceUid";
 
@@ -151,7 +148,7 @@ namespace Youverse.Hosting.Tests
             authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            
+
             var uri = new Uri($"https://{identity}");
 
             Console.WriteLine($"authenticating to {uri}");
@@ -180,6 +177,7 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(result.ClientHalfKek.IsSet());
             return result;
         }
+
         private async Task<DotYouAuthenticationResult> EnsureAuthToken(DotYouIdentity identity)
         {
             if (tokens.TryGetValue(identity, out var authResult))
@@ -202,7 +200,7 @@ namespace Youverse.Hosting.Tests
 
             return client;
         }
-        
+
         public HttpClient CreateHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
         {
             Console.WriteLine("CreateHttpClient");

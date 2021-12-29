@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             //appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -97,15 +97,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(uploadResult);
                 Assert.IsFalse(uploadResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(_scaffold.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(uploadResult.RecipientStatus[_scaffold.Frodo] == TransferStatus.TransferKeyCreated);
+                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(DotYouIdentities.Frodo), "Could not find matching recipient");
+                Assert.IsTrue(uploadResult.RecipientStatus[DotYouIdentities.Frodo] == TransferStatus.TransferKeyCreated);
             }
         }
 
 
         private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name, byte[] sharedSecret)
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
                 var request = new AppRegistrationRequest

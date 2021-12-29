@@ -42,15 +42,15 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check if Frodo received the request?
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-                var response = await svc.GetPendingRequest(_scaffold.Samwise);
+                var response = await svc.GetPendingRequest(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsNotNull(response.Content, $"No request found from {_scaffold.Samwise}");
-                Assert.IsTrue(response.Content.SenderDotYouId == _scaffold.Samwise);
+                Assert.IsNotNull(response.Content, $"No request found from {DotYouIdentities.Samwise}");
+                Assert.IsTrue(response.Content.SenderDotYouId == DotYouIdentities.Samwise);
             }
             
             await DisconnectSamAndFrodo();
@@ -61,15 +61,15 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var deleteResponse = await svc.DeletePendingRequest(_scaffold.Samwise);
+                var deleteResponse = await svc.DeletePendingRequest(DotYouIdentities.Samwise);
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                var getResponse = await svc.GetPendingRequest(_scaffold.Samwise);
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {_scaffold.Samwise} still exists");
+                var getResponse = await svc.GetPendingRequest(DotYouIdentities.Samwise);
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {DotYouIdentities.Samwise} still exists");
             }
             
             await DisconnectSamAndFrodo();
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == _scaffold.Samwise), $"Could not find request from {_scaffold.Samwise} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == DotYouIdentities.Samwise), $"Could not find request from {DotYouIdentities.Samwise} in the results");
             }
             
             await DisconnectSamAndFrodo();
@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -112,7 +112,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsNotNull(response.Content, "No result returned");
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == _scaffold.Frodo), $"Could not find request with recipient {_scaffold.Frodo} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == DotYouIdentities.Frodo), $"Could not find request with recipient {DotYouIdentities.Frodo} in the results");
             }
             
             await DisconnectSamAndFrodo();
@@ -125,15 +125,15 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var response = await svc.GetSentRequest(_scaffold.Frodo);
+                var response = await svc.GetSentRequest(DotYouIdentities.Frodo);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-                Assert.IsNotNull(response.Content, $"No request found with recipient [{_scaffold.Frodo}]");
-                Assert.IsTrue(response.Content.Recipient == _scaffold.Frodo);
+                Assert.IsNotNull(response.Content, $"No request found with recipient [{DotYouIdentities.Frodo}]");
+                Assert.IsTrue(response.Content.Recipient == DotYouIdentities.Frodo);
             }
             
             await DisconnectSamAndFrodo();
@@ -144,42 +144,42 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(_scaffold.Samwise);
+                var acceptResponse = await svc.AcceptConnectionRequest(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
                 //
                 // The pending request should be removed
                 //
-                var getResponse = await svc.GetPendingRequest(_scaffold.Samwise);
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {_scaffold.Samwise} still exists");
+                var getResponse = await svc.GetPendingRequest(DotYouIdentities.Samwise);
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {DotYouIdentities.Samwise} still exists");
 
                 //
                 // Sam should be in scaffold.Frodo's contacts network.
                 //
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var response = await frodoConnections.GetStatus(_scaffold.Samwise);
+                var response = await frodoConnections.GetStatus(DotYouIdentities.Samwise);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {_scaffold.Samwise}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No status for {_scaffold.Samwise} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {DotYouIdentities.Samwise}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No status for {DotYouIdentities.Samwise} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 //
                 // Frodo should be in sam's contacts network
                 //
                 var samConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
 
-                var response = await samConnections.GetStatus(_scaffold.Frodo);
+                var response = await samConnections.GetStatus(DotYouIdentities.Frodo);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {_scaffold.Frodo}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No status for {_scaffold.Frodo} found");
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {DotYouIdentities.Frodo}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No status for {DotYouIdentities.Frodo} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
             
@@ -192,21 +192,21 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(_scaffold.Samwise);
+                var acceptResponse = await svc.AcceptConnectionRequest(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Connected);
 
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var blockResponse = await frodoConnections.Block(_scaffold.Samwise);
+                var blockResponse = await frodoConnections.Block(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Blocked);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Blocked);
             }
             
             await DisconnectSamAndFrodo();
@@ -217,25 +217,25 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(_scaffold.Samwise);
+                var acceptResponse = await svc.AcceptConnectionRequest(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Connected);
 
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var blockResponse = await frodoConnections.Block(_scaffold.Samwise);
+                var blockResponse = await frodoConnections.Block(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Blocked);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Blocked);
 
-                var unblockResponse = await frodoConnections.Unblock(_scaffold.Samwise);
+                var unblockResponse = await frodoConnections.Unblock(DotYouIdentities.Samwise);
                 Assert.IsTrue(unblockResponse.IsSuccessStatusCode && unblockResponse.Content, "failed to unblock");
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Connected);
             }
 
             await DisconnectSamAndFrodo();
@@ -247,20 +247,20 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(_scaffold.Samwise);
+                var acceptResponse = await svc.AcceptConnectionRequest(DotYouIdentities.Samwise);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.Connected);
 
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var disconnectResponse = await frodoConnections.Disconnect(_scaffold.Samwise);
+                var disconnectResponse = await frodoConnections.Disconnect(DotYouIdentities.Samwise);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.None);
             }
             
             await DisconnectSamAndFrodo();
@@ -278,7 +278,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
         private async Task CreateConnectionRequestSamToFrodo()
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -286,7 +286,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 var requestHeader = new ConnectionRequestHeader()
                 {
                     Id = id,
-                    Recipient = _scaffold.Frodo,
+                    Recipient = DotYouIdentities.Frodo,
                     Message = "Please add me" 
                 };
 
@@ -299,20 +299,20 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
         private async Task DisconnectSamAndFrodo()
         {
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var disconnectResponse = await frodoConnections.Delete(_scaffold.Samwise);
+                var disconnectResponse = await frodoConnections.Delete(DotYouIdentities.Samwise);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, _scaffold.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.None);
             }
             
-            using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
+            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var disconnectResponse = await samConnections.Delete(_scaffold.Frodo);
+                var disconnectResponse = await samConnections.Delete(DotYouIdentities.Frodo);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, _scaffold.Frodo, ConnectionStatus.None);
+                await AssertConnectionStatus(client, DotYouIdentities.Frodo, ConnectionStatus.None);
             }
         }
     }

@@ -11,19 +11,25 @@ namespace Youverse.Core.Services.Authentication.AppAuth
     public interface IAppAuthenticationService
     {
         /// <summary>
-        /// Authenticates the specified app.
+        /// Creates a <see cref="DotYouAuthenticationResult"/> for the App and Device if they are both valid
         /// </summary>
-        /// <exception cref="AuthenticationException">Thrown when a user cannot be authenticated</exception>
+        /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<DotYouAuthenticationResult> Authenticate(AppDevice appDevice);
+        Task<Guid> CreateSessionToken(AppDevice appDevice);
 
-
+        /// <summary>
+        /// Exchanges the 
+        /// </summary>
+        /// <param name="authCode"></param>
+        /// <returns></returns>
+        Task<DotYouAuthenticationResult> ExchangeAuthCode(Guid authCode);
+        
         /// <summary>
         /// Determines if the app and device paired with its token are valid, not revoked, and have not expired.  
         /// </summary>
         /// <param name="token">The token to be validated</param>
         /// <returns></returns>
-        Task<AppDevice> ValidateSessionToken(Guid token);
+        Task<SessionValidationResult> ValidateSessionToken(Guid token);
         
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
@@ -37,7 +43,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        void ExpireToken(Guid token);
+        void ExpireSession(Guid token);
         
     }
 }
