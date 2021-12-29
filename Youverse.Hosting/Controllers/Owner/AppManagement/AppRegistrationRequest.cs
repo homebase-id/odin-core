@@ -2,10 +2,12 @@ using System;
 
 namespace Youverse.Hosting.Controllers.Owner.AppManagement
 {
-    public class AppRegistrationPayload
+    public class AppRegistrationRequest
     {
         public Guid ApplicationId { get; set; } 
         public string Name { get; set; }
         public bool CreateDrive { get; set; }
+        
+        public string SharedSecret64 { get; set; }
     }
 }

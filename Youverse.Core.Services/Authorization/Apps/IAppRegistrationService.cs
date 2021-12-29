@@ -11,8 +11,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="applicationId"></param>
         /// <param name="name"></param>
         /// <param name="createDrive"></param>
+        /// <param name="encryptedSharedSecret"></param>
         /// <returns></returns>
-        Task<AppRegistrationSimple> RegisterApp(Guid applicationId, string name, bool createDrive = false);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name,  byte[] encryptedSharedSecret, bool createDrive = false);
 
         Task<AppRegistration> GetAppRegistration(Guid applicationId);
 

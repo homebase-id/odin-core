@@ -10,14 +10,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveQueryTests
     {
-        private TestScaffold _scaffold;
+        private OwnerConsoleTestScaffold _scaffold;
         private readonly Guid _profileDriveId = Guid.Empty;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new OwnerConsoleTestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 

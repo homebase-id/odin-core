@@ -14,7 +14,8 @@ namespace Youverse.Core.Services.Tests.AppReg
     public class AppRegistrationTests
     {
         private ServiceTestScaffold _scaffold;
-        
+        private byte[] _encryptedSharedSecret = new byte[16];
+
         [SetUp]
         public void Setup()
         {
@@ -40,7 +41,7 @@ namespace Youverse.Core.Services.Tests.AppReg
 
             Guid appId = Guid.NewGuid();
             string appName = "Test_App";
-            await appRegSvc.RegisterApp(appId, appName, true);
+            await appRegSvc.RegisterApp(appId, appName, _encryptedSharedSecret, true);
 
             var storedApp = await appRegSvc.GetAppRegistration(appId);
 
@@ -87,7 +88,7 @@ namespace Youverse.Core.Services.Tests.AppReg
             var sharedSecret = Guid.NewGuid().ToByteArray();
 
 
-            var newId = AddSampleAppNoDrive(appId, name);
+            var appReg = AddSampleAppNoDrive(appId, name);
 
             //TODO: rsa encrypt the shared secret
 
@@ -111,19 +112,22 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.UniqueDeviceId, uniqueDeviceId));
         }
 
-        private async Task<Guid> AddSampleAppNoDrive(Guid applicationId, string name)
+        private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
         {
             var svc = CreateAppRegService();
-            var newId = await svc.RegisterApp(applicationId, name, false);
+            var appReg = await svc.RegisterApp(applicationId, name, _encryptedSharedSecret, false);
 
-            Assert.IsTrue(newId != Guid.Empty);
+            Assert.IsTrue(appReg.ApplicationId == applicationId);
+            Assert.IsTrue(appReg.Name == name);
+            Assert.IsTrue(appReg.DriveId == null);
+
 
             var savedApp = await GetSampleApp(applicationId);
-            Assert.IsTrue(savedApp.Id == newId);
             Assert.IsTrue(savedApp.ApplicationId == applicationId);
             Assert.IsTrue(savedApp.Name == name);
+            Assert.IsTrue(appReg.DriveId == null);
 
-            return newId;
+            return appReg;
         }
 
         private async Task<AppRegistration> GetSampleApp(Guid applicationId)

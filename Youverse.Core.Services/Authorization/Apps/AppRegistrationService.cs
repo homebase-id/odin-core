@@ -27,11 +27,11 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationSimple> RegisterApp(Guid applicationId, string name, bool createDrive = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, byte[] encryptedSharedSecret, bool createDrive = false)
         {
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
-            
+
             //TODO: 
             //AssertCallerIsOwner();
 
@@ -44,14 +44,13 @@ namespace Youverse.Core.Services.Authorization.Apps
             if (createDrive)
             {
                 //TODO: create integrate Storage DEK and associate to app DEK
-                 
-                 var sd = await _driveService.CreateDrive($"{name}-drive");
-                 driveId = sd.Id;
+
+                var sd = await _driveService.CreateDrive($"{name}-drive");
+                driveId = sd.Id;
             }
-            
+
             var appReg = new AppRegistration()
             {
-                Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 Name = name,
                 AppIV = key.AppIV,
@@ -61,14 +60,14 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
-            return new AppRegistrationSimple()
+            //notice we're not sharing the encrypted app dek
+            return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
                 Name = appReg.Name,
                 DriveId = appReg.DriveId,
                 IsRevoked = appReg.IsRevoked
             };
-
         }
 
         public async Task<AppRegistration> GetAppRegistration(Guid applicationId)
@@ -87,7 +86,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             //TODO: do we do anything with storage DEK here?
-            
+
             //TODO: Send notification?
         }
 
@@ -101,7 +100,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             //TODO: do we do anything with storage DEK here?
-            
+
             //TODO: Send notification?
         }
 

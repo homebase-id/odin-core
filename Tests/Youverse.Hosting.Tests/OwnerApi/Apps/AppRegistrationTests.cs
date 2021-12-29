@@ -10,13 +10,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
     public class AppRegistrationTests
     {
-        private TestScaffold _scaffold;
+        private OwnerConsoleTestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new OwnerConsoleTestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-register";
-            var newId = await AddSampleApp(appId, name);
+            var newId = await AddSampleAppNoDrive(appId, name);
         }
         
         [Test]
@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-register";
-            var newId = await AddSampleApp(appId, name);
+            var newId = await AddSampleAppNoDrive(appId, name);
         }
 
         [Test]
@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-revoke";
 
-            var newId = AddSampleApp(appId, name);
+            var newId = AddSampleAppNoDrive(appId, name);
 
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
 
-            var newId = AddSampleApp(appId, name);
+            var newId = AddSampleAppNoDrive(appId, name);
 
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 
                 //TODO: rsa encrypt the shared secret
                 
-                var payload = new AppDeviceRegistrationPayload()
+                var payload = new AppDeviceRegistrationRequest()
                 {
                     ApplicationId = appId,
                     DeviceId64 = Convert.ToBase64String(Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray()),
@@ -105,29 +105,29 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             }
         }
 
-        private async Task<Guid> AddSampleApp(Guid applicationId, string name)
+        private async Task<AppRegistrationResponse?> AddSampleAppNoDrive(Guid applicationId, string name)
         {
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
-                var payload = new AppRegistrationPayload
+                var request = new AppRegistrationRequest
                 {
                     Name = name,
                     ApplicationId = applicationId
                 };
 
-                var response = await svc.RegisterApp(payload);
+                var response = await svc.RegisterApp(request);
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
-                var newId = response.Content;
-                Assert.IsTrue(newId != Guid.Empty);
+                var appReg = response.Content;
+                Assert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.Id == newId);
-                Assert.IsTrue(savedApp.ApplicationId == payload.ApplicationId);
-                Assert.IsTrue(savedApp.Name == payload.Name);
-
-                return newId;
+                Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
+                Assert.IsTrue(savedApp.Name == request.Name);
+                Assert.IsTrue(savedApp.DriveId == null);
+                
+                return appReg;
             }
         }
 

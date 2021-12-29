@@ -1,11 +1,11 @@
 ﻿using System;
+using LiteDB;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistration
     {
-        public Guid Id { get; set; }
-
+        [BsonId]
         public Guid ApplicationId { get; set; }
         
         public string Name { get; set; }

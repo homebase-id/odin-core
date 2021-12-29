@@ -20,13 +20,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveStorageTests
     {
-        private TestScaffold _scaffold;
+        private OwnerConsoleTestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new OwnerConsoleTestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -43,9 +43,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             //TODO: provision an app with a drive
             //this takes a call to the owner's api to create an app
             Guid applicationId = Guid.NewGuid();
-            var app = this.AddAppWithDrive(applicationId, "Test-Upload-App");
-
-            var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+            var appSharedSecret = new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+            var app = this.RegisterAppWithDrive(applicationId, "Test-Upload-App", appSharedSecret);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -69,18 +68,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
+            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret);
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
             keyHeader.AesKey.Wipe();
-            appSharedSecret.Wipe();
+            //appSharedSecret.Wipe();
 
             using (var client = _scaffold.CreateHttpClient(_scaffold.Samwise))
             {
@@ -104,27 +103,29 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
 
-        private async Task<AppRegistrationSimple> AddAppWithDrive(Guid applicationId, string name)
+        private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name, byte[] sharedSecret)
         {
             using (var client = _scaffold.CreateHttpClient(_scaffold.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
-                var payload = new AppRegistrationPayload
+                var request = new AppRegistrationRequest
                 {
                     Name = name,
                     ApplicationId = applicationId,
+                    SharedSecret64 = Convert.ToBase64String(sharedSecret),
                     CreateDrive = true
                 };
 
-                var response = await svc.RegisterApp(payload);
+                var response = await svc.RegisterApp(request);
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
-                var appRegistrationSimple = response.Content;
-                Assert.IsTrue(appRegistrationSimple.ApplicationId == payload.ApplicationId);
-                Assert.IsTrue(appRegistrationSimple.DriveId.HasValue);
-                Assert.IsTrue(appRegistrationSimple.DriveId != Guid.Empty);
+                var appReg = response.Content;
+                Assert.IsNotNull(appReg);
+                Assert.IsTrue(appReg.ApplicationId == request.ApplicationId);
+                Assert.IsTrue(appReg.DriveId.HasValue);
+                Assert.IsTrue(appReg.DriveId != Guid.Empty);
 
-                return appRegistrationSimple;
+                return appReg;
             }
         }
     }

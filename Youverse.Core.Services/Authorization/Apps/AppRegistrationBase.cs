@@ -2,7 +2,7 @@ using System;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
-    public class AppRegistrationSimple
+    public class AppRegistrationResponse
     {
         public Guid ApplicationId { get; set; }
         

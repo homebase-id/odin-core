@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 {
     public class AdminIdentityAttributeTests
     {
-        private TestScaffold scaffold;
+        private OwnerConsoleTestScaffold scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
 
             Console.WriteLine($"one time setup {folder}");
-            scaffold = new TestScaffold(folder);
+            scaffold = new OwnerConsoleTestScaffold(folder);
             scaffold.RunBeforeAnyTests();
         }
 

@@ -18,14 +18,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class InboxTests
     {
-        private TestScaffold _scaffold;
+        private OwnerConsoleTestScaffold _scaffold;
         
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new OwnerConsoleTestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 

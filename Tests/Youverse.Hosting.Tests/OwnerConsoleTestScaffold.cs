@@ -24,7 +24,7 @@ using Youverse.Hosting.Tests.OwnerApi;
 namespace Youverse.Hosting.Tests
 {
    
-    public class TestScaffold
+    public class OwnerConsoleTestScaffold
     {
         private string _folder;
         private IHost _webserver;
@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests
 
         DevelopmentIdentityContextRegistry _registry;
 
-        public TestScaffold(string folder)
+        public OwnerConsoleTestScaffold(string folder)
         {
             this._folder = folder;
         }
@@ -40,7 +40,6 @@ namespace Youverse.Hosting.Tests
         public DotYouIdentity Frodo = (DotYouIdentity) "frodobaggins.me";
         public DotYouIdentity Samwise = (DotYouIdentity) "samwisegamgee.me";
 
-        public string AppId = "WebApiTests";
         public string DeviceUid = "WebApiTestsDeviceUid";
 
         public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
@@ -121,7 +120,6 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -150,7 +148,6 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -200,7 +197,6 @@ namespace Youverse.Hosting.Tests
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
         {
-            Console.WriteLine("CreateHttpClient");
             var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var client = CreateHttpClient(identity, token);
 
@@ -218,7 +214,6 @@ namespace Youverse.Hosting.Tests
             };
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, AppId);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
 
             client.BaseAddress = new Uri($"https://{identity}");
