@@ -38,18 +38,18 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
         }
 
         [HttpPost("logout")]
-        public Task<IActionResult> ExpireSessionToken(Guid sessionToken)
+        public void ExpireSessionToken(Guid sessionToken)
         {
-            throw new NotImplementedException("");
+            _authService.ExpireSession(sessionToken);
         }
 
         [HttpPost]
         public async Task<IActionResult> ValidateSessionToken(Guid sessionToken)
         {
-            var isValid = await _authService.ValidateSessionToken(sessionToken);
-            return new JsonResult(isValid);
+            var result = await _authService.ValidateSessionToken(sessionToken);
+            return new JsonResult(result);
         }
-        
+
         [HttpGet("exchangeCode")]
         public async Task<IActionResult> ExchangeAuthCode(Guid authCode)
         {

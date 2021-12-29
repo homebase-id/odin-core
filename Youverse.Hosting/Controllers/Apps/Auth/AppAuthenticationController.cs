@@ -27,36 +27,5 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
             return new JsonResult(result);
         }
 
-        [HttpGet("verifyDeviceToken")]
-        public async Task<IActionResult> VerifyDeviceToken()
-        {
-            //note: this will intentionally ignore any error, including token parsing errors
-            var value = Request.Cookies[AppAuthConstants.CookieName];
-            var result = DotYouAuthenticationResult.Parse(value);
-            var appDevice = await _authService.ValidateSessionToken(result.SessionToken);
-
-            return new JsonResult(null != appDevice);
-        }
-
-        [HttpPost("expire")]
-        public Task<JsonResult> ExpireToken()
-        {
-            var value = Request.Cookies[AppAuthConstants.CookieName];
-            var result = DotYouAuthenticationResult.Parse(value);
-            _authService.ExpireSession(result.SessionToken);
-
-            Response.Cookies.Delete(OwnerAuthConstants.CookieName);
-
-            return Task.FromResult(new JsonResult(true));
-        }
-
-        [HttpPost("extend")]
-        public async Task<IActionResult> Extend()
-        {
-            var value = Request.Cookies[AppAuthConstants.CookieName];
-            var result = DotYouAuthenticationResult.Parse(value);
-            await _authService.ExtendTokenLife(result.SessionToken, 100);
-            return new JsonResult(new NoResultResponse(true));
-        }
     }
 }

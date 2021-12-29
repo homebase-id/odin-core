@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         public async Task CanAuthenticateApp()
         {
             /*
-                1. Create OwnerConsoleHttpClient that is logged in
+                x 1. Create OwnerConsoleHttpClient that is logged in
                 2. Use OwnerConsoleHttpClient to POST /api/owner/v1/auth/exchange
                 3. Store session token and client 1/2 key in app cookie
                 4. Now we can create App Http Client
@@ -43,7 +43,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
             using (var ownerClient = _ownerTestScaffold.CreateHttpClient(DotYouIdentities.Samwise))
             {
-                var ownerAuth = RestService.For<IOwnerAuthenticationClient>(ownerClient);
+                var appAuthSvc = RestService.For<IAppAuthenticationClient>(ownerClient);
+                
                 
             }
         }
