@@ -111,7 +111,7 @@ namespace Youverse.Core.Services.Drive
             await GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream, storageDisposition);
 
             //update the metadata file - updated date
-            var metadata = await GetMetadata(file);
+            var metadata = await GetMetadata(file,storageDisposition);
             metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
             
             //TODO: who sets the checksum?

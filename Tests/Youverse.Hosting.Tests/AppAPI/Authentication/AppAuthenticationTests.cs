@@ -196,7 +196,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
             var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
 
-            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
                 var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             
             await _scaffold.RevokeSampleApp(identity, appId);
             
-            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
                 var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
@@ -236,7 +236,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
             var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
 
-            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
                 var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
@@ -249,7 +249,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             
             await _scaffold.RevokeDevice(identity, appId, deviceUid);
             
-            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
                 var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);

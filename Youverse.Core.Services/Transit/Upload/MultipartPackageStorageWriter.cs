@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.Upload
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
-        private byte[] initializationVector;
+        private byte[] _initializationVector;
 
         public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService, IEncryptionService encryptionService)
         {
@@ -31,10 +31,11 @@ namespace Youverse.Core.Services.Transit.Upload
             _partCounts = new Dictionary<Guid, int>();
         }
 
-        public Task<Guid> CreatePackage(Guid driveId)
+        //TODO: expect parts is a hack until we redsign the upload spec
+        public Task<Guid> CreatePackage(Guid driveId, int expectedPartCount = 4)
         {
             var pkgId = Guid.NewGuid();
-            _packages.Add(pkgId, new UploadPackage(_driveService.CreateFileId(driveId)));
+            _packages.Add(pkgId, new UploadPackage(_driveService.CreateFileId(driveId), expectedPartCount));
             _partCounts.Add(pkgId, 0);
             return Task.FromResult(pkgId);
         }
@@ -50,7 +51,7 @@ namespace Youverse.Core.Services.Transit.Upload
             {
                 var encryptedKeyHeader = await _encryptionService.ConvertTransferKeyHeaderStream(data);
 
-                initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
+                _initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
 
                 await _driveService.WriteKeyHeader(pkg.File, encryptedKeyHeader, StorageDisposition.Temporary);
                 _partCounts[pkgId]++;
@@ -82,30 +83,30 @@ namespace Youverse.Core.Services.Transit.Upload
                 {
                     var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetaData>(data);
                     await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
+                    _partCounts[pkgId]++;
                 }
-                if(filePart == FilePart.Payload)
+                else if (filePart == FilePart.Payload)
                 {
                     await _driveService.WritePayload(pkg.File, data, StorageDisposition.Temporary);
+                    _partCounts[pkgId]++;
                 }
                 else
                 {
                     //Not sure how we got here but just in case
                     throw new InvalidDataException($"Part name [{name}] not recognized");
                 }
-
-                _partCounts[pkgId]++;
             }
 
-            return _partCounts[pkgId] == 4;
+            return _partCounts[pkgId] == pkg.ExpectedPartsCount;
         }
 
         private async Task<T> DecryptDeserializeFromAppSharedSecret<T>(Stream data)
         {
-            if (null == initializationVector)
+            if (null == _initializationVector)
             {
                 throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
             }
-            
+
             byte[] encryptedBytes;
             await using (var ms = new MemoryStream())
             {
@@ -113,7 +114,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 encryptedBytes = ms.ToArray();
             }
 
-            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this.initializationVector);
+            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this._initializationVector);
             var t = JsonConvert.DeserializeObject<T>(json);
             return t;
         }

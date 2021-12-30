@@ -8,14 +8,15 @@ namespace Youverse.Core.Services.Transit.Upload
     /// </summary>
     public class UploadPackage
     {
-        public UploadPackage(DriveFileId fileId)
+        public UploadPackage(DriveFileId fileId, int expectedPartsCount)
         {
             this.File = fileId;
+            ExpectedPartsCount = expectedPartsCount;
         }
 
         public RecipientList RecipientList { get; set; }
 
         public DriveFileId File { get; set; }
-
+        public int ExpectedPartsCount { get; }
     }
 }

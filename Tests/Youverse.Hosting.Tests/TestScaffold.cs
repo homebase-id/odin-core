@@ -295,6 +295,12 @@ namespace Youverse.Hosting.Tests
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
+                if (createDrive)
+                {
+                    Assert.That(appReg.DriveId.HasValue, Is.True);
+                    Assert.That(appReg.DriveId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
+                }
+
                 if (revoke)
                 {
                     await svc.RevokeApp(appId);

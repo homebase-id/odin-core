@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI
@@ -9,7 +10,7 @@ namespace Youverse.Hosting.Tests.AppAPI
     /// </summary>
     public interface IDriveStorageHttpClient
     {
-        private const string ClientRootEndpoint = "/api/owner/v1/drive";
+        private const string ClientRootEndpoint = "/api/apps/v1/drive";
 
         /// <summary>
         /// Stores a file using the drive associated with the App
@@ -17,7 +18,7 @@ namespace Youverse.Hosting.Tests.AppAPI
         /// <returns></returns>
         [Multipart]
         [Post(ClientRootEndpoint + "/store")]
-        Task<ApiResponse<TransferResult>> StoreUsingAppDrive(
+        Task<ApiResponse<DriveFileId>> StoreUsingAppDrive(
             [AliasAs("tekh")] StreamPart transferEncryptedKeyHeader,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);

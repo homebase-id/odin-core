@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Middleware
             var deviceUid = Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.DeviceUid64));
 
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            // var appReg = await appRegSvc.GetAppRegistration(appId);
+            var appReg = await appRegSvc.GetAppRegistration(appId);
             var deviceReg = await appRegSvc.GetAppDeviceRegistration(appId, deviceUid);
 
             dotYouContext.Caller = new CallerContext(
@@ -109,7 +109,7 @@ namespace Youverse.Hosting.Middleware
             //TODO: what do we need for the appEncryptionKey?
             //appReg.EncryptedAppDeK
             //how to specify the destination drive?
-            var driveId = Guid.Empty;
+            var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: deviceUid,
@@ -124,8 +124,8 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
             var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
 
-            // var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            // var appReg = await appRegSvc.GetAppRegistration(appId);
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var appReg = await appRegSvc.GetAppRegistration(appId);
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Middleware
 
             //appReg.EncryptedAppDeK
             //how to specify the destination drive?
-            var driveId = Guid.Empty;
+            var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: null,

@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {

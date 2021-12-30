@@ -1,20 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using System.Security.Principal;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Hosting.Controllers.Owner.AppManagement;
-using Youverse.Hosting.Tests.OwnerApi.Apps;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -40,15 +35,21 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanUploadUsingAppDrive()
         {
-            //TODO: provision an app with a drive
-            //this takes a call to the owner's api to create an app
-            Guid applicationId = Guid.NewGuid();
-            var appSharedSecret = new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-            var app = this.RegisterAppWithDrive(applicationId, "Test-Upload-App");
+            var identity = TestIdentities.Samwise;
 
+            Guid appId = Guid.NewGuid();
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            await _scaffold.AddApp(identity, appId, true);
+            await _scaffold.AddAppDevice(identity, appId, deviceUid);
+            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
+            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+            
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
+            //Note: in this test we're using teh app's
+            //drive.  the will be set by the server
             var file = new DriveFileId()
             {
                 DriveId = Guid.Empty,
@@ -68,23 +69,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret);
+            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, _scaffold.AppSharedSecret);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret);
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, _scaffold.AppSharedSecret);
 
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
             keyHeader.AesKey.Wipe();
-            //appSharedSecret.Wipe();
-
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
             {
-                //sam to send frodo a data transfer, small enough to send it instantly
-
                 var uploadSvc = RestService.For<IDriveStorageHttpClient>(client);
 
                 var response = await uploadSvc.StoreUsingAppDrive(
@@ -95,36 +93,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var uploadResult = response.Content;
                 Assert.IsNotNull(uploadResult);
-                Assert.IsFalse(uploadResult.FileId == Guid.Empty, "FileId was not set");
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(uploadResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);
-            }
-        }
+                Assert.That(uploadResult.FileId, Is.Not.EqualTo(Guid.Empty), "FileId was not set");
+                Assert.That(uploadResult.DriveId, Is.Not.EqualTo(Guid.Empty), "FileId was not set");
 
-
-        private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name)
-        {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
-            {
-                var svc = RestService.For<IAppRegistrationClient>(client);
-                var request = new AppRegistrationRequest
-                {
-                    Name = name,
-                    ApplicationId = applicationId,
-                    CreateDrive = true
-                };
-
-                var response = await svc.RegisterApp(request);
-
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var appReg = response.Content;
-                Assert.IsNotNull(appReg);
-                Assert.IsTrue(appReg.ApplicationId == request.ApplicationId);
-                Assert.IsTrue(appReg.DriveId.HasValue);
-                Assert.IsTrue(appReg.DriveId != Guid.Empty);
-
-                return appReg;
             }
         }
     }

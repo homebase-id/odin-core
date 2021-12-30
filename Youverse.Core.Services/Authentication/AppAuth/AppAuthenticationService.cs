@@ -47,11 +47,11 @@ namespace Youverse.Core.Services.Authentication.AppAuth
             {
                 throw new YouverseSecurityException($"Device [{string.Join("-", appDevice.DeviceUid)}] is revoked or not registered");
             }
-
+            
             //TODO: determine the default length of sessions
-            var session = new AppAuthSession(Guid.NewGuid(), appDevice, TimeSpan.FromDays(100));
+            var session = new AppAuthSession(ByteArrayUtil.GetRandomCryptoGuid(), appDevice, TimeSpan.FromDays(100));
 
-            var authCode = Guid.NewGuid();
+            var authCode = ByteArrayUtil.GetRandomCryptoGuid();
 
             //TODO: configure the auth code timeout
             if (!_authCodes.TryAdd(authCode, new AppAuthAuthorizationCode(session, TimeSpan.FromSeconds(15))))

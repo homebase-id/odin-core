@@ -8,19 +8,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
+
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
-    [Route("/api/owner/v1/drive")]
+    [Route("/api/apps/v1/drive")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class DriveStorageController : ControllerBase
     {
         private readonly IDriveService _driveService;
+        private readonly IDriveQueryService _queryService;
         
         //Note: the _packageStorageWriter exists so we have a service that holds
         //the logic and routing of tenant-specific data.  We don't
@@ -28,11 +28,12 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
         private readonly DotYouContext _context;
 
-        public DriveStorageController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context, IDriveService driveService)
+        public DriveStorageController(IMultipartPackageStorageWriter packageStorageWriter,  DotYouContext context, IDriveService driveService, IDriveQueryService queryService)
         {
             _packageStorageWriter = packageStorageWriter;
             _context = context;
             _driveService = driveService;
+            _queryService = queryService;
         }
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
         [HttpPost("store")]
-        public async Task<IActionResult> Store(Guid? driveId)
+        public async Task<IActionResult> Store()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -54,8 +55,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var drive = driveId ?? _context.AppContext.DriveId.GetValueOrDefault();
-            var packageId = await _packageStorageWriter.CreatePackage(drive);
+            //TODO: need to enable specifying a different drive
+            
+            // var drive = driveId ?? _context.AppContext.DriveId.GetValueOrDefault();
+            var drive = _context.AppContext.DriveId.GetValueOrDefault();
+            var packageId = await _packageStorageWriter.CreatePackage(drive, 3);
             
             bool isComplete = false;
             var section = await reader.ReadNextSectionAsync();
@@ -76,7 +80,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             
             await _driveService.MoveToLongTerm(package.File);
 
-            return new JsonResult(true);
+            return new JsonResult(package.File);
         }
 
         private static bool IsMultipartContentType(string contentType)
@@ -107,4 +111,9 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             return cd.Name?.Trim('"');
         }
     }
+
+    // public class StorageResult
+    // {
+    //     Guid FileId
+    // }
 }

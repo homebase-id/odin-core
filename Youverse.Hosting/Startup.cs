@@ -81,6 +81,7 @@ namespace Youverse.Hosting
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
+                AppPolicies.AddPolicies(policy);
                 TransitPerimeterPolicies.AddPolicies(policy);
             });
             

@@ -31,5 +31,7 @@ namespace Youverse.Core.Services.Authorization
         public static string PublicKeyCertificate = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
         
         public static string AuthResult  = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
+        
+        public static string IsAuthorizedApp = "https://schemas.youfoundation.id/2021/3/identity/IsAuthorizedApp";
     }
 }
