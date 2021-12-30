@@ -15,6 +15,11 @@ namespace Youverse.Core.Cryptography.Data
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 
+        ~SymmetricKeyEncryptedAes()
+        {
+            _decryptedKey.Wipe();
+        }
+
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB

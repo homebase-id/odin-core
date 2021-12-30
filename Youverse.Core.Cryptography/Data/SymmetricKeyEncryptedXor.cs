@@ -13,6 +13,10 @@ namespace Youverse.Core.Cryptography.Data
         public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
+        ~SymmetricKeyEncryptedXor()
+        {
+            _decryptedKey.Wipe();
+        }
 
         public SymmetricKeyEncryptedXor()
         {

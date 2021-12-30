@@ -82,7 +82,7 @@ namespace Youverse.Core.Cryptography.Data
 
     public class RsaFullKeyData : RsaPublicKeyData
     {
-        public byte[] privateKey { get; set; }
+        public byte[] privateKey { get; set; }  // Ought be a secureKey
         public UInt64 createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key
 
 
