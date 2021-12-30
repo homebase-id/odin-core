@@ -115,12 +115,16 @@ namespace Youverse.Hosting.Tests
             {
                 return authResult;
             }
-
-            const string password = "EnSøienØ";
-
-            var result = await this.LoginToOwnerConsole(identity, password);
+            
+            var result = await this.LoginToApp(identity);
             tokens.Add(identity, result);
             return result;
+        }
+
+        private async Task<DotYouAuthenticationResult> LoginToApp(DotYouIdentity identity)
+        {
+            const string password = "EnSøienØ";
+            throw new NotImplementedException();
         }
 
         public HttpClient CreateHttpClient(DotYouIdentity identity)
@@ -141,7 +145,7 @@ namespace Youverse.Hosting.Tests
             };
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
+            //client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
