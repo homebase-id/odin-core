@@ -17,14 +17,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class OutboxTests
     {
-        private OwnerConsoleTestScaffold _scaffold;
+        private TestScaffold _scaffold;
 
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new OwnerConsoleTestScaffold(folder);
+            _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetOutboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanRemoveOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanUpdateOutboxItemPriority()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
 

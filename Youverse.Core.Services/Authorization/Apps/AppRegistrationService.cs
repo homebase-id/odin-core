@@ -109,7 +109,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             throw new NotImplementedException();
         }
 
-        public async Task<AppDeviceRegistrationReply> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
+        public async Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
         {
             var savedApp = await this.GetAppRegistration(applicationId);
 
@@ -142,7 +142,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
 
-            return new AppDeviceRegistrationReply()
+            return new AppDeviceRegistrationResponse()
             {
                 Token = appDeviceReg.Id,
                 DeviceAppKey = clientAppToken

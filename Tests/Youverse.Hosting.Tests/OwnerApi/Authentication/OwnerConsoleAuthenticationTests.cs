@@ -8,13 +8,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {
     public class OwnerConsoleAuthenticationTests
     {
-        private OwnerConsoleTestScaffold _scaffold;
+        private TestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new OwnerConsoleTestScaffold(folder);
+            _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
 
             var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, authResult);
+            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
             var isValidResponse = await svc.IsValid(authResult.SessionToken);
             Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
 
             var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, authResult);
+            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
             
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
             var isValidResponse = await svc.IsValid(authResult.SessionToken);
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
 
             var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, authResult);
+            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
             client.DefaultRequestHeaders.Remove(DotYouHeaderNames.DeviceUid);
             
             var svc = RestService.For<IOwnerAuthenticationClient>(client);

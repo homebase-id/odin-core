@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         private const string RootPath = "/api/apps/v1/auth";
 
         [Post(RootPath + "/exchangeCode")]
-        public Task<ApiResponse<DotYouAuthenticationResult>> ExchangeAuthCode([Body] AuthCodeExchangeRequest request);
+        public Task<ApiResponse<string>> ExchangeAuthCode([Body] AuthCodeExchangeRequest request);
 
         [Post(RootPath + "/validate")]
         public Task<ApiResponse<object>> ValidateSessionToken(Guid sessionToken);

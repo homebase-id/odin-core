@@ -17,10 +17,10 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
         }
         
         [HttpPost("exchangeCode")]
-        public async Task<IActionResult> ExchangeAuthCode([FromBody]AuthCodeExchangeRequest request)
+        public async Task<string> ExchangeAuthCode([FromBody]AuthCodeExchangeRequest request)
         {
             var authResult = await _authService.ExchangeAuthCode(request);
-            return new JsonResult(authResult);
+            return authResult.ToString();
         }
         
         

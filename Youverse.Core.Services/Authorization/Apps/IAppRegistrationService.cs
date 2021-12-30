@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="uniqueDeviceId"></param>
         /// <param name="sharedSecret"></param>>
         /// <returns></returns>
-        Task<AppDeviceRegistrationReply> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret);
+        Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret);
 
         /// <summary>
         /// Returns the specified app device registration

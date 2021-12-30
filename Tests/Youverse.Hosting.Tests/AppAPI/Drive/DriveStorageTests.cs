@@ -20,13 +20,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveStorageTests
     {
-        private OwnerConsoleTestScaffold _scaffold;
+        private TestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new OwnerConsoleTestScaffold(folder);
+            _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             //appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -105,9 +105,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name, byte[] sharedSecret)
         {
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
-                var svc = RestService.For<IAppRegistrationTestHttpClient>(client);
+                var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
                     Name = name,

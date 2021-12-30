@@ -2,35 +2,32 @@ using Refit;
 using System;
 using NUnit.Framework;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
-using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
 {
     [TestFixture]
     public class AppAuthenticationTests
     {
-        private OwnerConsoleTestScaffold _ownerTestScaffold;
-        private AppTestScaffold _appTestScaffold;
-
+        private TestScaffold _scaffold;
+        
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _ownerTestScaffold = new OwnerConsoleTestScaffold(folder);
-            _ownerTestScaffold.RunBeforeAnyTests();
+            _scaffold = new TestScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
 
-            _appTestScaffold = new AppTestScaffold(folder);
-            _appTestScaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            _ownerTestScaffold.RunAfterAnyTests();
-            _appTestScaffold.RunBeforeAnyTests();
+            _scaffold.RunAfterAnyTests();
         }
 
         [Test]
@@ -40,15 +37,57 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid authCode;
             var appDevice = new AppDevice()
             {
-                ApplicationId = Guid.NewGuid(),
-                DeviceUid = Guid.NewGuid().ToByteArray()
+                ApplicationId = _scaffold.ApplicationId,
+                DeviceUid = _scaffold.DeviceUid
             };
-            
-            using (var ownerClient = _ownerTestScaffold.CreateHttpClient(identity))
-            {
-                var provisioningClient = RestService.For<IProvisioningClient>(ownerClient);
-                await provisioningClient.ConfigureDefaults();
 
+            await _scaffold.AddSampleApp(identity,  true);
+            await _scaffold.AddAppDevice(identity);
+            
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            {
+                var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
+                var authCodeResponse = await ownerAuthSvc.CreateAppSession(appDevice);
+                Assert.That(authCodeResponse.IsSuccessStatusCode, Is.True);
+                
+                authCode = authCodeResponse.Content;
+                Assert.That(authCode, Is.Not.EqualTo(Guid.Empty));
+            }
+
+            using (var appClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            {
+                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
+
+                var request = new AuthCodeExchangeRequest()
+                {
+                    AuthCode = authCode,
+                    AppDevice = appDevice
+                };
+                
+                var authResultResponse = await appAuthSvc.ExchangeAuthCode(request);
+                Assert.That(authResultResponse.IsSuccessStatusCode, Is.True);
+                var authResult = authResultResponse.Content;
+                Assert.That(authResult, Is.Not.Null);
+                Assert.That(DotYouAuthenticationResult.TryParse(authResult, out var _), Is.True);
+            }
+        }
+        
+        [Test]
+        public async Task AuthorizationCodeExpires()
+        {
+            var identity = DotYouIdentities.Samwise;
+            Guid authCode;
+            var appDevice = new AppDevice()
+            {
+                ApplicationId = _scaffold.ApplicationId,
+                DeviceUid = _scaffold.DeviceUid
+            };
+
+            await _scaffold.AddSampleApp(identity,  true);
+            await _scaffold.AddAppDevice(identity);
+            
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            {
                 var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
                 var authCodeResponse = await ownerAuthSvc.CreateAppSession(appDevice);
                 Assert.That(authCodeResponse.IsSuccessStatusCode, Is.EqualTo(true));
@@ -57,7 +96,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(authCode, Is.Not.EqualTo(Guid.Empty));
             }
 
-            using (var appClient = _appTestScaffold.CreateHttpClient(identity))
+            //TODO: this bound to the value in AppAuthenticationService for AppAuthAuthorizationCode
+            Thread.Sleep(16 * 1000);
+            
+            using (var appClient = _scaffold.CreateOwnerApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
 
@@ -71,8 +113,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.IsTrue(authResultResponse.IsSuccessStatusCode);
                 var authResult = authResultResponse.Content;
                 Assert.IsNotNull(authResult);
-                
-
             }
         }
     }

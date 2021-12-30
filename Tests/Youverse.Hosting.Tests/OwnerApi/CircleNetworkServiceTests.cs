@@ -13,13 +13,13 @@ namespace Youverse.Hosting.Tests.OwnerApi
 {
     public class CircleNetworkServiceTests
     {
-        private OwnerConsoleTestScaffold _scaffold;
+        private TestScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new OwnerConsoleTestScaffold(folder);
+            _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check if Frodo received the request?
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(DotYouIdentities.Samwise);
@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -125,7 +125,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             await CreateConnectionRequestSamToFrodo();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -144,7 +144,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -169,7 +169,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 //
                 // Frodo should be in sam's contacts network
@@ -192,7 +192,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -217,7 +217,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -247,7 +247,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         {
             await CreateConnectionRequestSamToFrodo();
 
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -278,7 +278,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
         private async Task CreateConnectionRequestSamToFrodo()
         {
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -299,7 +299,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
         private async Task DisconnectSamAndFrodo()
         {
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
                 var disconnectResponse = await frodoConnections.Delete(DotYouIdentities.Samwise);
@@ -307,7 +307,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 await AssertConnectionStatus(client, DotYouIdentities.Samwise, ConnectionStatus.None);
             }
             
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
                 var disconnectResponse = await samConnections.Delete(DotYouIdentities.Frodo);

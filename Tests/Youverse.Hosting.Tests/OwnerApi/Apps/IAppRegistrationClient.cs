@@ -7,7 +7,7 @@ using Youverse.Hosting.Controllers.Owner.AppManagement;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
-    public interface IAppRegistrationTestHttpClient
+    public interface IAppRegistrationClient
     {
         private const string RootPath = "/api/admin/apps";
 
@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         Task<ApiResponse<NoResultResponse>> RemoveAppRevocation(Guid appId);
 
         [Post(RootPath + "/devices")]
-        Task<ApiResponse<AppDeviceRegistrationReply>> RegisterAppOnDevice([Body] AppDeviceRegistrationRequest appDeviceRegistration);
+        Task<ApiResponse<AppDeviceRegistrationResponse>> RegisterAppOnDevice([Body] AppDeviceRegistrationRequest appDeviceRegistration);
 
         [Get(RootPath + "/devices/{appId}")]
         Task<ApiResponse<AppDeviceRegistration>> GetRegisteredAppDevice(Guid appId, [Query] string deviceId64);

@@ -13,32 +13,35 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Controllers.Owner;
-using Youverse.Hosting.Tests.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi;
+using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests
 {
-    public class OwnerConsoleTestScaffold
+    public class TestScaffold
     {
-        private string _folder;
+        private readonly string _folder;
         private IHost _webserver;
-        private Dictionary<string, DotYouAuthenticationResult> tokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, DotYouAuthenticationResult> ownerLoginTokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
 
         DevelopmentIdentityContextRegistry _registry;
 
-        public OwnerConsoleTestScaffold(string folder)
+        public TestScaffold(string folder)
         {
             this._folder = folder;
         }
 
-        public string DeviceUid = "WebApiTestsDeviceUid";
-
+        public readonly byte[] AppSharedSecret = Guid.Empty.ToByteArray();
+        public readonly string AppName = "App-Scaffold Test-App";
+        public Guid ApplicationId = Guid.Parse("99950012-0012-5555-5555-777777777777");
+        public readonly byte[] DeviceUid = Guid.Parse("00000001-0000-3333-3333-888888888888").ToByteArray();
+        
         public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
         public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
         public string LogFilePath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
@@ -101,6 +104,7 @@ namespace Youverse.Hosting.Tests
         [OneTimeTearDown]
         public void RunAfterAnyTests()
         {
+            
             if (null != _webserver)
             {
                 System.Threading.Thread.Sleep(2000);
@@ -117,7 +121,6 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -145,7 +148,6 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
             authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -180,7 +182,7 @@ namespace Youverse.Hosting.Tests
 
         private async Task<DotYouAuthenticationResult> EnsureAuthToken(DotYouIdentity identity)
         {
-            if (tokens.TryGetValue(identity, out var authResult))
+            if (ownerLoginTokens.TryGetValue(identity, out var authResult))
             {
                 return authResult;
             }
@@ -189,30 +191,29 @@ namespace Youverse.Hosting.Tests
             await this.ForceNewPassword(identity, password);
 
             var result = await this.LoginToOwnerConsole(identity, password);
-            tokens.Add(identity, result);
+            ownerLoginTokens.Add(identity, result);
             return result;
         }
 
-        public HttpClient CreateHttpClient(DotYouIdentity identity)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
             var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateHttpClient(identity, token);
+            var client = CreateOwnerApiHttpClient(identity, token);
 
             return client;
         }
 
-        public HttpClient CreateHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
         {
-            Console.WriteLine("CreateHttpClient");
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
             HttpMessageHandler handler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar
             };
+
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.DeviceUid, DeviceUid);
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
@@ -239,6 +240,50 @@ namespace Youverse.Hosting.Tests
             Console.ForegroundColor = prev;
 
             return Task.CompletedTask;
+        }
+
+        public async Task<AppRegistrationResponse?> AddSampleApp(DotYouIdentity identity,  bool createDrive)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity))
+            {
+                var svc = RestService.For<IAppRegistrationClient>(client);
+                var request = new AppRegistrationRequest
+                {
+                    Name = this.AppName,
+                    ApplicationId = this.ApplicationId,
+                    CreateDrive = createDrive,
+                    SharedSecret64 = Convert.ToBase64String(this.AppSharedSecret)
+                };
+
+                var response = await svc.RegisterApp(request);
+
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var appReg = response.Content;
+                Assert.IsNotNull(appReg);
+
+                return appReg;
+            }
+        }
+
+        public async Task<AppDeviceRegistrationResponse> AddAppDevice(DotYouIdentity identity)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity))
+            {
+                var svc = RestService.For<IAppRegistrationClient>(client);
+
+                var request = new AppDeviceRegistrationRequest()
+                {
+                    ApplicationId = this.ApplicationId,
+                    DeviceId64 = Convert.ToBase64String(this.DeviceUid),
+                    SharedSecret64 = Convert.ToBase64String(this.AppSharedSecret)
+                };
+
+                var regResponse = await svc.RegisterAppOnDevice(request);
+                Assert.IsTrue(regResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(regResponse.Content);
+
+                return regResponse.Content;
+            }
         }
     }
 }

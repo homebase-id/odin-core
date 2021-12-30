@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 {
     public class AdminIdentityAttributeTests
     {
-        private OwnerConsoleTestScaffold scaffold;
+        private TestScaffold scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
 
             Console.WriteLine($"one time setup {folder}");
-            scaffold = new OwnerConsoleTestScaffold(folder);
+            scaffold = new TestScaffold(folder);
             scaffold.RunBeforeAnyTests();
         }
 
@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         public async Task GetSaveAndGetPublicProfile()
         {
             DotYouIdentity user = DotYouIdentities.Frodo;
-            using var client = scaffold.CreateHttpClient(user);
+            using var client = scaffold.CreateOwnerApiHttpClient(user);
             var svc = RestService.For<IAdminIdentityAttributeClient>(client);
 
             var profile = new BasicProfileInfo()
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         public async Task GetSaveAndGetConnectedProfile()
         {
             DotYouIdentity user = DotYouIdentities.Frodo;
-            using var client = scaffold.CreateHttpClient(user);
+            using var client = scaffold.CreateOwnerApiHttpClient(user);
             var svc = RestService.For<IAdminIdentityAttributeClient>(client);
 
             var profile = new BasicProfileInfo()

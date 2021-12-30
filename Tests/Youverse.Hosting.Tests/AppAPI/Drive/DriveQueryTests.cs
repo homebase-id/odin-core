@@ -10,14 +10,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveQueryTests
     {
-        private OwnerConsoleTestScaffold _scaffold;
+        private TestScaffold _scaffold;
         private readonly Guid _profileDriveId = Guid.Empty;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new OwnerConsoleTestScaffold(folder);
+            _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanQueryDriveRecentItems()
         {
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
                 var rebuildResponse = await indexMgmtSvc.Rebuild(_profileDriveId);
@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanQueryDriveRecentItemsNoContent()
         {
-            using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
             {
                 var indexMgmtSvc = RestService.For<IOwnerDriveIndexManagementClient>(client);
                 await indexMgmtSvc.Rebuild(_profileDriveId);
