@@ -12,7 +12,6 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.AppAuth
 {
-    //TODO: need to fully implement
     public class AppAuthenticationService : IAppAuthenticationService
     {
         private readonly ISystemStorage _systemStorage;
@@ -63,11 +62,16 @@ namespace Youverse.Core.Services.Authentication.AppAuth
             return authCode;
         }
 
-        public async Task<DotYouAuthenticationResult> ExchangeAuthCode(Guid authCode)
+        public async Task<DotYouAuthenticationResult> ExchangeAuthCode(AuthCodeExchangeRequest request)
         {
-            if (!_authCodes.Remove(authCode, out var code) || null == code.Session || code.HasExpired())
+            if (!_authCodes.Remove(request.AuthCode, out var code) || null == code.Session || code.HasExpired())
             {
-                throw new YouverseSecurityException($"Invalid authcode during exchange: {authCode}");
+                throw new YouverseSecurityException($"Invalid authcode during exchange: {request.AuthCode}");
+            }
+
+            if (!(code.Session.AppDevice.ApplicationId == request.AppDevice.ApplicationId && ByteArrayUtil.EquiByteArrayCompare(code.Session.AppDevice.DeviceUid, request.AppDevice.DeviceUid)))
+            {
+                throw new YouverseSecurityException($"Invalid authcode during exchange: {request.AuthCode}");
             }
 
             //Note: we do not store the client 1/2 kek in the auth session

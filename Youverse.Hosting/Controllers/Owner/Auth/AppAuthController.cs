@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
     /// can authenticate the owner before authenticating the app
     /// </summary>
     [ApiController]
-    [Route("/owner/api/v1/app/authentication")]
+    [Route("/owner/api/v1/appauth")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class AppAuthenticationController : Controller
     {
@@ -30,31 +30,11 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
             _authService = authService;
         }
 
-        [HttpPost("sessionToken")]
-        public async Task<IActionResult> CreateSessionToken([FromBody] AppDevice appDevice)
+        [HttpPost("createappsession")]
+        public async Task<IActionResult> CreateAppSession([FromBody] AppDevice appDevice)
         {
             var authCode = await _authService.CreateSessionToken(appDevice);
             return new JsonResult(authCode);
-        }
-
-        [HttpPost("logout")]
-        public void ExpireSessionToken(Guid sessionToken)
-        {
-            _authService.ExpireSession(sessionToken);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ValidateSessionToken(Guid sessionToken)
-        {
-            var result = await _authService.ValidateSessionToken(sessionToken);
-            return new JsonResult(result);
-        }
-
-        [HttpGet("exchangeCode")]
-        public async Task<IActionResult> ExchangeAuthCode(Guid authCode)
-        {
-            var authResult = await _authService.ExchangeAuthCode(authCode);
-            return new JsonResult(authResult);
         }
     }
 }

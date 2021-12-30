@@ -1,7 +1,5 @@
 ﻿using System;
-using Dawn;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Identity;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base

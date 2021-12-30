@@ -117,7 +117,6 @@ namespace Youverse.Hosting.Tests
             }
 
             const string password = "EnSøienØ";
-            await this.ForceNewPassword(identity, password);
 
             var result = await this.LoginToOwnerConsole(identity, password);
             tokens.Add(identity, result);
@@ -134,7 +133,6 @@ namespace Youverse.Hosting.Tests
 
         public HttpClient CreateHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
         {
-            Console.WriteLine("CreateHttpClient");
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
             HttpMessageHandler handler = new HttpClientHandler()

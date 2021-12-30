@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Authentication
@@ -33,5 +34,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 
         [Get(RootPath + "/getsalts")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
+        
+        /// <summary>
+        /// Creates a session for an app.  Use the resulting id to exchange for the session token
+        /// </summary>
+        /// <returns></returns>
+        //NOTE: this targets the app authentication 
+        [Post("/owner/api/v1/appauth/createappsession")]
+        public Task<ApiResponse<Guid>> CreateAppSession(AppDevice appDevice);
     }
 }

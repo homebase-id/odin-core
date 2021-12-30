@@ -21,6 +21,7 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Audit;
@@ -80,6 +81,9 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<DemoDataGenerator>().SingleInstance();
+            
+            cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
+
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

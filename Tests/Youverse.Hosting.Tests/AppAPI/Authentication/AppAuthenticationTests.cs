@@ -1,9 +1,11 @@
+using Refit;
+using System;
+using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Refit;
-using Youverse.Hosting.Tests.OwnerApi;
+using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
+using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
 {
@@ -34,18 +36,43 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         [Test]
         public async Task CanAuthenticateApp()
         {
-            /*
-                x 1. Create OwnerConsoleHttpClient that is logged in
-                2. Use OwnerConsoleHttpClient to POST /api/owner/v1/auth/exchange
-                3. Store session token and client 1/2 key in app cookie
-                4. Now we can create App Http Client
-             */
-
-            using (var ownerClient = _ownerTestScaffold.CreateHttpClient(DotYouIdentities.Samwise))
+            var identity = DotYouIdentities.Samwise;
+            Guid authCode;
+            var appDevice = new AppDevice()
             {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(ownerClient);
+                ApplicationId = Guid.NewGuid(),
+                DeviceUid = Guid.NewGuid().ToByteArray()
+            };
+            
+            using (var ownerClient = _ownerTestScaffold.CreateHttpClient(identity))
+            {
+                var provisioningClient = RestService.For<IProvisioningClient>(ownerClient);
+                await provisioningClient.ConfigureDefaults();
+
+                var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
+                var authCodeResponse = await ownerAuthSvc.CreateAppSession(appDevice);
+                Assert.That(authCodeResponse.IsSuccessStatusCode, Is.EqualTo(true));
                 
+                authCode = authCodeResponse.Content;
+                Assert.That(authCode, Is.Not.EqualTo(Guid.Empty));
+            }
+
+            using (var appClient = _appTestScaffold.CreateHttpClient(identity))
+            {
+                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
+
+                var request = new AuthCodeExchangeRequest()
+                {
+                    AuthCode = authCode,
+                    AppDevice = appDevice
+                };
                 
+                var authResultResponse = await appAuthSvc.ExchangeAuthCode(request);
+                Assert.IsTrue(authResultResponse.IsSuccessStatusCode);
+                var authResult = authResultResponse.Content;
+                Assert.IsNotNull(authResult);
+                
+
             }
         }
     }

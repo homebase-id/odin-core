@@ -18,11 +18,10 @@ namespace Youverse.Core.Services.Authentication.AppAuth
         Task<Guid> CreateSessionToken(AppDevice appDevice);
 
         /// <summary>
-        /// Exchanges the 
+        /// Exchanges the auth code provided from CreateSessionToken for a <see cref="DotYouAuthenticationResult"/>. 
         /// </summary>
-        /// <param name="authCode"></param>
         /// <returns></returns>
-        Task<DotYouAuthenticationResult> ExchangeAuthCode(Guid authCode);
+        Task<DotYouAuthenticationResult> ExchangeAuthCode(AuthCodeExchangeRequest request);
         
         /// <summary>
         /// Determines if the app and device paired with its token are valid, not revoked, and have not expired.  
@@ -32,9 +31,8 @@ namespace Youverse.Core.Services.Authentication.AppAuth
         Task<SessionValidationResult> ValidateSessionToken(Guid token);
         
         /// <summary>
-        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
+        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.
         /// </summary>
-        /// <param name="token"></param>
         Task ExtendTokenLife(Guid token, int ttlSeconds);
 
         /// <summary>

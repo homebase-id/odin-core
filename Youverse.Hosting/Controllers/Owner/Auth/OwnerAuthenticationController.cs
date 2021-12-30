@@ -113,5 +113,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
             var salts = await _ss.GenerateNewSalts();
             return new JsonResult(salts);
         }
+        
+        
     }
 }

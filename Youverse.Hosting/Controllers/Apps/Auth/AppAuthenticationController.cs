@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
-using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Auth
 {
@@ -19,13 +15,26 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
         {
             _authService = authService;
         }
-
-        [HttpPost]
-        public async Task<IActionResult> Authenticate([FromBody] AppDevice appDevice)
+        
+        [HttpPost("exchangeCode")]
+        public async Task<IActionResult> ExchangeAuthCode([FromBody]AuthCodeExchangeRequest request)
         {
-            var result = await _authService.CreateSessionToken(appDevice);
+            var authResult = await _authService.ExchangeAuthCode(request);
+            return new JsonResult(authResult);
+        }
+        
+        
+        [HttpPost("validate")]
+        public async Task<IActionResult> ValidateSessionToken(Guid sessionToken)
+        {
+            var result = await _authService.ValidateSessionToken(sessionToken);
             return new JsonResult(result);
         }
-
+        
+        [HttpPost("expire")]
+        public void ExpireSessionToken(Guid sessionToken)
+        {
+            _authService.ExpireSession(sessionToken);
+        }
     }
 }

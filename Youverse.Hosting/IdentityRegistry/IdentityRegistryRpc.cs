@@ -3,10 +3,8 @@ using System.Threading.Tasks;
 using Grpc.Net.Client;
 using MagicOnion.Client;
 using Youverse.Core;
-using Youverse.Core.Services.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Trie;
-using Youverse.Core.Util;
 
 namespace Youverse.Hosting.IdentityRegistry
 {

@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Registry
             {
                 if (!File.Exists(sourceCertPath))
                 {
-                    throw new Exception($"Cannot find  [{sourceCertPath}]");
+                    throw new Exception($"Cannot find [{sourceCertPath}]");
                 }
 
                 File.Copy(sourceCertPath, destCertPath);
