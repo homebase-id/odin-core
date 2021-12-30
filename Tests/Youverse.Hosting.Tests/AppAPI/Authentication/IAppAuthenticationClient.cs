@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         public Task<ApiResponse<string>> ExchangeAuthCode([Body] AuthCodeExchangeRequest request);
 
         [Post(RootPath + "/validate")]
-        public Task<ApiResponse<object>> ValidateSessionToken(Guid sessionToken);
+        public Task<ApiResponse<SessionValidationResult>> ValidateSessionToken(Guid sessionToken);
 
         [Post(RootPath + "/expire")]
         public Task<ApiResponse<SessionValidationResult>> ExpireSessionToken(Guid sessionToken);

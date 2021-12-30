@@ -16,8 +16,10 @@ using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Tests.AppAPI.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
@@ -27,7 +29,7 @@ namespace Youverse.Hosting.Tests
     {
         private readonly string _folder;
         private IHost _webserver;
-        private Dictionary<string, DotYouAuthenticationResult> ownerLoginTokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
+        private Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
 
         DevelopmentIdentityContextRegistry _registry;
 
@@ -175,9 +177,9 @@ namespace Youverse.Hosting.Tests
             return result;
         }
 
-        private async Task<DotYouAuthenticationResult> EnsureAuthToken(DotYouIdentity identity)
+        private async Task<DotYouAuthenticationResult> EnsureOwnerAuthToken(DotYouIdentity identity)
         {
-            if (ownerLoginTokens.TryGetValue(identity, out var authResult))
+            if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
             {
                 return authResult;
             }
@@ -186,13 +188,13 @@ namespace Youverse.Hosting.Tests
             await this.ForceNewPassword(identity, password);
 
             var result = await this.LoginToOwnerConsole(identity, password);
-            ownerLoginTokens.Add(identity, result);
+            _ownerLoginTokens.Add(identity, result);
             return result;
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
-            var token = EnsureAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var token = EnsureOwnerAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var client = CreateOwnerApiHttpClient(identity, token);
 
             return client;
@@ -232,6 +234,25 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
+        
+        /// <summary>
+        /// Creates a client for use with the app API (/api/apps/v1/...)
+        /// </summary>
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
+        {
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(AppAuthConstants.CookieName, token.ToString(), null, identity));
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
 
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
         {
@@ -256,7 +277,7 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-        public async Task<AppRegistrationResponse> AddSampleApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
+        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -344,6 +365,32 @@ namespace Youverse.Hosting.Tests
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 await svc.RevokeAppDevice(appId, Convert.ToBase64String(deviceUid));
+            }
+        }
+
+        public async Task<DotYouAuthenticationResult> ExchangeAppAuthCode(DotYouIdentity identity, Guid authCode, Guid appId, byte[] deviceUid)
+        {
+            using (var appClient = this.CreateAnonymousApiHttpClient(identity))
+            {
+                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
+
+                var request = new AuthCodeExchangeRequest()
+                {
+                    AuthCode = authCode,
+                    AppDevice = new AppDevice()
+                    {
+                        ApplicationId = appId,
+                        DeviceUid = deviceUid
+                    }
+                };
+
+                var authResultResponse = await appAuthSvc.ExchangeAuthCode(request);
+                Assert.That(authResultResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(authResultResponse.Content, Is.Not.Null);
+                Assert.That(authResultResponse.Content, Is.Not.Empty);
+                Assert.That(DotYouAuthenticationResult.TryParse(authResultResponse.Content, out var result), Is.True);
+                
+                return result;
             }
         }
     }

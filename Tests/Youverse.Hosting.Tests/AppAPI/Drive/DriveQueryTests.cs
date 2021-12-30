@@ -33,15 +33,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
            Assert.Inconclusive("TODO");
         }
 
-        [Test]
-        public async Task CanQueryDriveByCategory()
-        {
-        }
-
-        [Test]
-        public async Task CanQueryDriveByCategoryNoContent()
-        {
-        }
+        // [Test]
+        // public async Task CanQueryDriveByCategory()
+        // {
+        // }
+        //
+        // [Test]
+        // public async Task CanQueryDriveByCategoryNoContent()
+        // {
+        // }
 
         [Test]
         public async Task CanQueryDriveRecentItems()

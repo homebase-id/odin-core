@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
             Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
 
@@ -71,11 +71,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
             Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
-
-
+            
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
@@ -109,14 +108,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
             Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
 
             //TODO: this bound to the value in AppAuthenticationService for AppAuthAuthorizationCode
             Thread.Sleep(16 * 1000);
 
-            using (var appClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
 
@@ -143,7 +142,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
             await _scaffold.RevokeSampleApp(identity, appId);
 
@@ -167,9 +166,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
-
             await _scaffold.RevokeDevice(identity, appId, deviceUid);
 
             using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
@@ -183,6 +181,85 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 
                 Assert.That(authCodeResponse.IsSuccessStatusCode, Is.False);
             }
+        }
+
+        [Test]
+        public async Task CanRevokeAppMidSession()
+        {
+            var identity = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddAppDevice(identity, appId, deviceUid);
+            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
+            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+
+            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            {
+                var svc = RestService.For<IAppAuthenticationClient>(appClient);
+                var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
+                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(validateResponse.Content, Is.Not.Null);
+                var result = validateResponse.Content;
+
+                Assert.That(result.IsValid, Is.True);
+            }
+            
+            await _scaffold.RevokeSampleApp(identity, appId);
+            
+            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            {
+                var svc = RestService.For<IAppAuthenticationClient>(appClient);
+                var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
+                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(validateResponse.Content, Is.Not.Null);
+                var result = validateResponse.Content;
+
+                Assert.That(result.IsValid, Is.False);
+            }
+
+            
+        }
+        
+        [Test]
+        public async Task CanRevokeDeviceMidSession()
+        {
+            var identity = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddAppDevice(identity, appId, deviceUid);
+            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
+            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+
+            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            {
+                var svc = RestService.For<IAppAuthenticationClient>(appClient);
+                var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
+                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(validateResponse.Content, Is.Not.Null);
+                var result = validateResponse.Content;
+
+                Assert.That(result.IsValid, Is.True);
+            }
+            
+            await _scaffold.RevokeDevice(identity, appId, deviceUid);
+            
+            using (var appClient = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            {
+                var svc = RestService.For<IAppAuthenticationClient>(appClient);
+                var validateResponse = await svc.ValidateSessionToken(authResult.SessionToken);
+                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(validateResponse.Content, Is.Not.Null);
+                var result = validateResponse.Content;
+
+                Assert.That(result.IsValid, Is.False);
+            }
+
         }
     }
 }

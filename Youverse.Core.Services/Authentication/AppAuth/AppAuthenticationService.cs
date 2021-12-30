@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
 
             var authCode = Guid.NewGuid();
 
-            //TODO: config
+            //TODO: configure the auth code timeout
             if (!_authCodes.TryAdd(authCode, new AppAuthAuthorizationCode(session, TimeSpan.FromSeconds(15))))
             {
                 throw new YouverseSecurityException("Failed to create session token");
