@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         [Test]
         public async Task GetSaveAndGetPublicProfile()
         {
-            DotYouIdentity user = DotYouIdentities.Frodo;
+            DotYouIdentity user = TestIdentities.Frodo;
             using var client = scaffold.CreateOwnerApiHttpClient(user);
             var svc = RestService.For<IAdminIdentityAttributeClient>(client);
 
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         [Test]
         public async Task GetSaveAndGetConnectedProfile()
         {
-            DotYouIdentity user = DotYouIdentities.Frodo;
+            DotYouIdentity user = TestIdentities.Frodo;
             using var client = scaffold.CreateOwnerApiHttpClient(user);
             var svc = RestService.For<IAdminIdentityAttributeClient>(client);
 

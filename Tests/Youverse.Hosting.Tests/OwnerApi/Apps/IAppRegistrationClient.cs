@@ -12,10 +12,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         private const string RootPath = "/api/admin/apps";
 
         [Get(RootPath)]
-        Task<ApiResponse<PagedResult<AppRegistration>>> GetRegisteredApps([Query]int pageNumber, [Query]int pageSize);
+        Task<ApiResponse<PagedResult<AppRegistrationResponse>>> GetRegisteredApps([Query]int pageNumber, [Query]int pageSize);
 
         [Get(RootPath+"/{appId}")]
-        Task<ApiResponse<AppRegistration>> GetRegisteredApp(Guid appId);
+        Task<ApiResponse<AppRegistrationResponse>> GetRegisteredApp(Guid appId);
 
         [Post(RootPath)]
         Task<ApiResponse<AppRegistrationResponse>> RegisterApp([Body] AppRegistrationRequest appRegistration);

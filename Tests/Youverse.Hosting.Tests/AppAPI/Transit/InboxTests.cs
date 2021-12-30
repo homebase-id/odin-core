@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetInboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanRemoveInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetInboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient( DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient( TestIdentities.Frodo))
             {
                 var svc = RestService.For<ITransitInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -118,8 +118,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
         private async Task SendTransfer()
         {
-            var sender = DotYouIdentities.Samwise;
-            var recipient = DotYouIdentities.Frodo;
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Frodo;
             
             var appSharedSecret = new SecureKey(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
             var transferIv = ByteArrayUtil.GetRndByteArray(16);

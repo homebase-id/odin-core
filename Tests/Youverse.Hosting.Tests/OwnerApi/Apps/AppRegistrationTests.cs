@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
     public class AppRegistrationTests
     {
         private TestScaffold _scaffold;
-
+        
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var revokeResponse = await svc.RevokeApp(appId);
@@ -70,9 +70,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
 
-            var newId = AddSampleAppNoDrive(appId, name);
+            await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
@@ -105,9 +105,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             }
         }
 
-        private async Task<AppRegistrationResponse?> AddSampleAppNoDrive(Guid applicationId, string name)
+        private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
@@ -131,9 +131,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             }
         }
 
-        private async Task<AppRegistration> GetSampleApp(Guid applicationId)
+        private async Task<AppRegistrationResponse> GetSampleApp(Guid applicationId)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var appResponse = await svc.GetRegisteredApp(applicationId);

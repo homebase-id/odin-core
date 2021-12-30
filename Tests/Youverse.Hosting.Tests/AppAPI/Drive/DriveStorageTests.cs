@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             //this takes a call to the owner's api to create an app
             Guid applicationId = Guid.NewGuid();
             var appSharedSecret = new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-            var app = this.RegisterAppWithDrive(applicationId, "Test-Upload-App", appSharedSecret);
+            var app = this.RegisterAppWithDrive(applicationId, "Test-Upload-App");
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             //appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 //sam to send frodo a data transfer, small enough to send it instantly
 
@@ -97,22 +97,21 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(uploadResult);
                 Assert.IsFalse(uploadResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(DotYouIdentities.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(uploadResult.RecipientStatus[DotYouIdentities.Frodo] == TransferStatus.TransferKeyCreated);
+                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
+                Assert.IsTrue(uploadResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);
             }
         }
 
 
-        private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name, byte[] sharedSecret)
+        private async Task<AppRegistrationResponse> RegisterAppWithDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
                     Name = name,
                     ApplicationId = applicationId,
-                    SharedSecret64 = Convert.ToBase64String(sharedSecret),
                     CreateDrive = true
                 };
 

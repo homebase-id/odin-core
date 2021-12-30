@@ -28,10 +28,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         public async Task CanForceNewPasswordAtProvisioning()
         {
             const string password = "EnSøienØ$";
-            await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
+            await _scaffold.ForceNewPassword(TestIdentities.Frodo, password);
 
-            var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
+            var authResult = await _scaffold.LoginToOwnerConsole(TestIdentities.Frodo, password);
+            using var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
             var isValidResponse = await svc.IsValid(authResult.SessionToken);
             Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
@@ -42,10 +42,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         public async Task CanLogInAndOutOfOwnerConsole()
         {
             const string password = "EnSøienØ$";
-            await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
+            await _scaffold.ForceNewPassword(TestIdentities.Frodo, password);
 
-            var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
+            var authResult = await _scaffold.LoginToOwnerConsole(TestIdentities.Frodo, password);
+            using var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
             var isValidResponse = await svc.IsValid(authResult.SessionToken);
@@ -63,10 +63,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         public async Task FailsWithoutDeviceUid()
         {
             const string password = "EnSøienØ$";
-            await _scaffold.ForceNewPassword(DotYouIdentities.Frodo, password);
+            await _scaffold.ForceNewPassword(TestIdentities.Frodo, password);
 
-            var authResult = await _scaffold.LoginToOwnerConsole(DotYouIdentities.Frodo, password);
-            using var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Frodo, authResult);
+            var authResult = await _scaffold.LoginToOwnerConsole(TestIdentities.Frodo, password);
+            using var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             client.DefaultRequestHeaders.Remove(DotYouHeaderNames.DeviceUid);
             
             var svc = RestService.For<IOwnerAuthenticationClient>(client);

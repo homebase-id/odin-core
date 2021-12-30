@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -7,7 +8,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, byte[] encryptedSharedSecret, bool createDrive = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false)
         {
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
@@ -60,25 +60,18 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
-            //notice we're not sharing the encrypted app dek
-            return new AppRegistrationResponse()
-            {
-                ApplicationId = appReg.ApplicationId,
-                Name = appReg.Name,
-                DriveId = appReg.DriveId,
-                IsRevoked = appReg.IsRevoked
-            };
+            return this.ToAppRegistrationResponse(appReg);
         }
 
-        public async Task<AppRegistration> GetAppRegistration(Guid applicationId)
+        public async Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId)
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
-            return result;
+            var result = await GetAppRegistrationInternal(applicationId);
+            return ToAppRegistrationResponse(result);
         }
 
         public async Task RevokeApp(Guid applicationId)
         {
-            var appReg = await this.GetAppRegistration(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(applicationId);
             if (null != appReg)
             {
                 appReg.IsRevoked = true;
@@ -92,7 +85,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task RemoveAppRevocation(Guid applicationId)
         {
-            var appReg = await this.GetAppRegistration(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(applicationId);
             if (null != appReg)
             {
                 appReg.IsRevoked = false;
@@ -111,7 +104,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
         {
-            var savedApp = await this.GetAppRegistration(applicationId);
+            var savedApp = await this.GetAppRegistrationInternal(applicationId);
 
             if (null == savedApp || savedApp.IsRevoked)
             {
@@ -181,10 +174,29 @@ namespace Youverse.Core.Services.Authorization.Apps
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
         }
 
-        public async Task<PagedResult<AppRegistration>> GetRegisteredApps(PageOptions pageOptions)
+        public async Task<PagedResult<AppRegistrationResponse>> GetRegisteredApps(PageOptions pageOptions)
         {
             var apps = await _systemStorage.WithTenantSystemStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
-            return apps;
+            var redactedList = apps.Results.Select(ToAppRegistrationResponse).ToList();
+            return new PagedResult<AppRegistrationResponse>(pageOptions, apps.TotalPages, redactedList);
+        }
+
+        private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
+        {
+            //NOTE: we're not sharing the encrypted app dek, this is crutial
+            return new AppRegistrationResponse()
+            {
+                ApplicationId = appReg.ApplicationId,
+                Name = appReg.Name,
+                DriveId = appReg.DriveId,
+                IsRevoked = appReg.IsRevoked
+            };
+        }
+        
+        private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
+        {
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
+            return result;
         }
     }
 }

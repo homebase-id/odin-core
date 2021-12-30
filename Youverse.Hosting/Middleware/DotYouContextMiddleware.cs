@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Middleware
             var deviceUid = Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.DeviceUid64));
 
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appReg = await appRegSvc.GetAppRegistration(appId);
+            // var appReg = await appRegSvc.GetAppRegistration(appId);
             var deviceReg = await appRegSvc.GetAppDeviceRegistration(appId, deviceUid);
 
             dotYouContext.Caller = new CallerContext(
@@ -106,12 +106,14 @@ namespace Youverse.Hosting.Middleware
                 loginDek: null
             );
 
+            //TODO: what do we need for the appEncryptionKey?
+            //appReg.EncryptedAppDeK
             //how to specify the destination drive?
             var driveId = Guid.Empty;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: deviceUid,
-                appEncryptionKey: new SecureKey(appReg.EncryptedAppDeK),
+                appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
                 appSharedSecret: new SecureKey(deviceReg.SharedSecret),
                 isAdminApp: false,
                 driveId: driveId);
@@ -122,8 +124,8 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
             var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
 
-            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appReg = await appRegSvc.GetAppRegistration(appId);
+            // var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            // var appReg = await appRegSvc.GetAppRegistration(appId);
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
@@ -131,12 +133,13 @@ namespace Youverse.Hosting.Middleware
                 loginDek: null
             );
 
+            //appReg.EncryptedAppDeK
             //how to specify the destination drive?
             var driveId = Guid.Empty;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: null,
-                appEncryptionKey: new SecureKey(appReg.EncryptedAppDeK),
+                appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
                 appSharedSecret: null,
                 isAdminApp: false,
                 driveId: driveId);

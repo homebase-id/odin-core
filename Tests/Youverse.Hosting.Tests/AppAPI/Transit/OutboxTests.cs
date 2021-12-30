@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetOutboxList()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanRemoveOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetOutboxItem()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanUpdateOutboxItemPriority()
         {
             await SendTransfer();
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var svc = RestService.For<ITransitHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {DotYouIdentities.Frodo}};
+            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {TestIdentities.Frodo}};
             var recipientJson = JsonConvert.SerializeObject(recipientList);
 
             var recipientCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(DotYouIdentities.Samwise))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
 
@@ -198,8 +198,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(transferResult);
                 Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(DotYouIdentities.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(transferResult.RecipientStatus[DotYouIdentities.Frodo] == TransferStatus.TransferKeyCreated);
+                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
+                Assert.IsTrue(transferResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);
 
                 //there should be a record in the outbox for this transfer
                 var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);

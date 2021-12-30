@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Tests.AppReg
     public class AppRegistrationTests
     {
         private ServiceTestScaffold _scaffold;
-        private byte[] _encryptedSharedSecret = new byte[16];
+        private byte[] _deviceSharedSecret = new byte[16];
 
         [SetUp]
         public void Setup()
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Tests.AppReg
 
             Guid appId = Guid.NewGuid();
             string appName = "Test_App";
-            await appRegSvc.RegisterApp(appId, appName, _encryptedSharedSecret, true);
+            await appRegSvc.RegisterApp(appId, appName, true);
 
             var storedApp = await appRegSvc.GetAppRegistration(appId);
 
@@ -115,7 +115,7 @@ namespace Youverse.Core.Services.Tests.AppReg
         private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
         {
             var svc = CreateAppRegService();
-            var appReg = await svc.RegisterApp(applicationId, name, _encryptedSharedSecret, false);
+            var appReg = await svc.RegisterApp(applicationId, name, false);
 
             Assert.IsTrue(appReg.ApplicationId == applicationId);
             Assert.IsTrue(appReg.Name == name);
@@ -130,7 +130,7 @@ namespace Youverse.Core.Services.Tests.AppReg
             return appReg;
         }
 
-        private async Task<AppRegistration> GetSampleApp(Guid applicationId)
+        private async Task<AppRegistrationResponse> GetSampleApp(Guid applicationId)
         {
             var svc = CreateAppRegService();
             var savedApp = await svc.GetAppRegistration(applicationId);

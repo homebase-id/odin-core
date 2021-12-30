@@ -24,18 +24,16 @@ namespace Youverse.Core.Services.Registry.Provisioning
         {
             Guid chatAppId = Guid.Parse("99999789-5555-5555-5555-000000002222");
             string chatAppName = "Chat App";
-            byte[] encryptedSharedSecret = Guid.Empty.ToByteArray();
 
-            await _appRegService.RegisterApp(chatAppId, chatAppName, encryptedSharedSecret, true);
+            await _appRegService.RegisterApp(chatAppId, chatAppName, true);
         }
 
         private async Task SetupLandingPage()
         {
             Guid landingPageAppId = Guid.Parse("99999789-5555-5555-5555-000000001111");
             string landingPageAppName = "Landing Page";
-            byte[] encryptedSharedSecret = Guid.Empty.ToByteArray();
 
-            await _appRegService.RegisterApp(landingPageAppId, landingPageAppName, encryptedSharedSecret, true);
+            await _appRegService.RegisterApp(landingPageAppId, landingPageAppName, true);
         }
     }
 }

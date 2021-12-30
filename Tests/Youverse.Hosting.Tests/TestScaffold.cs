@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Extensions.Hosting;
@@ -13,8 +12,8 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
@@ -38,10 +37,7 @@ namespace Youverse.Hosting.Tests
         }
 
         public readonly byte[] AppSharedSecret = Guid.Empty.ToByteArray();
-        public readonly string AppName = "App-Scaffold Test-App";
-        public Guid ApplicationId = Guid.Parse("99950012-0012-5555-5555-777777777777");
-        public readonly byte[] DeviceUid = Guid.Parse("00000001-0000-3333-3333-888888888888").ToByteArray();
-        
+
         public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
         public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
         public string LogFilePath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
@@ -104,7 +100,6 @@ namespace Youverse.Hosting.Tests
         [OneTimeTearDown]
         public void RunAfterAnyTests()
         {
-            
             if (null != _webserver)
             {
                 System.Threading.Thread.Sleep(2000);
@@ -218,7 +213,7 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
-        
+
         /// <summary>
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
         /// </summary>
@@ -261,17 +256,16 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-        public async Task<AppRegistrationResponse?> AddSampleApp(DotYouIdentity identity,  bool createDrive)
+        public async Task<AppRegistrationResponse> AddSampleApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
-                    Name = this.AppName,
-                    ApplicationId = this.ApplicationId,
-                    CreateDrive = createDrive,
-                    SharedSecret64 = Convert.ToBase64String(this.AppSharedSecret)
+                    Name = $"Test_{appId}",
+                    ApplicationId = appId,
+                    CreateDrive = createDrive
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -280,11 +274,20 @@ namespace Youverse.Hosting.Tests
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
-                return appReg;
+                if (revoke)
+                {
+                    await svc.RevokeApp(appId);
+                }
+
+                var updatedAppResponse = await svc.GetRegisteredApp(appId);
+                Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(updatedAppResponse.Content, Is.Not.Null);
+
+                return updatedAppResponse.Content;
             }
         }
 
-        public async Task<AppDeviceRegistrationResponse> AddAppDevice(DotYouIdentity identity)
+        public async Task<AppDeviceRegistrationResponse> AddAppDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -292,8 +295,8 @@ namespace Youverse.Hosting.Tests
 
                 var request = new AppDeviceRegistrationRequest()
                 {
-                    ApplicationId = this.ApplicationId,
-                    DeviceId64 = Convert.ToBase64String(this.DeviceUid),
+                    ApplicationId = appId,
+                    DeviceId64 = Convert.ToBase64String(deviceUid),
                     SharedSecret64 = Convert.ToBase64String(this.AppSharedSecret)
                 };
 
@@ -304,5 +307,36 @@ namespace Youverse.Hosting.Tests
                 return regResponse.Content;
             }
         }
+
+        public async Task RevokeSampleApp(DotYouIdentity identity, Guid appId)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity))
+            {
+                var svc = RestService.For<IAppRegistrationClient>(client);
+                await svc.RevokeApp(appId);
+            }
+        }
+
+        public async Task<Guid> CreateAppSession(DotYouIdentity identity, Guid appId, byte[] deviceUid)
+        {
+            var appDevice = new AppDevice()
+            {
+                ApplicationId = appId,
+                DeviceUid = deviceUid
+            };
+            
+            using (var ownerClient = this.CreateOwnerApiHttpClient(identity))
+            {
+                var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
+                var authCodeResponse = await ownerAuthSvc.CreateAppSession(appDevice);
+                Assert.That(authCodeResponse.IsSuccessStatusCode, Is.True);
+
+                var authCode = authCodeResponse.Content;
+                Assert.That(authCode, Is.Not.EqualTo(Guid.Empty));
+
+                return authCode;
+            }
+        }
+        
     }
 }
