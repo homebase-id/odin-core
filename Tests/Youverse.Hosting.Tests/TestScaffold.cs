@@ -218,6 +218,25 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
+        
+        /// <summary>
+        /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
+        /// </summary>
+        /// <returns></returns>
+        public HttpClient CreateAnonymousApiHttpClient(DotYouIdentity identity)
+        {
+            var cookieJar = new CookieContainer();
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
 
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
         {
