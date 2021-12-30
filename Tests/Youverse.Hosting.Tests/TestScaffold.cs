@@ -337,6 +337,14 @@ namespace Youverse.Hosting.Tests
                 return authCode;
             }
         }
-        
+
+        public async Task RevokeDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity))
+            {
+                var svc = RestService.For<IAppRegistrationClient>(client);
+                await svc.RevokeAppDevice(appId, Convert.ToBase64String(deviceUid));
+            }
+        }
     }
 }

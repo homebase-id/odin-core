@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         Task<ApiResponse<PagedResult<AppDeviceRegistration>>> GetRegisteredAppDeviceList([Query] int pageNumber, [Query] int pageSize);
 
         [Post(RootPath + "/devices/revoke")]
-        Task<ApiResponse<NoResultResponse>> RevokeAppDevice([Query] Guid appId, [Query] string deviceId64);
+        Task<ApiResponse<NoResultResponse>> RevokeAppDevice([Query]Guid appId, [Query] string deviceId64);
         
         [Post(RootPath + "/devices/allow")]
         Task<ApiResponse<NoResultResponse>> RemoveAppDeviceRevocation([Query] Guid appId, [Query] string deviceId64);

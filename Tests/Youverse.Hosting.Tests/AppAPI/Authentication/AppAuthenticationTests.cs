@@ -64,7 +64,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
-        public async Task CannotReplayAuthorizationCode()
+        public async Task FailToReplayAuthorizationCode()
         {
             var identity = TestIdentities.Samwise;
 
@@ -103,7 +103,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
-        public async Task CannotUseExpiredAuthorizationCode()
+        public async Task FailToUseExpiredAuthorizationCode()
         {
             var identity = TestIdentities.Samwise;
             Guid appId = Guid.NewGuid();
@@ -136,7 +136,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
-        public async Task CannotAuthenticateRevokedApp()
+        public async Task FailToAuthenticateRevokedApp()
         {
             var identity = TestIdentities.Samwise;
 
@@ -145,7 +145,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
             await _scaffold.AddSampleApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
-            Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
             await _scaffold.RevokeSampleApp(identity, appId);
 
             using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
@@ -156,6 +155,32 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                     ApplicationId = appId,
                     DeviceUid = deviceUid
                 });
+                Assert.That(authCodeResponse.IsSuccessStatusCode, Is.False);
+            }
+        }
+        
+        [Test]
+        public async Task FailToAuthenticateRevokedDevice()
+        {
+            var identity = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            await _scaffold.AddSampleApp(identity, appId);
+            await _scaffold.AddAppDevice(identity, appId, deviceUid);
+
+            await _scaffold.RevokeDevice(identity, appId, deviceUid);
+
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            {
+                var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
+                var authCodeResponse = await ownerAuthSvc.CreateAppSession(new AppDevice()
+                {
+                    ApplicationId = appId,
+                    DeviceUid = deviceUid
+                });
+                
                 Assert.That(authCodeResponse.IsSuccessStatusCode, Is.False);
             }
         }

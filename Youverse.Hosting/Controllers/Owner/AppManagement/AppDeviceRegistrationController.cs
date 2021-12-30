@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
             return new JsonResult(reg);
         }
 
-        [HttpPost("/revoke")]
+        [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeAppDevice([FromQuery] Guid appId, [FromQuery] string deviceId64)
         {
             var bytes = Convert.FromBase64String(deviceId64);
@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
             return new NoResultResponse(true);
         }
 
-        [HttpPost("/allow")]
+        [HttpPost("allow")]
         public async Task<NoResultResponse> RemoveAppDeviceRevocation([FromQuery] Guid appId, [FromQuery] string deviceId64)
         {
             var bytes = Convert.FromBase64String(deviceId64);

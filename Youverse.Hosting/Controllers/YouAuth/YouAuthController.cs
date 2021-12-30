@@ -120,16 +120,6 @@ namespace Youverse.Hosting.Controllers.YouAuth
         }
 
         //
-
-        [HttpGet("/home/youauth/test/resource")]
-        [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
-        public ActionResult TestResource()
-        {
-            var subject = User?.Identity?.Name;
-            return new ObjectResult($"Hey {subject}! Here's my secret!");
-        }
-
-        //
+        
     }
 }
