@@ -15,6 +15,11 @@ namespace Youverse.Core.Cryptography.Data
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 
+        public SymmetricKeyEncryptedAes()
+        {
+            //For LiteDB
+        }
+
         public SymmetricKeyEncryptedAes(SecureKey secret)
         {
             var newKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)

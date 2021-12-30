@@ -82,7 +82,7 @@ namespace Youverse.Core.Cryptography.Data
 
     public class RsaFullKeyData : RsaPublicKeyData
     {
-        public SecureKey privateKey { get; set; }
+        public byte[] privateKey { get; set; }
         public UInt64 createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key
 
 
@@ -104,7 +104,7 @@ namespace Youverse.Core.Cryptography.Data
 
             // Save the DER encoded private and public keys in our own data structure
             this.createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
-            this.privateKey = new SecureKey(privateKeyInfo.GetDerEncoded());
+            this.privateKey = privateKeyInfo.GetDerEncoded();
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
@@ -123,7 +123,7 @@ namespace Youverse.Core.Cryptography.Data
         /// <param name="derEncodedPrivateKey"></param>
         public RsaFullKeyData(byte[] derEncodedFullKey)
         {
-            privateKey = new SecureKey(derEncodedFullKey);
+            privateKey = derEncodedFullKey;
             //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
             //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             //publicKey = pk.GetDerEncoded();
@@ -143,12 +143,12 @@ namespace Youverse.Core.Cryptography.Data
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return Convert.ToBase64String(privateKey.GetKey());
+            return Convert.ToBase64String(privateKey);
         }
 
         public byte[] Decrypt(byte[] cipherData)
         {
-            var privateKeyRestored = PrivateKeyFactory.CreateKey(privateKey.GetKey());
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(privateKey);
 
             var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
             cipher.Init(false, privateKeyRestored);

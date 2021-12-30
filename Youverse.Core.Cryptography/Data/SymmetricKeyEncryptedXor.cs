@@ -14,6 +14,11 @@ namespace Youverse.Core.Cryptography.Data
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 
+        public SymmetricKeyEncryptedXor()
+        {
+            //For LiteDB
+        }
+
         public SymmetricKeyEncryptedXor(SecureKey secretKeyToSplit, out byte[] halfKey1)
         {
             halfKey1 = ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length);

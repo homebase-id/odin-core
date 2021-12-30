@@ -24,7 +24,7 @@ namespace Youverse.Core.Cryptography.Crypto
         /// <param name="derEncodedPrivateKey"></param>
         public static void SetFullKey(RsaFullKeyData key, byte[] derEncodedPrivateKey)
         {
-            key.privateKey = new SecureKey(derEncodedPrivateKey);
+            key.privateKey = derEncodedPrivateKey;
             var pkRestored = PublicKeyFactory.CreateKey(key.publicKey);
             var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             key.publicKey = pk.GetDerEncoded();
