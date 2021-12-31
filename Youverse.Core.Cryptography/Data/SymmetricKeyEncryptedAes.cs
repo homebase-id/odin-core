@@ -17,7 +17,8 @@ namespace Youverse.Core.Cryptography.Data
 
         ~SymmetricKeyEncryptedAes()
         {
-            _decryptedKey.Wipe();
+            if (_decryptedKey != null)
+                _decryptedKey.Wipe();
         }
 
         public SymmetricKeyEncryptedAes()

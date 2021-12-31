@@ -34,7 +34,7 @@ namespace Youverse.Core.Cryptography
 
         ~SecureKey()
         {
-            this.Wipe();
+            Wipe();
         }
 
         public void Wipe()

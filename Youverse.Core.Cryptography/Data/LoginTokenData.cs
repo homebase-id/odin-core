@@ -2,7 +2,7 @@
 
 namespace Youverse.Core.Cryptography.Data
 {
-    public class LoginTokenData: IDisposable
+    public class LoginTokenData : IDisposable
     {
         ~LoginTokenData()
         {
@@ -19,7 +19,8 @@ namespace Youverse.Core.Cryptography.Data
         /// <summary>
         /// The Server's 1/2 of the KeK
         /// </summary>
-        public byte[] HalfKey { get; set; }
+        // public byte[] HalfKey { get; set; }
+        public SymmetricKeyEncryptedXor ServerHalfOwnerConsoleKey { get; set; }
 
         /// <summary>
         /// The shared secret between the client and the host
@@ -30,7 +31,8 @@ namespace Youverse.Core.Cryptography.Data
 
         public void Dispose()
         {
-            ByteArrayUtil.WipeByteArray(this.HalfKey);
+            // TODO: How to delete ServerHalfOwnerConsoleKey ?
+            // ByteArrayUtil.WipeByteArray(this.HalfKey);
             ByteArrayUtil.WipeByteArray(this.SharedSecret);
         }
     }
