@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive
@@ -61,5 +62,10 @@ namespace Youverse.Core.Services.Drive
         public virtual Guid Id { get; init; }
 
         public virtual string Name { get; set; }
+
+        /// <summary>
+        /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
+        /// </summary>
+        public SymmetricKeyEncryptedAes KeyHeaderEncryptionKey { get; set; }
     }
 }

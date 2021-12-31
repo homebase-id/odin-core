@@ -64,16 +64,16 @@ namespace Youverse.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetLoginKek(byte[] halfServer, byte[] halfClient)
+        public static SecureKey GetMasterKey(byte[] halfServer, byte[] halfClient)
         {
             return new SecureKey(XorManagement.XorEncrypt(halfServer, halfClient));
         }
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetLoginKek(LoginTokenData loginToken, byte[] halfCookie)
+        public static SecureKey GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
         {
-            return GetLoginKek(loginToken.HalfKey, halfCookie);
+            return GetMasterKey(loginToken.HalfKey, halfCookie);
         }
 
         // XXX TODO Shouldn't there be a GetLoginDek here?

@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -38,11 +40,15 @@ namespace Youverse.Core.Services.Drive
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
+            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SymmetricKeyEncryptedAes(secret);
+            
             var id = Guid.NewGuid();
             var sdb = new StorageDriveBase()
             {
                 Id = id,
                 Name = name,
+                KeyHeaderEncryptionKey = key
             };
 
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));

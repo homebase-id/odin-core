@@ -11,7 +11,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public string Name { get; set; }
 
-        public SymmetricKeyEncryptedAes EncryptedAppDek { get; set; }
+        /// <summary>
+        /// The value use used to access storage keys
+        /// </summary>
+        public SymmetricKeyEncryptedAes EncryptionKek { get; set; }
 
         public bool IsRevoked { get; set; }
         
@@ -19,5 +22,14 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// The drive associated with this app.
         /// </summary>
         public Guid? DriveId { get; set; }
+    }
+
+    /// <summary>
+    /// Grants an app access to a drive
+    /// </summary>
+    public class AppDriveAccess
+    {
+        public Guid AppId { get; set; }
+
     }
 }

@@ -42,7 +42,7 @@ namespace Youverse.Core.Cryptography.Tests
             // Server generates Login Authentication Token in DB and cookies for client.
             var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(nonce, rp, listRsa);
 
-            var testKek = LoginTokenManager.GetLoginKek(loginToken, halfCookie);
+            var testKek = LoginTokenManager.GetMasterKey(loginToken, halfCookie);
 
             if (ByteArrayUtil.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {

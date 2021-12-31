@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            var key = new SymmetricKeyEncryptedAes(this._context.Caller.GetLoginDek());
+            var key = new SymmetricKeyEncryptedAes(this._context.Caller.GetMasterKey());
 
             Guid? driveId = null;
             if (createDrive)
@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 Name = name,
                 DriveId = driveId,
-                EncryptedAppDek = key
+                EncryptionKek = key
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
-            var decryptedAppDek = savedApp.EncryptedAppDek.DecryptKey(this._context.Caller.GetLoginDek().GetKey());
+            var decryptedAppDek = savedApp.EncryptionKek.DecryptKey(this._context.Caller.GetMasterKey().GetKey());
             var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
             decryptedAppDek.Wipe();
 

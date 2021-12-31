@@ -3,6 +3,9 @@ using Newtonsoft.Json.Linq;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
+    /// <summary>
+    /// Metadata provided by the app to describe the file
+    /// </summary>
     public class AppFileMetaData
     {
         /// <summary>

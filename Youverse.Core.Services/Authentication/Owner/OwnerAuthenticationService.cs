@@ -107,7 +107,7 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new Exception("Token is invalid");
             }
 
-            return await _secretService.GetDek(loginToken, clientHalfKek);
+            return await _secretService.GetMasterKey(loginToken, clientHalfKek);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)

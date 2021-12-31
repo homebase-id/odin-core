@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>
-        public SecureKey GetLoginDek()
+        public SecureKey GetMasterKey()
         {
             //TODO: add audit point
             return this._loginDek;

@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
-        public async Task<SecureKey> GetDek(LoginTokenData loginToken, SecureKey clientHalfKek)
+        public async Task<SecureKey> GetMasterKey(LoginTokenData loginToken, SecureKey clientHalfKek)
         {
             var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
             if (null == pk)
@@ -66,11 +66,11 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
+            var masterKey = LoginTokenManager.GetMasterKey(loginToken.HalfKey, clientHalfKek.GetKey());
 
-            var dek = pk.EncryptedDek.DecryptKey(loginKek.GetKey());
+            var dek = pk.EncryptedDek.DecryptKey(masterKey.GetKey());
 
-            loginKek.Wipe();
+            masterKey.Wipe();
             loginToken.Dispose();
 
             return dek;
