@@ -105,8 +105,14 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task MoveToTemp(DriveFileId file);
 
-        Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         Task<IEnumerable<FileMetaData>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
+        
+        /// <summary>
+        /// Converts a transfer key header to a long term key header and stores it for the specified file.
+        /// </summary>
+        Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition);
+        
     }
 }

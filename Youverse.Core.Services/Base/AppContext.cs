@@ -11,21 +11,21 @@ namespace Youverse.Core.Services.Base
     public class AppContext
     {
         private readonly SecureKey _appEncryptionKey;
-        private readonly SecureKey _appSharedSecret;
+        private readonly SecureKey _deviceSharedSecret;
         private readonly string _appId;
         private readonly byte[] _deviceUid;
         private readonly bool _isAdminApp;
 
         private readonly Guid? _driveId;
 
-        public AppContext(string appId, byte[] deviceUid, SecureKey appEncryptionKey, SecureKey appSharedSecret, bool isAdminApp, Guid? driveId)
+        public AppContext(string appId, byte[] deviceUid, SecureKey appEncryptionKey, SecureKey deviceSharedSecret, bool isAdminApp, Guid? driveId)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
 
             this._appId = appId;
             this._appEncryptionKey = appEncryptionKey;
-            this._appSharedSecret = appSharedSecret;
+            this._deviceSharedSecret = deviceSharedSecret;
             _isAdminApp = isAdminApp;
             _driveId = driveId;
             this._deviceUid = deviceUid;
@@ -45,9 +45,9 @@ namespace Youverse.Core.Services.Base
         /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <returns></returns>
-        public SecureKey GetSharedSecret()
+        public SecureKey GetDeviceSharedSecret()
         {
-            return this._appSharedSecret;
+            return this._deviceSharedSecret;
         }
 
         /// <summary>
@@ -58,11 +58,6 @@ namespace Youverse.Core.Services.Base
         public SecureKey GetAppEncryptionKey()
         {
             return this._appEncryptionKey;
-        }
-
-        public bool IsAdminApp()
-        {
-            return _isAdminApp;
         }
     }
 }

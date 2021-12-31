@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using LiteDB;
 using Youverse.Core.Cryptography.Data;
 
@@ -6,6 +7,11 @@ namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistration
     {
+        public AppRegistration()
+        {
+            this.DriveGrants = new Dictionary<Guid, SymmetricKeyEncryptedAes>();
+        }
+
         [BsonId]
         public Guid ApplicationId { get; set; }
         
@@ -21,15 +27,16 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The drive associated with this app.
         /// </summary>
-        public Guid? DriveId { get; set; }
-    }
+        public Guid? PrimaryDriveId { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        public SymmetricKeyEncryptedAes PrimaryDriveEncryptionKey { get; set; }
 
-    /// <summary>
-    /// Grants an app access to a drive
-    /// </summary>
-    public class AppDriveAccess
-    {
-        public Guid AppId { get; set; }
-
+        /// <summary>
+        /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
+        /// </summary>
+        public Dictionary<Guid, SymmetricKeyEncryptedAes> DriveGrants { get; set; }
     }
 }

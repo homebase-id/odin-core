@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
     public class AppRegistrationTests
     {
         private TestScaffold _scaffold;
-        
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -33,13 +33,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var newId = await AddSampleAppNoDrive(appId, name);
         }
-        
+
         [Test]
         public async Task RegisterNewAppWithDrive()
         {
-            var appId = Guid.NewGuid();
-            var name = "API Tests Sample App-register";
-            var newId = await AddSampleAppNoDrive(appId, name);
+            Assert.Inconclusive("TODO");
         }
 
         [Test]
@@ -57,7 +55,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
                 Assert.IsTrue(revokeResponse.Content?.Success);
-                
+
                 var savedApp = await GetSampleApp(appId);
                 Assert.IsNotNull(savedApp);
                 Assert.IsTrue(savedApp.IsRevoked);
@@ -76,24 +74,24 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
-                
+
                 //TODO: rsa encrypt the shared secret
-                
+
                 var payload = new AppDeviceRegistrationRequest()
                 {
                     ApplicationId = appId,
                     DeviceId64 = Convert.ToBase64String(Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray()),
                     SharedSecret64 = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
                 };
-                    
+
                 var regResponse = await svc.RegisterAppOnDevice(payload);
                 Assert.IsTrue(regResponse.IsSuccessStatusCode);
 
                 var savedAppDeviceResponse = await svc.GetRegisteredAppDevice(appId, payload.DeviceId64);
-                
+
                 Assert.IsTrue(savedAppDeviceResponse.IsSuccessStatusCode);
                 var savedAppDevice = savedAppDeviceResponse.Content;
-                
+
                 Assert.IsNotNull(savedAppDevice);
                 Assert.IsTrue(savedAppDevice.ApplicationId == appId);
                 Assert.IsFalse(savedAppDevice.IsRevoked);
@@ -126,7 +124,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
                 Assert.IsTrue(savedApp.Name == request.Name);
                 Assert.IsTrue(savedApp.DriveId == null);
-                
+
                 return appReg;
             }
         }

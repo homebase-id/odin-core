@@ -74,7 +74,14 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <returns></returns>
         Task MoveToTemp(Guid fileId);
 
-        Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        /// <summary>
+        /// Writes an <see cref="EncryptedKeyHeader"/> to storage
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <param name="encryptedKeyHeader"></param>
+        /// <param name="storageDisposition"></param>
+        /// <returns></returns>
+        Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         /// <summary>
         /// Returns an enumeration of <see cref="FileMetaData"/>; ordered by the most recently modified

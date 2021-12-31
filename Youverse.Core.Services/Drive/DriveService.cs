@@ -35,22 +35,21 @@ namespace Youverse.Core.Services.Drive
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
-        //TODO: add storage dek here
+
         public Task<StorageDrive> CreateDrive(string name)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(secret);
+            var driveKek = new SecureKey(_context.Caller.GetMasterKey().GetKey());
             
             var id = Guid.NewGuid();
             var sdb = new StorageDriveBase()
             {
                 Id = id,
                 Name = name,
-                KeyHeaderEncryptionKey = key
+                EncryptionKek = new SymmetricKeyEncryptedAes(driveKek)
             };
-
+            
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
 
             var sd = ToStorageDrive(sdb);
@@ -135,7 +134,20 @@ namespace Youverse.Core.Services.Drive
         {
             return GetStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
-        
+
+        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition)
+        {
+            var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
+            var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
+
+            var manager = GetStorageManager(file.DriveId);
+            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(_context.Caller.GetMasterKey().GetKey());
+            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, driveEncryptionKey.GetKey());
+            
+            await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
+            return encryptedKeyHeader;
+        }
+
         public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
@@ -192,11 +204,10 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).MoveToTemp(file.FileId);
         }
 
-        public Task WriteKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).WriteKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
+            return GetStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
-        
 
         private void OnLongTermFileChanged(DriveFileId file, FileMetaData metaData)
         {

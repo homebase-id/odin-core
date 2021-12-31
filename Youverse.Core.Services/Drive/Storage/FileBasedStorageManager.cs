@@ -6,7 +6,6 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -135,14 +134,6 @@ namespace Youverse.Core.Services.Drive.Storage
 
             var ekh = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
             return ekh;
-        }
-
-        public async Task WriteKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
-        {
-            var json = JsonConvert.SerializeObject(keyHeader);
-            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
-            await this.WritePartStream(fileId, FilePart.Header, stream, storageDisposition);
-            stream.Close();
         }
 
         public void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -279,6 +270,14 @@ namespace Youverse.Core.Services.Drive.Storage
             return metadata;
         }
 
+        public async Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            var json = JsonConvert.SerializeObject(keyHeader);
+            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+            await this.WritePartStream(fileId, FilePart.Header, stream, storageDisposition);
+            stream.Close();
+        }
+        
         private string GetFileDirectory(Guid fileId, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(storageDisposition);

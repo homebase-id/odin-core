@@ -79,12 +79,12 @@ namespace Youverse.Hosting.Middleware
 
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
-            var loginDek = await authService.GetOwnerDek(authResult.SessionToken, authResult.ClientHalfKek);
+            var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: true,
-                loginDek: loginDek
+                masterKey: masterKey
             );
 
             dotYouContext.AppContext = null;
@@ -103,7 +103,7 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                loginDek: null
+                masterKey: null
             );
 
             //TODO: what do we need for the appEncryptionKey?
@@ -114,7 +114,7 @@ namespace Youverse.Hosting.Middleware
                 appId: appId.ToString(),
                 deviceUid: deviceUid,
                 appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
-                appSharedSecret: new SecureKey(deviceReg.SharedSecret),
+                deviceSharedSecret: new SecureKey(deviceReg.SharedSecret),
                 isAdminApp: false,
                 driveId: driveId);
         }
@@ -130,7 +130,7 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                loginDek: null
+                masterKey: null
             );
 
             //appReg.EncryptedAppDeK
@@ -140,7 +140,7 @@ namespace Youverse.Hosting.Middleware
                 appId: appId.ToString(),
                 deviceUid: null,
                 appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
-                appSharedSecret: null,
+                deviceSharedSecret: null,
                 isAdminApp: false,
                 driveId: driveId);
         }

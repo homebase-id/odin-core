@@ -8,13 +8,13 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class CallerContext
     {
-        private readonly SecureKey _loginDek;
+        private readonly SecureKey _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey loginDek)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey masterKey)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
-            this._loginDek = loginDek;
+            this._masterKey = masterKey;
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Base
         public SecureKey GetMasterKey()
         {
             //TODO: add audit point
-            return this._loginDek;
+            return this._masterKey;
         }
     }
 }

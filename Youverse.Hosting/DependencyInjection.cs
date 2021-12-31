@@ -69,7 +69,6 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
             cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
-            cb.RegisterType<EncryptionService>().As<IEncryptionService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();

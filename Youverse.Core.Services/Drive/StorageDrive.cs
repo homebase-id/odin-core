@@ -38,6 +38,12 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public override SymmetricKeyEncryptedAes EncryptionKek
+        {
+            get => _inner.EncryptionKek;
+            set { }
+        }
+
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
@@ -66,6 +72,6 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
         /// </summary>
-        public SymmetricKeyEncryptedAes KeyHeaderEncryptionKey { get; set; }
+        public virtual SymmetricKeyEncryptedAes EncryptionKek { get; set; }
     }
 }

@@ -21,7 +21,6 @@ namespace Youverse.Core.Services.Transit
         private readonly IDriveService _driveService;
         private readonly IOutboxService _outboxService;
         private readonly IInboxService _inboxService;
-        private readonly IEncryptionService _encryption;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContext _context;
         private readonly ILogger<TransitService> _logger;
@@ -35,7 +34,6 @@ namespace Youverse.Core.Services.Transit
             ILogger<TransitService> logger,
             IOutboxService outboxService,
             IDriveService driveService,
-            IEncryptionService encryptionSvc,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
             IInboxService inboxService,
@@ -45,7 +43,6 @@ namespace Youverse.Core.Services.Transit
             _context = context;
             _outboxService = outboxService;
             _driveService = driveService;
-            _encryption = encryptionSvc;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _inboxService = inboxService;
             _systemStorage = systemStorage;

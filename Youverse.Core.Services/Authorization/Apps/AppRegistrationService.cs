@@ -38,23 +38,30 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            var key = new SymmetricKeyEncryptedAes(this._context.Caller.GetMasterKey());
-
             Guid? driveId = null;
+            SymmetricKeyEncryptedAes primaryDriveKey = null;
+            
+            var masterKey = this._context.Caller.GetMasterKey();
+            var appKek = new SymmetricKeyEncryptedAes(masterKey);
+            
             if (createDrive)
             {
-                //TODO: create integrate Storage DEK and associate to app DEK
+                var drive = await _driveService.CreateDrive($"{name}-drive");
+                driveId = drive.Id;
 
-                var sd = await _driveService.CreateDrive($"{name}-drive");
-                driveId = sd.Id;
+                var storageKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
+                primaryDriveKey = new SymmetricKeyEncryptedAes(appKek.DecryptKey(masterKey.GetKey()));
+                storageKey.Wipe();
             }
-
+            
             var appReg = new AppRegistration()
             {
                 ApplicationId = applicationId,
                 Name = name,
-                DriveId = driveId,
-                EncryptionKek = key
+                EncryptionKek = appKek,
+                
+                PrimaryDriveId = driveId,
+                PrimaryDriveEncryptionKey = primaryDriveKey,
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -176,12 +183,12 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
         {
-            //NOTE: we're not sharing the encrypted app dek, this is crutial
+            //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
                 Name = appReg.Name,
-                DriveId = appReg.DriveId,
+                DriveId = appReg.PrimaryDriveId,
                 IsRevoked = appReg.IsRevoked
             };
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -15,18 +16,16 @@ namespace Youverse.Core.Services.Transit.Upload
     public class MultipartPackageStorageWriter : IMultipartPackageStorageWriter
     {
         private readonly DotYouContext _context;
-        private readonly IEncryptionService _encryptionService;
         private readonly IDriveService _driveService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
         private byte[] _initializationVector;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService, IEncryptionService encryptionService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService)
         {
             _context = context;
             _driveService = driveService;
-            _encryptionService = encryptionService;
             _packages = new Dictionary<Guid, UploadPackage>();
             _partCounts = new Dictionary<Guid, int>();
         }
@@ -49,11 +48,17 @@ namespace Youverse.Core.Services.Transit.Upload
 
             if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
             {
-                var encryptedKeyHeader = await _encryptionService.ConvertTransferKeyHeaderStream(data);
+                string json = await new StreamReader(data).ReadToEndAsync();
+                var transferEncryptedKeyHeader = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
 
-                _initializationVector = encryptedKeyHeader.Iv; //saved for decrypting recipients
+                if (null == transferEncryptedKeyHeader)
+                {
+                    throw new InvalidDataException("Invalid transfer key header");
+                }
 
-                await _driveService.WriteKeyHeader(pkg.File, encryptedKeyHeader, StorageDisposition.Temporary);
+                await _driveService.WriteTransferKeyHeader(pkg.File, transferEncryptedKeyHeader, StorageDisposition.Temporary);
+                _initializationVector = transferEncryptedKeyHeader.Iv; //saved for decrypting recipients
+
                 _partCounts[pkgId]++;
             }
             else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
@@ -114,7 +119,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 encryptedBytes = ms.ToArray();
             }
 
-            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetSharedSecret().GetKey(), this._initializationVector);
+            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetDeviceSharedSecret().GetKey(), this._initializationVector);
             var t = JsonConvert.DeserializeObject<T>(json);
             return t;
         }
