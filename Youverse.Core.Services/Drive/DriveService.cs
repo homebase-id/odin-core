@@ -139,9 +139,12 @@ namespace Youverse.Core.Services.Drive
         {
             var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
-
             var manager = GetStorageManager(file.DriveId);
-            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(_context.Caller.GetMasterKey().GetKey());
+            
+            //Need to get the key for this drive from the current app.
+            var key = _context.AppContext.
+            
+            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(key);
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, driveEncryptionKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);

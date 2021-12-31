@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.Transit
                  Result is __EncryptedRecipientTransferKeyHeader__;
              :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
             */
-            var appEncryptionKey = this._context.AppContext.GetAppEncryptionKey();
+            var appEncryptionKey = this._context.AppContext.GetDriveStorageDek();
 
             var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()

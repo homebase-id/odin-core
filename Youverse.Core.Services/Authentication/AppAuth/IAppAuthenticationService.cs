@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Authentication.AppAuth
 {

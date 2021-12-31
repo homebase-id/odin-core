@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -14,6 +15,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
 {
     public class AppAuthenticationService : IAppAuthenticationService
     {
+        private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
         private readonly IAppRegistrationService _appRegistrationService;
         private readonly ILogger<IAppAuthenticationService> _logger;
@@ -23,18 +25,18 @@ namespace Youverse.Core.Services.Authentication.AppAuth
 
         public AppAuthenticationService(DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ILogger<IAppAuthenticationService> logger)
         {
+            _context = context;
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _logger = logger;
-
+            
             _authCodes = new Dictionary<Guid, AppAuthAuthorizationCode>();
         }
 
         public async Task<Guid> CreateSessionToken(AppDevice appDevice)
         {
-            //TODO: might need check against the owner authentication
-            //service to ensure the owner has a valid session.  this is done
-            //by the webapi so not sure if its needed 
+            //this method can only be called if youre logged using the owner-auth scheme
+            _context.Caller.AssertHasMasterKey();
 
             var appReg = await _appRegistrationService.GetAppRegistration(appDevice.ApplicationId);
             if (null == appReg || appReg.IsRevoked)

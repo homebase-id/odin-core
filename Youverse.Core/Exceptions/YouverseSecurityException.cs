@@ -1,9 +1,9 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Exceptions
 {
-    internal class YouverseSecurityException : Exception
+    public class YouverseSecurityException : Exception
     {
         public YouverseSecurityException()
         {

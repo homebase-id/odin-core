@@ -40,15 +40,11 @@ namespace Youverse.Hosting.Authentication.App
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
-            if (GetAppId(out var appIdentity))
+            if (GetAuthResut(out var authResult))
             {
-                var validationResult = await authService.ValidateSessionToken(appIdentity.SessionToken);
+                var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
                 if (validationResult.IsValid)
                 {
-                    var appDevice = validationResult.AppDevice;
-                    //TODO: Optimize by returning the device shared secret and app encryption key from the ValidateSessionToken call above
-                    
-                    
                     //TODO: this needs to be pulled from context rather than the domain
                     string domain = this.Context.Request.Host.Host;
 
@@ -59,9 +55,6 @@ namespace Youverse.Hosting.Authentication.App
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                         
                         new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-
-                        new Claim(DotYouClaimTypes.AppId, appDevice.ApplicationId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.DeviceUid64, Convert.ToBase64String(appDevice.DeviceUid), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
                         new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
                     };
@@ -76,7 +69,7 @@ namespace Youverse.Hosting.Authentication.App
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, AppAuthConstants.SchemeName);
-                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, appIdentity.SessionToken);
+                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.SessionToken);
                     return AuthenticateResult.Success(ticket);
                 }
             }
@@ -91,7 +84,7 @@ namespace Youverse.Hosting.Authentication.App
 
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
-            if (GetAppId(out var result))
+            if (GetAuthResut(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
                 authService.ExpireToken(result.SessionToken);
@@ -105,7 +98,7 @@ namespace Youverse.Hosting.Authentication.App
             return Task.CompletedTask;
         }
 
-        private bool GetAppId(out DotYouAuthenticationResult result)
+        private bool GetAuthResut(out DotYouAuthenticationResult result)
         {
             var value = Context.Request.Cookies[AppAuthConstants.CookieName];
             if (DotYouAuthenticationResult.TryParse(value, out result))

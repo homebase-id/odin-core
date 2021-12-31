@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
@@ -92,13 +93,17 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            var user = httpContext.User;
-            var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
-            var deviceUid = Convert.FromBase64String(user.FindFirstValue(DotYouClaimTypes.DeviceUid64));
-
+            var authService = httpContext.RequestServices.GetRequiredService<IAppAuthenticationService>();
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appReg = await appRegSvc.GetAppRegistration(appId);
-            var deviceReg = await appRegSvc.GetAppDeviceRegistration(appId, deviceUid);
+            
+            var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
+            var authResult = DotYouAuthenticationResult.Parse(value);
+            var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
+            var appDevice = validationResult.AppDevice;
+            var user = httpContext.User;
+            
+            var appReg = await appRegSvc.GetAppRegistration(appDevice.ApplicationId);
+            var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
@@ -106,16 +111,24 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null
             );
 
-            //TODO: what do we need for the appEncryptionKey?
-            //appReg.EncryptedAppDeK
-            //how to specify the destination drive?
+            /*
+             Todo: provide the drive storage dek so we cn access drive
+                i think this should be secure where you have to request the storage dek
+                for a given drive.  it fails with security exception if there's no access
+                
+                1. Get the device 1/2 kek; from the auth token
+                2. get the full appdevicekek fromm the appreg.appdrives or primarydrive
+             */
+            
+            //authResult.ClientHalfKek
+             appReg   
+
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
-                appId: appId.ToString(),
-                deviceUid: deviceUid,
+                appId: appDevice.ApplicationId.ToString(),
+                deviceUid: appDevice.DeviceUid,
                 appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
                 deviceSharedSecret: new SecureKey(deviceReg.SharedSecret),
-                isAdminApp: false,
                 driveId: driveId);
         }
 
@@ -141,7 +154,6 @@ namespace Youverse.Hosting.Middleware
                 deviceUid: null,
                 appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
                 deviceSharedSecret: null,
-                isAdminApp: false,
                 driveId: driveId);
         }
     }

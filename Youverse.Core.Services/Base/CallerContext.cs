@@ -1,4 +1,5 @@
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Base
@@ -27,12 +28,26 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public bool IsOwner { get; }
 
+        public bool HasMasterKey
+        {
+            get => this._masterKey != null && !this._masterKey.IsEmpty();
+        }
+
+        public void AssertHasMasterKey()
+        {
+            if (!HasMasterKey)
+            {
+                throw new YouverseSecurityException("Master key not available; check your auth scheme");
+            }
+        }
 
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>
         public SecureKey GetMasterKey()
         {
+            AssertHasMasterKey();
+
             //TODO: add audit point
             return this._masterKey;
         }
