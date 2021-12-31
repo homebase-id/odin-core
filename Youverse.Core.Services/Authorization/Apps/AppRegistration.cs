@@ -1,5 +1,6 @@
 ﻿using System;
 using LiteDB;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -10,10 +11,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public string Name { get; set; }
 
-        public byte[] EncryptedAppDeK { get; set; }
+        public SymmetricKeyEncryptedAes EncryptedAppDek { get; set; }
 
-        public byte[] AppIV { get; set; }
-        
         public bool IsRevoked { get; set; }
         
         /// <summary>

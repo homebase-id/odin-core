@@ -14,12 +14,12 @@ namespace Youverse.Core.Cryptography.Data
         public Guid applicationId; // 16-byte guid id to lookup the Application entry
 
         public Guid deviceApplicationId;      // Random 16-byte secure HTTP only client cookie
-        public byte[] halfAdek;      // Random 16-byte client cookie needed to calculate the application DeK
 
+        public SymmetricKeyEncryptedXor keyHalfKek; // This is the server half of the key, client half is in the client cookie / token
+        
         public byte[] SharedSecret;  // The secret shared with the client. We need one per client
         public NonceTable NonceKeeper { get; set; }
         public bool IsRevoked { get; set; }
-
     }
 
     public class DeviceRegistration

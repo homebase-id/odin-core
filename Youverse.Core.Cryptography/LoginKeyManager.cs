@@ -19,8 +19,8 @@ namespace Youverse.Core.Cryptography
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
         private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
-        //private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64, out TestEncryptedData testEncryptedData)
         {
+
             var passwordKey = new LoginKeyData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
@@ -28,45 +28,34 @@ namespace Youverse.Core.Cryptography
                 HashPassword = Convert.FromBase64String(HashedPassword64)
             };
 
-            var dek = ByteArrayUtil.GetRndByteArray(16); // Create the DeK
-
-
-            passwordKey.VerificationIv = ByteArrayUtil.GetRndByteArray(16);
-            passwordKey.VerificationValue = ByteArrayUtil.GetRndByteArray(16);
-            passwordKey.EncryptedVerificationValue = AesCbc.EncryptBytesToBytes_Aes(passwordKey.VerificationValue, dek, passwordKey.VerificationIv);
-
-            //TODO: can be used to validate the generated dek is a valid key
-            // testEncryptedData = new TestEncryptedData();
-            // (testEncryptedData.Iv, testEncryptedData.CipherText) = AesCbc.EncryptStringToBytes_Aes(testEncryptedData.ClearText, dek);
-
-            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(dek, Convert.FromBase64String(KeK64));
-
-            ByteArrayUtil.WipeByteArray(dek);
+            // TODO: Hm, I really DONT like that we pass the KEK as a string.
+            // gives me the shivers... I'll redo the client <-> server passing
+            // so that we base64 encode the RSA encrypted string, rather than passing
+            // a nice readable string over and then encrypting it. 
+            // This way, once we RSA decrypt it is a byte array and we can zap it.
+            var KekKey = new SecureKey(Convert.FromBase64String(KeK64));
+            passwordKey.EncryptedDek = new SymmetricKeyEncryptedAes(KekKey);
 
             return passwordKey;
         }
 
-        public static bool IsValidAdminDek(byte[] iv, byte[] dek, byte[] encryptedValue, byte[] verificationValue)
-        {
-            var decryptedVerificationValue = AesCbc.DecryptBytesFromBytes_Aes(encryptedValue, dek, iv);
-            return ByteArrayUtil.EquiByteArrayCompare(verificationValue, decryptedVerificationValue);
-        }
-
         public static void ChangePassword(LoginKeyData passwordKey, byte[] oldKeK, byte[] newKeK)
         {
-            var DeK = GetDek(passwordKey, oldKeK);
-            passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, newKeK);
-            ByteArrayUtil.WipeByteArray(DeK);
+            throw new Exception();
+
+            // var DeK = GetDek(passwordKey, oldKeK);
+            // passwordKey.XorEncryptedDek = XorManagement.XorEncrypt(DeK, newKeK);
+            // ByteArrayUtil.WipeByteArray(DeK);
         }
 
-        public static byte[] GetDek(LoginKeyData passwordKey, byte[] KeK)
+        public static SecureKey GetDek(LoginKeyData passwordKey, byte[] KeK)
         {
-            return GetDek(passwordKey.XorEncryptedDek, KeK);
+            return GetDek(passwordKey.EncryptedDek, KeK);
         }
 
-        public static byte[] GetDek(byte[] xorEncryptedDek, byte[] KeK)
+        public static SecureKey GetDek(SymmetricKeyEncryptedAes EncryptedDek, byte[] KeK)
         {
-            return XorManagement.XorEncrypt(xorEncryptedDek, KeK);
+            return EncryptedDek.DecryptKey(KeK);
         }
 
         /// <summary>
@@ -108,7 +97,7 @@ namespace Youverse.Core.Cryptography
 
             try
             {
-                decryptedRSA = RsaKeyManagement.Decrypt(key, Convert.FromBase64String(reply.RsaEncrypted));
+                decryptedRSA = key.Decrypt(Convert.FromBase64String(reply.RsaEncrypted));
             }
             catch
             {

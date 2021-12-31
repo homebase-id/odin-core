@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: apps cannot access this method
             //AssertCallerIsNotApp();
 
-            AppEncryptionKey key = AppRegistrationManager.CreateAppDek(this._context.Caller.GetLoginDek().GetKey());
+            var key = new SymmetricKeyEncryptedAes(this._context.Caller.GetLoginDek());
 
             Guid? driveId = null;
             if (createDrive)
@@ -53,9 +53,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = applicationId,
                 Name = name,
-                AppIV = key.AppIV,
-                EncryptedAppDeK = key.EncryptedAppDeK,
-                DriveId = driveId
+                DriveId = driveId,
+                EncryptedAppDek = key
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -111,14 +110,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
-            var appEnc = new AppEncryptionKey()
-            {
-                AppIV = savedApp.AppIV,
-                EncryptedAppDeK = savedApp.EncryptedAppDeK
-            };
-
-            var decryptedAppDek = AppRegistrationManager.DecryptAppDekWithLoginDek(appEnc, this._context.Caller.GetLoginDek());
-            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek.GetKey(), sharedSecret);
+            var decryptedAppDek = savedApp.EncryptedAppDek.DecryptKey(this._context.Caller.GetLoginDek().GetKey());
+            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
             decryptedAppDek.Wipe();
 
             //Note: never store deviceAppToken
@@ -129,7 +122,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                HalfAdek = serverRegData.halfAdek,
+                keyHalfKek = serverRegData.keyHalfKek,
                 IsRevoked = false
             };
 

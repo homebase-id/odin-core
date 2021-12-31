@@ -3,7 +3,7 @@
 namespace Youverse.Core.Cryptography.Data
 {
     public class LoginKeyData
-    {   
+    {
         public static Guid Key => Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         /// <summary>
@@ -27,25 +27,10 @@ namespace Youverse.Core.Cryptography.Data
         public byte[] HashPassword { get; set; }
 
         /// <summary>
-        /// This is the DeK encrypted with the KeK. You'll derive the KeK from the 
-        /// LoginTokenData when the client and server halves meet.
+        /// This is the DeK (encrypted with the KeK). You'll derive the KeK from the 
+        /// LoginTokenData when the client and server halves meet. The KeK is sent
+        /// RSA encrypted from the client to the host.
         /// </summary>
-        public byte[] XorEncryptedDek { get; set; }
-
-        /// <summary>
-        /// The value which must be matched by the admin verification service to establish the running thing
-        /// </summary>
-        public byte[] VerificationValue { get; set; }
-
-        /// <summary>
-        /// Encrypted with Admin Dek
-        /// </summary>
-        public byte[] EncryptedVerificationValue { get; set; }
-
-        /// <summary>
-        /// The initialization vector for the encryption of the <see cref="VerificationValue"/>
-        /// </summary>
-        public byte[] VerificationIv { get; set; }
-
+        public SymmetricKeyEncryptedAes EncryptedDek { get; set; }
     }
 }

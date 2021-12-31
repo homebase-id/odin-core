@@ -56,7 +56,7 @@ namespace Youverse.Core.Cryptography.Crypto
             if (CanGenerateNewKey(listRsa) == false)
                 throw new Exception("Cannot generate new RSA key because the previous is in use");
 
-            var rsa = RsaKeyManagement.CreateKey(hours);
+            var rsa = new RsaFullKeyData(hours);
 
             listRsa.ListRSA.Insert(0, rsa);
             if (listRsa.ListRSA.Count > listRsa.MaxKeys)
@@ -71,7 +71,7 @@ namespace Youverse.Core.Cryptography.Crypto
             if (listRsa.ListRSA == null)
                 throw new Exception("List shouldn't be null");
 
-            if (RsaKeyManagement.IsDead(listRsa.ListRSA[0]))
+            if (listRsa.ListRSA[0].IsDead())
             {
                 listRsa.ListRSA.RemoveAt(0); // Remove First
                 GenerateNewKey(listRsa, DefaultKeyHours);
@@ -100,7 +100,7 @@ namespace Youverse.Core.Cryptography.Crypto
 
             if (listRsa.ListRSA[0] != null)
             {
-                if (RsaKeyManagement.IsDead(listRsa.ListRSA[0]))
+                if (listRsa.ListRSA[0].IsDead())
                 {
                     listRsa.ListRSA.RemoveAt(0);
                     return FindKey(listRsa, publicKeyCrc);
@@ -113,7 +113,7 @@ namespace Youverse.Core.Cryptography.Crypto
             // Check if the previous key matches (but don't check further)
             if (listRsa.ListRSA.Count >= 2)
             {
-                if (RsaKeyManagement.IsDead(listRsa.ListRSA[1]))
+                if (listRsa.ListRSA[1].IsDead())
                 {
                     listRsa.ListRSA.RemoveAt(1);
                     return null;
@@ -138,7 +138,7 @@ namespace Youverse.Core.Cryptography.Crypto
 
         public static string GetCurrentPublicKeyPem(RsaKeyListData listRsa)
         {
-            return RsaKeyManagement.publicPem(GetCurrentKey(ref listRsa, out var _));
+            return GetCurrentKey(ref listRsa, out var _).publicPem();
         }
     }
 }
