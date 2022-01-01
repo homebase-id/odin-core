@@ -55,8 +55,9 @@ namespace Youverse.Core.Cryptography
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
-            var halfCookie = ByteArrayUtil.GetRndByteArray(16);
-            token.HalfKey = XorManagement.XorEncrypt(Convert.FromBase64String(kek64), halfCookie);
+            var kek = new SecureKey(Convert.FromBase64String(kek64));
+            token.ServerHalfOwnerConsoleKey = new SymmetricKeyEncryptedXor(kek, out var halfCookie);
+            kek.Wipe();
 
             return (halfCookie, token);
         }
@@ -73,7 +74,8 @@ namespace Youverse.Core.Cryptography
         // the application KeK that will unlock the DeK.
         public static SecureKey GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
         {
-            return GetMasterKey(loginToken.HalfKey, halfCookie);
+            return loginToken.ServerHalfOwnerConsoleKey.DecryptKey(halfCookie);
+            // return GetLoginKek(loginToken.HalfKey, halfCookie);
         }
 
         // XXX TODO Shouldn't there be a GetLoginDek here?

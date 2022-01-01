@@ -66,7 +66,8 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            var masterKey = LoginTokenManager.GetMasterKey(loginToken.HalfKey, clientHalfKek.GetKey());
+            // var loginKek = LoginTokenManager.GetLoginKek(loginToken.HalfKey, clientHalfKek.GetKey());
+            var masterKey = loginToken.ServerHalfOwnerConsoleKey.DecryptKey(clientHalfKek.GetKey());
 
             var dek = pk.EncryptedDek.DecryptKey(masterKey.GetKey());
 
