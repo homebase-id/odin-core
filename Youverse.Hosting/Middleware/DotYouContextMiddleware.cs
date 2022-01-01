@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Middleware
             var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: true,
                 masterKey: masterKey
             );
@@ -95,39 +95,40 @@ namespace Youverse.Hosting.Middleware
         {
             var authService = httpContext.RequestServices.GetRequiredService<IAppAuthenticationService>();
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            
+
             var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
             var authResult = DotYouAuthenticationResult.Parse(value);
             var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
             var appDevice = validationResult.AppDevice;
             var user = httpContext.User;
-            
+
             var appReg = await appRegSvc.GetAppRegistration(appDevice.ApplicationId);
             var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null
             );
 
             /*
-             Todo: provide the drive storage dek so we cn access drive
+             TODO: provide the drive storage dek so we can access the drive
                 i think this should be secure where you have to request the storage dek
                 for a given drive.  it fails with security exception if there's no access
                 
-                1. Get the device 1/2 kek; from the auth token
+                1. Get the device 1/2 kek; from the auth token (clientHalfKek)
                 2. get the full appdevicekek fromm the appreg.appdrives or primarydrive
+                    2a. Lookup appDevice by deviceUId
+                    2b. Combine clientHalfKek with appDeviceServerKek to get the key to unlock AppRegistration.EncryptionKek
              */
-            
-            //authResult.ClientHalfKek
-             appReg   
 
+            //authResult.ClientHalfKek
+            appRegSvc.
+            
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appDevice.ApplicationId.ToString(),
                 deviceUid: appDevice.DeviceUid,
-                appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
                 deviceSharedSecret: new SecureKey(deviceReg.SharedSecret),
                 driveId: driveId);
         }
@@ -141,7 +142,7 @@ namespace Youverse.Hosting.Middleware
             var appReg = await appRegSvc.GetAppRegistration(appId);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity)user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null
             );

@@ -10,20 +10,18 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext
     {
-        private readonly SecureKey _appEncryptionKey;
         private readonly SecureKey _deviceSharedSecret;
         private readonly string _appId;
         private readonly byte[] _deviceUid;
 
         private readonly Guid? _driveId;
 
-        public AppContext(string appId, byte[] deviceUid, SecureKey appEncryptionKey, SecureKey deviceSharedSecret, Guid? driveId)
+        public AppContext(string appId, byte[] deviceUid, SecureKey deviceSharedSecret, Guid? driveId)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
 
             this._appId = appId;
-            this._appEncryptionKey = appEncryptionKey;
             this._deviceSharedSecret = deviceSharedSecret;
             _driveId = driveId;
             this._deviceUid = deviceUid;
@@ -56,7 +54,6 @@ namespace Youverse.Core.Services.Base
         public SecureKey GetDriveStorageDek()
         {
             throw new Exception("WIP");
-            return this._appEncryptionKey;
         }
     }
 }

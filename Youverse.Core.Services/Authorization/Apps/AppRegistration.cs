@@ -9,7 +9,6 @@ namespace Youverse.Core.Services.Authorization.Apps
     {
         public AppRegistration()
         {
-            this.DriveGrants = new Dictionary<Guid, SymmetricKeyEncryptedAes>();
         }
 
         [BsonId]
@@ -20,23 +19,18 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The value use used to access storage keys
         /// </summary>
-        public SymmetricKeyEncryptedAes EncryptionKek { get; set; }
+        public byte[] EncryptionKek { get; set; }
 
         public bool IsRevoked { get; set; }
         
         /// <summary>
         /// The drive associated with this app.
         /// </summary>
-        public Guid? PrimaryDriveId { get; set; }
+        public Guid? DriveId { get; set; }
         
-        /// <summary>
-        /// 
-        /// </summary>
-        public SymmetricKeyEncryptedAes PrimaryDriveEncryptionKey { get; set; }
-
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public Dictionary<Guid, SymmetricKeyEncryptedAes> DriveGrants { get; set; }
+        public Dictionary<Guid, byte[]> DriveGrants { get; set; }
     }
 }

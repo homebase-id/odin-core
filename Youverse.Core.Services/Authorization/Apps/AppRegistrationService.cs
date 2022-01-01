@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -32,26 +33,24 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            //TODO: 
-            //AssertCallerIsOwner();
-
-            //TODO: apps cannot access this method
-            //AssertCallerIsNotApp();
+            _context.Caller.AssertHasMasterKey();
 
             Guid? driveId = null;
-            SymmetricKeyEncryptedAes primaryDriveKey = null;
             
             var masterKey = this._context.Caller.GetMasterKey();
             var appKek = new SymmetricKeyEncryptedAes(masterKey);
-            
+            Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
+                var storageEncryptionKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
+                var appEncryptionKey = appKek.DecryptKey(masterKey.GetKey());
+                var appEncryptedStorageKey = 
+                
+                grants = new Dictionary<Guid, SymmetricKeyEncryptedAes> { { drive.Id, appEncryptedStorageKey } };
+                
+                storageEncryptionKey.Wipe();
                 driveId = drive.Id;
-
-                var storageKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
-                primaryDriveKey = new SymmetricKeyEncryptedAes(appKek.DecryptKey(masterKey.GetKey()));
-                storageKey.Wipe();
             }
             
             var appReg = new AppRegistration()
@@ -59,9 +58,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 Name = name,
                 EncryptionKek = appKek,
-                
-                PrimaryDriveId = driveId,
-                PrimaryDriveEncryptionKey = primaryDriveKey,
+                DriveId = driveId,
+                DriveGrants = grants
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -188,7 +186,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = appReg.ApplicationId,
                 Name = appReg.Name,
-                DriveId = appReg.PrimaryDriveId,
+                DriveId = appReg.DriveId,
                 IsRevoked = appReg.IsRevoked
             };
         }
