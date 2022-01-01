@@ -36,23 +36,27 @@ namespace Youverse.Core.Services.Authorization.Apps
             _context.Caller.AssertHasMasterKey();
 
             Guid? driveId = null;
-            
-            var masterKey = this._context.Caller.GetMasterKey();
+
+            var masterKey = _context.Caller.GetMasterKey();
             var appKek = new SymmetricKeyEncryptedAes(masterKey);
             Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
+            
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                var storageEncryptionKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
+                //var storageEncryptionKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
+                var rawDriveKey = drive.EncryptionKek.GetKey();
+                
+                //TODO: need to encrypt correctly using SymmetricKeyEncryptedAes
                 var appEncryptionKey = appKek.DecryptKey(masterKey.GetKey());
-                var appEncryptedStorageKey = 
-                
-                grants = new Dictionary<Guid, SymmetricKeyEncryptedAes> { { drive.Id, appEncryptedStorageKey } };
-                
-                storageEncryptionKey.Wipe();
+                var appEncryptedStorageKey = drive.EncryptionKek;
+
+                grants = new Dictionary<Guid, SymmetricKeyEncryptedAes> {{drive.Id, appEncryptedStorageKey}};
+
+                // storageEncryptionKey.Wipe();
                 driveId = drive.Id;
             }
-            
+
             var appReg = new AppRegistration()
             {
                 ApplicationId = applicationId,
@@ -190,7 +194,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 IsRevoked = appReg.IsRevoked
             };
         }
-        
+
         private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));

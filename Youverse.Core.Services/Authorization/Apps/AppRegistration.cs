@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The value use used to access storage keys
         /// </summary>
-        public byte[] EncryptionKek { get; set; }
+        public SymmetricKeyEncryptedAes EncryptionKek { get; set; }
 
         public bool IsRevoked { get; set; }
         
@@ -31,6 +31,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public Dictionary<Guid, byte[]> DriveGrants { get; set; }
+        public Dictionary<Guid, SymmetricKeyEncryptedAes> DriveGrants { get; set; }
     }
 }

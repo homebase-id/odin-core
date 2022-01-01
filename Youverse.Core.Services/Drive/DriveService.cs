@@ -40,14 +40,15 @@ namespace Youverse.Core.Services.Drive
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            var driveKek = new SecureKey(_context.Caller.GetMasterKey().GetKey());
+            //TODO: integrate SymmetricKeyEncryptedAes
+            var driveKek = new SecureKey(Guid.Empty.ToByteArray());
             
             var id = Guid.NewGuid();
             var sdb = new StorageDriveBase()
             {
                 Id = id,
                 Name = name,
-                EncryptionKek = new SymmetricKeyEncryptedAes(driveKek)
+                EncryptionKek = driveKek
             };
             
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
@@ -142,9 +143,9 @@ namespace Youverse.Core.Services.Drive
             var manager = GetStorageManager(file.DriveId);
             
             //Need to get the key for this drive from the current app.
-            var key = _context.AppContext.
+            var dek = _context.AppContext.GetDriveStorageDek();
             
-            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(key);
+            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(dek.GetKey());
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, driveEncryptionKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);

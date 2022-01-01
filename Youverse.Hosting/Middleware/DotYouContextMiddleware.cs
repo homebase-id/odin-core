@@ -122,6 +122,8 @@ namespace Youverse.Hosting.Middleware
                     2b. Combine clientHalfKek with appDeviceServerKek to get the key to unlock AppRegistration.EncryptionKek
              */
 
+            //**** HERE I DO NOT HAVE THE MASTER KEY ****
+            
             //authResult.ClientHalfKek
             appRegSvc.
             

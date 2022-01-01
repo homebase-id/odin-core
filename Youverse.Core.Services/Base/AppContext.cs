@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Base
 
             this._appId = appId;
             this._deviceSharedSecret = deviceSharedSecret;
-            _driveId = driveId;
+            this._driveId = driveId;
             this._deviceUid = deviceUid;
         }
 

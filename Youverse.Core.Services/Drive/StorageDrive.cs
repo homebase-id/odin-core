@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Drive.Storage;
 
@@ -38,7 +39,8 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
-        public override SymmetricKeyEncryptedAes EncryptionKek
+        //TODO: integrate SymmetricKeyEncryptedAes
+        public override SecureKey EncryptionKek
         {
             get => _inner.EncryptionKek;
             set { }
@@ -72,6 +74,7 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
         /// </summary>
-        public virtual SymmetricKeyEncryptedAes EncryptionKek { get; set; }
+        // public virtual SymmetricKeyEncryptedAes EncryptionKek { get; set; }
+        public virtual SecureKey EncryptionKek { get; set; }
     }
 }
