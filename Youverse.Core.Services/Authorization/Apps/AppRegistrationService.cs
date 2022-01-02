@@ -134,7 +134,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                KeyHalfKek = serverRegData.keyHalfKek,
+                AppHalfKek = serverRegData.keyHalfKek,
                 IsRevoked = false
             };
 

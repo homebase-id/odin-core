@@ -114,8 +114,8 @@ namespace Youverse.Hosting.Middleware
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
             var appDeviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
-            var serverHalf = appDeviceReg.KeyHalfKek;
-            var fullKey = serverHalf.DecryptKey(authResult.ClientHalfKek.GetKey());
+            var serverHalf = appDeviceReg.AppHalfKek;
+            var appEncryptionKey = serverHalf.DecryptKey(authResult.ClientHalfKek.GetKey());
             
             //TODO: Use the fullKey to get the storageDek
             //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
