@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// the initial password
         /// </summary>
         /// <returns></returns>
-        Task<SecureKey> GetMasterKey(LoginTokenData loginToken, SecureKey key);
+        Task<SensitiveByteArray> GetMasterKey(LoginTokenData loginToken, SensitiveByteArray key);
 
     }
 }

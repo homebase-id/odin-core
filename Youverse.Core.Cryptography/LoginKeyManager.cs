@@ -33,7 +33,7 @@ namespace Youverse.Core.Cryptography
             // so that we base64 encode the RSA encrypted string, rather than passing
             // a nice readable string over and then encrypting it. 
             // This way, once we RSA decrypt it is a byte array and we can zap it.
-            var KekKey = new SecureKey(Convert.FromBase64String(KeK64));
+            var KekKey = new SensitiveByteArray(Convert.FromBase64String(KeK64));
             passwordKey.EncryptedDek = new SymmetricKeyEncryptedAes(KekKey);
 
             return passwordKey;
@@ -48,12 +48,12 @@ namespace Youverse.Core.Cryptography
             // ByteArrayUtil.WipeByteArray(DeK);
         }
 
-        public static SecureKey GetDek(LoginKeyData passwordKey, byte[] KeK)
+        public static SensitiveByteArray GetDek(LoginKeyData passwordKey, byte[] KeK)
         {
             return GetDek(passwordKey.EncryptedDek, KeK);
         }
 
-        public static SecureKey GetDek(SymmetricKeyEncryptedAes EncryptedDek, byte[] KeK)
+        public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, byte[] KeK)
         {
             return EncryptedDek.DecryptKey(KeK);
         }

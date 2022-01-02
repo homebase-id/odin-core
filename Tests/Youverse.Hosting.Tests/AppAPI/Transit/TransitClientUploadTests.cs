@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+            var appSharedSecret = new SensitiveByteArray(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();

@@ -7,11 +7,11 @@ namespace Youverse.Core.Services.Transit.Encryption
     {
         public byte[] Iv { get; set; }
 
-        public SecureKey AesKey { get; set; }
+        public SensitiveByteArray AesKey { get; set; }
 
-        public SecureKey Combine()
+        public SensitiveByteArray Combine()
         {
-            return new SecureKey(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
+            return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
         }
         
         public Stream GetEncryptedStreamAes(string data)
@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Encryption
             return new KeyHeader()
             {
                 Iv = p1,
-                AesKey = new SecureKey(p2)
+                AesKey = new SensitiveByteArray(p2)
             };
         }
 
@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit.Encryption
             return new KeyHeader()
             {
                 Iv = ByteArrayUtil.GetRndByteArray(16),
-                AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
+                AesKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16))
             };
         }
         

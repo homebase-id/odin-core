@@ -37,23 +37,21 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             Guid? driveId = null;
 
-            var masterKey = _context.Caller.GetMasterKey();
-            var appKek = new SymmetricKeyEncryptedAes(masterKey);
-            Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
-            
+            //var masterKey = _context.Caller.GetMasterKey();
+            // var appKek = new SymmetricKeyEncryptedAes(masterKey);
+            // Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
+
+            var appKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
+            Dictionary<Guid, SensitiveByteArray> grants = null;
+
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                //var storageEncryptionKey = drive.EncryptionKek.DecryptKey(masterKey.GetKey());
-                var rawDriveKey = drive.EncryptionKek.GetKey();
-                
-                //TODO: need to encrypt correctly using SymmetricKeyEncryptedAes
-                var appEncryptionKey = appKek.DecryptKey(masterKey.GetKey());
-                var appEncryptedStorageKey = drive.EncryptionKek;
+                var rawDriveKey = drive.EncryptionKey;
 
-                grants = new Dictionary<Guid, SymmetricKeyEncryptedAes> {{drive.Id, appEncryptedStorageKey}};
-
-                // storageEncryptionKey.Wipe();
+                //HACK:!!
+                //TODO: Use raw key until we integrate SymmetricKeyEncryptedAes
+                grants = new Dictionary<Guid, SensitiveByteArray> {{drive.Id, rawDriveKey}};
                 driveId = drive.Id;
             }
 
@@ -61,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = applicationId,
                 Name = name,
-                EncryptionKek = appKek,
+                EncryptionKey = appKey,
                 DriveId = driveId,
                 DriveGrants = grants
             };
@@ -112,17 +110,22 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
         {
-            var savedApp = await this.GetAppRegistrationInternal(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(applicationId);
 
-            if (null == savedApp || savedApp.IsRevoked)
+            if (null == appReg || appReg.IsRevoked)
             {
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
-
-            var decryptedAppDek = savedApp.EncryptionKek.DecryptKey(this._context.Caller.GetMasterKey().GetKey());
+            
+            //HACK: 
+            //TODO: update when integrating SymmetricKeyEncryptedXor
+            // var decryptedAppDek = appReg.EncryptionKey.DecryptKey(this._context.Caller.GetMasterKey().GetKey());
+            // var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
+            // decryptedAppDek.Wipe();
+            
+            var decryptedAppDek = appReg.EncryptionKey;
             var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
-            decryptedAppDek.Wipe();
-
+            
             //Note: never store deviceAppToken
 
             var appDeviceReg = new AppDeviceRegistration()
@@ -131,12 +134,13 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                keyHalfKek = serverRegData.keyHalfKek,
+                KeyHalfKek = serverRegData.keyHalfKek,
                 IsRevoked = false
             };
 
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
 
+            //TODO: i wonder if token could be the deviceUid?
             return new AppDeviceRegistrationResponse()
             {
                 Token = appDeviceReg.Id,

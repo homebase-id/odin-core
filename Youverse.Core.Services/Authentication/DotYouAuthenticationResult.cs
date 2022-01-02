@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Authentication
         /// <summary>
         /// The Client's 1/2 of the KeK
         /// </summary>
-        public SecureKey ClientHalfKek { get; set; }
+        public SensitiveByteArray ClientHalfKek { get; set; }
 
         public override string ToString()
         {
@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Authentication
             return new DotYouAuthenticationResult()
             {
                 SessionToken = Guid.Parse(arr[0]),
-                ClientHalfKek = new SecureKey(arr[1]) 
+                ClientHalfKek = new SensitiveByteArray(arr[1]) 
             };
         }
         

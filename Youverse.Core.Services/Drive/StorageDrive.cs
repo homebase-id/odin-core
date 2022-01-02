@@ -40,9 +40,9 @@ namespace Youverse.Core.Services.Drive
         }
 
         //TODO: integrate SymmetricKeyEncryptedAes
-        public override SecureKey EncryptionKek
+        public override SensitiveByteArray EncryptionKey
         {
-            get => _inner.EncryptionKek;
+            get => _inner.EncryptionKey;
             set { }
         }
 
@@ -75,6 +75,6 @@ namespace Youverse.Core.Services.Drive
         /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
         /// </summary>
         // public virtual SymmetricKeyEncryptedAes EncryptionKek { get; set; }
-        public virtual SecureKey EncryptionKek { get; set; }
+        public virtual SensitiveByteArray EncryptionKey { get; set; }
     }
 }

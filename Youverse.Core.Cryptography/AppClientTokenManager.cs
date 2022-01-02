@@ -36,7 +36,7 @@ namespace Youverse.Core.Cryptography
         //      and the table entry
         //
 
-        public static (byte[] clientAppToken, AppClientRegistrationData serverRegData) CreateClientToken(SecureKey appKek, byte[] sharedSecret = null)
+        public static (byte[] clientAppToken, AppClientRegistrationData serverRegData) CreateClientToken(SensitiveByteArray appKek, byte[] sharedSecret = null)
         {
             var serverRegData = new AppClientRegistrationData
             {
@@ -63,7 +63,7 @@ namespace Youverse.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey DecryptAppKekWithClientToken(AppClientRegistrationData serverReg, byte[] clientToken)
+        public static SensitiveByteArray DecryptAppKekWithClientToken(AppClientRegistrationData serverReg, byte[] clientToken)
         {
             return serverReg.keyHalfKek.DecryptKey(clientToken);
         }

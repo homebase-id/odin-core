@@ -55,7 +55,7 @@ namespace Youverse.Core.Cryptography
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
-            var kek = new SecureKey(Convert.FromBase64String(kek64));
+            var kek = new SensitiveByteArray(Convert.FromBase64String(kek64));
             token.ServerHalfOwnerConsoleKey = new SymmetricKeyEncryptedXor(kek, out var halfCookie);
             kek.Wipe();
 
@@ -65,14 +65,14 @@ namespace Youverse.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetMasterKey(byte[] halfServer, byte[] halfClient)
+        public static SensitiveByteArray GetMasterKey(byte[] halfServer, byte[] halfClient)
         {
-            return new SecureKey(XorManagement.XorEncrypt(halfServer, halfClient));
+            return new SensitiveByteArray(XorManagement.XorEncrypt(halfServer, halfClient));
         }
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SecureKey GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
+        public static SensitiveByteArray GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
         {
             return loginToken.ServerHalfOwnerConsoleKey.DecryptKey(halfCookie);
             // return GetLoginKek(loginToken.HalfKey, halfCookie);

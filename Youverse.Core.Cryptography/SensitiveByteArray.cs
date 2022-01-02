@@ -10,29 +10,29 @@ namespace Youverse.Core.Cryptography
     /// moved around. 
     /// TODO write tests.
     /// </summary>
-    public sealed class SecureKey
+    public sealed class SensitiveByteArray
     {
         // TODO Move this to secure memory
         [JsonIgnore]
         private byte[] _key;
         // TODO - test to make sure it doesnt get saved
 
-        public SecureKey()
+        public SensitiveByteArray()
         {
             _key = null;
         }
 
-        public SecureKey(byte[] data)
+        public SensitiveByteArray(byte[] data)
         {
             SetKey(data);
         }
         
-        public SecureKey(string data64)
+        public SensitiveByteArray(string data64)
         {
             SetKey(Convert.FromBase64String(data64));
         }
 
-        ~SecureKey()
+        ~SensitiveByteArray()
         {
             Wipe();
         }

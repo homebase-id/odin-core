@@ -17,7 +17,7 @@ namespace Youverse.Core.Cryptography.Tests
         // Should split this into its own file.
         public void TestSymKeyAes()
         {
-            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedAes(secret);
 
             var sk = key.DecryptKey(secret.GetKey());
@@ -29,9 +29,9 @@ namespace Youverse.Core.Cryptography.Tests
         // Should split this into its own file.
         public void TestSymKeyFailAes()
         {
-            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedAes(secret);
-            var garbage = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var garbage = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
@@ -48,7 +48,7 @@ namespace Youverse.Core.Cryptography.Tests
         // Should split this into its own file.
         public void TestSymKeyXor()
         {
-            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
             var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
             var decryptKey = key.DecryptKey(halfKey);
@@ -64,7 +64,7 @@ namespace Youverse.Core.Cryptography.Tests
         // Should split this into its own file.
         public void TestSymKeyFailXor()
         {
-            var secret = new SecureKey(ByteArrayUtil.GetRndByteArray(16));
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
             var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
 

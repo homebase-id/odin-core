@@ -18,7 +18,7 @@ namespace Youverse.Core.Cryptography.Tests
             // validate the encryption keys match up from creation to decryption.
 
             // Pre-requisites
-            var loginDek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Simulate pre-existing
+            var loginDek = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Simulate pre-existing
 
             // Create a new application and link the first client to it
 
@@ -40,7 +40,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void TokenBase2Pass()
         {
             // Pre-requisites
-            var loginDek = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Pre-existing
+            var loginDek = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Pre-existing
 
             // Create a new application and link the first client to it
 

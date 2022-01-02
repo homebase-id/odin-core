@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using LiteDB;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -19,7 +20,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The value use used to access storage keys
         /// </summary>
-        public SymmetricKeyEncryptedAes EncryptionKek { get; set; }
+        public SensitiveByteArray EncryptionKey { get; set; }
 
         public bool IsRevoked { get; set; }
         
@@ -31,6 +32,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public Dictionary<Guid, SymmetricKeyEncryptedAes> DriveGrants { get; set; }
+        public Dictionary<Guid, SensitiveByteArray> DriveGrants { get; set; }
     }
 }

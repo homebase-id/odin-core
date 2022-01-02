@@ -83,7 +83,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
             return new DotYouAuthenticationResult()
             {
                 SessionToken = code.Session.Id,
-                ClientHalfKek = new SecureKey(Guid.Empty.ToByteArray())
+                ClientHalfKek = new SensitiveByteArray(Guid.Empty.ToByteArray())
             };
         }
 

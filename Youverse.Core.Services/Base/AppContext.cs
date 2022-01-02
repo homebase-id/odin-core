@@ -10,13 +10,13 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext
     {
-        private readonly SecureKey _deviceSharedSecret;
+        private readonly SensitiveByteArray _deviceSharedSecret;
         private readonly string _appId;
         private readonly byte[] _deviceUid;
 
         private readonly Guid? _driveId;
 
-        public AppContext(string appId, byte[] deviceUid, SecureKey deviceSharedSecret, Guid? driveId)
+        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Base
         /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <returns></returns>
-        public SecureKey GetDeviceSharedSecret()
+        public SensitiveByteArray GetDeviceSharedSecret()
         {
             return this._deviceSharedSecret;
         }
@@ -51,8 +51,9 @@ namespace Youverse.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public SecureKey GetDriveStorageDek()
+        public SensitiveByteArray GetDriveStorageDek()
         {
+            //to find the drive encryption key; i have to look through AppGrants
             throw new Exception("WIP");
         }
     }

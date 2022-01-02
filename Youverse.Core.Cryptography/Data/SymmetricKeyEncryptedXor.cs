@@ -8,7 +8,7 @@ namespace Youverse.Core.Cryptography.Data
     /// </summary>
     public class SymmetricKeyEncryptedXor
     {
-        private SecureKey _decryptedKey;  // Cache value to only decrypt once
+        private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
 
         public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
@@ -23,7 +23,7 @@ namespace Youverse.Core.Cryptography.Data
             //For LiteDB
         }
 
-        public SymmetricKeyEncryptedXor(SecureKey secretKeyToSplit, out byte[] halfKey1)
+        public SymmetricKeyEncryptedXor(SensitiveByteArray secretKeyToSplit, out byte[] halfKey1)
         {
             halfKey1 = ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length);
 
@@ -42,7 +42,7 @@ namespace Youverse.Core.Cryptography.Data
         /// <param name="keyData">The half of the key needed to decrypt</param>
         /// <param name="halfKey">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public SecureKey DecryptKey(byte[] halfKey)
+        public SensitiveByteArray DecryptKey(byte[] halfKey)
         {
             if (_decryptedKey == null)
             {
@@ -51,7 +51,7 @@ namespace Youverse.Core.Cryptography.Data
                 if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
                     throw new Exception();
 
-                _decryptedKey = new SecureKey(key);
+                _decryptedKey = new SensitiveByteArray(key);
             }
 
             return _decryptedKey;

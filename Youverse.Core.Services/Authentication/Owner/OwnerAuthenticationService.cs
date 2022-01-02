@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return new DotYouAuthenticationResult()
             {
                 SessionToken = loginToken.Id,
-                ClientHalfKek = new SecureKey(halfCookie)
+                ClientHalfKek = new SensitiveByteArray(halfCookie)
             };
         }
 
@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return IsAuthTokenEntryValid(entry);
         }
         
-        public async Task<SecureKey> GetMasterKey(Guid sessionToken, SecureKey clientHalfKek)
+        public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientHalfKek)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));

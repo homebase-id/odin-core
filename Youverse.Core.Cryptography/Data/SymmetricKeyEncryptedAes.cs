@@ -8,7 +8,7 @@ namespace Youverse.Core.Cryptography.Data
     /// </summary>
     public class SymmetricKeyEncryptedAes
     {
-        private SecureKey _decryptedKey;  // Cache value to only decrypt once
+        private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
 
         public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyIV         { get; set; } // IV used for AES encryption of the key
@@ -25,9 +25,9 @@ namespace Youverse.Core.Cryptography.Data
             //For LiteDB
         }
 
-        public SymmetricKeyEncryptedAes(SecureKey secret)
+        public SymmetricKeyEncryptedAes(SensitiveByteArray secret)
         {
-            var newKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
+            var newKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
             // _decryptedKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
 
             (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(newKey.GetKey(), secret.GetKey());
@@ -45,7 +45,7 @@ namespace Youverse.Core.Cryptography.Data
         /// <param name="keyData">The ApplicationTokenData</param>
         /// <param name="secret">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
-        public SecureKey DecryptKey(byte[] secret)
+        public SensitiveByteArray DecryptKey(byte[] secret)
         {
             if (_decryptedKey == null)
             {
@@ -54,7 +54,7 @@ namespace Youverse.Core.Cryptography.Data
                 if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
                     throw new Exception();
 
-                _decryptedKey = new SecureKey(key);
+                _decryptedKey = new SensitiveByteArray(key);
             }
 
             return _decryptedKey;

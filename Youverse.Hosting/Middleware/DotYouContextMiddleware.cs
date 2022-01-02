@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Middleware
             var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: true,
                 masterKey: masterKey
             );
@@ -106,32 +106,26 @@ namespace Youverse.Hosting.Middleware
             var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null
+                masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
-            /*
-             TODO: provide the drive storage dek so we can access the drive
-                i think this should be secure where you have to request the storage dek
-                for a given drive.  it fails with security exception if there's no access
-                
-                1. Get the device 1/2 kek; from the auth token (clientHalfKek)
-                2. get the full appdevicekek fromm the appreg.appdrives or primarydrive
-                    2a. Lookup appDevice by deviceUId
-                    2b. Combine clientHalfKek with appDeviceServerKek to get the key to unlock AppRegistration.EncryptionKek
-             */
+            //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
-            //**** HERE I DO NOT HAVE THE MASTER KEY ****
+            var appDeviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            var serverHalf = appDeviceReg.KeyHalfKek;
+            var fullKey = serverHalf.DecryptKey(authResult.ClientHalfKek.GetKey());
             
-            //authResult.ClientHalfKek
-            appRegSvc.
+            //TODO: Use the fullKey to get the storageDek
+            //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
+            // so maybe i store the grants in context?
             
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appDevice.ApplicationId.ToString(),
                 deviceUid: appDevice.DeviceUid,
-                deviceSharedSecret: new SecureKey(deviceReg.SharedSecret),
+                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecret),
                 driveId: driveId);
         }
 
@@ -144,9 +138,9 @@ namespace Youverse.Hosting.Middleware
             var appReg = await appRegSvc.GetAppRegistration(appId);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null
+                masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
             //appReg.EncryptedAppDeK
@@ -155,7 +149,7 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: null,
-                appEncryptionKey: new SecureKey(Guid.Empty.ToByteArray()),
+                appEncryptionKey: new SensitiveByteArray(Guid.Empty.ToByteArray()),
                 deviceSharedSecret: null,
                 driveId: driveId);
         }

@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public byte[] UniqueDeviceId { get; set; }
 
-        public SymmetricKeyEncryptedXor keyHalfKek { get; set; }
+        public SymmetricKeyEncryptedXor KeyHalfKek { get; set; }
         // public byte[] HalfAdek { get; set; } // Random 16-byte client cookie needed to calculate the application DeK
 
         public byte[] SharedSecret { get; set; } // The secret shared with the client. We need one per client

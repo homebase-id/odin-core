@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Tests
 
             Context = Substitute.For<DotYouContext>();
             Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
-            Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SecureKey(new byte[16]));
+            Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
         }
 
         public void CreateSystemStorage()

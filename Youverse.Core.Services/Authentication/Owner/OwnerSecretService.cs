@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
-        public async Task<SecureKey> GetMasterKey(LoginTokenData loginToken, SecureKey clientHalfKek)
+        public async Task<SensitiveByteArray> GetMasterKey(LoginTokenData loginToken, SensitiveByteArray clientHalfKek)
         {
             var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
             if (null == pk)

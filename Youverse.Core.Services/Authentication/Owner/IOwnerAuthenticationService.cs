@@ -51,6 +51,6 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// </summary>
         /// <returns></returns>
         
-        Task<SecureKey> GetMasterKey(Guid sessionToken, SecureKey rClientHalfKek);
+        Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
     }
 }

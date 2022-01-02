@@ -155,13 +155,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
         private async Task SendTransfer()
         {
-            var appSharedSecret = new SecureKey(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+            var appSharedSecret = new SensitiveByteArray(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
             var keyHeader = new KeyHeader()
             {
                 Iv = ByteArrayUtil.GetRndByteArray(16),
-                AesKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16))
+                AesKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16))
             };
 
             var metadataJson = "{metadata:true, message:'pie on sky}";

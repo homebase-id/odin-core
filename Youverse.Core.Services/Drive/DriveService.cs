@@ -41,14 +41,14 @@ namespace Youverse.Core.Services.Drive
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
             //TODO: integrate SymmetricKeyEncryptedAes
-            var driveKek = new SecureKey(Guid.Empty.ToByteArray());
+            var driveKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
             
             var id = Guid.NewGuid();
             var sdb = new StorageDriveBase()
             {
                 Id = id,
                 Name = name,
-                EncryptionKek = driveKek
+                EncryptionKey = driveKey
             };
             
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
@@ -143,9 +143,13 @@ namespace Youverse.Core.Services.Drive
             var manager = GetStorageManager(file.DriveId);
             
             //Need to get the key for this drive from the current app.
-            var dek = _context.AppContext.GetDriveStorageDek();
+            var driveEncryptionKey = _context.AppContext.GetDriveStorageDek();
+
+            //TODO: is there a way to test this a valid key?  maybe by
+            //encrypting the driveId when its created, then decrypting that value
+            //using this key to see if they match?
+            //this.AssertKeyMatch()
             
-            var driveEncryptionKey = manager.Drive.EncryptionKek.DecryptKey(dek.GetKey());
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, driveEncryptionKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);

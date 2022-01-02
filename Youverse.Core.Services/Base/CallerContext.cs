@@ -9,9 +9,9 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class CallerContext
     {
-        private readonly SecureKey _masterKey;
+        private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SecureKey masterKey)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Returns the login kek if the owner is logged; otherwise null
         /// </summary>
-        public SecureKey GetMasterKey()
+        public SensitiveByteArray GetMasterKey()
         {
             AssertHasMasterKey();
 
