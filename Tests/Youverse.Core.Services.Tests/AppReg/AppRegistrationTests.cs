@@ -94,7 +94,7 @@ namespace Youverse.Core.Services.Tests.AppReg
 
             var svc = CreateAppRegService();
 
-            var reply = await svc.RegisterAppOnDevice(appId, uniqueDeviceId, sharedSecret);
+            var reply = await svc.RegisterDevice(appId, uniqueDeviceId, sharedSecret);
 
             Assert.IsFalse(reply.Token == Guid.Empty);
             Assert.IsNotNull(reply.DeviceAppKey);

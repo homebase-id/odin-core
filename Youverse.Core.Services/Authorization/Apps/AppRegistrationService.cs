@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = applicationId,
                 Name = name,
-                EncryptionKey = appKey,
+                EncryptedDek = appKey,
                 DriveId = driveId,
                 DriveGrants = grants
             };
@@ -73,6 +73,26 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var result = await GetAppRegistrationInternal(applicationId);
             return ToAppRegistrationResponse(result);
+        }
+
+        public async Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray sensitiveByteArray)
+        {
+            var appReg = await this.GetAppRegistrationInternal(applicationId);
+            var deviceReg = await this.GetAppDeviceRegistration(applicationId, deviceUid);
+            // var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            // var serverHalf = deviceReg.AppHalfKek;
+            // var appEncryptionKey = serverHalf.DecryptKey();
+
+            //TODO: Use the fullKey to get the storageDek
+            //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
+            // so maybe i store the grants in context?
+            
+            return new AppContext(
+                appId: appReg.ApplicationId.ToString(),
+                deviceUid: deviceUid,
+                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecret),
+                driveId: appReg.DriveId,
+                driveGrants: appReg.DriveGrants);
         }
 
         public async Task RevokeApp(Guid applicationId)
@@ -108,7 +128,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             throw new NotImplementedException();
         }
 
-        public async Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
+        public async Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
 
@@ -116,16 +136,17 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
-            
+
             //HACK: 
             //TODO: update when integrating SymmetricKeyEncryptedXor
             // var decryptedAppDek = appReg.EncryptionKey.DecryptKey(this._context.Caller.GetMasterKey().GetKey());
             // var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
             // decryptedAppDek.Wipe();
-            
-            var decryptedAppDek = appReg.EncryptionKey;
+
+            //HACK: i'm storing it raw until we integrate SymmetricKeyEncryptedAes
+            var decryptedAppDek = appReg.EncryptedDek;
             var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
-            
+
             //Note: never store deviceAppToken
 
             var appDeviceReg = new AppDeviceRegistration()

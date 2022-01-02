@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Drive
             var manager = GetStorageManager(file.DriveId);
             
             //Need to get the key for this drive from the current app.
-            var driveEncryptionKey = _context.AppContext.GetDriveStorageDek();
+            var driveEncryptionKey = _context.AppContext.GetDriveStorageDek(file.DriveId);
 
             //TODO: is there a way to test this a valid key?  maybe by
             //encrypting the driveId when its created, then decrypting that value
@@ -156,7 +156,7 @@ namespace Youverse.Core.Services.Drive
             return encryptedKeyHeader;
         }
 
-        public Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
         }

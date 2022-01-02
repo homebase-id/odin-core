@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The value use used to access storage keys
         /// </summary>
-        public SensitiveByteArray EncryptionKey { get; set; }
+        public SensitiveByteArray EncryptedDek { get; set; }
 
         public bool IsRevoked { get; set; }
         

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Dawn;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Base
 {
@@ -13,10 +15,10 @@ namespace Youverse.Core.Services.Base
         private readonly SensitiveByteArray _deviceSharedSecret;
         private readonly string _appId;
         private readonly byte[] _deviceUid;
-
+        private readonly Dictionary<Guid, SensitiveByteArray> _driveGrants;
         private readonly Guid? _driveId;
 
-        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId)
+        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, Dictionary<Guid, SensitiveByteArray> driveGrants)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -24,6 +26,7 @@ namespace Youverse.Core.Services.Base
             this._appId = appId;
             this._deviceSharedSecret = deviceSharedSecret;
             this._driveId = driveId;
+            _driveGrants = driveGrants;
             this._deviceUid = deviceUid;
         }
 
@@ -51,10 +54,15 @@ namespace Youverse.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public SensitiveByteArray GetDriveStorageDek()
+        public SensitiveByteArray GetDriveStorageDek(Guid driveId)
         {
-            //to find the drive encryption key; i have to look through AppGrants
-            throw new Exception("WIP");
+            //TODO: this sort of security check feels like it should be in a service..
+            if (!this._driveGrants.TryGetValue(driveId, out var dek))
+            {
+                throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
+            }
+
+            return dek;
         }
     }
 }

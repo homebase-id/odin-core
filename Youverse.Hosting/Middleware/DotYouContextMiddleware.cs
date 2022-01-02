@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -13,6 +14,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
+using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
@@ -101,10 +103,7 @@ namespace Youverse.Hosting.Middleware
             var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
             var appDevice = validationResult.AppDevice;
             var user = httpContext.User;
-
-            var appReg = await appRegSvc.GetAppRegistration(appDevice.ApplicationId);
-            var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
-
+            
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
@@ -113,20 +112,9 @@ namespace Youverse.Hosting.Middleware
 
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
-            var appDeviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
-            var serverHalf = appDeviceReg.AppHalfKek;
-            var appEncryptionKey = serverHalf.DecryptKey(authResult.ClientHalfKek.GetKey());
-            
-            //TODO: Use the fullKey to get the storageDek
-            //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
-            // so maybe i store the grants in context?
-            
-            var driveId = appReg.DriveId;
-            dotYouContext.AppContext = new AppContext(
-                appId: appDevice.ApplicationId.ToString(),
-                deviceUid: appDevice.DeviceUid,
-                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecret),
-                driveId: driveId);
+            //look up grant for this device and app
+            var deviceHalfKek = authResult.ClientHalfKek;
+            dotYouContext.AppContext = await appRegSvc.GetAppContext(appDevice.ApplicationId, appDevice.DeviceUid, deviceHalfKek);
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -142,16 +130,16 @@ namespace Youverse.Hosting.Middleware
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
-
-            //appReg.EncryptedAppDeK
-            //how to specify the destination drive?
+            ITransitPerimeterService px;
+            
+            var grants = new Dictionary<Guid, SensitiveByteArray>();
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
                 deviceUid: null,
-                appEncryptionKey: new SensitiveByteArray(Guid.Empty.ToByteArray()),
                 deviceSharedSecret: null,
-                driveId: driveId);
+                driveId: driveId,
+                driveGrants: grants);
         }
     }
 }

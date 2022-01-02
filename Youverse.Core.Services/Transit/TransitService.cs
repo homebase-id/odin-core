@@ -110,7 +110,10 @@ namespace Youverse.Core.Services.Transit
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _driveService.GetKeyHeader(package.File);
+            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.File);
+            var storageKey = this._context.AppContext.GetDriveStorageDek(package.File.DriveId);
+            var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(storageKey.GetKey());
+            storageKey.Wipe();
 
             foreach (var recipient in package.RecipientList.Recipients)
             {
@@ -124,7 +127,7 @@ namespace Youverse.Core.Services.Transit
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
                     }
 
-                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey, encryptedKeyHeader);
+                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey, keyHeader);
 
                     var item = new RecipientTransferKeyHeaderItem()
                     {
@@ -142,20 +145,20 @@ namespace Youverse.Core.Services.Transit
                     results.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }
             }
+            
+            //TODO: keyHeader.AesKey.Wipe();
 
             return results;
         }
 
-        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(TransitPublicKey recipientPublicKey, EncryptedKeyHeader encryptedKeyHeader)
+        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(TransitPublicKey recipientPublicKey, KeyHeader keyHeader)
         {
             /*
-             :Decrypt the __EncryptedKeyHeader__ to get the __KeyHeader__ using the __AppEncryptionKey__;
              :Re-encrypt a copy of the __KeyHeader__ using the __RecipientTransitPublicKey__
                  Result is __EncryptedRecipientTransferKeyHeader__;
              :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
             */
-            var appEncryptionKey = this._context.AppContext.GetDriveStorageDek();
-
+            //TODO: encrypt header using RSA Public Key
             var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {

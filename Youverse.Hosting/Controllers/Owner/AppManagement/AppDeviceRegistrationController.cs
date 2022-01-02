@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
 
             var uniqueDeviceId = Convert.FromBase64String(appDeviceRegistrationRequest.DeviceId64);
             var sharedSecret = Convert.FromBase64String(appDeviceRegistrationRequest.SharedSecret64);
-            var reg = await _appRegistration.RegisterAppOnDevice(appDeviceRegistrationRequest.ApplicationId, uniqueDeviceId, sharedSecret);
+            var reg = await _appRegistration.RegisterDevice(appDeviceRegistrationRequest.ApplicationId, uniqueDeviceId, sharedSecret);
             return new JsonResult(reg);
         }
 

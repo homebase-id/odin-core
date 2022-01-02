@@ -79,7 +79,7 @@ namespace Youverse.Core.Services.Drive
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <returns></returns>
-        Task<EncryptedKeyHeader> GetKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.

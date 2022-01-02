@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Youverse.Core.Cryptography;
+using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -16,6 +18,12 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
+        /// <summary>
+        /// Creates the AppContext for a given app and device
+        /// </summary>
+        /// <returns></returns>
+        Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray sensitiveByteArray);
+        
         /// <summary>
         /// Gets all registered apps
         /// </summary>
@@ -54,7 +62,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="uniqueDeviceId"></param>
         /// <param name="sharedSecret"></param>>
         /// <returns></returns>
-        Task<AppDeviceRegistrationResponse> RegisterAppOnDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret);
+        Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret);
 
         /// <summary>
         /// Returns the specified app device registration
@@ -86,5 +94,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="uniqueDeviceId"></param>
         /// <returns></returns>
         Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId);
+    }
+
+    public class AppContextInfo
+    {
+        public byte[] DeviceUid { get; set; }
+        public SensitiveByteArray StorageDek { get; set; }
     }
 }
