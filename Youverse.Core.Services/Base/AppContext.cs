@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Dawn;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Apps;
 
 namespace Youverse.Core.Services.Base
 {
@@ -15,10 +17,10 @@ namespace Youverse.Core.Services.Base
         private readonly SensitiveByteArray _deviceSharedSecret;
         private readonly string _appId;
         private readonly byte[] _deviceUid;
-        private readonly Dictionary<Guid, SensitiveByteArray> _driveGrants;
+        private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
 
-        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, Dictionary<Guid, SensitiveByteArray> driveGrants)
+        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, List<DriveGrant> driveGrants)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -56,13 +58,14 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageDek(Guid driveId)
         {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
             //TODO: this sort of security check feels like it should be in a service..
-            if (!this._driveGrants.TryGetValue(driveId, out var dek))
+            if (null == grant)
             {
                 throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
             }
 
-            return dek;
+            return new SensitiveByteArray(grant.DriveKey);
         }
     }
 }

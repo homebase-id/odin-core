@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The value use used to access storage keys
         /// </summary>
-        public SensitiveByteArray EncryptedDek { get; set; }
+        public byte[] EncryptedDek { get; set; }
 
         public bool IsRevoked { get; set; }
         
@@ -32,6 +32,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public Dictionary<Guid, SensitiveByteArray> DriveGrants { get; set; }
+        public List<DriveGrant> DriveGrants { get; set; }
+    }
+
+    public class DriveGrant
+    {
+        public Guid DriveId { get; set; }
+        public byte[] DriveKey { get; set; }
     }
 }

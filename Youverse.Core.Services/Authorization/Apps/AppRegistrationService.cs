@@ -41,8 +41,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             // var appKek = new SymmetricKeyEncryptedAes(masterKey);
             // Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
 
-            var appKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
-            Dictionary<Guid, SensitiveByteArray> grants = null;
+            // var appKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
+            var appKey = Guid.Empty.ToByteArray();
+            List<DriveGrant> grants = null;
 
             if (createDrive)
             {
@@ -51,7 +52,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
                 //HACK:!!
                 //TODO: Use raw key until we integrate SymmetricKeyEncryptedAes
-                grants = new Dictionary<Guid, SensitiveByteArray> {{drive.Id, rawDriveKey}};
+                grants = new List<DriveGrant>();
+                grants.Add(new DriveGrant(){DriveId = drive.Id, DriveKey = rawDriveKey.GetKey()});
                 driveId = drive.Id;
             }
 
@@ -79,6 +81,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
             var deviceReg = await this.GetAppDeviceRegistration(applicationId, deviceUid);
+
             // var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
             // var serverHalf = deviceReg.AppHalfKek;
             // var appEncryptionKey = serverHalf.DecryptKey();
@@ -86,7 +89,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: Use the fullKey to get the storageDek
             //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
             // so maybe i store the grants in context?
-            
+
             return new AppContext(
                 appId: appReg.ApplicationId.ToString(),
                 deviceUid: deviceUid,
@@ -144,7 +147,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             // decryptedAppDek.Wipe();
 
             //HACK: i'm storing it raw until we integrate SymmetricKeyEncryptedAes
-            var decryptedAppDek = appReg.EncryptedDek;
+            //var decryptedAppDek = appReg.EncryptedDek;
+            var decryptedAppDek = new SensitiveByteArray(appReg.EncryptedDek);
             var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
 
             //Note: never store deviceAppToken

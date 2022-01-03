@@ -130,9 +130,8 @@ namespace Youverse.Hosting.Middleware
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
-            ITransitPerimeterService px;
             
-            var grants = new Dictionary<Guid, SensitiveByteArray>();
+            var grants = new List<DriveGrant>();
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
