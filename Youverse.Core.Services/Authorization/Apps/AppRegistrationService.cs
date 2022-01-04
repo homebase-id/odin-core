@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using AppContext = Youverse.Core.Services.Base.AppContext;
@@ -37,23 +38,20 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             Guid? driveId = null;
 
-            //var masterKey = _context.Caller.GetMasterKey();
-            // var appKek = new SymmetricKeyEncryptedAes(masterKey);
-            // Dictionary<Guid, SymmetricKeyEncryptedAes> grants = null;
-
-            // var appKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
-            var appKey = Guid.Empty.ToByteArray();
+            var masterKey = _context.Caller.GetMasterKey();
+            var appKey = new SymmetricKeyEncryptedAes(masterKey);
+            
             List<DriveGrant> grants = null;
 
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                //var rawDriveKey = drive.MasterKeyEncryptedStorageKey;
+                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKey(masterKey);
 
-                //HACK:!!
-                //TODO: Use raw key until we integrate SymmetricKeyEncryptedAes
+                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(appKey.DecryptKey(masterKey), ref storageKey);
+
                 grants = new List<DriveGrant>();
-                //grants.Add(new DriveGrant(){DriveId = drive.Id, DriveKey = rawDriveKey.GetKey()});
+                grants.Add(new DriveGrant() { DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey });
                 driveId = drive.Id;
             }
 
@@ -61,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = applicationId,
                 Name = name,
-                EncryptedDek = appKey,
+                MasterKeyEncryptedAppKey = appKey,
                 DriveId = driveId,
                 DriveGrants = grants
             };
@@ -77,24 +75,21 @@ namespace Youverse.Core.Services.Authorization.Apps
             return ToAppRegistrationResponse(result);
         }
 
-        public async Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray sensitiveByteArray)
+        public async Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray deviceSecret)
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
             var deviceReg = await this.GetAppDeviceRegistration(applicationId, deviceUid);
 
-            // var deviceReg = await appRegSvc.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
-            // var serverHalf = deviceReg.AppHalfKek;
-            // var appEncryptionKey = serverHalf.DecryptKey();
+            //var appEncryptionKey = deviceReg.EncryptedAppKey.DecryptKey(deviceSecret);
 
-            //TODO: Use the fullKey to get the storageDek
-            //at this point - I don't know which drive will be used, it will vary per request; i DO know the grants
-            // so maybe i store the grants in context?
 
             return new AppContext(
                 appId: appReg.ApplicationId.ToString(),
                 deviceUid: deviceUid,
                 deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecret),
                 driveId: appReg.DriveId,
+                encryptedAppKey: deviceReg.EncryptedAppKey,
+                deviceSecret:deviceSecret,
                 driveGrants: appReg.DriveGrants);
         }
 
@@ -133,6 +128,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
         {
+            _context.Caller.AssertHasMasterKey();
+
             var appReg = await this.GetAppRegistrationInternal(applicationId);
 
             if (null == appReg || appReg.IsRevoked)
@@ -140,16 +137,9 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
-            //HACK: 
-            //TODO: update when integrating SymmetricKeyEncryptedXor
-            // var decryptedAppDek = appReg.EncryptionKey.DecryptKey(this._context.Caller.GetMasterKey().GetKey());
-            // var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
-            // decryptedAppDek.Wipe();
-
-            //HACK: i'm storing it raw until we integrate SymmetricKeyEncryptedAes
-            //var decryptedAppDek = appReg.EncryptedDek;
-            var decryptedAppDek = new SensitiveByteArray(appReg.EncryptedDek);
-            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(decryptedAppDek, sharedSecret);
+            var masterKey = _context.Caller.GetMasterKey();
+            var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
+            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecret);
 
             //Note: never store deviceAppToken
 
@@ -159,7 +149,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
                 SharedSecret = sharedSecret,
-                AppHalfKek = serverRegData.keyHalfKek,
+                EncryptedAppKey = serverRegData.DeviceEncryptedDeviceKey,
                 IsRevoked = false
             };
 
@@ -226,6 +216,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
         {
+            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }

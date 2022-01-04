@@ -15,7 +15,7 @@ namespace Youverse.Core.Cryptography.Data
 
         public Guid deviceApplicationId;      // Random 16-byte secure HTTP only client cookie
 
-        public SymmetricKeyEncryptedXor keyHalfKek; // This is the server half of the key, client half is in the client cookie / token
+        public SymmetricKeyEncryptedXor DeviceEncryptedDeviceKey; // This is the server half of the key, client half is in the client cookie / token
         
         public byte[] SharedSecret;  // The secret shared with the client. We need one per client
         public NonceTable NonceKeeper { get; set; }

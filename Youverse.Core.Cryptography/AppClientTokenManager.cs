@@ -46,7 +46,7 @@ namespace Youverse.Core.Cryptography
             // var deviceAppToken = ByteArrayUtil.GetRndByteArray(16);
             // token.halfAdek = XorManagement.XorEncrypt(appDek, deviceAppToken);
 
-            serverRegData.keyHalfKek = new SymmetricKeyEncryptedXor(appKek, out var clientAppToken);
+            serverRegData.DeviceEncryptedDeviceKey = new SymmetricKeyEncryptedXor(appKek, out var clientAppToken);
 
             if (sharedSecret == null)
                 serverRegData.SharedSecret = ByteArrayUtil.GetRndByteArray(16);
@@ -65,7 +65,7 @@ namespace Youverse.Core.Cryptography
         // the application KeK that will unlock the DeK.
         public static SensitiveByteArray DecryptAppKekWithClientToken(AppClientRegistrationData serverReg, byte[] clientToken)
         {
-            return serverReg.keyHalfKek.DecryptKey(clientToken);
+            return serverReg.DeviceEncryptedDeviceKey.DecryptKey(clientToken);
         }
     }
 }

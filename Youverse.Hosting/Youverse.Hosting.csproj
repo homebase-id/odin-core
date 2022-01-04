@@ -16,7 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Youverse.Core.Services.Background\Youverse.Core.Services.Background.csproj" />
     <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
-    <ProjectReference Include="..\Youverse.Services.Messaging\Youverse.Services.Messaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -63,7 +63,7 @@ namespace Youverse.Core.Cryptography.Tests
             //   clientToken.TokenId ["Token"]
             //   cookie2             ["Half"]
 
-            var appDekViaCookies = srvRegData.keyHalfKek.DecryptKey(clientToken);
+            var appDekViaCookies = srvRegData.DeviceEncryptedDeviceKey.DecryptKey(clientToken);
 
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(appDekViaLogin.GetKey(), appDekViaCookies.GetKey()), "DeK does not match"); 
         }

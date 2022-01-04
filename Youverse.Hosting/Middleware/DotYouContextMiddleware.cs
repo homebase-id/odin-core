@@ -131,6 +131,7 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
             
+            //TODO: fix for transit
             var grants = new List<DriveGrant>();
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
@@ -138,6 +139,8 @@ namespace Youverse.Hosting.Middleware
                 deviceUid: null,
                 deviceSharedSecret: null,
                 driveId: driveId,
+                null,
+                null,
                 driveGrants: grants);
         }
     }

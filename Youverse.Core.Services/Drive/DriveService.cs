@@ -152,17 +152,12 @@ namespace Youverse.Core.Services.Drive
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
             var manager = GetStorageManager(file.DriveId);
 
+            var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
+
             //TODO need to validate the storage key is correct byu tested the encryptedIdValue
-
-            //Need to get the key for this drive from the current app.
-            var driveEncryptionKey = _context.AppContext.GetDriveStorageDek(file.DriveId);
-
-            //TODO: is there a way to test this a valid key?  maybe by
-            //encrypting the driveId when its created, then decrypting that value
-            //using this key to see if they match?
             //this.AssertKeyMatch()
-            
-            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, driveEncryptionKey.GetKey());
+
+            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, storageKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
             return encryptedKeyHeader;

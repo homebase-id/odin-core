@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Dawn;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Apps;
 
@@ -19,8 +20,10 @@ namespace Youverse.Core.Services.Base
         private readonly byte[] _deviceUid;
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
+        private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
+        private readonly SensitiveByteArray _deviceSecret;
 
-        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, List<DriveGrant> driveGrants)
+        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray deviceSecret, List<DriveGrant> driveGrants )
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -28,7 +31,9 @@ namespace Youverse.Core.Services.Base
             this._appId = appId;
             this._deviceSharedSecret = deviceSharedSecret;
             this._driveId = driveId;
-            _driveGrants = driveGrants;
+            this._encryptedAppKey = encryptedAppKey;
+            this._deviceSecret = deviceSecret;
+            this._driveGrants = driveGrants;
             this._deviceUid = deviceUid;
         }
 
@@ -56,18 +61,19 @@ namespace Youverse.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public SensitiveByteArray GetDriveStorageDek(Guid driveId)
+        public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
-            //TODO need to validate the storage key is correct byu tested the encryptedIdValue
-
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
                 throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
             }
 
-            return new SensitiveByteArray(grant.DriveKey);
+            var appKey = this._encryptedAppKey.DecryptKey(this._deviceSecret);
+            var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(appKey);
+            return storageKey;
         }
     }
 }

@@ -18,9 +18,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         public string Name { get; set; }
 
         /// <summary>
-        /// The value use used to access storage keys
+        /// The value use used to decrypt storage keys within DriveGrants
         /// </summary>
-        public byte[] EncryptedDek { get; set; }
+        public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; set; }
 
         public bool IsRevoked { get; set; }
         
@@ -38,6 +38,6 @@ namespace Youverse.Core.Services.Authorization.Apps
     public class DriveGrant
     {
         public Guid DriveId { get; set; }
-        public byte[] DriveKey { get; set; }
+        public SymmetricKeyEncryptedAes AppKeyEncryptedStorageKey { get; set; }
     }
 }

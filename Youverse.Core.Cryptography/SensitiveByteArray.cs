@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 
 namespace Youverse.Core.Cryptography
@@ -10,6 +11,7 @@ namespace Youverse.Core.Cryptography
     /// moved around. 
     /// TODO write tests.
     /// </summary>
+    [DebuggerDisplay("Key={string.Join(\"-\", _key)}")]
     public sealed class SensitiveByteArray
     {
         // TODO Move this to secure memory

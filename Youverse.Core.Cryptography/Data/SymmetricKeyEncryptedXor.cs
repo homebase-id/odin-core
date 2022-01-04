@@ -36,17 +36,11 @@ namespace Youverse.Core.Cryptography.Data
         }
 
 
-        /// <summary>
-        /// Get the Application Dek by means of the LoginKek master key
-        /// </summary>
-        /// <param name="keyData">The half of the key needed to decrypt</param>
-        /// <param name="halfKey">The master key LoginKek</param>
-        /// <returns>The decrypted Application DeK</returns>
-        public SensitiveByteArray DecryptKey(byte[] halfKey)
+        public SensitiveByteArray DecryptKey(SensitiveByteArray halfKey)
         {
             if (_decryptedKey == null || _decryptedKey.IsEmpty())
             {
-                var key = XorManagement.XorEncrypt(KeyEncrypted, halfKey);
+                var key = XorManagement.XorEncrypt(KeyEncrypted, halfKey.GetKey());
 
                 if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
                     throw new Exception();
@@ -55,6 +49,18 @@ namespace Youverse.Core.Cryptography.Data
             }
 
             return _decryptedKey;
+        }
+
+        /// <summary>
+        /// Get the Application Dek by means of the LoginKek master key
+        /// </summary>
+        /// <param name="keyData">The half of the key needed to decrypt</param>
+        /// <param name="halfKey">The master key LoginKek</param>
+        /// <returns>The decrypted Application DeK</returns>
+        [Obsolete("Use overload which accepts a SensitiveByteArray")]
+        public SensitiveByteArray DecryptKey(byte[] halfKey)
+        {
+            return this.DecryptKey(new SensitiveByteArray(halfKey));
         }
     }
 }
