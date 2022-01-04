@@ -23,6 +23,7 @@ namespace Youverse.Core.Cryptography.Data
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
+            _decryptedKey = null;
         }
 
         public SymmetricKeyEncryptedAes(SensitiveByteArray secret)

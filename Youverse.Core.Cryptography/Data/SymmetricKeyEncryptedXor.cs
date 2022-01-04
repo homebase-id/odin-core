@@ -21,6 +21,7 @@ namespace Youverse.Core.Cryptography.Data
         public SymmetricKeyEncryptedXor()
         {
             //For LiteDB
+            _decryptedKey = null;
         }
 
         public SymmetricKeyEncryptedXor(SensitiveByteArray secretKeyToSplit, out byte[] halfKey1)
