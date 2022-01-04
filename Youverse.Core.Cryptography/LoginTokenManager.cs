@@ -56,7 +56,7 @@ namespace Youverse.Core.Cryptography
             };
 
             var kek = new SensitiveByteArray(Convert.FromBase64String(kek64));
-            token.ServerHalfOwnerConsoleKey = new SymmetricKeyEncryptedXor(kek, out var halfCookie);
+            token.EncryptedMasterKey = new SymmetricKeyEncryptedXor(kek, out var halfCookie);
             kek.Wipe();
 
             return (halfCookie, token);
@@ -74,7 +74,7 @@ namespace Youverse.Core.Cryptography
         // the application KeK that will unlock the DeK.
         public static SensitiveByteArray GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
         {
-            return loginToken.ServerHalfOwnerConsoleKey.DecryptKey(halfCookie);
+            return loginToken.EncryptedMasterKey.DecryptKey(halfCookie);
             // return GetLoginKek(loginToken.HalfKey, halfCookie);
         }
 

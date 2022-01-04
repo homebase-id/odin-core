@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return IsAuthTokenEntryValid(entry);
         }
         
-        public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientHalfKek)
+        public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
@@ -108,7 +108,7 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new Exception("Token is invalid");
             }
 
-            return await _secretService.GetMasterKey(loginToken, clientHalfKek);
+            return await _secretService.GetMasterKey(loginToken, clientSecret);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)

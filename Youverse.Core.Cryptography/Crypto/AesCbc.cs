@@ -77,6 +77,12 @@ namespace Youverse.Core.Cryptography.Crypto
             }
         }
 
+        public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, SensitiveByteArray key)
+        {
+            return EncryptBytesToBytes_Aes(data, key.GetKey());
+        }
+
+        [Obsolete("Use overload that accepts SensitiveByteArray")]
         public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] Key)
         {
             byte[] IV;

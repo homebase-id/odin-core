@@ -39,12 +39,15 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
-        //TODO: integrate SymmetricKeyEncryptedAes
-        public override SensitiveByteArray EncryptionKey
+        public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey
         {
-            get => _inner.EncryptionKey;
+            get => _inner.MasterKeyEncryptedStorageKey;
             set { }
         }
+
+        public override byte[] EncryptedIdIv { get => _inner.EncryptedIdIv; set { } }
+        
+        public override byte[] EncryptedIdValue { get => _inner.EncryptedIdValue; set { } }
 
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
@@ -74,7 +77,10 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
         /// </summary>
-        // public virtual SymmetricKeyEncryptedAes EncryptionKek { get; set; }
-        public virtual SensitiveByteArray EncryptionKey { get; set; }
+        public virtual SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
+        
+        public virtual byte[] EncryptedIdIv { get; set; }
+
+        public virtual byte[] EncryptedIdValue { get; set; }
     }
 }

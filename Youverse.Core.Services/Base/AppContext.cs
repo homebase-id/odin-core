@@ -58,6 +58,8 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageDek(Guid driveId)
         {
+            //TODO need to validate the storage key is correct byu tested the encryptedIdValue
+
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)

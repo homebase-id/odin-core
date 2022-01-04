@@ -9,6 +9,7 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
@@ -40,16 +41,25 @@ namespace Youverse.Core.Services.Drive
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            //TODO: integrate SymmetricKeyEncryptedAes
-            var driveKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
+            var mk = _context.Caller.GetMasterKey();
+
+            var driveKey = new SymmetricKeyEncryptedAes(mk);
             
             var id = Guid.NewGuid();
+            var secret = driveKey.DecryptKey(mk);
+
+            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.EncryptBytesToBytes_Aes(id.ToByteArray(), secret);
+
             var sdb = new StorageDriveBase()
             {
                 Id = id,
                 Name = name,
-                EncryptionKey = driveKey
+                MasterKeyEncryptedStorageKey = driveKey,
+                EncryptedIdIv = encryptedIdIv,
+                EncryptedIdValue = encryptedIdValue
             };
+
+            secret.Wipe();
             
             _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
 
@@ -141,7 +151,9 @@ namespace Youverse.Core.Services.Drive
             var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
             var manager = GetStorageManager(file.DriveId);
-            
+
+            //TODO need to validate the storage key is correct byu tested the encryptedIdValue
+
             //Need to get the key for this drive from the current app.
             var driveEncryptionKey = _context.AppContext.GetDriveStorageDek(file.DriveId);
 

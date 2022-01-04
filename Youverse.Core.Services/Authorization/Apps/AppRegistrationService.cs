@@ -48,12 +48,12 @@ namespace Youverse.Core.Services.Authorization.Apps
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                var rawDriveKey = drive.EncryptionKey;
+                //var rawDriveKey = drive.MasterKeyEncryptedStorageKey;
 
                 //HACK:!!
                 //TODO: Use raw key until we integrate SymmetricKeyEncryptedAes
                 grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant(){DriveId = drive.Id, DriveKey = rawDriveKey.GetKey()});
+                //grants.Add(new DriveGrant(){DriveId = drive.Id, DriveKey = rawDriveKey.GetKey()});
                 driveId = drive.Id;
             }
 

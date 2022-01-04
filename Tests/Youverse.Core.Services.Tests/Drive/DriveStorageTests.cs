@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using NuGet.Frameworks;
 using NUnit.Framework;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -59,8 +60,19 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.IsTrue(Directory.Exists(storageDrive.GetStoragePath(StorageDisposition.LongTerm)));
             Assert.IsTrue(Directory.Exists(storageDrive.GetIndexPath()));
 
-            var driveId = storageDrive.Id;
-            var file = driveService.CreateFileId(driveId);
+            Assert.That(storageDrive.EncryptedIdValue, Is.Not.Null);
+            Assert.That(storageDrive.EncryptedIdValue, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+
+            Assert.That(storageDrive.EncryptedIdIv, Is.Not.Null);
+            Assert.That(storageDrive.EncryptedIdIv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+
+            var mk = _scaffold!.Context!.Caller.GetMasterKey();
+            var decryptedMasterKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(mk);
+
+            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(storageDrive.EncryptedIdValue, decryptedMasterKey.GetKey(), storageDrive.EncryptedIdIv);
+            Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));
+
+            var file = driveService.CreateFileId(storageDrive.Id);
 
             var keyHeader = KeyHeader.NewRandom16();
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, _ekh_Iv, _ekh_Key);

@@ -10,9 +10,9 @@ namespace Youverse.Core.Cryptography.Data
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
 
-        public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
-        public byte[] KeyIV         { get; set; } // IV used for AES encryption of the key
-        public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
+        public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
+        public byte[] KeyIV { get; set; } // IV used for AES encryption of the key
+        public byte[] KeyHash { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
 
         ~SymmetricKeyEncryptedAes()
@@ -45,9 +45,10 @@ namespace Youverse.Core.Cryptography.Data
         /// <param name="keyData">The ApplicationTokenData</param>
         /// <param name="secret">The master key LoginKek</param>
         /// <returns>The decrypted Application DeK</returns>
+        [Obsolete("Use SenstiveByteArray overload instead")]
         public SensitiveByteArray DecryptKey(byte[] secret)
         {
-            if (_decryptedKey == null)
+            if (_decryptedKey == null || _decryptedKey.IsEmpty())
             {
                 var key = AesCbc.DecryptBytesFromBytes_Aes(KeyEncrypted, secret, KeyIV);
 
@@ -58,6 +59,11 @@ namespace Youverse.Core.Cryptography.Data
             }
 
             return _decryptedKey;
+        }
+
+        public SensitiveByteArray DecryptKey(SensitiveByteArray secret)
+        {
+            return this.DecryptKey(secret.GetKey());
         }
     }
 }

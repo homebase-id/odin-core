@@ -10,7 +10,7 @@ namespace Youverse.Core.Cryptography.Data
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
 
-        public byte[] KeyEncrypted  { get; set; } // The symmetric encryption key encrypted with AES using the IV below
+        public byte[] KeyEncrypted  { get; set; }
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
         ~SymmetricKeyEncryptedXor()
@@ -44,7 +44,7 @@ namespace Youverse.Core.Cryptography.Data
         /// <returns>The decrypted Application DeK</returns>
         public SensitiveByteArray DecryptKey(byte[] halfKey)
         {
-            if (_decryptedKey == null)
+            if (_decryptedKey == null || _decryptedKey.IsEmpty())
             {
                 var key = XorManagement.XorEncrypt(KeyEncrypted, halfKey);
 

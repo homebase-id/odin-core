@@ -104,6 +104,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
         private bool GetToken(out DotYouAuthenticationResult authResult)
         {
+            //TODO: can we remove some of the sensitive cookie values from memory
             var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];
             if (DotYouAuthenticationResult.TryParse(value, out var result))
             {
