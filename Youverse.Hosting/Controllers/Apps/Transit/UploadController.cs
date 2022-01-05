@@ -15,7 +15,7 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
-    [Route("/api/transit/client")]
+    [Route("/api/transit")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class UploadController : ControllerBase
     {
@@ -39,8 +39,8 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidDataException"></exception>
-        [HttpPost("SendPackage")]
-        public async Task<IActionResult> SendPackage()
+        [HttpPost("Upload")]
+        public async Task<IActionResult> Upload()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -52,10 +52,6 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
 
             //NOTE: the first section MUST BE the app id so we can validate it
             var section = await reader.ReadNextSectionAsync();
-
-            //Note: the _packageStorageWriter exists so we have a service that holds
-            //the logic and routing of tenant-specific data.  We don't
-            //want that in the http controllers
 
             //TODO: determine which is the right drive to use
             var driveId = _context.AppContext.DriveId;
@@ -78,6 +74,54 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             var status = await _transitService.PrepareTransfer(package);
 
             return new JsonResult(status);
+        }
+
+        /// <summary>
+        /// Accepts a multipart upload.  The 'name' parameter in the upload must be specified.  The following parts are required:
+        ///
+        /// name: "metadata": an encrypted object of metadata information in json format (fields/format is TBD as of dec 21, 2021)
+        /// name: "payload": the encrypted payload of data
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidDataException"></exception>
+        [HttpPost("store")]
+        public async Task<IActionResult> Store()
+        {
+            // if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            // {
+            //     throw new InvalidDataException("Data is not multi-part content");
+            // }
+            //
+            // var boundary = GetBoundary(HttpContext.Request.ContentType);
+            // var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+            //
+            // //TODO: need to enable specifying a different drive
+            //
+            // // var drive = driveId ?? _context.AppContext.DriveId.GetValueOrDefault();
+            // var drive = _context.AppContext.DriveId.GetValueOrDefault();
+            // var packageId = await _packageStorageWriter.CreatePackage(drive, 3);
+            //
+            // bool isComplete = false;
+            // var section = await reader.ReadNextSectionAsync();
+            // while (section != null || !isComplete)
+            // {
+            //     var partName = GetSectionName(section.ContentDisposition);
+            //     var partStream = section.Body;
+            //     isComplete = await _packageStorageWriter.AddPart(packageId, partName, partStream);
+            //     section = await reader.ReadNextSectionAsync();
+            // }
+            //
+            // if (!isComplete)
+            // {
+            //     throw new InvalidDataException("Upload does not contain all required parts.");
+            // }
+            //
+            // var package = await _packageStorageWriter.GetPackage(packageId);
+            //
+            // await _driveService.MoveToLongTerm(package.File);
+            //
+            // return new JsonResult(package.File);
+            return new JsonResult("");
         }
 
         private static bool IsMultipartContentType(string contentType)
@@ -107,6 +151,5 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-
     }
 }
