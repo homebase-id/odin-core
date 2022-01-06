@@ -236,7 +236,7 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.FromResult(new FileInfo(path).Length);
         }
 
-        public async Task<IEnumerable<FileMetaData>> GetMetadataFiles(PageOptions pageOptions)
+        public async Task<IEnumerable<FileMetadata>> GetMetadataFiles(PageOptions pageOptions)
         {
             string path = this.Drive.GetStoragePath(StorageDisposition.LongTerm);
             var options = new EnumerationOptions()
@@ -248,7 +248,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 MatchType = MatchType.Win32
             };
 
-            var results = new List<FileMetaData>();
+            var results = new List<FileMetadata>();
             var filePaths = Directory.EnumerateFiles(path, $"*.{FilePart.Metadata.ToString().ToLower()}", options);
             foreach (string filePath in filePaths)
             {
@@ -261,12 +261,12 @@ namespace Youverse.Core.Services.Drive.Storage
             return results;
         }
 
-        public async Task<FileMetaData> GetMetadata(Guid fileId, StorageDisposition storageDisposition)
+        public async Task<FileMetadata> GetMetadata(Guid fileId, StorageDisposition storageDisposition)
         {
             var stream = await this.GetFilePartStream(fileId, FilePart.Metadata, storageDisposition);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
-            var metadata = JsonConvert.DeserializeObject<FileMetaData>(json);
+            var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             return metadata;
         }
 

@@ -49,13 +49,13 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Updates the current index that is in use.
         /// </summary>
-        Task UpdateCurrentIndex(FileMetaData metadata);
+        Task UpdateCurrentIndex(FileMetadata metadata);
 
         /// <summary>
         /// Updates the index that is not currently in use.  Use when performing a rebuild.
         /// </summary>
         /// <param name="metadata"></param>
-        Task UpdateSecondaryIndex(FileMetaData metadata);
+        Task UpdateSecondaryIndex(FileMetadata metadata);
 
         /// <summary>
         /// Prepares backup index for rebuild; clears and instantiates a new instance.

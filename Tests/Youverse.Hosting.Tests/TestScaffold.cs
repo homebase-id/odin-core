@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Extensions.Hosting;
@@ -27,12 +29,14 @@ namespace Youverse.Hosting.Tests
 {
     public class TestScaffold
     {
+        private static readonly SemaphoreSlim _semaphore = new(1, 1);
+
         private readonly string _folder;
         private IHost _webserver;
-        private Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new Dictionary<string, DotYouAuthenticationResult>(StringComparer.InvariantCultureIgnoreCase);
-
+        private readonly Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
         DevelopmentIdentityContextRegistry _registry;
 
+            
         public TestScaffold(string folder)
         {
             this._folder = folder;
@@ -179,17 +183,25 @@ namespace Youverse.Hosting.Tests
 
         private async Task<DotYouAuthenticationResult> EnsureOwnerAuthToken(DotYouIdentity identity)
         {
-            if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
+            await _semaphore.WaitAsync();
+            try
             {
-                return authResult;
+                if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
+                {
+                    return authResult;
+                }
+                
+                const string password = "EnSøienØ";
+                await this.ForceNewPassword(identity, password);
+
+                var result = await this.LoginToOwnerConsole(identity, password);
+                _ownerLoginTokens.Add(identity, result);
+                return result;
             }
-
-            const string password = "EnSøienØ";
-            await this.ForceNewPassword(identity, password);
-
-            var result = await this.LoginToOwnerConsole(identity, password);
-            _ownerLoginTokens.Add(identity, result);
-            return result;
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
@@ -234,7 +246,7 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
-        
+
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
@@ -275,6 +287,23 @@ namespace Youverse.Hosting.Tests
             Console.ForegroundColor = prev;
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Creates an app, device, and logs in returning an DotYouAuthenticationResult
+        /// </summary>
+        /// <returns></returns>
+        public async Task<(Guid appId, byte[] deviceUid, DotYouAuthenticationResult authResult)> SetupSampleApp(DotYouIdentity identity)
+        {
+            Guid appId = Guid.NewGuid();
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            await this.AddApp(identity, appId, true);
+            await this.AddAppDevice(identity, appId, deviceUid);
+            var authCode = await this.CreateAppSession(identity, appId, deviceUid);
+            var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+
+            return (appId, deviceUid, authResult);
         }
 
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
@@ -351,7 +380,7 @@ namespace Youverse.Hosting.Tests
                 ApplicationId = appId,
                 DeviceUid = deviceUid
             };
-            
+
             using (var ownerClient = this.CreateOwnerApiHttpClient(identity))
             {
                 var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
@@ -395,7 +424,7 @@ namespace Youverse.Hosting.Tests
                 Assert.That(authResultResponse.Content, Is.Not.Null);
                 Assert.That(authResultResponse.Content, Is.Not.Empty);
                 Assert.That(DotYouAuthenticationResult.TryParse(authResultResponse.Content, out var result), Is.True);
-                
+
                 return result;
             }
         }

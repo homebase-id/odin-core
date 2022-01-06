@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             await _scaffold.AddApp(identity, appId);
             await _scaffold.AddAppDevice(identity, appId, deviceUid);
             Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
-            
+
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
@@ -113,7 +113,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             Guid authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
 
             //TODO: this bound to the value in AppAuthenticationService for AppAuthAuthorizationCode
-            Thread.Sleep(16 * 1000);
+            Task.Delay(16 * 1000).Wait();
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -157,7 +157,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(authCodeResponse.IsSuccessStatusCode, Is.False);
             }
         }
-        
+
         [Test]
         public async Task FailToAuthenticateRevokedDevice()
         {
@@ -178,7 +178,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                     ApplicationId = appId,
                     DeviceUid = deviceUid
                 });
-                
+
                 Assert.That(authCodeResponse.IsSuccessStatusCode, Is.False);
             }
         }
@@ -206,9 +206,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
                 Assert.That(result.IsValid, Is.True);
             }
-            
+
             await _scaffold.RevokeSampleApp(identity, appId);
-            
+
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
@@ -219,10 +219,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
                 Assert.That(result.IsValid, Is.False);
             }
-
-            
         }
-        
+
         [Test]
         public async Task CanRevokeDeviceMidSession()
         {
@@ -246,9 +244,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
                 Assert.That(result.IsValid, Is.True);
             }
-            
+
             await _scaffold.RevokeDevice(identity, appId, deviceUid);
-            
+
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
@@ -259,7 +257,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
                 Assert.That(result.IsValid, Is.False);
             }
-
         }
     }
 }

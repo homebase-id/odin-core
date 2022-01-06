@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return page;
         }
 
-        public void UpdateCurrentIndex(DriveFileId file, FileMetaData metadata)
+        public void UpdateCurrentIndex(DriveFileId file, FileMetadata metadata)
         {
             throw new NotImplementedException();
         }

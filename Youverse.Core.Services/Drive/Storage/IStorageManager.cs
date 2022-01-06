@@ -84,12 +84,12 @@ namespace Youverse.Core.Services.Drive.Storage
         Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
         /// <summary>
-        /// Returns an enumeration of <see cref="FileMetaData"/>; ordered by the most recently modified
+        /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
         /// </summary>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<IEnumerable<FileMetaData>> GetMetadataFiles(PageOptions pageOptions);
+        Task<IEnumerable<FileMetadata>> GetMetadataFiles(PageOptions pageOptions);
 
-        Task<FileMetaData> GetMetadata(Guid fileId, StorageDisposition storageDisposition);
+        Task<FileMetadata> GetMetadata(Guid fileId, StorageDisposition storageDisposition);
     }
 }

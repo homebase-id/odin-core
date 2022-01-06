@@ -106,7 +106,7 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public Task WriteMetaData(DriveFileId file, FileMetaData metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embeded
             
@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Drive
             return task;
         }
 
-        public Task<IEnumerable<FileMetaData>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
+        public Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
             return GetStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
@@ -168,7 +168,7 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
         }
 
-        public async Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public async Task<FileMetadata> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             var metadata = await GetStorageManager(file.DriveId).GetMetadata(file.FileId, storageDisposition);
             return metadata;
@@ -224,7 +224,7 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
 
-        private void OnLongTermFileChanged(DriveFileId file, FileMetaData metaData)
+        private void OnLongTermFileChanged(DriveFileId file, FileMetadata metadata)
         {
             EventHandler<DriveFileChangedArgs> handler = this.FileChanged;
             if (null != handler)
@@ -232,7 +232,7 @@ namespace Youverse.Core.Services.Drive
                 handler(this, new DriveFileChangedArgs()
                 {
                     File = file,
-                    FileMetaData = metaData
+                    FileMetadata = metadata
                 });
             }
         }

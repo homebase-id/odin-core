@@ -7,6 +7,8 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -36,14 +38,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         public async Task CanUploadUsingAppDrive()
         {
             var identity = TestIdentities.Samwise;
-
-            Guid appId = Guid.NewGuid();
-            byte[] deviceUid = Guid.NewGuid().ToByteArray();
-
-            await _scaffold.AddApp(identity, appId, true);
-            await _scaffold.AddAppDevice(identity, appId, deviceUid);
-            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
-            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+            var (appId, deviceUid, authResult) = await _scaffold.SetupSampleApp(identity);
             
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -56,7 +51,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileId = Guid.Empty
             };
 
-            var metadata = new FileMetaData(file)
+            var metadata = new FileMetadata(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",
@@ -69,7 +64,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, _scaffold.AppSharedSecret);
+            var metaDataCipher = Utils.EncryptAes(metadataJson, transferIv, _scaffold.AppSharedSecret);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);

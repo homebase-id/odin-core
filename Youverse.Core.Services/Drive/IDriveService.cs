@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         DriveFileId CreateFileId(Guid driveId);
 
-        Task WriteMetaData(DriveFileId file, FileMetaData metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Writes the payload stream
@@ -52,12 +52,12 @@ namespace Youverse.Core.Services.Drive
         Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Gets the <see cref="FileMetaData"/>
+        /// Gets the <see cref="FileMetadata"/>
         /// </summary>
         /// <param name="file"></param>
         /// <param name="storageDisposition"></param>
         /// <returns></returns>
-        Task<FileMetaData> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<FileMetadata> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
@@ -107,7 +107,7 @@ namespace Youverse.Core.Services.Drive
 
         Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
         
-        Task<IEnumerable<FileMetaData>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
+        Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
         
         /// <summary>
         /// Converts a transfer key header to a long term key header and stores it for the specified file.

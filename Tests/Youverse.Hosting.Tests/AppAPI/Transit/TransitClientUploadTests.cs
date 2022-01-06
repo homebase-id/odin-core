@@ -36,11 +36,80 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             _scaffold.RunAfterAnyTests();
         }
 
+        [Test(Description = "Test Upload only; no expire, no drive; no transfer")]
+        public async Task UploadOnly()
+        {
+            var identity = TestIdentities.Frodo;
+            var (appId, deviceUid, authResult) = await _scaffold.SetupSampleApp(identity);
+
+            var appSharedSecret = new SensitiveByteArray(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = new TransitOptions()
+                {
+                    Recipients = null
+                }
+            };
+
+            var instructionSetCipher = Utils.JsonEncryptAes(instructionSet, transferIv, appSharedSecret.GetKey());
+
+            var keyHeader = KeyHeader.NewRandom16();
+            var fileHeader = new FileHeader()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey()),
+                FileMetadata = new FileMetadata()
+                {
+                    Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                    ContentType = "application/json",
+                    AppData = new AppFileMetaData()
+                    {
+                        CategoryId = Guid.Empty,
+                        ContentIsComplete = true,
+                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    }
+                },
+            };
+
+            var fileHeaderCipher = Utils.JsonEncryptAes(fileHeader, transferIv, appSharedSecret.GetKey());
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            {
+                var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var response = await transitSvc.Transfer(
+                    new StreamPart(instructionSetCipher, "instructionSet.encrypted", "application/json", "instructionSet"),
+                    new StreamPart(fileHeaderCipher, "fileheader.encrypted", "application/json", "fileheader"),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+
+                Assert.That(transferResult.RecipientStatus, Is.Not.Null);
+                Assert.IsTrue(transferResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+            }
+
+            keyHeader.AesKey.Wipe();
+            appSharedSecret.Wipe();
+        }
 
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var appSharedSecret = new SensitiveByteArray(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+            var appSharedSecret = new SensitiveByteArray(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -51,8 +120,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 DriveId = Guid.Empty,
                 FileId = Guid.Empty
             };
-            
-            var metadata = new FileMetaData(file)
+
+            var metadata = new FileMetadata(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",
@@ -60,12 +129,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, appSharedSecret.GetKey());
+            var metaDataCipher = Utils.EncryptAes(metadataJson, transferIv, appSharedSecret.GetKey());
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
@@ -74,10 +143,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
             var encryptedKeyHeaderStream = new MemoryStream(b);
 
-            var recipientList = new RecipientList {Recipients = new List<DotYouIdentity>() {TestIdentities.Frodo}};
+            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { TestIdentities.Frodo } };
             var recipientJson = JsonConvert.SerializeObject(recipientList);
-
-            var recipientCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(recipientJson, transferIv, appSharedSecret.GetKey());
+            var recipientCipher = Utils.EncryptAes(recipientJson, transferIv, appSharedSecret.GetKey());
 
             keyHeader.AesKey.Wipe();
             appSharedSecret.Wipe();

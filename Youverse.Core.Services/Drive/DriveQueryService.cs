@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Drive
             //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
 
             this.TryGetOrLoadQueryManager(e.File.DriveId, out var manager, false);
-            manager.UpdateCurrentIndex(e.FileMetaData);
+            manager.UpdateCurrentIndex(e.FileMetadata);
         }
 
         public Task RebuildAllIndices()
@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Drive
 
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             await manager.PrepareSecondaryIndexForRebuild();
-            foreach (FileMetaData md in metaDataList)
+            foreach (FileMetadata md in metaDataList)
             {
                 //intentionally letting this run w/o await
                 manager.UpdateSecondaryIndex(md);
@@ -104,7 +104,7 @@ namespace Youverse.Core.Services.Drive
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             manager.IndexReadyState = IndexReadyState.IsRebuilding;
 
-            foreach (FileMetaData md in metaDataList)
+            foreach (FileMetadata md in metaDataList)
             {
                 //intentionally letting this run w/o await
                 manager.UpdateCurrentIndex(md);

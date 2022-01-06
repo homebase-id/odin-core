@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return Task.CompletedTask;
         }
 
-        public Task UpdateCurrentIndex(FileMetaData metadata)
+        public Task UpdateCurrentIndex(FileMetadata metadata)
         {
             _indexStorage.Save(ConvertMetadata(metadata));
 
@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return Task.CompletedTask;
         }
 
-        public Task UpdateSecondaryIndex(FileMetaData metadata)
+        public Task UpdateSecondaryIndex(FileMetadata metadata)
         {
             if (null == _backupIndexStorage)
             {
@@ -186,7 +186,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private IndexedItem ConvertMetadata(FileMetaData metadata)
+        private IndexedItem ConvertMetadata(FileMetadata metadata)
         {
             return new IndexedItem()
             {

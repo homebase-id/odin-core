@@ -125,7 +125,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileId = Guid.Empty
             };
 
-            var metadata = new FileMetaData(file)
+            var metadata = new FileMetadata(file)
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ContentType = "application/json",
@@ -138,7 +138,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = UploadEncryptionUtils.GetAppSharedSecretEncryptedStream(metadataJson, transferIv, _scaffold.AppSharedSecret);
+            var metaDataCipher = Utils.EncryptAes(metadataJson, transferIv, _scaffold.AppSharedSecret);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);

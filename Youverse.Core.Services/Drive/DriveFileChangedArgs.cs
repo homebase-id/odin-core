@@ -7,6 +7,6 @@ namespace Youverse.Core.Services.Drive
     {
         public DriveFileId File { get; set; }
 
-        public FileMetaData FileMetaData { get; set; }
+        public FileMetadata FileMetadata { get; set; }
     }
 }

@@ -80,6 +80,7 @@ namespace Youverse.Core.Services.Transit
             var result = new TransferResult()
             {
                 FileId = package.File.FileId,
+                File = package.File,
                 RecipientStatus = keyStatus
             };
 

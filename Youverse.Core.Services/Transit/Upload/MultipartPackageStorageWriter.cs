@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
                 if (filePart == FilePart.Metadata)
                 {
-                    var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetaData>(data);
+                    var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetadata>(data);
                     await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
                     _partCounts[pkgId]++;
                 }
