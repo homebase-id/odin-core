@@ -110,6 +110,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
+            //TODO: need to encrypt the metadata parts
             metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embeded
             
             var json = JsonConvert.SerializeObject(metadata);
