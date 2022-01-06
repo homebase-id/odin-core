@@ -6,11 +6,11 @@ namespace Youverse.Core.Services.Transit.Upload
     {
         public UploadFileMetadata()
         {
-            this.AppData = new AppFileMetaData();
+            this.AppData = new();
         }
 
         public string ContentType { get; set; }
 
-        public AppFileMetaData AppData { get; set; }
+        public UploadAppFileMetaData AppData { get; set; }
     }
 }

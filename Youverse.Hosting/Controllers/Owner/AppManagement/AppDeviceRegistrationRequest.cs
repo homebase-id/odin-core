@@ -8,6 +8,5 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         public string DeviceId64 { get; set; }
         public string SharedSecretKey64 { get; set; }
         
-        public string SharedSecretIv64 { get; set; }
     }
 }

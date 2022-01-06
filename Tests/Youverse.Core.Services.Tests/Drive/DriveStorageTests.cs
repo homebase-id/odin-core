@@ -67,9 +67,9 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.That(storageDrive.EncryptedIdIv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
             var mk = _scaffold!.Context!.Caller.GetMasterKey();
-            var decryptedMasterKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(mk);
+            var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(mk);
 
-            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(storageDrive.EncryptedIdValue, decryptedMasterKey.GetKey(), storageDrive.EncryptedIdIv);
+            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(storageDrive.EncryptedIdValue, storageKey.GetKey(), storageDrive.EncryptedIdIv);
             Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));
 
             var file = driveService.CreateFileId(storageDrive.Id);

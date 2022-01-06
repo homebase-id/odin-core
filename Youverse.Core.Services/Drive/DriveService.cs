@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -155,9 +156,15 @@ namespace Youverse.Core.Services.Drive
 
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
 
-            //TODO need to validate the storage key is correct byu tested the encryptedIdValue
+            var drive = manager.Drive;
+            
             //this.AssertKeyMatch()
-
+            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(drive.EncryptedIdValue, storageKey.GetKey(), drive.EncryptedIdIv);
+            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, drive.Id.ToByteArray()))
+            {
+                throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
+            }
+            
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, storageKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);

@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public Guid Token { get; set; }
         
-        public byte[] DeviceAppKey { get; set; }  // This is half the AppDek
+        public byte[] DeviceSecret { get; set; }  // This is half the AppDek
         
 
     }

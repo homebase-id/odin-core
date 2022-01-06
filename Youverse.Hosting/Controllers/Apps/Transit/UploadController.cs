@@ -53,6 +53,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             var packageId = await _packageStorageWriter.CreatePackage(section.Body);
 
             bool isComplete = false;
+            section = await reader.ReadNextSectionAsync();
             while (section != null || !isComplete)
             {
                 var partName = GetSectionName(section!.ContentDisposition);

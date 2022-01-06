@@ -97,8 +97,8 @@ namespace Youverse.Core.Services.Tests.AppReg
             var reply = await svc.RegisterDevice(appId, uniqueDeviceId, sharedSecret);
 
             Assert.IsFalse(reply.Token == Guid.Empty);
-            Assert.IsNotNull(reply.DeviceAppKey);
-            Assert.That(reply.DeviceAppKey.Length, Is.GreaterThanOrEqualTo(16));
+            Assert.IsNotNull(reply.DeviceSecret);
+            Assert.That(reply.DeviceSecret.Length, Is.GreaterThanOrEqualTo(16));
 
             var savedAppDevice = await svc.GetAppDeviceRegistration(appId, uniqueDeviceId);
 

@@ -139,9 +139,9 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
-            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecretKey);
+            var (deviceSecret, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecretKey);
 
-            //Note: never store deviceAppToken
+            //Note: never store clientAppToken
 
             var appDeviceReg = new AppDeviceRegistration()
             {
@@ -159,7 +159,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return new AppDeviceRegistrationResponse()
             {
                 Token = appDeviceReg.Id,
-                DeviceAppKey = clientAppToken
+                DeviceSecret = deviceSecret
             };
         }
 

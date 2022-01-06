@@ -196,7 +196,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
                 Assert.IsNotNull(transferResult);
-                Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
+                Assert.IsNotNull(transferResult.File, "File was not set");
+                Assert.IsFalse(transferResult.File.FileId== Guid.Empty, "FileId was not set");
+                Assert.IsFalse(transferResult.File.DriveId == Guid.Empty, "DriveId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
                 Assert.IsTrue(transferResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);

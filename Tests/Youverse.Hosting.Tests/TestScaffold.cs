@@ -32,17 +32,15 @@ namespace Youverse.Hosting.Tests
         private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
         private readonly string _folder;
+        private readonly string _password = "EnSøienØ";
         private IHost _webserver;
         private readonly Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
         DevelopmentIdentityContextRegistry _registry;
-
 
         public TestScaffold(string folder)
         {
             this._folder = folder;
         }
-
-        public readonly byte[] AppSharedSecret = Guid.Empty.ToByteArray();
 
         public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
         public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
@@ -70,6 +68,11 @@ namespace Youverse.Hosting.Tests
 
                 _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
                 _webserver.Start();
+
+                foreach (var identity in TestIdentities.All)
+                {
+                    this.SetupOwnerAccount(identity).GetAwaiter().GetResult();
+                }
             }
         }
 
@@ -181,32 +184,28 @@ namespace Youverse.Hosting.Tests
             return result;
         }
 
-        private async Task<DotYouAuthenticationResult> EnsureOwnerAuthToken(DotYouIdentity identity)
+        private async Task<DotYouAuthenticationResult> GetOwnerAuthToken(DotYouIdentity identity)
         {
-            await _semaphore.WaitAsync();
-            try
+            if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
             {
-                if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
-                {
-                    return authResult;
-                }
-
-                const string password = "EnSøienØ";
-                await this.ForceNewPassword(identity, password);
-
-                var result = await this.LoginToOwnerConsole(identity, password);
-                _ownerLoginTokens.Add(identity, result);
-                return result;
+                return authResult;
             }
-            finally
-            {
-                _semaphore.Release();
-            }
+
+            throw new Exception($"No token found for {identity}");
+        }
+
+        private async Task SetupOwnerAccount(DotYouIdentity identity)
+        {
+            const string password = "EnSøienØ";
+            await this.ForceNewPassword(identity, password);
+
+            var result = await this.LoginToOwnerConsole(identity, this._password);
+            _ownerLoginTokens.Add(identity, result);
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
-            var token = EnsureOwnerAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var token = GetOwnerAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var client = CreateOwnerApiHttpClient(identity, token);
 
             return client;
@@ -298,14 +297,20 @@ namespace Youverse.Hosting.Tests
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
 
-            var appSharedSecretKey = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-
-            await this.AddApp(identity, appId, true);
-            await this.AddAppDevice(identity, appId, deviceUid);
+            this.AddApp(identity, appId, true).GetAwaiter().GetResult();
+            
+            //Tricky - registering a device is the only time we can get the device secret because we have the master key.
+            var (deviceRegistrationResponse, sharedSecret) = this.AddAppDevice(identity, appId, deviceUid).GetAwaiter().GetResult();
+            
             var authCode = await this.CreateAppSession(identity, appId, deviceUid);
+            
+            //this call is done w/o access to the master key so it cannot return the device secret
             var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+            
+            //hack: overwrite this for testing.
+            authResult.ClientHalfKek = deviceRegistrationResponse.DeviceSecret.ToSensitiveByteArray(); 
 
-            return (appId, deviceUid, authResult, appSharedSecretKey);
+            return (appId, deviceUid, authResult, sharedSecret);
         }
 
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
@@ -345,8 +350,10 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<AppDeviceRegistrationResponse> AddAppDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
+        public async Task<(AppDeviceRegistrationResponse deviceRegistrationResponse, byte[] sharedSecretKey)> AddAppDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
         {
+            var sharedSecretKey = ByteArrayUtil.GetRndByteArray(16);
+
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
@@ -355,14 +362,14 @@ namespace Youverse.Hosting.Tests
                 {
                     ApplicationId = appId,
                     DeviceId64 = Convert.ToBase64String(deviceUid),
-                    SharedSecretKey64 = Convert.ToBase64String(this.AppSharedSecret)
+                    SharedSecretKey64 = Convert.ToBase64String(sharedSecretKey)
                 };
 
                 var regResponse = await svc.RegisterAppOnDevice(request);
                 Assert.IsTrue(regResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(regResponse.Content);
 
-                return regResponse.Content;
+                return (regResponse.Content, sharedSecretKey);
             }
         }
 

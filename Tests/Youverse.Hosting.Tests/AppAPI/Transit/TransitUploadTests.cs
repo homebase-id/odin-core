@@ -48,17 +48,16 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
-                
                 StorageOptions = new StorageOptions()
                 {
                     DriveId = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
-                
+
                 TransitOptions = new TransitOptions()
                 {
-                    RecipientsList = null
+                    Recipients = new List<string>(TestIdentities.All.Select(x => (string)x))
                 }
             };
 
@@ -68,10 +67,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecretKey),
-                FileMetadata = new UploadFileMetadata()
+                FileMetadata = new()
                 {
                     ContentType = "application/json",
-                    AppData = new AppFileMetaData()
+                    AppData = new()
                     {
                         CategoryId = Guid.Empty,
                         ContentIsComplete = true,
@@ -89,9 +88,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
                 var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", "instructionSet"),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", "fileDescriptor"),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartSectionNames.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -167,7 +166,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var transferResult = response.Content;
                 Assert.IsNotNull(transferResult);
-                Assert.IsFalse(transferResult.FileId == Guid.Empty, "FileId was not set");
+                Assert.IsNotNull(transferResult.File, "File was not set");
+                Assert.IsFalse(transferResult.File.FileId == Guid.Empty, "FileId was not set");
+                Assert.IsFalse(transferResult.File.DriveId == Guid.Empty, "DriveId was not set");
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
                 Assert.IsTrue(transferResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);

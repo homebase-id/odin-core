@@ -15,9 +15,6 @@ namespace Youverse.Core.Services.Transit
             this.RecipientStatus = new();
         }
         
-        [Obsolete("use File property")]
-        public Guid FileId { get; set; }
-
         public DriveFileId File { get; set; }
         
         public Dictionary<string, TransferStatus> RecipientStatus { get; set; }

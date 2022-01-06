@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Transit
 
             var instructionSet = package.InstructionSet;
 
-            var recipients = instructionSet.TransitOptions?.RecipientsList?.Recipients ?? null;
+            var recipients = instructionSet.TransitOptions?.Recipients ?? null;
             if (null != recipients)
             {
                 var tx = await PrepareTransfer(package);
@@ -93,17 +93,17 @@ namespace Youverse.Core.Services.Transit
 
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
-            await _outboxService.Add(package.InstructionSet.TransitOptions.RecipientsList.Recipients.Select(r => new OutboxItem()
+            var recipients = package.InstructionSet.TransitOptions?.Recipients ?? new List<string>();
+            await _outboxService.Add(recipients.Select(r => new OutboxItem()
             {
                 File = package.File,
-                Recipient = r,
+                Recipient = (DotYouIdentity)r,
                 AppId = this._context.AppContext.AppId,
                 DeviceUid = Convert.ToBase64String(this._context.AppContext.DeviceUid)
             }));
 
             var result = new TransferResult()
             {
-                FileId = package.File.FileId,
                 File = package.File,
                 RecipientStatus = keyStatus
             };
@@ -140,8 +140,9 @@ namespace Youverse.Core.Services.Transit
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(storageKey.GetKey());
             storageKey.Wipe();
 
-            foreach (var recipient in package.InstructionSet.TransitOptions.RecipientsList.Recipients)
+            foreach (var r in package.InstructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
+                var recipient = (DotYouIdentity)r;
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
