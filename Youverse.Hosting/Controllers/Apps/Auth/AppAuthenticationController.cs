@@ -6,7 +6,7 @@ using Youverse.Core.Services.Authentication.AppAuth;
 namespace Youverse.Hosting.Controllers.Apps.Auth
 {
     [ApiController]
-    [Route("/api/apps/v1/auth")]
+    [Route(AppApiPathConstants.BasePathV1 + "/auth")]
     public class AppAuthenticationController : Controller
     {
         private readonly IAppAuthenticationService _authService;
@@ -15,22 +15,22 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
         {
             _authService = authService;
         }
-        
+
         [HttpPost("exchangeCode")]
-        public async Task<string> ExchangeAuthCode([FromBody]AuthCodeExchangeRequest request)
+        public async Task<string> ExchangeAuthCode([FromBody] AuthCodeExchangeRequest request)
         {
             var authResult = await _authService.ExchangeAuthCode(request);
             return authResult.ToString();
         }
-        
-        
+
+
         [HttpPost("validate")]
         public async Task<IActionResult> ValidateSessionToken(Guid sessionToken)
         {
             var result = await _authService.ValidateSessionToken(sessionToken);
             return new JsonResult(result);
         }
-        
+
         [HttpPost("expire")]
         public void ExpireSessionToken(Guid sessionToken)
         {

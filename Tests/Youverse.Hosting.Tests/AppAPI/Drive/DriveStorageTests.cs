@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         public async Task CanUploadUsingAppDrive()
         {
             var identity = TestIdentities.Samwise;
-            var (appId, deviceUid, authResult) = await _scaffold.SetupSampleApp(identity);
+            var (appId, deviceUid, authResult, appSharedSecretKey) = await _scaffold.SetupSampleApp(identity);
             
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();

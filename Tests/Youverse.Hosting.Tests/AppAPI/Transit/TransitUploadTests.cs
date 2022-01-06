@@ -18,7 +18,7 @@ using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
-    public class TransitClientUploadTests
+    public class TransitUploadTests
     {
         private TestScaffold _scaffold;
 
@@ -40,33 +40,36 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task UploadOnly()
         {
             var identity = TestIdentities.Frodo;
-            var (appId, deviceUid, authResult) = await _scaffold.SetupSampleApp(identity);
+            var (appId, deviceUid, authResult, appSharedSecretKey) = await _scaffold.SetupSampleApp(identity);
 
-            var appSharedSecret = new SensitiveByteArray(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
 
             var instructionSet = new UploadInstructionSet()
             {
+                TransferIv = transferIv,
+                
                 StorageOptions = new StorageOptions()
                 {
                     DriveId = null,
+                    OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
+                
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = null
+                    RecipientsList = null
                 }
             };
 
-            var instructionSetCipher = Utils.JsonEncryptAes(instructionSet, transferIv, appSharedSecret.GetKey());
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
 
-            var keyHeader = KeyHeader.NewRandom16();
-            var fileHeader = new FileHeader()
+            var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey()),
-                FileMetadata = new FileMetadata()
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecretKey),
+                FileMetadata = new UploadFileMetadata()
                 {
-                    Created = DateTimeExtensions.UnixTimeMilliseconds(),
                     ContentType = "application/json",
                     AppData = new AppFileMetaData()
                     {
@@ -77,7 +80,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 },
             };
 
-            var fileHeaderCipher = Utils.JsonEncryptAes(fileHeader, transferIv, appSharedSecret.GetKey());
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, appSharedSecretKey);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
@@ -85,9 +88,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
-                var response = await transitSvc.Transfer(
-                    new StreamPart(instructionSetCipher, "instructionSet.encrypted", "application/json", "instructionSet"),
-                    new StreamPart(fileHeaderCipher, "fileheader.encrypted", "application/json", "fileheader"),
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", "instructionSet"),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", "fileDescriptor"),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -103,7 +106,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             }
 
             keyHeader.AesKey.Wipe();
-            appSharedSecret.Wipe();
         }
 
         [Test(Description = "Test basic transfer")]

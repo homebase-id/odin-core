@@ -15,6 +15,8 @@ namespace Youverse.Core.Services.Transit
         private const string AuditRootEndpoint = "/api/transit/audit";
 
         private const string OutboxRootEndPoint = ClientRootEndpoint + "/outbox";
+        
+        private const string TransitRootEndpoint = "/api/apps/v1";
 
         [Multipart]
         [Post(ClientRootEndpoint + "/sendpackage")]
@@ -25,8 +27,10 @@ namespace Youverse.Core.Services.Transit
             [AliasAs("payload")] StreamPart payload);
 
         
-        Task<ApiResponse<TransferResult>> Transfer(
-            [AliasAs("is")] StreamPart instructionSet,
+        [Multipart]
+        [Post(TransitRootEndpoint + "/transit/upload")]
+        Task<ApiResponse<TransferResult>> Upload(
+            [AliasAs("instructions")] StreamPart instructionSet,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
         

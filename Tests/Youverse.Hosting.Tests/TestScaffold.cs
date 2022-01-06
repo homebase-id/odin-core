@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests
         private readonly Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
         DevelopmentIdentityContextRegistry _registry;
 
-            
+
         public TestScaffold(string folder)
         {
             this._folder = folder;
@@ -190,7 +190,7 @@ namespace Youverse.Hosting.Tests
                 {
                     return authResult;
                 }
-                
+
                 const string password = "EnSøienØ";
                 await this.ForceNewPassword(identity, password);
 
@@ -293,17 +293,19 @@ namespace Youverse.Hosting.Tests
         /// Creates an app, device, and logs in returning an DotYouAuthenticationResult
         /// </summary>
         /// <returns></returns>
-        public async Task<(Guid appId, byte[] deviceUid, DotYouAuthenticationResult authResult)> SetupSampleApp(DotYouIdentity identity)
+        public async Task<(Guid appId, byte[] deviceUid, DotYouAuthenticationResult authResult, byte[] appSharedSecretKey)> SetupSampleApp(DotYouIdentity identity)
         {
             Guid appId = Guid.NewGuid();
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            var appSharedSecretKey = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
             await this.AddApp(identity, appId, true);
             await this.AddAppDevice(identity, appId, deviceUid);
             var authCode = await this.CreateAppSession(identity, appId, deviceUid);
             var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
 
-            return (appId, deviceUid, authResult);
+            return (appId, deviceUid, authResult, appSharedSecretKey);
         }
 
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
@@ -353,7 +355,7 @@ namespace Youverse.Hosting.Tests
                 {
                     ApplicationId = appId,
                     DeviceId64 = Convert.ToBase64String(deviceUid),
-                    SharedSecret64 = Convert.ToBase64String(this.AppSharedSecret)
+                    SharedSecretKey64 = Convert.ToBase64String(this.AppSharedSecret)
                 };
 
                 var regResponse = await svc.RegisterAppOnDevice(request);

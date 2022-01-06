@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 {
                     ApplicationId = appId,
                     DeviceId64 = Convert.ToBase64String(Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray()),
-                    SharedSecret64 = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                    SharedSecretKey64 = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
                 };
 
                 var regResponse = await svc.RegisterAppOnDevice(payload);
@@ -98,7 +98,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
 
                 //Assert.IsTrue(savedAppDevice.HalfAdek); ???
-                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.SharedSecret) == payload.SharedSecret64);
+                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.SharedSecretKey) == payload.SharedSecretKey64);
                 Assert.IsTrue(Convert.ToBase64String(savedAppDevice.UniqueDeviceId) == payload.DeviceId64); //note: i suppose, this is kind of a hackish way to compare the byte arrays 
             }
         }

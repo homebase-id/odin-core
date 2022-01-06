@@ -6,17 +6,16 @@ namespace Youverse.Core.Services.Transit.Upload
 {
     /// <summary>
     /// Enables the staging of outgoing data for a given tenant before it transferred.  This handles
-    /// scenarios where large uploads take time before all parts are ready to be processed (i.e. it bundles multipart
-    /// uploads into into a <see cref="Transfer"/>
+    /// scenarios where large uploads take time before all parts are ready to be processed
     /// </summary>
     public interface IMultipartPackageStorageWriter
     {
         /// <summary>
-        /// Prepares an item to be collected and returns an Id you will use to send parts of an upload as they are received.
+        /// Prepares a container for holding the uploaded items based on the instruction set 
         /// </summary>
         /// <returns></returns>
-        Task<Guid> CreatePackage(Guid driveId, int expectedPartCount = 4);
-
+        Task<Guid> CreatePackage(Stream data);
+        
         /// <summary>
         /// Accepts a part of a Multipart stream.  When all required parts are received
         /// </summary>

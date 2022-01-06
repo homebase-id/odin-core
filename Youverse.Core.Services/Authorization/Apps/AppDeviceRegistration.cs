@@ -12,8 +12,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         public byte[] UniqueDeviceId { get; set; }
 
         public SymmetricKeyEncryptedXor EncryptedAppKey { get; set; }
-
-        public byte[] SharedSecret { get; set; } // The secret shared with the client. We need one per client
+        
+        public byte[] SharedSecretKey { get; set; }
         
         public bool IsRevoked { get; set; }
         

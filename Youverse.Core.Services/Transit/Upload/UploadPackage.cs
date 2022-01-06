@@ -1,4 +1,5 @@
 using System;
+using Dawn;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Upload
@@ -8,14 +9,19 @@ namespace Youverse.Core.Services.Transit.Upload
     /// </summary>
     public class UploadPackage
     {
-        public UploadPackage(DriveFileId fileId, int expectedPartsCount)
+        public UploadPackage(DriveFileId file, UploadInstructionSet instructionSet, int expectedPartsCount = 3)
         {
-            this.File = fileId;
-            ExpectedPartsCount = expectedPartsCount;
+            Guard.Argument(file, nameof(file)).HasValue();
+            Guard.Argument(file.FileId, nameof(file.FileId)).NotEqual(Guid.Empty);
+            Guard.Argument(file.DriveId, nameof(file.DriveId)).NotEqual(Guid.Empty);
+
+            this.File = file;
+            this.InstructionSet = instructionSet;
+            this.ExpectedPartsCount = expectedPartsCount;
         }
 
-        public RecipientList RecipientList { get; set; }
-
+        public UploadInstructionSet InstructionSet { get; set; }
+        
         public DriveFileId File { get; set; }
         public int ExpectedPartsCount { get; }
     }

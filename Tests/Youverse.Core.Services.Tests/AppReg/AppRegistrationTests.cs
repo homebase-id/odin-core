@@ -108,7 +108,7 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
 
             //Assert.IsTrue(savedAppDevice.HalfAdek); ???
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.SharedSecret, sharedSecret));
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.SharedSecretKey, sharedSecret));
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.UniqueDeviceId, uniqueDeviceId));
         }
 

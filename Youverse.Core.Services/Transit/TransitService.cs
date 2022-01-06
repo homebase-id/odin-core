@@ -50,6 +50,30 @@ namespace Youverse.Core.Services.Transit
             _logger = logger;
         }
 
+        public async Task<TransferResult> FinalizeUpload(UploadPackage package)
+        {
+            /*
+            If discard after send, the file is deleted after it has been successfully delivered to all recipients.
+            If expires, the file will be deleted at the specified time, unless the file is in a transit queue,
+            in which case it will be deleted after the file has been successfully received by all recipients.
+            (When an item is in the transit queue it cannot be deleted until it is first removed from the transit queue)
+             */
+
+            var instructionSet = package.InstructionSet;
+
+            var recipients = instructionSet.TransitOptions?.RecipientsList?.Recipients ?? null;
+            if (null != recipients)
+            {
+                var tx = await PrepareTransfer(package);
+            }
+
+            //TODO:
+            return new TransferResult()
+            {
+                
+            };
+        }
+
         public async Task<TransferResult> PrepareTransfer(UploadPackage package)
         {
             _driveService.AssertFileIsValid(package.File, StorageDisposition.Unknown);
@@ -69,7 +93,7 @@ namespace Youverse.Core.Services.Transit
 
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
-            await _outboxService.Add(package.RecipientList.Recipients.Select(r => new OutboxItem()
+            await _outboxService.Add(package.InstructionSet.TransitOptions.RecipientsList.Recipients.Select(r => new OutboxItem()
             {
                 File = package.File,
                 Recipient = r,
@@ -116,7 +140,7 @@ namespace Youverse.Core.Services.Transit
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(storageKey.GetKey());
             storageKey.Wipe();
 
-            foreach (var recipient in package.RecipientList.Recipients)
+            foreach (var recipient in package.InstructionSet.TransitOptions.RecipientsList.Recipients)
             {
                 try
                 {
@@ -146,7 +170,7 @@ namespace Youverse.Core.Services.Transit
                     results.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }
             }
-            
+
             //TODO: keyHeader.AesKey.Wipe();
 
             return results;
@@ -160,7 +184,7 @@ namespace Youverse.Core.Services.Transit
              :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
             */
             //TODO: encrypt header using RSA Public Key
-            var encryptedBytes = new byte[] {1, 1, 2, 3, 5, 8, 13, 21};
+            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
             var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
             {
                 EncryptionVersion = 1,

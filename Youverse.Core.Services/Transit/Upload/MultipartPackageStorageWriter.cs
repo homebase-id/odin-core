@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -30,86 +29,105 @@ namespace Youverse.Core.Services.Transit.Upload
             _partCounts = new Dictionary<Guid, int>();
         }
 
-        //TODO: expect parts is a hack until we redsign the upload spec
-        public Task<Guid> CreatePackage(Guid driveId, int expectedPartCount = 4)
+        public async Task<Guid> CreatePackage(Stream data)
         {
+            //TODO: need to partially encrypt upload instruction set
+            string json = await new StreamReader(data).ReadToEndAsync();
+            var instructionSet = JsonConvert.DeserializeObject<UploadInstructionSet>(json);
+
+            if (null == instructionSet?.TransferIv || ByteArrayUtil.EquiByteArrayCompare(instructionSet.TransferIv, Guid.Empty.ToByteArray()))
+            {
+                throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
+            }
+
+            _initializationVector = instructionSet.TransferIv;
+
+            //use specified drive or the app's drive
+            var driveId = instructionSet.StorageOptions?.DriveId.GetValueOrDefault(_context.AppContext.DriveId.GetValueOrDefault());
+            if (!driveId.HasValue)
+            {
+                throw new UploadException("Missing or invalid driveId");
+            }
+
             var pkgId = Guid.NewGuid();
-            _packages.Add(pkgId, new UploadPackage(_driveService.CreateFileId(driveId), expectedPartCount));
-            _partCounts.Add(pkgId, 0);
-            return Task.FromResult(pkgId);
+            var package = new UploadPackage(_driveService.CreateFileId(driveId.GetValueOrDefault()), instructionSet!);
+            _packages.Add(pkgId, package);
+            _partCounts.Add(pkgId, 1);
+
+            return pkgId;
         }
 
         public async Task<bool> AddPart(Guid pkgId, string name, Stream data)
         {
             if (!_packages.TryGetValue(pkgId, out var pkg))
             {
-                throw new Exception("Invalid package ID");
+                throw new UploadException("Invalid package Id");
             }
 
-            if (string.Equals(name, MultipartSectionNames.TransferEncryptedKeyHeader, StringComparison.InvariantCultureIgnoreCase))
+            if (!Enum.TryParse<MultipartSectionNames>(name, true, out var part))
             {
-                string json = await new StreamReader(data).ReadToEndAsync();
-                var transferEncryptedKeyHeader = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
+                throw new UploadException("Invalid part name specified");
+            }
+
+            if (part == MultipartSectionNames.Metadata)
+            {
+                var descriptor = await this.Decrypt<UploadFileDescriptor>(data);
+                var transferEncryptedKeyHeader = descriptor.EncryptedKeyHeader;
 
                 if (null == transferEncryptedKeyHeader)
                 {
-                    throw new InvalidDataException("Invalid transfer key header");
+                    throw new UploadException("Invalid transfer key header");
                 }
 
                 await _driveService.WriteTransferKeyHeader(pkg.File, transferEncryptedKeyHeader, StorageDisposition.Temporary);
-                _initializationVector = transferEncryptedKeyHeader.Iv; //saved for decrypting recipients
+                
+                var metadata = new FileMetadata(pkg.File)
+                {
+                    AppData = new AppFileMetaData()
+                    {
+                        CategoryId = descriptor.FileMetadata.AppData.CategoryId,
+                        JsonContent = descriptor.FileMetadata.AppData.JsonContent,
+                        ContentIsComplete = descriptor.FileMetadata.AppData.ContentIsComplete
+                    }
+                };
 
+                await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
+                
                 _partCounts[pkgId]++;
             }
-            else if (string.Equals(name, MultipartSectionNames.Recipients, StringComparison.InvariantCultureIgnoreCase))
+            else if (part == MultipartSectionNames.Payload)
             {
-                var list = await DecryptDeserializeFromAppSharedSecret<RecipientList>(data);
-                if (list?.Recipients.Count <= 0)
-                {
-                    throw new Exception("No recipients specified");
-                }
-
-                pkg.RecipientList = list;
+                await _driveService.WritePayload(pkg.File, data, StorageDisposition.Temporary);
                 _partCounts[pkgId]++;
+            }
+            else if (part == MultipartSectionNames.Instructions)
+            {
+                throw new UploadException("MultipartSectionNames.Instructions must be used by CreatePackage");
             }
             else
             {
-                if (!Enum.TryParse<FilePart>(name, true, out var filePart))
-                {
-                    throw new InvalidDataException($"Part name [{name}] not recognized");
-                }
-
-                if (filePart == FilePart.Header)
-                {
-                    throw new InvalidDataException($"This header cannot be uploaded from client.  Use {MultipartSectionNames.TransferEncryptedKeyHeader} instead.");
-                }
-
-                if (filePart == FilePart.Metadata)
-                {
-                    var metadata = await DecryptDeserializeFromAppSharedSecret<FileMetadata>(data);
-                    await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
-                    _partCounts[pkgId]++;
-                }
-                else if (filePart == FilePart.Payload)
-                {
-                    await _driveService.WritePayload(pkg.File, data, StorageDisposition.Temporary);
-                    _partCounts[pkgId]++;
-                }
-                else
-                {
-                    //Not sure how we got here but just in case
-                    throw new InvalidDataException($"Part name [{name}] not recognized");
-                }
+                //Not sure how we got here but just in case
+                throw new InvalidDataException($"Part name [{name}] not recognized");
             }
 
             return _partCounts[pkgId] == pkg.ExpectedPartsCount;
         }
 
-        private async Task<T> DecryptDeserializeFromAppSharedSecret<T>(Stream data)
+        public async Task<UploadPackage> GetPackage(Guid packageId)
+        {
+            if (_packages.TryGetValue(packageId, out var package))
+            {
+                return package;
+            }
+
+            return null;
+        }
+
+        private async Task<T> Decrypt<T>(Stream data)
         {
             if (null == _initializationVector)
             {
-                throw new InvalidDataException($"The part named [{MultipartSectionNames.TransferEncryptedKeyHeader}] must be provided first");
+                throw new UploadException($"The part named [{Enum.GetName(MultipartSectionNames.Instructions)}] must be provided first");
             }
 
             byte[] encryptedBytes;
@@ -122,16 +140,6 @@ namespace Youverse.Core.Services.Transit.Upload
             var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetDeviceSharedSecret().GetKey(), this._initializationVector);
             var t = JsonConvert.DeserializeObject<T>(json);
             return t;
-        }
-
-        public async Task<UploadPackage> GetPackage(Guid packageId)
-        {
-            if (_packages.TryGetValue(packageId, out var package))
-            {
-                return package;
-            }
-
-            return null;
         }
     }
 }

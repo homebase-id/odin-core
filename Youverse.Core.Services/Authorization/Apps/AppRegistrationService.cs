@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return new AppContext(
                 appId: appReg.ApplicationId.ToString(),
                 deviceUid: deviceUid,
-                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecret),
+                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecretKey),
                 driveId: appReg.DriveId,
                 encryptedAppKey: deviceReg.EncryptedAppKey,
                 deviceSecret:deviceSecret,
@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             throw new NotImplementedException();
         }
 
-        public async Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecret)
+        public async Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecretKey)
         {
             _context.Caller.AssertHasMasterKey();
 
@@ -139,7 +139,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
-            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecret);
+            var (clientAppToken, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecretKey);
 
             //Note: never store deviceAppToken
 
@@ -148,7 +148,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
-                SharedSecret = sharedSecret,
+                SharedSecretKey = sharedSecretKey,
                 EncryptedAppKey = serverRegData.DeviceEncryptedDeviceKey,
                 IsRevoked = false
             };

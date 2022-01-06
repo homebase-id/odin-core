@@ -9,6 +9,14 @@ namespace Youverse.Core.Services.Transit
 {
     public interface ITransitService
     {
+
+        /// <summary>
+        /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded 
+        /// </summary>
+        /// <param name="package"></param>
+        /// <returns></returns>
+        Task<TransferResult> FinalizeUpload(UploadPackage package);
+        
         /// <summary>
         /// Prepares to transfer an <see cref="UploadPackage"/> by generating Recipient Transfer Keys and
         /// placing the transfer <see cref="IOutboxService"/>.
