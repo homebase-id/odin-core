@@ -4,7 +4,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Drive.Query;
 
-namespace Youverse.Hosting.Tests.AppAPI
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public interface IDriveQueryClient
     {

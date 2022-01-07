@@ -1,4 +1,5 @@
 ﻿using System;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -18,5 +19,19 @@ namespace Youverse.Core.Services.Transit.Upload
         /// Seconds in unix time UTC indicating when this file expires 
         /// </summary>
         public UInt64? ExpiresTimestamp { get; set; }
+
+        public DriveFileId? GetFile()
+        {
+            if (DriveId.HasValue && OverwriteFileId.HasValue)
+            {
+                return new DriveFileId()
+                {
+                    DriveId = DriveId.GetValueOrDefault(),
+                    FileId = OverwriteFileId.GetValueOrDefault()
+                };
+            }
+
+            return null;
+        }
     }
 }

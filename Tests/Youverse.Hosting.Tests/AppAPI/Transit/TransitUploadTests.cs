@@ -15,6 +15,7 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Tests.AppAPI.Drive;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
@@ -102,6 +103,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(transferResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                
+                //
+                
+                //retrieve the file that was uploaded; decrypt; 
+                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+
+                var fileResponse = await driveSvc.GetFile(transferResult.File.FileId);
+                
+                Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(fileResponse.Content, Is.Not.Null);
+
+                var file = fileResponse.Content;
+                
+
             }
 
             keyHeader.AesKey.Wipe();

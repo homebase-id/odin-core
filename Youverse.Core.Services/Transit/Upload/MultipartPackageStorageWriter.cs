@@ -50,7 +50,8 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             var pkgId = Guid.NewGuid();
-            var package = new UploadPackage(_driveService.CreateFileId(driveId.GetValueOrDefault()), instructionSet!);
+            var file = instructionSet.StorageOptions?.GetFile() ?? _driveService.CreateFileId(driveId.GetValueOrDefault());
+            var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
             _partCounts.Add(pkgId, 1);
 
@@ -80,7 +81,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 }
 
                 await _driveService.WriteTransferKeyHeader(pkg.File, transferEncryptedKeyHeader, StorageDisposition.Temporary);
-                
+
                 var metadata = new FileMetadata(pkg.File)
                 {
                     AppData = new AppFileMetaData()
@@ -92,7 +93,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 };
 
                 await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
-                
+
                 _partCounts[pkgId]++;
             }
             else if (part == MultipartSectionNames.Payload)

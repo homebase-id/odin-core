@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (tracker.IsCompleteAndValid())
             {
-                _transitService.Accept(tracker.Id, tracker.File.GetValueOrDefault());
+                _transitService.AcceptTransfer(tracker.Id, tracker.File.GetValueOrDefault());
 
                 var result = new CollectiveFilterResult()
                 {

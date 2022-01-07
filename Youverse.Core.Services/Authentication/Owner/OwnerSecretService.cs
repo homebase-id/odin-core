@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.Owner
@@ -44,13 +45,21 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task SetNewPassword(PasswordReply reply)
         {
+            
+            var existingPwd = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            if (null != existingPwd)
+            {
+                throw new YouverseSecurityException("Password already set");
+            }
+            
+            
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(STORAGE, s => s.Get(originalNoncePackageKey));
 
             //HACK: this will be moved to the overall provisioning process
             //await this.GenerateRsaKeyList();
             var keys = await this.GetRsaKeyList();
-
+            
             var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, keys);
             _systemStorage.WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
 

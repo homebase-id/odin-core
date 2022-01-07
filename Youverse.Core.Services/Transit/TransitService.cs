@@ -50,31 +50,7 @@ namespace Youverse.Core.Services.Transit
             _logger = logger;
         }
 
-        public async Task<TransferResult> FinalizeUpload(UploadPackage package)
-        {
-            /*
-            If discard after send, the file is deleted after it has been successfully delivered to all recipients.
-            If expires, the file will be deleted at the specified time, unless the file is in a transit queue,
-            in which case it will be deleted after the file has been successfully received by all recipients.
-            (When an item is in the transit queue it cannot be deleted until it is first removed from the transit queue)
-             */
-
-            var instructionSet = package.InstructionSet;
-
-            var recipients = instructionSet.TransitOptions?.Recipients ?? null;
-            if (null != recipients)
-            {
-                var tx = await PrepareTransfer(package);
-            }
-
-            //TODO:
-            return new TransferResult()
-            {
-                
-            };
-        }
-
-        public async Task<TransferResult> PrepareTransfer(UploadPackage package)
+        public async Task<UploadResult> AcceptUploadPackage(UploadPackage package)
         {
             _driveService.AssertFileIsValid(package.File, StorageDisposition.Unknown);
 
@@ -84,34 +60,21 @@ namespace Youverse.Core.Services.Transit
                 await _driveService.MoveToLongTerm(package.File);
             }
 
-            //TODO: consider if the recipient transfer key header should go directly in the outbox
-
-
-            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
-            //will read the transfer key during the background send process
-            var keyStatus = await this.PrepareTransferKeys(package);
-
-            //a transfer per recipient is added to the outbox queue since there is a background process
-            //that will pick up the items and attempt to send.
-            var recipients = package.InstructionSet.TransitOptions?.Recipients ?? new List<string>();
-            await _outboxService.Add(recipients.Select(r => new OutboxItem()
+            var tx = new UploadResult()
             {
-                File = package.File,
-                Recipient = (DotYouIdentity)r,
-                AppId = this._context.AppContext.AppId,
-                DeviceUid = Convert.ToBase64String(this._context.AppContext.DeviceUid)
-            }));
-
-            var result = new TransferResult()
-            {
-                File = package.File,
-                RecipientStatus = keyStatus
+                File = package.File
             };
 
-            return result;
+            var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
+            if (null != recipients)
+            {
+                tx.RecipientStatus = await PrepareTransfer(package);
+            }
+
+            return tx;
         }
 
-        public void Accept(Guid trackerId, DriveFileId file)
+        public void AcceptTransfer(Guid trackerId, DriveFileId file)
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
 
@@ -130,6 +93,36 @@ namespace Youverse.Core.Services.Transit
             };
 
             _inboxService.Add(item);
+        }
+
+        private async Task<Dictionary<string, TransferStatus>> PrepareTransfer(UploadPackage package)
+        {
+            _driveService.AssertFileIsValid(package.File, StorageDisposition.Unknown);
+
+            var storageType = await _driveService.GetStorageType(package.File);
+            if (storageType == StorageDisposition.Temporary)
+            {
+                await _driveService.MoveToLongTerm(package.File);
+            }
+
+            //TODO: consider if the recipient transfer key header should go directly in the outbox
+            
+            //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
+            //will read the transfer key during the background send process
+            var keyStatus = await this.PrepareTransferKeys(package);
+
+            //a transfer per recipient is added to the outbox queue since there is a background process
+            //that will pick up the items and attempt to send.
+            var recipients = package.InstructionSet.TransitOptions?.Recipients ?? new List<string>();
+            await _outboxService.Add(recipients.Select(r => new OutboxItem()
+            {
+                File = package.File,
+                Recipient = (DotYouIdentity)r,
+                AppId = this._context.AppContext.AppId,
+                DeviceUid = Convert.ToBase64String(this._context.AppContext.DeviceUid)
+            }));
+
+            return keyStatus;
         }
 
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)

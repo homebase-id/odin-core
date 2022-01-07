@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             }
 
             var package = await _packageStorageWriter.GetPackage(packageId);
-            var status = _transitService.FinalizeUpload(package);
+            var status = _transitService.AcceptUploadPackage(package);
             return new JsonResult(status);
         }
 

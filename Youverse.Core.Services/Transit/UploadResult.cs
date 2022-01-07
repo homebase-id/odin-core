@@ -8,9 +8,9 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     ///  Specifies how the transfer was handled for each recipient
     /// </summary>
-    public class TransferResult
+    public class UploadResult
     {
-        public TransferResult()
+        public UploadResult()
         {
             this.RecipientStatus = new();
         }

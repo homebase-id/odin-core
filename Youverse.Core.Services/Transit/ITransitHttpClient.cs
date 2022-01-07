@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Outbox;
 
@@ -16,11 +17,11 @@ namespace Youverse.Core.Services.Transit
 
         private const string OutboxRootEndPoint = ClientRootEndpoint + "/outbox";
         
-        private const string TransitRootEndpoint = "/api/apps/v1";
+        private const string TransitRootEndpoint = "/api/apps/v1/transit";
 
         [Multipart]
         [Post(ClientRootEndpoint + "/sendpackage")]
-        Task<ApiResponse<TransferResult>> SendFile(
+        Task<ApiResponse<UploadResult>> SendFile(
             [AliasAs("tekh")] StreamPart transferEncryptedKeyHeader,
             [AliasAs("recipients")] StreamPart recipientList,
             [AliasAs("metaData")] StreamPart metaData,
@@ -28,8 +29,8 @@ namespace Youverse.Core.Services.Transit
 
         
         [Multipart]
-        [Post(TransitRootEndpoint + "/transit/upload")]
-        Task<ApiResponse<TransferResult>> Upload(
+        [Post(TransitRootEndpoint + "/upload")]
+        Task<ApiResponse<UploadResult>> Upload(
             [AliasAs("instructions")] StreamPart instructionSet,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
