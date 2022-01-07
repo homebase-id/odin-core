@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
-    [Route("/api/transit/client/outbox")]
+    [Route(AppApiPathConstants.TransitV1 + "/outbox")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class OutboxManagementController : ControllerBase
     {

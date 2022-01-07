@@ -21,6 +21,7 @@ using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
@@ -436,6 +437,43 @@ namespace Youverse.Hosting.Tests
 
                 return result;
             }
+        }
+        
+        
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity)
+        {
+            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+
+            this.AddApp(identity, appId, true).GetAwaiter().GetResult();
+            
+            //Tricky - registering a device is the only time we can get the device secret because we have the master key.
+            var (deviceRegistrationResponse, sharedSecret) = this.AddAppDevice(identity, appId, deviceUid).GetAwaiter().GetResult();
+            
+            var authCode = await this.CreateAppSession(identity, appId, deviceUid);
+            
+            //this call is done w/o access to the master key so it cannot return the device secret
+            var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+            
+            //hack: overwrite this for testing.
+            authResult.ClientHalfKek = deviceRegistrationResponse.DeviceSecret.ToSensitiveByteArray();
+            
+            return new TestSampleAppContext()
+            {
+                AppId = appId,
+                DeviceUid = deviceUid,
+                AuthResult = authResult,
+                AppSharedSecretKey = sharedSecret
+            };
+        }
+
+        /// <summary>
+        /// Creates an app, device, and logs in returning an DotYouAuthenticationResult
+        /// </summary>
+        /// <returns></returns>
+        public async Task<TestSampleAppContext> SetupTestSampleApp(DotYouIdentity identity)
+        {
+            Guid appId = Guid.NewGuid();
+            return await this.SetupTestSampleApp(appId, identity);
         }
     }
 }
