@@ -34,13 +34,13 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("files")]
         public async Task<IActionResult> GetFile(Guid fileId)
         {
-            var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-
-            var file = new DriveFileId() { DriveId = driveId, FileId = fileId };
-
-            var ekh = await _driveService.GetEncryptedKeyHeader(file);
-            var metadata = await _driveService.GetMetadata(file);
-            
+            // var driveId = _context.AppContext.DriveId.GetValueOrDefault();
+            //
+            // var file = new DriveFileId() { DriveId = driveId, FileId = fileId };
+            //
+            // var ekh = await _driveService.GetEncryptedKeyHeader(file);
+            // var metadata = await _driveService.GetMetadata(file);
+            return new JsonResult("");
         }
         
         [HttpGet("files/payload")]
