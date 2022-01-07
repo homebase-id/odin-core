@@ -14,20 +14,27 @@ using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI
 {
-
     public class TransitTestUtilsOptions
     {
         public static TransitTestUtilsOptions Default = new TransitTestUtilsOptions()
         {
             ProcessOutbox = false
         };
-        
+
         /// <summary>
         /// Indicates if the process outbox endpoint should be called after sending a transfer
         /// </summary>
         public bool ProcessOutbox { get; set; }
     }
-    
+
+    public class TestSampleAppContext
+    {
+        public Guid AppId { get; set; }
+        public byte[] DeviceUid { get; set; }
+        public DotYouAuthenticationResult AuthResult { get; set; }
+        public byte[] AppSharedSecretKey { get; set; }
+    }
+
     /// <summary>
     /// Data returned when using the TransitTestUtils
     /// </summary>
@@ -47,6 +54,8 @@ namespace Youverse.Hosting.Tests.AppAPI
         /// The file meta data that was uploaded. 
         /// </summary>
         public UploadFileMetadata FileMetadata { get; set; }
+
+        public Dictionary<DotYouIdentity, TestSampleAppContext> RecipientContexts { get; set; }
     }
 
     public static class TransitTestUtils
@@ -92,6 +101,15 @@ namespace Youverse.Hosting.Tests.AppAPI
         public static async Task<TransitTestUtilsContext> TransferFile(TestScaffold scaffold, DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var (appId, deviceUid, authResult, appSharedSecretKey) = await scaffold.SetupSampleApp(identity);
+
+            //Setup the app on all recipient DIs
+            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+            foreach (var r in instructionSet.TransitOptions.Recipients)
+            {
+                var recipient = (DotYouIdentity) r;
+                var ctx = await scaffold.SetupTestSampleApp(appId, recipient);
+                recipientContexts.Add(recipient, ctx);
+            }
 
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;
@@ -149,7 +167,8 @@ namespace Youverse.Hosting.Tests.AppAPI
                 AuthResult = authResult,
                 AppSharedSecretKey = appSharedSecretKey,
                 InstructionSet = instructionSet,
-                FileMetadata = fileMetadata
+                FileMetadata = fileMetadata,
+                RecipientContexts =  recipientContexts
             };
         }
     }
