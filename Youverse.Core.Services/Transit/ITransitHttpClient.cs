@@ -12,10 +12,7 @@ namespace Youverse.Core.Services.Transit
     public interface ITransitHttpClient
     {
         private const string ClientRootEndpoint = "/api/transit/client";
-        private const string AuditRootEndpoint = "/api/transit/audit";
-
         private const string OutboxRootEndPoint = ClientRootEndpoint + "/outbox";
-        
         private const string TransitRootEndpoint = "/api/apps/v1";
 
         [Multipart]
@@ -35,22 +32,10 @@ namespace Youverse.Core.Services.Transit
             [AliasAs("payload")] StreamPart payload);
         
         
-        [Post(OutboxRootEndPoint + "/processor/process")]
+        [Post(TransitRootEndpoint + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox();
 
         [Get(OutboxRootEndPoint)]
         Task<ApiResponse<PagedResult<OutboxItem>>> GetOutboxItems(int pageNumber, int pageSize);
-
-        [Get(OutboxRootEndPoint + "/item")]
-        Task<ApiResponse<OutboxItem>> GetOutboxItem(Guid id);
-
-        [Delete(OutboxRootEndPoint + "/item")]
-        Task<ApiResponse<bool>> RemoveOutboxItem(Guid id);
-
-        [Put(OutboxRootEndPoint + "/item/priority")]
-        Task<ApiResponse<bool>> UpdateOutboxItemPriority(Guid id, int priority);
-
-        [Get(AuditRootEndpoint + "/recent")]
-        Task<ApiResponse<PagedResult<TransitAuditEntry>>> GetRecentAuditEntries(int seconds, int pageNumber, int pageSize);
     }
 }

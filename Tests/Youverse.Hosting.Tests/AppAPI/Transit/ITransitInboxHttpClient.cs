@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Refit;
-using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Core;
+using Youverse.Core.Services.Transit.Inbox;
 
-namespace Youverse.Core.Services.Transit.Inbox
+namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     /// <summary>
     /// The interface for 
     /// </summary>
     public interface ITransitInboxHttpClient
     {
-        private const string RootEndpoint = "/api/transit/client/inbox";
+        private const string RootEndpoint = "/api/apps/v1/transit/inbox";
         
         [Get(RootEndpoint)]
         Task<ApiResponse<PagedResult<InboxItem>>> GetInboxItems(int pageNumber, int pageSize);
