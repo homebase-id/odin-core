@@ -100,14 +100,14 @@ namespace Youverse.Hosting.Tests.AppAPI
 
         public static async Task<TransitTestUtilsContext> TransferFile(TestScaffold scaffold, DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
-            var (appId, deviceUid, authResult, appSharedSecretKey) = await scaffold.SetupSampleApp(identity);
+            var testContext = await scaffold.SetupTestSampleApp(identity);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions.Recipients)
             {
                 var recipient = (DotYouIdentity) r;
-                var ctx = await scaffold.SetupTestSampleApp(appId, recipient);
+                var ctx = await scaffold.SetupTestSampleApp(testContext.AppId, recipient);
                 recipientContexts.Add(recipient, ctx);
             }
 
@@ -119,16 +119,16 @@ namespace Youverse.Hosting.Tests.AppAPI
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecretKey),
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
                 FileMetadata = fileMetadata
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, appSharedSecretKey);
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var client = scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
                 var response = await transitSvc.Upload(
@@ -162,10 +162,10 @@ namespace Youverse.Hosting.Tests.AppAPI
 
             return new TransitTestUtilsContext()
             {
-                AppId = appId,
-                DeviceUid = deviceUid,
-                AuthResult = authResult,
-                AppSharedSecretKey = appSharedSecretKey,
+                AppId = testContext.AppId,
+                DeviceUid = testContext.DeviceUid,
+                AuthResult = testContext.AuthResult,
+                AppSharedSecretKey = testContext.AppSharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
                 RecipientContexts =  recipientContexts

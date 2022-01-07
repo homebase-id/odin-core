@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task UploadOnly()
         {
             var identity = TestIdentities.Frodo;
-            var (appId, deviceUid, authResult, appSharedSecretKey) = await _scaffold.SetupSampleApp(identity);
+            var testContext = await _scaffold.SetupTestSampleApp(identity);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecretKey),
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
@@ -80,12 +80,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 },
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, appSharedSecretKey);
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
             {
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
                 var response = await transitSvc.Upload(

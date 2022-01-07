@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Middleware
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
             var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
-
+            
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: true,

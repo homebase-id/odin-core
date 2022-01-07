@@ -288,32 +288,7 @@ namespace Youverse.Hosting.Tests
 
             return Task.CompletedTask;
         }
-
-        /// <summary>
-        /// Creates an app, device, and logs in returning an DotYouAuthenticationResult
-        /// </summary>
-        /// <returns></returns>
-        public async Task<(Guid appId, byte[] deviceUid, DotYouAuthenticationResult authResult, byte[] appSharedSecretKey)> SetupSampleApp(DotYouIdentity identity)
-        {
-            Guid appId = Guid.NewGuid();
-            byte[] deviceUid = Guid.NewGuid().ToByteArray();
-
-            this.AddApp(identity, appId, true).GetAwaiter().GetResult();
-            
-            //Tricky - registering a device is the only time we can get the device secret because we have the master key.
-            var (deviceRegistrationResponse, sharedSecret) = this.AddAppDevice(identity, appId, deviceUid).GetAwaiter().GetResult();
-            
-            var authCode = await this.CreateAppSession(identity, appId, deviceUid);
-            
-            //this call is done w/o access to the master key so it cannot return the device secret
-            var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
-            
-            //hack: overwrite this for testing.
-            authResult.ClientHalfKek = deviceRegistrationResponse.DeviceSecret.ToSensitiveByteArray(); 
-
-            return (appId, deviceUid, authResult, sharedSecret);
-        }
-
+        
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
@@ -439,7 +414,6 @@ namespace Youverse.Hosting.Tests
             }
         }
         
-        
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity)
         {
             byte[] deviceUid = Guid.NewGuid().ToByteArray();
@@ -467,7 +441,7 @@ namespace Youverse.Hosting.Tests
         }
 
         /// <summary>
-        /// Creates an app, device, and logs in returning an DotYouAuthenticationResult
+        /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
         public async Task<TestSampleAppContext> SetupTestSampleApp(DotYouIdentity identity)
