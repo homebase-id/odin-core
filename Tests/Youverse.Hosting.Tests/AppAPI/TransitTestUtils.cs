@@ -11,6 +11,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI
 {
@@ -130,7 +131,7 @@ namespace Youverse.Hosting.Tests.AppAPI
 
             using (var client = scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
             {
-                var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Metadata)),

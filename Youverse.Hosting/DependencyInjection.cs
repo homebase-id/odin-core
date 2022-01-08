@@ -6,6 +6,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
@@ -79,6 +80,8 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<DemoDataGenerator>().SingleInstance();
+
+            cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
             
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 

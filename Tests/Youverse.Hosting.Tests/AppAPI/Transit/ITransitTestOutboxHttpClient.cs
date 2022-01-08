@@ -7,7 +7,7 @@ using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
-    public interface ITransitOutboxHttpClient
+    public interface ITransitTestOutboxHttpClient
     {
         private const string RootEndPoint = "/api/apps/v1/transit/outbox";
      

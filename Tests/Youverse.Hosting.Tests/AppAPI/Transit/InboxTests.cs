@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
-                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
-                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
-                var svc = RestService.For<ITransitInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);

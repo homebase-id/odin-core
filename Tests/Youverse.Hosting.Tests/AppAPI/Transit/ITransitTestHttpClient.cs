@@ -1,16 +1,15 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Refit;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Audit;
+using Youverse.Core;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     /// <summary>
     /// The interface for transit
     /// </summary>
-    public interface ITransitHttpClient
+    public interface ITransitTestHttpClient
     {
         private const string ClientRootEndpoint = "/api/transit/client";
         private const string OutboxRootEndPoint = ClientRootEndpoint + "/outbox";

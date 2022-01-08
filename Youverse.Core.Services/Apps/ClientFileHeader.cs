@@ -1,0 +1,11 @@
+using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit.Encryption;
+
+namespace Youverse.Core.Services.Apps
+{
+    public class ClientFileHeader
+    {
+        public EncryptedKeyHeader EncryptedKeyHeader { get; set; }
+        public FileMetadata FileMetadata { get; set; }
+    }
+}

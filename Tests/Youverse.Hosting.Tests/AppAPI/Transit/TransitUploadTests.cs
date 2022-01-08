@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
             {
-                var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Metadata)),
@@ -96,21 +96,50 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 //
 
+                var fileId = transferResult.File.FileId;
+
                 //retrieve the file that was uploaded; decrypt; 
-                // var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
-                //
-                // var fileResponse = await driveSvc.GetFile(transferResult.File.FileId);
-                //
-                // Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
-                // Assert.That(fileResponse.Content, Is.Not.Null);
-                //
-                // var file = fileResponse.Content;
+                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+
+                var fileResponse = await driveSvc.GetFileHeader(fileId);
+
+                Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(fileResponse.Content, Is.Not.Null);
+
+                var clientFileHeader = fileResponse.Content;
+
+                Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
+                Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
+
+                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
+                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.CategoryId));
+                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+
+                Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+               
+
+                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
+
+                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
+                var fileKey = decryptedKeyHeader.AesKey;
                 
-                //decrypt?
+                //get the payload and decrypt, then compare
+                var payloadResponse = await driveSvc.GetPayload(fileId);
+                Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(payloadResponse.Content, Is.Not.Null);
+                var payloadResponseData = payloadResponse.Content.ReadAsStringAsync();
+                
+                
+
+
             }
 
             keyHeader.AesKey.Wipe();
-            
         }
 
         [Test(Description = "Test basic transfer")]
@@ -173,7 +202,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.AuthResult))
             {
-                var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Metadata)),
@@ -186,20 +215,19 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
-                
+
                 foreach (var recipient in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
                     Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
                 }
                 //
-                
             }
 
             keyHeader.AesKey.Wipe();
 
             //connect to all recipients to determine if they received
-            
+
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
             // using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, true))
             // {

@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Workers.Transit
             
             _client.BaseAddress = uri;
             
-            var svc = RestService.For<ITransitHttpClient>(_client);
+            var svc = RestService.For<IOutboxHttpClient>(_client);
             var response = await svc.ProcessOutbox();
             //TODO: needs information to determine if it should stoke again; and when
 

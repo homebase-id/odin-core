@@ -9,7 +9,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
     /// <summary>
     /// The interface for 
     /// </summary>
-    public interface ITransitInboxHttpClient
+    public interface ITransitTestInboxHttpClient
     {
         private const string RootEndpoint = "/api/apps/v1/transit/inbox";
         
