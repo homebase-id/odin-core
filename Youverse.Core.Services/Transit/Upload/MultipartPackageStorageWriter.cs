@@ -46,6 +46,7 @@ namespace Youverse.Core.Services.Transit.Upload
             _initializationVector = instructionSet.TransferIv;
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
 
+            //Use the drive requested, if set
             if (instructionSet.StorageOptions?.DriveId.HasValue ?? false)
             {
                 driveId = instructionSet.StorageOptions.DriveId.Value;

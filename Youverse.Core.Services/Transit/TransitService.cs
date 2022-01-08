@@ -26,6 +26,10 @@ namespace Youverse.Core.Services.Transit
         private readonly ILogger<TransitService> _logger;
         private readonly ISystemStorage _systemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IDriveQueryService _queryService; 
+        
+        //HACK
+        //query service is here just to get it initialized by DI
 
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
@@ -38,7 +42,8 @@ namespace Youverse.Core.Services.Transit
             ITransitAuditWriterService auditWriter,
             IInboxService inboxService,
             ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, 
+            IDriveQueryService queryService) : base(auditWriter)
         {
             _context = context;
             _outboxService = outboxService;
@@ -47,10 +52,11 @@ namespace Youverse.Core.Services.Transit
             _inboxService = inboxService;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _queryService = queryService;
             _logger = logger;
         }
 
-        public async Task<UploadResult> AcceptUploadPackage(UploadPackage package)
+        public async Task<UploadResult> AcceptUpload(UploadPackage package)
         {
             if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
             {

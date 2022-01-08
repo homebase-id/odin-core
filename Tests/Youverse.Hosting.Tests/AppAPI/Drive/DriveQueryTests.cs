@@ -14,6 +14,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -38,7 +39,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task FailsWhenNoValidIndex()
         {
-           Assert.Inconclusive("TODO");
+            Assert.Inconclusive("TODO");
         }
 
         // [Test]
@@ -56,21 +57,24 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
 
-            Guid appId = Guid.NewGuid();
-            byte[] deviceUid = Guid.NewGuid().ToByteArray();
+            var metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AppData = new()
+                {
+                    CategoryId = Guid.Empty,
+                    ContentIsComplete = true,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                }
+            };
 
-            var app = await _scaffold.AddApp(identity, appId, true);
-            await _scaffold.AddAppDevice(identity, appId, deviceUid);
-            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
-            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
+            var uploadContext = await TransitTestUtils.Upload(_scaffold, identity, metadata);
 
-            await UploadFile(identity, authResult);
-            
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(app.DriveId.GetValueOrDefault(), true, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -79,27 +83,19 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(page.Results.Count > 0);
             }
         }
-        
+
         [Test]
         public async Task CanQueryDriveRecentItemsNoContent()
         {
             var identity = TestIdentities.Samwise;
-
-            Guid appId = Guid.NewGuid();
-            byte[] deviceUid = Guid.NewGuid().ToByteArray();
-
-            var app = await _scaffold.AddApp(identity, appId, true);
-            await _scaffold.AddAppDevice(identity, appId, deviceUid);
-            var authCode = await _scaffold.CreateAppSession(identity, appId, deviceUid);
-            var authResult = await _scaffold.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
-
-            await UploadFile(identity, authResult);
             
-            using (var client = _scaffold.CreateAppApiHttpClient(identity,authResult))
+            var uploadContext = await TransitTestUtils.Upload(_scaffold, identity);
+
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(app.DriveId.GetValueOrDefault(), false, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(false, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -107,65 +103,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(page.Results.Count > 0);
                 Assert.IsTrue(page.Results.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
-        }
-        
-        
-        
-        private async Task UploadFile(DotYouIdentity identity, DotYouAuthenticationResult authResult)
-        {
-            
-            // var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            // var keyHeader = KeyHeader.NewRandom16();
-            //
-            // //Note: in this test we're using teh app's
-            // //drive.  the will be set by the server
-            // var file = new DriveFileId()
-            // {
-            //     DriveId = Guid.Empty,
-            //     FileId = Guid.Empty
-            // };
-            //
-            // var metadata = new FileMetadata(file)
-            // {
-            //     Created = DateTimeExtensions.UnixTimeMilliseconds(),
-            //     ContentType = "application/json",
-            //     AppData = new AppFileMetaData()
-            //     {
-            //         CategoryId = Guid.Empty,
-            //         ContentIsComplete = true,
-            //         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach"})
-            //     }
-            // };
-            //
-            // var metadataJson = JsonConvert.SerializeObject(metadata);
-            // var metaDataCipher = Utils.EncryptAes(metadataJson, transferIv, _scaffold.AppSharedSecret);
-            //
-            // var payloadData = "{payload:true, image:'b64 data'}";
-            // var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
-            //
-            // var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, _scaffold.AppSharedSecret);
-            //
-            // var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
-            // var encryptedKeyHeaderStream = new MemoryStream(b);
-            //
-            // keyHeader.AesKey.Wipe();
-            //
-            // using (var client = _scaffold.CreateAppApiHttpClient(identity, authResult))
-            // {
-            //     var uploadSvc = RestService.For<IDriveStorageHttpClient>(client);
-            //
-            //     var response = await uploadSvc.StoreUsingAppDrive(
-            //         new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
-            //         new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
-            //         new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
-            //
-            //     Assert.IsTrue(response.IsSuccessStatusCode);
-            //     var uploadResult = response.Content;
-            //     Assert.IsNotNull(uploadResult);
-            //     Assert.That(uploadResult.FileId, Is.Not.EqualTo(Guid.Empty), "FileId was not set");
-            //     Assert.That(uploadResult.DriveId, Is.Not.EqualTo(Guid.Empty), "FileId was not set");
-            //
-            // }
         }
     }
 }

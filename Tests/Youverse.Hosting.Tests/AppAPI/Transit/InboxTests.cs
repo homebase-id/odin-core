@@ -46,8 +46,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
             var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
-
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
                 var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() {TestIdentities.Frodo};
             var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
                 var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() {TestIdentities.Frodo};
             var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
                 var svc = RestService.For<ITransitTestInboxHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);

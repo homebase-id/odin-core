@@ -11,6 +11,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI
@@ -39,7 +40,12 @@ namespace Youverse.Hosting.Tests.AppAPI
     /// <summary>
     /// Data returned when using the TransitTestUtils
     /// </summary>
-    public class TransitTestUtilsContext
+    public class TransitTestUtilsContext : UploadTestUtilsContext
+    {
+        public Dictionary<DotYouIdentity, TestSampleAppContext> RecipientContexts { get; set; }
+    }
+
+    public class UploadTestUtilsContext
     {
         public Guid AppId { get; set; }
         public byte[] DeviceUid { get; set; }
@@ -55,12 +61,60 @@ namespace Youverse.Hosting.Tests.AppAPI
         /// The file meta data that was uploaded. 
         /// </summary>
         public UploadFileMetadata FileMetadata { get; set; }
-
-        public Dictionary<DotYouIdentity, TestSampleAppContext> RecipientContexts { get; set; }
     }
 
     public static class TransitTestUtils
     {
+        public static async Task<UploadTestUtilsContext> Upload(TestScaffold scaffold, DotYouIdentity identity, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AppData = new()
+                {
+                    CategoryId = Guid.Empty,
+                    ContentIsComplete = true,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                }
+            };
+
+
+            return (UploadTestUtilsContext)await TransferFile(scaffold, identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
+        public static async Task<UploadTestUtilsContext> Upload(TestScaffold scaffold, DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            return (UploadTestUtilsContext)await TransferFile(scaffold, identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
         /// <summary>
         /// Transfers a file using default file metadata
         /// </summary>
@@ -92,7 +146,7 @@ namespace Youverse.Hosting.Tests.AppAPI
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -105,9 +159,9 @@ namespace Youverse.Hosting.Tests.AppAPI
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
-            foreach (var r in instructionSet.TransitOptions.Recipients)
+            foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity) r;
+                var recipient = (DotYouIdentity)r;
                 var ctx = await scaffold.SetupTestSampleApp(testContext.AppId, recipient);
                 recipientContexts.Add(recipient, ctx);
             }
@@ -145,15 +199,18 @@ namespace Youverse.Hosting.Tests.AppAPI
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
 
-                Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions.Recipients.Count, "expected recipient count does not match");
-
-                foreach (var recipient in instructionSet.TransitOptions.Recipients)
+                if (instructionSet.TransitOptions?.Recipients != null)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                    Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+
+                    foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+                    {
+                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                    }
                 }
 
-                if (options is {ProcessOutbox: true})
+                if (options is { ProcessOutbox: true })
                 {
                     await transitSvc.ProcessOutbox();
                 }
@@ -169,7 +226,7 @@ namespace Youverse.Hosting.Tests.AppAPI
                 AppSharedSecretKey = testContext.AppSharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
-                RecipientContexts =  recipientContexts
+                RecipientContexts = recipientContexts
             };
         }
     }

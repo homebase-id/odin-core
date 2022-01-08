@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="package"></param>
         /// <returns></returns>
-        Task<UploadResult> AcceptUploadPackage(UploadPackage package);
+        Task<UploadResult> AcceptUpload(UploadPackage package);
         
 
         /// <summary>

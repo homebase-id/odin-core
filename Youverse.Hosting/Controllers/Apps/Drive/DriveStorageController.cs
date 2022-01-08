@@ -49,14 +49,15 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("files/payload")]
         public async Task<IActionResult> GetPayload(Guid fileId)
         {
-            var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-
-            var file = new DriveFileId() {DriveId = driveId, FileId = fileId};
-
+            var file = new DriveFileId()
+            {
+                DriveId = _context.AppContext.DriveId.GetValueOrDefault(),
+                FileId = fileId
+            };
+            
             var payload = await _driveService.GetPayloadStream(file);
 
-            FileStreamResult result = new FileStreamResult(payload, "application/octet-stream");
-            return result;
+            return new FileStreamResult(payload, "application/octet-stream");
         }
     }
 }
