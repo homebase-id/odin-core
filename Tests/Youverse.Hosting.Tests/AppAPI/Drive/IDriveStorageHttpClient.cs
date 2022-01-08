@@ -15,10 +15,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     {
         private const string DriveRootEndpoint = "/api/apps/v1/drive";
 
-        [Get(DriveRootEndpoint + "/files")]
+        [Get(DriveRootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId);
 
-        [Get(DriveRootEndpoint + "/files")]
+        [Get(DriveRootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId);
     }
 }

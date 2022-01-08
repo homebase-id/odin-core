@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             _appService = appService;
         }
 
-        [HttpGet("files")]
+        [HttpGet("files/header")]
         public async Task<IActionResult> GetMetadata(Guid fileId)
         {
             var file = new DriveFileId()

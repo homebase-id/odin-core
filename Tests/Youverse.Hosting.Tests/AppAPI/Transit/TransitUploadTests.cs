@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -132,10 +128,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var payloadResponse = await driveSvc.GetPayload(fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
-                var payloadResponseData = payloadResponse.Content.ReadAsStringAsync();
+                var payloadResponseData = await payloadResponse.Content.ReadAsByteArrayAsync();
                 
-                
+                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
+                    cipherText: payloadResponseData,
+                    Key: decryptedKeyHeader.AesKey.GetKey(),
+                    IV: decryptedKeyHeader.Iv);
 
+                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
+                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+
+                var decryptedPayloadText = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
 
             }
 
@@ -221,7 +224,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
                     Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
                 }
-                //
             }
 
             keyHeader.AesKey.Wipe();
