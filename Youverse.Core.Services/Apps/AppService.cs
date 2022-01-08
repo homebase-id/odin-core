@@ -1,4 +1,7 @@
 using System.Threading.Tasks;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
@@ -22,14 +25,25 @@ namespace Youverse.Core.Services.Apps
             var ekh = await _driveService.GetEncryptedKeyHeader(file, StorageDisposition.LongTerm);
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
             var appEkh = ToAppKeyHeader(ekh, storageKey.GetKey());
-            
+
             var md = await _driveService.GetMetadata(file, StorageDisposition.LongTerm);
-            
+
             return new ClientFileHeader()
             {
                 EncryptedKeyHeader = appEkh,
                 FileMetadata = md
             };
+        }
+
+        /// <summary>
+        /// Converts a transfer key header to a long term key header and stores it for the specified file.
+        /// </summary>
+        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition)
+        {
+            var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
+            var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
+
+            return await _driveService.WriteKeyHeader(file, kh, storageDisposition);
         }
 
         private EncryptedKeyHeader ToAppKeyHeader(EncryptedKeyHeader ekh, byte[] storageKey)

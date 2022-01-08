@@ -55,6 +55,11 @@ namespace Youverse.Core.Services.Drive.Storage
         void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
+        /// Checks if the file exists.  Returns true if all parts exist, otherwise false
+        /// </summary>
+        bool FileExists(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
+        /// <summary>
         /// Deletes all parts matching <param name="fileId"></param>
         /// </summary>
         /// <returns></returns>

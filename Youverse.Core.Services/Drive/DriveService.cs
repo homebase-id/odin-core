@@ -108,21 +108,33 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public async Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
+            Guard.Argument(metadata, nameof(metadata)).NotNull();
+            Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
+
             //TODO: need to encrypt the metadata parts
-            metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embeded
+            metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embedded
+
+            if (this.FileExists(file, storageDisposition))
+            {
+                var existingMetadata = await this.GetMetadata(file, storageDisposition);
+                metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
+                metadata.Created = existingMetadata.Created;
+            }
+            else
+            {
+                metadata.Created = DateTimeExtensions.UnixTimeMilliseconds();
+            }
             
             var json = JsonConvert.SerializeObject(metadata);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
+            var result = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
 
             if (storageDisposition == StorageDisposition.LongTerm)
             {
                 OnLongTermFileChanged(file, metadata);
             }
-
-            return task;
         }
 
         public async Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
@@ -149,24 +161,20 @@ namespace Youverse.Core.Services.Drive
             return GetStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
 
-        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition)
+        public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition)
         {
-            var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
-            var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
             var manager = GetStorageManager(file.DriveId);
-
-            var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
-
             var drive = manager.Drive;
+            var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
             
-            //this.AssertKeyMatch()
+            //this.AssertKeyMatch(storageKey)
             var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(drive.EncryptedIdValue, storageKey.GetKey(), drive.EncryptedIdIv);
             if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, drive.Id.ToByteArray()))
             {
                 throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
             }
             
-            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(kh, transferEncryptedKeyHeader.Iv, storageKey.GetKey());
+            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, storageKey.GetKey());
             
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
             return encryptedKeyHeader;
@@ -207,6 +215,11 @@ namespace Youverse.Core.Services.Drive
         public void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
             GetStorageManager(file.DriveId).AssertFileIsValid(file.FileId, storageDisposition);
+        }
+        
+        public bool FileExists(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            return GetStorageManager(file.DriveId).FileExists(file.FileId, storageDisposition);
         }
 
         public Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)

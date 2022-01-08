@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
@@ -16,15 +17,17 @@ namespace Youverse.Core.Services.Transit.Upload
     {
         private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
+        private readonly IAppService _appService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
         private readonly Dictionary<Guid, int> _partCounts;
 
         private byte[] _initializationVector;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService, IAppService appService)
         {
             _context = context;
             _driveService = driveService;
+            _appService = appService;
             _packages = new Dictionary<Guid, UploadPackage>();
             _partCounts = new Dictionary<Guid, int>();
         }
@@ -47,7 +50,7 @@ namespace Youverse.Core.Services.Transit.Upload
             {
                 driveId = instructionSet.StorageOptions.DriveId.Value;
             }
-            
+
             if (driveId == Guid.Empty)
             {
                 throw new UploadException("Missing or invalid driveId");
@@ -57,7 +60,7 @@ namespace Youverse.Core.Services.Transit.Upload
             {
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
-            
+
             var pkgId = Guid.NewGuid();
             var file = instructionSet.StorageOptions?.GetFile() ?? _driveService.CreateFileId(driveId);
             var package = new UploadPackage(file, instructionSet!);
@@ -89,10 +92,12 @@ namespace Youverse.Core.Services.Transit.Upload
                     throw new UploadException("Invalid transfer key header");
                 }
 
-                await _driveService.WriteTransferKeyHeader(pkg.File, transferEncryptedKeyHeader, StorageDisposition.Temporary);
+                await _appService.WriteTransferKeyHeader(pkg.File, transferEncryptedKeyHeader, StorageDisposition.Temporary);
 
                 var metadata = new FileMetadata(pkg.File)
                 {
+                    ContentType = descriptor.FileMetadata.ContentType,
+                    
                     AppData = new AppFileMetaData()
                     {
                         CategoryId = descriptor.FileMetadata.AppData.CategoryId,
@@ -101,6 +106,7 @@ namespace Youverse.Core.Services.Transit.Upload
                     }
                 };
 
+                //TODO: need to combine with write transfer keyheader and put on _appService
                 await _driveService.WriteMetaData(pkg.File, metadata, StorageDisposition.Temporary);
 
                 _partCounts[pkgId]++;

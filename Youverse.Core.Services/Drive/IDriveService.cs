@@ -88,6 +88,12 @@ namespace Youverse.Core.Services.Drive
         void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
+        /// Returns true if all parts of the file exist, otherwise false.
+        /// </summary>
+        //// <returns></returns>
+        bool FileExists(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        
+        /// <summary>
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
@@ -110,9 +116,9 @@ namespace Youverse.Core.Services.Drive
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
         
         /// <summary>
-        /// Converts a transfer key header to a long term key header and stores it for the specified file.
+        /// Encrypts and writes a KeyHeader
         /// </summary>
-        Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition);
+        Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition);
         
     }
 }

@@ -163,6 +163,11 @@ namespace Youverse.Core.Services.Drive.Storage
             }
         }
 
+        public bool FileExists(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        {
+            return this.IsFileValid(fileId, storageDisposition);
+        }
+        
         private bool IsFileValid(Guid fileId, StorageDisposition storageDisposition)
         {
             string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
