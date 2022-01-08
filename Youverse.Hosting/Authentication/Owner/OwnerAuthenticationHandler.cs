@@ -58,8 +58,6 @@ namespace Youverse.Hosting.Authentication.Owner
 
                         new Claim(DotYouClaimTypes.AuthResult, authResult.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid64, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.AppId, "owner-console", ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-
                     };
 
                     var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);

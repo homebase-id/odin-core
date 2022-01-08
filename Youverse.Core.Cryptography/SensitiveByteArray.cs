@@ -15,8 +15,7 @@ namespace Youverse.Core.Cryptography
     public sealed class SensitiveByteArray
     {
         // TODO Move this to secure memory
-        [JsonIgnore]
-        private byte[] _key;
+        [JsonIgnore] private byte[] _key;
         // TODO - test to make sure it doesnt get saved
 
         public SensitiveByteArray()
@@ -28,7 +27,7 @@ namespace Youverse.Core.Cryptography
         {
             SetKey(data);
         }
-        
+
         public SensitiveByteArray(string data64)
         {
             SetKey(Convert.FromBase64String(data64));
@@ -36,7 +35,7 @@ namespace Youverse.Core.Cryptography
 
         ~SensitiveByteArray()
         {
-            Wipe();
+            //Wipe();
         }
 
         public void Wipe()
@@ -66,6 +65,7 @@ namespace Youverse.Core.Cryptography
         {
             return (_key == null);
         }
+
         public bool IsSet()
         {
             return (_key != null);
