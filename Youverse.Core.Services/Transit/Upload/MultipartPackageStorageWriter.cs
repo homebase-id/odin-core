@@ -41,16 +41,25 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             _initializationVector = instructionSet.TransferIv;
+            var driveId = _context.AppContext.DriveId.GetValueOrDefault();
 
-            //use specified drive or the app's drive
-            var driveId = instructionSet.StorageOptions?.DriveId.GetValueOrDefault(_context.AppContext.DriveId.GetValueOrDefault());
-            if (!driveId.HasValue)
+            if (instructionSet.StorageOptions?.DriveId.HasValue ?? false)
+            {
+                driveId = instructionSet.StorageOptions.DriveId.Value;
+            }
+            
+            if (driveId == Guid.Empty)
             {
                 throw new UploadException("Missing or invalid driveId");
             }
 
+            if (instructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
+            {
+                throw new UploadException("Cannot transfer to yourself; what's the point?");
+            }
+            
             var pkgId = Guid.NewGuid();
-            var file = instructionSet.StorageOptions?.GetFile() ?? _driveService.CreateFileId(driveId.GetValueOrDefault());
+            var file = instructionSet.StorageOptions?.GetFile() ?? _driveService.CreateFileId(driveId);
             var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
             _partCounts.Add(pkgId, 1);

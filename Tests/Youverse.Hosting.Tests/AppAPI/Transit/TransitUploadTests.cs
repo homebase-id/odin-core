@@ -41,6 +41,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task UploadOnly()
         {
             var identity = TestIdentities.Frodo;
+
             var testContext = await _scaffold.SetupTestSampleApp(identity);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -49,17 +50,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    DriveId = null,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
-                },
-
-                TransitOptions = new TransitOptions()
-                {
-                    Recipients = new List<string>(TestIdentities.All.Select(x => (string)x))
-                }
             };
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
@@ -75,7 +65,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     {
                         CategoryId = Guid.Empty,
                         ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                        JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
                 },
             };
@@ -103,112 +93,113 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(transferResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(transferResult.RecipientStatus.Count == 0, "Too many recipient results returned");
-                
+
                 //
-                
+
                 //retrieve the file that was uploaded; decrypt; 
-                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
-
-                var fileResponse = await driveSvc.GetFile(transferResult.File.FileId);
+                // var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+                //
+                // var fileResponse = await driveSvc.GetFile(transferResult.File.FileId);
+                //
+                // Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
+                // Assert.That(fileResponse.Content, Is.Not.Null);
+                //
+                // var file = fileResponse.Content;
                 
-                Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(fileResponse.Content, Is.Not.Null);
-
-                var file = fileResponse.Content;
-                
-
+                //decrypt?
             }
 
             keyHeader.AesKey.Wipe();
+            
         }
 
         [Test(Description = "Test basic transfer")]
         public async Task TestBasicTransfer()
         {
-            var appSharedSecret = new SensitiveByteArray(new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 });
+            var sender = TestIdentities.Frodo;
+            var recipients = new List<string>() {TestIdentities.Samwise};
+
+            var testContext = await _scaffold.SetupTestSampleApp(sender);
+
+            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+            foreach (var r in recipients)
+            {
+                var recipient = (DotYouIdentity) r;
+                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient);
+                recipientContexts.Add(recipient, ctx);
+            }
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
-            //TODO: need to update api to accept a driveId
-            var file = new DriveFileId()
+            var instructionSet = new UploadInstructionSet()
             {
-                DriveId = Guid.Empty,
-                FileId = Guid.Empty
-            };
-
-            var metadata = new FileMetadata(file)
-            {
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                ContentType = "application/json",
-                AppData = new AppFileMetaData()
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
                 {
-                    CategoryId = Guid.Empty,
-                    ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Recipients = recipients
                 }
             };
 
-            var metadataJson = JsonConvert.SerializeObject(metadata);
-            var metaDataCipher = Utils.EncryptAes(metadataJson, transferIv, appSharedSecret.GetKey());
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    AppData = new()
+                    {
+                        CategoryId = Guid.Empty,
+                        ContentIsComplete = true,
+                        JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    }
+                },
+            };
+
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, appSharedSecret.GetKey());
-            var b = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ekh));
-            var encryptedKeyHeaderStream = new MemoryStream(b);
-
-            var recipientList = new RecipientList { Recipients = new List<DotYouIdentity>() { TestIdentities.Frodo } };
-            var recipientJson = JsonConvert.SerializeObject(recipientList);
-            var recipientCipher = Utils.EncryptAes(recipientJson, transferIv, appSharedSecret.GetKey());
-
-            keyHeader.AesKey.Wipe();
-            appSharedSecret.Wipe();
-
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.AuthResult))
             {
-                //sam to send frodo a data transfer, small enough to send it instantly
-
                 var transitSvc = RestService.For<ITransitHttpClient>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartSectionNames.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartSectionNames.Payload)));
 
-                var response = await transitSvc.SendFile(
-                    new StreamPart(encryptedKeyHeaderStream, "tekh.encrypted", "application/json", "tekh"),
-                    new StreamPart(recipientCipher, "recipientlist.encrypted", "application/json", "recipients"),
-                    new StreamPart(metaDataCipher, "metadata.encrypted", "application/json", "metadata"),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", "payload"));
-
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
                 var transferResult = response.Content;
-                Assert.IsNotNull(transferResult);
-                Assert.IsNotNull(transferResult.File, "File was not set");
-                Assert.IsFalse(transferResult.File.FileId == Guid.Empty, "FileId was not set");
-                Assert.IsFalse(transferResult.File.DriveId == Guid.Empty, "DriveId was not set");
-                Assert.IsTrue(transferResult.RecipientStatus.Count == 1, "Too many recipient results returned");
-                Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(TestIdentities.Frodo), "Could not find matching recipient");
-                Assert.IsTrue(transferResult.RecipientStatus[TestIdentities.Frodo] == TransferStatus.TransferKeyCreated);
 
-                //there should be a record in the outbox for this transfer
-                var outboxItemsResponse = await transitSvc.GetOutboxItems(1, 100);
-                Assert.IsTrue(outboxItemsResponse.IsSuccessStatusCode);
-
-                //In this test framework, we sent one item so there
-                //should be one item in the outbox.  Be sure the outbox
-                //processor is not enabled
-                var outboxItems = outboxItemsResponse.Content;
-                Assert.IsNotNull(outboxItems);
-                Assert.IsTrue(outboxItems.Results.Count == 1);
-
-                var item = outboxItems.Results.First();
-                Assert.IsTrue(item.Recipient == TestIdentities.Frodo);
-                // Assert.IsTrue(item.DeviceUid == _scaffold.DeviceUid);
-
-                //TODO: How do i check the transfer key was populated?  Note: will leave this out and have it tested by ensuring the message is received and can be decrypted by the receipient
-                //TODO: how do i check Pending Transfer Queue?
-
-                await transitSvc.ProcessOutbox();
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+                
+                foreach (var recipient in instructionSet.TransitOptions.Recipients)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                    Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                }
+                //
+                
             }
 
+            keyHeader.AesKey.Wipe();
+
+            //connect to all recipients to determine if they received
+            
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
             // using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, true))
             // {

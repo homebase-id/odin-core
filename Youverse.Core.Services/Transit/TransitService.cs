@@ -52,6 +52,11 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<UploadResult> AcceptUploadPackage(UploadPackage package)
         {
+            if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
+            {
+                throw new UploadException("Cannot transfer a file to the sender; what's the point?");
+            }
+            
             _driveService.AssertFileIsValid(package.File, StorageDisposition.Unknown);
 
             var storageType = await _driveService.GetStorageType(package.File);
@@ -145,8 +150,9 @@ namespace Youverse.Core.Services.Transit
                         AddToTransferKeyEncryptionQueue(recipient, package);
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
                     }
-
+                    
                     var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey, keyHeader);
+                    // var header = this.CreateEncryptedRecipientTransferKeyHeader(null, keyHeader);
 
                     var item = new RecipientTransferKeyHeaderItem()
                     {

@@ -15,7 +15,7 @@ namespace Youverse.Core.Cryptography.Data
 
         ~SymmetricKeyEncryptedXor()
         {
-            _decryptedKey?.Wipe();
+            // _decryptedKey?.Wipe();
         }
 
         public SymmetricKeyEncryptedXor()
