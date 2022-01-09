@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.Common;
 using System.IO;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.Core;
@@ -20,6 +21,8 @@ namespace Youverse.Core.Services.Tests
         public ISystemStorage? SystemStorage { get; private set; }
         public DotYouContext? Context { get; private set; }
         public ILoggerFactory LoggerFactory { get; private set; }
+        
+        public IMediator Mediator {get; private set;}
 
         public string? DataStoragePath => _dataStoragePath;
 
@@ -54,7 +57,11 @@ namespace Youverse.Core.Services.Tests
         public void CreateLoggerFactory()
         {
             LoggerFactory = Substitute.For<ILoggerFactory>();
-            ;
+        }
+
+        public void CreateMediator()
+        {
+            Mediator = Substitute.For<IMediator>();
         }
 
         public void LogDataPath()

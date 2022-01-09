@@ -28,6 +28,7 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold.CreateContext();
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
+            _scaffold.CreateMediator();
         }
 
         [TearDown]
@@ -39,7 +40,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CanSearchRecentFiles()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator);
             var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
 
             const string driveName = "Test-Drive";
@@ -87,7 +88,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CanRebuildIndex()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator);
             var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
 
             const string driveName = "Test-Drive";

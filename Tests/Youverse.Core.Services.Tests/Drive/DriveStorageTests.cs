@@ -37,6 +37,7 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold.CreateContext();
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
+            _scaffold.CreateMediator();
 
             Array.Fill(_ekh_Iv, (byte)1);
             Array.Fill(_ekh_Key, (byte)1);
@@ -51,7 +52,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CanStoreLongTermFile()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
