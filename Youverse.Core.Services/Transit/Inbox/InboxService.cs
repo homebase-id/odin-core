@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         private readonly ISystemStorage _systemStorage;
 
-        public InboxService(DotYouContext context, ILogger<IInboxService> logger, NotificationHandler notificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
+        public InboxService(DotYouContext context, ILogger<IInboxService> logger, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
         }

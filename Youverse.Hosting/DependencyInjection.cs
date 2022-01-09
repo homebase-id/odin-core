@@ -1,13 +1,13 @@
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
+using System.Net.NetworkInformation;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Autofac;
+using MediatR;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
@@ -15,10 +15,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
@@ -26,7 +23,6 @@ using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Audit;
-using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -42,10 +38,12 @@ namespace Youverse.Hosting
     {
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
+            RegisterMediator(ref cb);
+            
             cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
-            cb.RegisterType<NotificationHandler>().AsSelf().SingleInstance();
+            cb.RegisterType<AppNotificationHandler>().AsSelf().SingleInstance();
 
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
@@ -64,7 +62,10 @@ namespace Youverse.Hosting
 
             cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
-            cb.RegisterType<DriveQueryService>().As<IDriveQueryService>().SingleInstance();
+            cb.RegisterType<DriveQueryService>()
+                .As<IDriveQueryService>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .SingleInstance();
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
@@ -85,6 +86,40 @@ namespace Youverse.Hosting
             
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
+        }
+
+        private static void RegisterMediator(ref ContainerBuilder cb)
+        {
+            //TODO: following the docs here but should we pull in everything from this assembly?
+            cb.RegisterAssemblyTypes(typeof(IMediator).GetTypeInfo().Assembly).AsImplementedInterfaces().SingleInstance();
+            
+            var mediatrOpenTypes = new[]
+            {
+                typeof(IRequestHandler<,>),
+                typeof(IRequestExceptionHandler<,,>),
+                typeof(IRequestExceptionAction<,>),
+                typeof(INotificationHandler<>),
+                typeof(IStreamRequestHandler<,>)
+            };
+
+            foreach (var mediatrOpenType in mediatrOpenTypes)
+            {
+                cb
+                    .RegisterAssemblyTypes(typeof(Ping).GetTypeInfo().Assembly)
+                    .AsClosedTypesOf(mediatrOpenType)
+                    // when having a single class implementing several handler types
+                    // this call will cause a handler to be called twice
+                    // in general you should try to avoid having a class implementing for instance `IRequestHandler<,>` and `INotificationHandler<>`
+                    // the other option would be to remove this call
+                    // see also https://github.com/jbogard/MediatR/issues/462
+                    .AsImplementedInterfaces();
+            }
+            
+            cb.Register<ServiceFactory>(ctx =>
+            {
+                var c = ctx.Resolve<IComponentContext>();
+                return t => c.Resolve(t);
+            });
         }
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)

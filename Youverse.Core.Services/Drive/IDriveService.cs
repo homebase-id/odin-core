@@ -19,8 +19,6 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<StorageDrive> CreateDrive(string name);
 
-        event EventHandler<DriveFileChangedArgs> FileChanged;
-
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         /// <summary>

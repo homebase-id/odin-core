@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 
 namespace Youverse.Core.Services.Notifications
 {
-    public class NotificationHandler : WebSocketHandlerBase
+    public class AppNotificationHandler : WebSocketHandlerBase
     {
-        public NotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
+        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
         {
         }
 

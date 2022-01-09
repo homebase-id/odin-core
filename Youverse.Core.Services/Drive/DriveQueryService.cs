@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
@@ -9,7 +11,7 @@ using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveQueryService : IDriveQueryService
+    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>
     {
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
@@ -22,21 +24,10 @@ namespace Youverse.Core.Services.Drive
             _granteeResolver = granteeResolver;
             _loggerFactory = loggerFactory;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
-
-            _driveService.FileChanged += DriveServiceOnFileMetaDataChanged;
-
+            
             InitializeQueryManagers();
         }
-
-        private void DriveServiceOnFileMetaDataChanged(object? sender, DriveFileChangedArgs e)
-        {
-            // var stream = _driveService.GetFilePartStream(e.File, FilePart.Metadata, StorageDisposition.LongTerm).GetAwaiter().GetResult();
-            //_driveService.GetMetadata(e.File, StorageDisposition.LongTerm);
-
-            this.TryGetOrLoadQueryManager(e.File.DriveId, out var manager, false);
-            manager.UpdateCurrentIndex(e.FileMetadata);
-        }
-
+        
         public Task RebuildAllIndices()
         {
             //TODO: optimize by making this parallel processed or something
@@ -154,6 +145,12 @@ namespace Youverse.Core.Services.Drive
             }
 
             return Task.CompletedTask;
+        }
+
+        public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
+        {
+            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
+            return manager.UpdateCurrentIndex(notification.FileMetadata);           
         }
     }
 }

@@ -17,7 +17,7 @@ namespace Youverse.Hosting.Middleware
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context, NotificationHandler notificationHandler, DotYouContext dotYouContext)
+        public async Task Invoke(HttpContext context, AppNotificationHandler appNotificationHandler, DotYouContext dotYouContext)
         {
             if (!context.WebSockets.IsWebSocketRequest)
             {
@@ -25,19 +25,19 @@ namespace Youverse.Hosting.Middleware
             }
 
             var socket = await context.WebSockets.AcceptWebSocketAsync();
-            await notificationHandler.OnConnected(socket);
+            await appNotificationHandler.OnConnected(socket);
 
             await Receive(socket, async (result, buffer) =>
             {
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
-                    await notificationHandler.ReceiveAsync(socket, result, buffer);
+                    await appNotificationHandler.ReceiveAsync(socket, result, buffer);
                     return;
                 }
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await notificationHandler.OnDisconnected(socket);
+                    await appNotificationHandler.OnDisconnected(socket);
                     return;
                 }
             });

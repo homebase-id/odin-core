@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly IProfileAttributeManagementService _mgts;
         private readonly ISystemStorage _systemStorage;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
+        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
         {
             _context = context;
             _cns = cns;

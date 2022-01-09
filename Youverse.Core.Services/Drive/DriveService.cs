@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
@@ -21,23 +22,24 @@ namespace Youverse.Core.Services.Drive
     public class DriveService : IDriveService
     {
         private readonly ISystemStorage _systemStorage;
+        private readonly IMediator _mediator;
         private readonly DotYouContext _context;
         private readonly ConcurrentDictionary<Guid, IStorageManager> _storageManagers;
         private const string DriveCollectionName = "drives";
 
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContext context, ISystemStorage systemStorage, ILoggerFactory loggerFactory)
+        public DriveService(DotYouContext context, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator)
         {
             _context = context;
             _systemStorage = systemStorage;
             _loggerFactory = loggerFactory;
+            _mediator = mediator;
             _storageManagers = new ConcurrentDictionary<Guid, IStorageManager>();
 
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
-
-
+        
         public Task<StorageDrive> CreateDrive(string name)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
@@ -68,8 +70,6 @@ namespace Youverse.Core.Services.Drive
             sd.EnsureDirectories();
             return Task.FromResult(sd);
         }
-
-        public event EventHandler<DriveFileChangedArgs> FileChanged;
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
@@ -248,15 +248,13 @@ namespace Youverse.Core.Services.Drive
 
         private void OnLongTermFileChanged(DriveFileId file, FileMetadata metadata)
         {
-            EventHandler<DriveFileChangedArgs> handler = this.FileChanged;
-            if (null != handler)
+            var notification = new DriveFileChangedNotification()
             {
-                handler(this, new DriveFileChangedArgs()
-                {
-                    File = file,
-                    FileMetadata = metadata
-                });
-            }
+                File = file,
+                FileMetadata = metadata
+            };
+
+            _mediator.Publish(notification);
         }
 
         private StorageDrive ToStorageDrive(StorageDriveBase sdb)

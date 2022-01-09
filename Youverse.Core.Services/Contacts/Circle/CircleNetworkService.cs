@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly IProfileService _profileService;
         private readonly ISystemStorage _systemStorage;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, NotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
             _profileService = profileService;
             _systemStorage = systemStorage;

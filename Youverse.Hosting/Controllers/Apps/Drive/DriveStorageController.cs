@@ -23,14 +23,12 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     {
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
-        private readonly IDriveQueryService _queryService;
         private readonly DotYouContext _context;
 
-        public DriveStorageController(DotYouContext context, IDriveService driveService, IDriveQueryService queryService, IAppService appService)
+        public DriveStorageController(DotYouContext context, IDriveService driveService, IAppService appService)
         {
             _context = context;
             _driveService = driveService;
-            _queryService = queryService;
             _appService = appService;
         }
 
@@ -54,7 +52,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
                 DriveId = _context.AppContext.DriveId.GetValueOrDefault(),
                 FileId = fileId
             };
-            
+
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
