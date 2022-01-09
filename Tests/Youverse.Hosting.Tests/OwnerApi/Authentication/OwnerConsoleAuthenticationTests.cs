@@ -25,6 +25,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
+        [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task CanForceNewPasswordAtProvisioning()
         {
             const string password = "EnSøienØ$";
@@ -39,6 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
+        [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task CanLogInAndOutOfOwnerConsole()
         {
             const string password = "EnSøienØ$";
@@ -60,6 +62,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         }
         
         [Test]
+        [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task FailsWithoutDeviceUid()
         {
             const string password = "EnSøienØ$";

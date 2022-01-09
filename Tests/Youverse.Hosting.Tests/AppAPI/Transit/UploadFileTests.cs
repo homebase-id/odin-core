@@ -68,8 +68,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
 
-            var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+            var payloadDataRaw = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
             {
@@ -117,32 +117,30 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-               
-
+                
                 var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
                 var fileKey = decryptedKeyHeader.AesKey;
+                Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
                 
                 //get the payload and decrypt, then compare
                 var payloadResponse = await driveSvc.GetPayload(fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
-                var payloadResponseData = await payloadResponse.Content.ReadAsByteArrayAsync();
+                
+                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
+                Assert.That(payloadCipher, Is.EqualTo(payloadResponseCipher));
                 
                 var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
-                    cipherText: payloadResponseData,
+                    cipherText: payloadResponseCipher,
                     Key: decryptedKeyHeader.AesKey.GetKey(),
                     IV: decryptedKeyHeader.Iv);
 
-                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
+                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
-                var decryptedPayloadText = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-                
-                //TODO: add comparison of uploaded encrypted data to downloaded encrypted data
-                    
-
+                var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
             }
 
             keyHeader.AesKey.Wipe();
