@@ -9,6 +9,7 @@ namespace Youverse.Core.Cryptography.Data
     public class SymmetricKeyEncryptedAes
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
+        private SensitiveByteArray _copyKey;       // Copy of the key for validation purposes
 
         public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyIV { get; set; } // IV used for AES encryption of the key
@@ -17,12 +18,18 @@ namespace Youverse.Core.Cryptography.Data
 
         ~SymmetricKeyEncryptedAes()
         {
-            //_decryptedKey?.Wipe();
+            if (_decryptedKey != null)
+                _decryptedKey.Wipe();
+
+            if (_copyKey != null)
+                _copyKey.Wipe();
         }
 
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
+            _decryptedKey = null;
+            _copyKey = null;
         }
 
         public SymmetricKeyEncryptedAes(SensitiveByteArray secret)
@@ -34,7 +41,7 @@ namespace Youverse.Core.Cryptography.Data
             (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(newKey.GetKey(), secret);
             KeyHash = YouSHA.ReduceSHA256Hash(newKey.GetKey());
             _decryptedKey = null; // It's null until someone decrypts the key.
-
+            _copyKey = null;
             newKey.Wipe();
             // Another option is to keep the _decryptedKey. For now, for testing primarily, I wipe it.
         }
@@ -44,6 +51,7 @@ namespace Youverse.Core.Cryptography.Data
             (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(data.GetKey(), secret);
             KeyHash = YouSHA.ReduceSHA256Hash(data.GetKey());
             _decryptedKey = null; // It's null until someone decrypts the key.
+            _copyKey = null;
         }
 
 
@@ -64,8 +72,14 @@ namespace Youverse.Core.Cryptography.Data
                     throw new Exception();
 
                 _decryptedKey = new SensitiveByteArray(key);
+                _copyKey = new SensitiveByteArray(YouSHA.ReduceSHA256Hash(secret));
             }
-
+            else
+            {
+                if (!ByteArrayUtil.EquiByteArrayCompare(_copyKey.GetKey(), YouSHA.ReduceSHA256Hash(secret)))
+                    throw new Exception();    
+            }
+            
             return _decryptedKey;
         }
 
