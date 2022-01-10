@@ -130,7 +130,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(payloadResponse.Content, Is.Not.Null);
                 
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(payloadCipher, Is.EqualTo(payloadResponseCipher));
+                Assert.That(((MemoryStream) payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
                 
                 var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
                     cipherText: payloadResponseCipher,
