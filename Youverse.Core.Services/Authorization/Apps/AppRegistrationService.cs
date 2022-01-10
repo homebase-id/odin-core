@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             throw new NotImplementedException();
         }
 
-        public async Task<AppDeviceRegistrationResponse> RegisterDevice(Guid applicationId, byte[] uniqueDeviceId, byte[] sharedSecretKey)
+        public async Task<AppDeviceRegistrationResponse> RegisterClient(Guid applicationId, byte[] uniqueDeviceId, byte[] clientPublicKey)
         {
             _context.Caller.AssertHasMasterKey();
 
@@ -137,29 +137,38 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
+            //Note: never store clientAppToken
+
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
-            var (deviceSecret, serverRegData) = AppClientTokenManager.CreateClientToken(appKey, sharedSecretKey);
-
-            //Note: never store clientAppToken
+           
+            var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(appKey, out var clientKek);
+            
+            //TODO: encrypt shared secreet using the appkey
+            var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
             var appDeviceReg = new AppDeviceRegistration()
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 UniqueDeviceId = uniqueDeviceId,
-                SharedSecretKey = sharedSecretKey,
-                EncryptedAppKey = serverRegData.DeviceEncryptedDeviceKey,
+                SharedSecretKey = sharedSecret,
+                EncryptedAppKey = clientEncryptedAppKey,
                 IsRevoked = false
             };
 
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
 
-            //TODO: i wonder if token could be the deviceUid?
+            var data = ByteArrayUtil.Combine(clientKek, sharedSecret).ToSensitiveByteArray();
+            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+            var encryptedData = publicKey.Encrypt(data.GetKey());
+            data.Wipe();
+
             return new AppDeviceRegistrationResponse()
             {
+                EncryptionVersion = 1,
                 Token = appDeviceReg.Id,
-                DeviceSecret = deviceSecret
+                Data = encryptedData
             };
         }
 

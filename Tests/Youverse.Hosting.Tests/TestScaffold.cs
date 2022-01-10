@@ -427,9 +427,10 @@ namespace Youverse.Hosting.Tests
             
             //this call is done w/o access to the master key so it cannot return the device secret
             var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
-            
+
+            throw new NotImplementedException("need to change app authentication to work correctly");
             //hack: overwrite this for testing.
-            authResult.ClientHalfKek = deviceRegistrationResponse.DeviceSecret.ToSensitiveByteArray();
+            //authResult.ClientHalfKek = deviceRegistrationResponse.ClientKek.ToSensitiveByteArray();
             
             return new TestSampleAppContext()
             {

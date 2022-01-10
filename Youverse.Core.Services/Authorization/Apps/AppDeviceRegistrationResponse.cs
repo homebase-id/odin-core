@@ -7,13 +7,20 @@ namespace Youverse.Core.Services.Authorization.Apps
     /// </summary>
     public class AppDeviceRegistrationResponse
     {
+     
+        /// <summary>
+        /// The version of the encryption used to RSA encrypt <see cref="Data"/>.
+        /// </summary>
+        public int EncryptionVersion { get; internal set; }
+        
         /// <summary>
         /// Used to lookup the server half of the app's Dek
         /// </summary>
         public Guid Token { get; set; }
         
-        public byte[] DeviceSecret { get; set; }  // This is half the AppDek
-        
-
+        /// <summary>
+        /// RSA encrypted response. If encryption version == 1, the ClientKek is the frist 16 bytes, SharedSecret is the second 16 bytes
+        /// </summary>
+        public byte[] Data { get; set; }
     }
 }

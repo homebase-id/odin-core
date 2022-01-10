@@ -15,6 +15,17 @@ namespace Youverse.Core.Cryptography.Data
         public UInt32 crc32c { get; set; }       // The CRC32C of the public key
         public UInt64 expiration { get; set; }   // Time when this key expires
 
+        public static RsaPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1 )
+        {
+            var publicKey = new RsaPublicKeyData()
+            {
+                publicKey = derEncodedPublicKey,
+                crc32c = RsaPublicKeyData.KeyCRC(derEncodedPublicKey),
+                expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64) hours * 60 * 60
+            };
+
+            return publicKey;
+        }
 
         public string publicPem()
         {

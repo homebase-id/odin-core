@@ -30,6 +30,11 @@ namespace Youverse.Core.Cryptography.Crypto
             key.publicKey = pk.GetDerEncoded();
         }
 
+        public static void SetPublicKey(RsaPublicKeyData key, byte[] derEncodedPublicKey)
+        {
+            key.publicKey = derEncodedPublicKey;
+        }
+
         // Not a good place for this function. Should be in some of the login stuff... ?
         public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
         {

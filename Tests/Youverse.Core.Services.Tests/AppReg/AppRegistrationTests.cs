@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NUnit.Framework;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 
@@ -79,26 +80,35 @@ namespace Youverse.Core.Services.Tests.AppReg
         }
 
         [Test]
-        public async Task RegisterAppOnDevice()
+        public async Task RegisterAppOnClient()
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
 
             var uniqueDeviceId = Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray();
-            var sharedSecret = Guid.NewGuid().ToByteArray();
-
-
+           
+            var rsa = new RsaFullKeyData(1);
+           
             var appReg = AddSampleAppNoDrive(appId, name);
-
-            //TODO: rsa encrypt the shared secret
 
             var svc = CreateAppRegService();
 
-            var reply = await svc.RegisterDevice(appId, uniqueDeviceId, sharedSecret);
+            var reply = await svc.RegisterClient(appId, uniqueDeviceId, rsa.publicKey);
 
-            Assert.IsFalse(reply.Token == Guid.Empty);
-            Assert.IsNotNull(reply.DeviceSecret);
-            Assert.That(reply.DeviceSecret.Length, Is.GreaterThanOrEqualTo(16));
+            var decryptedData = rsa.Decrypt(reply.Data);
+            
+            //only supporting version 1 for now
+            Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
+            Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(decryptedData, Is.Not.Null);
+            Assert.That(decryptedData.Length, Is.EqualTo(32));
+
+            var (clientKek, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16);
+
+            Assert.IsNotNull(clientKek);
+            Assert.IsNotNull(sharedSecret);
+            Assert.That(clientKek.Length, Is.EqualTo(16));
+            Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
             var savedAppDevice = await svc.GetAppDeviceRegistration(appId, uniqueDeviceId);
 
@@ -107,8 +117,6 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.IsFalse(savedAppDevice.IsRevoked);
             Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
 
-            //Assert.IsTrue(savedAppDevice.HalfAdek); ???
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.SharedSecretKey, sharedSecret));
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.UniqueDeviceId, uniqueDeviceId));
         }
 
