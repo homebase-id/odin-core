@@ -45,6 +45,30 @@ namespace Youverse.Core.Cryptography.Tests
         }
 
         [Test]
+        // Ensures that if the decrypted key is cached then we can't get a copy
+        // later with a junk key.
+        public void TestSymKeyAes2()
+        {
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SymmetricKeyEncryptedAes(secret);
+
+            var sk = key.DecryptKey(secret);
+
+            var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            try
+            {
+                key.DecryptKey(junk);
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
+        }
+
+
+        [Test]
         // Should split this into its own file.
         public void TestSymKeyXor()
         {
@@ -80,6 +104,31 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Pass();
             }
         }
+
+        [Test]
+        // Ensures that if the decrypted key is cached then we can't get a copy
+        // later with a junk key.
+        public void TestSymKeyXor2()
+        {
+            var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+
+            var sk = key.DecryptKey(secret);
+
+            var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            try
+            {
+                key.DecryptKey(junk);
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
+        }
+
+
 
         [Test]
         public void TestSha256Pass()
