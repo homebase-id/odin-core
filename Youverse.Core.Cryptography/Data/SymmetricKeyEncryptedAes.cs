@@ -18,11 +18,12 @@ namespace Youverse.Core.Cryptography.Data
 
         ~SymmetricKeyEncryptedAes()
         {
-            if (_decryptedKey != null)
-                _decryptedKey.Wipe();
+            //TODO: this is causing the master key to go null on other threads; need to figure out why
+            //if (_decryptedKey != null)
+            //    _decryptedKey.Wipe();
 
-            if (_copyKey != null)
-                _copyKey.Wipe();
+            //if (_copyKey != null)
+            //    _copyKey.Wipe();
         }
 
         public SymmetricKeyEncryptedAes()

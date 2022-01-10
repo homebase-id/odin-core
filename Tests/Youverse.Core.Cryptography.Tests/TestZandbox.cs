@@ -113,7 +113,7 @@ namespace Youverse.Core.Cryptography.Tests
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
 
-            var sk = key.DecryptKey(secret);
+            var sk = key.DecryptKey(halfKey);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
