@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Tests.Drive
 
             var storedEkh = await driveService.GetEncryptedKeyHeader(file, StorageDisposition.LongTerm);
 
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.Data, storedEkh.Data));
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.EncryptedAesKey, storedEkh.EncryptedAesKey));
             ByteArrayUtil.EquiByteArrayCompare(ekh.Iv, storedEkh.Iv);
             Assert.IsTrue(ekh.Type == storedEkh.Type);
             Assert.IsTrue(ekh.EncryptionVersion == storedEkh.EncryptionVersion);

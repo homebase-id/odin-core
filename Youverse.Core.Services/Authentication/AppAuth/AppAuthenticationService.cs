@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
                 throw new YouverseSecurityException($"App [{appDevice.ApplicationId}] is revoked or not registered");
             }
 
-            var appDeviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            var appDeviceReg = await _appRegistrationService.GetAppClientRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
             if (null == appDeviceReg || appDeviceReg.IsRevoked)
             {
                 throw new YouverseSecurityException($"Device [{string.Join("-", appDevice.DeviceUid)}] is revoked or not registered");
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.AppAuth
                 return new SessionValidationResult() {IsValid = false, AppDevice = null};
             }
 
-            var deviceReg = await _appRegistrationService.GetAppDeviceRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
+            var deviceReg = await _appRegistrationService.GetAppClientRegistration(appDevice.ApplicationId, appDevice.DeviceUid);
             if (null == deviceReg || deviceReg.IsRevoked)
             {
                 //TODO: security audit

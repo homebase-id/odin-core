@@ -71,7 +71,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="applicationId"></param>
         /// <param name="uniqueDeviceId"></param>
         /// <returns></returns>
-        Task<AppDeviceRegistration> GetAppDeviceRegistration(Guid applicationId, byte[] uniqueDeviceId);
+        Task<AppDeviceRegistration> GetAppClientRegistration(Guid applicationId, byte[] uniqueDeviceId);
 
         /// <summary>
         /// Gets the list of devices on which an app is registered.

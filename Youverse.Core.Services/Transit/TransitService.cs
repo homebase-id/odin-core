@@ -13,6 +13,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -153,8 +154,7 @@ namespace Youverse.Core.Services.Transit
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
                     }
                     
-                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey, keyHeader);
-                    // var header = this.CreateEncryptedRecipientTransferKeyHeader(null, keyHeader);
+                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey.PublicKey, keyHeader);
 
                     var item = new RecipientTransferKeyHeaderItem()
                     {
@@ -178,22 +178,18 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(TransitPublicKey recipientPublicKey, KeyHeader keyHeader)
+        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(byte[] recipientPublicKeyDer, KeyHeader keyHeader)
         {
-            /*
-             :Re-encrypt a copy of the __KeyHeader__ using the __RecipientTransitPublicKey__
-                 Result is __EncryptedRecipientTransferKeyHeader__;
-             :Store __RecipientTransferKeyHeaderItem__ in  __RecipientTransferKeyHeaderCache__;
-            */
-            //TODO: encrypt header using RSA Public Key
-            var encryptedBytes = new byte[] { 1, 1, 2, 3, 5, 8, 13, 21 };
-            var encryptedTransferKey = new EncryptedRecipientTransferKeyHeader()
-            {
-                EncryptionVersion = 1,
-                Data = encryptedBytes
-            };
+            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
+            var secureKeyHeader = keyHeader.Combine();
+            var data = publicKey.Encrypt(secureKeyHeader.GetKey());
+            secureKeyHeader.Wipe();
 
-            return encryptedTransferKey;
+            return new EncryptedRecipientTransferKeyHeader()
+            {
+                PublicKeyCrc = publicKey.crc32c,
+                EncryptedAesKey = data
+            };
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
@@ -248,7 +244,7 @@ namespace Youverse.Core.Services.Transit
             try
             {
                 //look up transfer key
-                EncryptedRecipientTransferKeyHeader transferKeyHeader = await this.GetTransferKeyFromCache(recipient, file);
+                var transferKeyHeader = await this.GetTransferKeyFromCache(recipient, file);
                 if (null == transferKeyHeader)
                 {
                     return new SendResult()

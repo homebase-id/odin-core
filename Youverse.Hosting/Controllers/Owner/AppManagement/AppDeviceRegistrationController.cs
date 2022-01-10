@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         {
             //TODO: should all of these fields be returned to the client?
             var uniqueDeviceId = Convert.FromBase64String(deviceId64);
-            var reg = await _appRegistration.GetAppDeviceRegistration(appId, uniqueDeviceId);
+            var reg = await _appRegistration.GetAppClientRegistration(appId, uniqueDeviceId);
             return new JsonResult(reg);
         }
 

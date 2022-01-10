@@ -1,15 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
@@ -171,6 +174,23 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             return result;
+        }
+
+        private async void DecryptTransferKeyHeader(EncryptedRecipientTransferKeyHeader header)
+        {
+            throw new NotImplementedException("TODO wip");
+            
+            var keys = await GetRsaKeyList();
+            var pk = RsaKeyListManagement.FindKey(keys, header.PublicKeyCrc);
+
+            if (pk == null)
+            {
+                throw new InvalidDataException("Invalid public key");
+            }
+
+            var decryptedBytes = pk.Decrypt(header.EncryptedAesKey).ToSensitiveByteArray();
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16,16);
+            decryptedBytes.Wipe();
         }
 
         private FileTracker GetTrackerOrFail(Guid trackerId)

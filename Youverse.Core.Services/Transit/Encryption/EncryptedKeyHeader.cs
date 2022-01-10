@@ -1,25 +1,29 @@
 using System.IO;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
     public class EncryptedKeyHeader
     {
         public int EncryptionVersion { get; set; }
+        
         public EncryptionType Type { get; set; }
 
+        
         public byte[] Iv { get; set; }
 
         /// <summary>
-        /// The encrypted bytes of the data
+        /// The encrypted bytes of the Aes key from the original key header
         /// </summary>
-        public byte[] Data { get; set; }
+        public byte[] EncryptedAesKey { get; set; }
 
         public KeyHeader DecryptAesToKeyHeader(byte[] key)
         {
             if (this.EncryptionVersion == 1)
             {
-                var bytes = AesCbc.DecryptBytesFromBytes_Aes(this.Data, key, this.Iv);
+                var bytes = AesCbc.DecryptBytesFromBytes_Aes(this.EncryptedAesKey, key, this.Iv);
                 var kh = KeyHeader.FromCombinedBytes(bytes, 16, 16);
                 return kh;
             }
@@ -38,8 +42,10 @@ namespace Youverse.Core.Services.Transit.Encryption
                 EncryptionVersion = 1,
                 Type = EncryptionType.Aes,
                 Iv = iv,
-                Data = data
+                EncryptedAesKey = data
             };
         }
+
+    
     }
 }

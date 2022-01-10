@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.That(clientKek.Length, Is.EqualTo(16));
             Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
-            var savedAppDevice = await svc.GetAppDeviceRegistration(appId, uniqueDeviceId);
+            var savedAppDevice = await svc.GetAppClientRegistration(appId, uniqueDeviceId);
 
             Assert.IsNotNull(savedAppDevice);
             Assert.IsTrue(savedAppDevice.ApplicationId == appId);

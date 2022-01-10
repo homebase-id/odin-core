@@ -1,3 +1,5 @@
+using System;
+
 namespace Youverse.Core.Services.Transit.Encryption
 {
     /// <summary>
@@ -6,7 +8,8 @@ namespace Youverse.Core.Services.Transit.Encryption
     /// </summary>
     public class EncryptedRecipientTransferKeyHeader
     {
-        public int EncryptionVersion { get; set; }
-        public byte[] Data { get; set; }
+        public UInt32 PublicKeyCrc { get; set; }
+
+        public byte[] EncryptedAesKey { get; set; }
     }
 }

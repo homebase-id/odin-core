@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Transit
     public enum TransferStatus
     {
         /// <summary>
-        /// Indicates the transfer is waiting to have an <see cref="EncryptedRecipientTransferKeyHeader"/> created
+        /// Indicates the transfer is waiting to have an <see cref="EncryptedKeyHeader"/> created
         /// </summary>
         AwaitingTransferKey = 1,
         

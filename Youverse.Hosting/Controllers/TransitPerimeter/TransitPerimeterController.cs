@@ -69,6 +69,8 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                     throw new InvalidDataException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
                 }
 
+
+
                 //TODO: determine if the filter needs to decide if its result should be sent back to the sender
                 var response = await _perimeterService.ApplyFirstStageFilterToPart(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)

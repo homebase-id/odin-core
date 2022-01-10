@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public async Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray deviceSecret)
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
-            var deviceReg = await this.GetAppDeviceRegistration(applicationId, deviceUid);
+            var deviceReg = await this.GetAppClientRegistration(applicationId, deviceUid);
 
             //var appEncryptionKey = deviceReg.EncryptedAppKey.DecryptKey(deviceSecret);
 
@@ -172,7 +172,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<AppDeviceRegistration> GetAppDeviceRegistration(Guid applicationId, byte[] uniqueDeviceId)
+        public async Task<AppDeviceRegistration> GetAppClientRegistration(Guid applicationId, byte[] uniqueDeviceId)
         {
             var appDeviceReg = await _systemStorage.WithTenantSystemStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId && a.UniqueDeviceId == uniqueDeviceId));
             return appDeviceReg;
@@ -192,14 +192,14 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task RevokeAppDevice(Guid applicationId, byte[] uniqueDeviceId)
         {
-            var appDevice = await this.GetAppDeviceRegistration(applicationId, uniqueDeviceId);
+            var appDevice = await this.GetAppClientRegistration(applicationId, uniqueDeviceId);
             appDevice.IsRevoked = true;
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
         }
 
         public async Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId)
         {
-            var appDevice = await this.GetAppDeviceRegistration(applicationId, uniqueDeviceId);
+            var appDevice = await this.GetAppClientRegistration(applicationId, uniqueDeviceId);
             appDevice.IsRevoked = false;
             _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
         }
