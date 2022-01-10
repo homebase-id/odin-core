@@ -9,19 +9,26 @@ namespace Youverse.Core.Cryptography.Data
     public class SymmetricKeyEncryptedXor
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
+        private SensitiveByteArray _copyKey;
+
 
         public byte[] KeyEncrypted  { get; set; }
         public byte[] KeyHash       { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
 
         ~SymmetricKeyEncryptedXor()
         {
-            _decryptedKey?.Wipe();
+            if (_decryptedKey != null)
+                _decryptedKey.Wipe();
+
+            if (_copyKey != null)
+                _copyKey.Wipe();
         }
 
         public SymmetricKeyEncryptedXor()
         {
             //For LiteDB
             _decryptedKey = null;
+            _copyKey = null;
         }
 
         public SymmetricKeyEncryptedXor(SensitiveByteArray secretKeyToSplit, out byte[] halfKey1)
@@ -32,6 +39,7 @@ namespace Youverse.Core.Cryptography.Data
             KeyHash = YouSHA.ReduceSHA256Hash(secretKeyToSplit.GetKey());
 
             _decryptedKey = null; // It's null until someone decrypts the key.
+            _copyKey = null;
 
             // Another option is to store in _decryptedKey immediately. For now, for testing primarily, I wipe it.
         }
@@ -47,6 +55,12 @@ namespace Youverse.Core.Cryptography.Data
                     throw new Exception();
 
                 _decryptedKey = new SensitiveByteArray(key);
+                _copyKey = new SensitiveByteArray(YouSHA.ReduceSHA256Hash(halfKey.GetKey()));
+            }
+            else
+            {
+                if (!ByteArrayUtil.EquiByteArrayCompare(_copyKey.GetKey(), YouSHA.ReduceSHA256Hash(halfKey.GetKey())))
+                    throw new Exception();
             }
 
             return _decryptedKey;
