@@ -127,7 +127,7 @@ namespace Youverse.Core.Services.Transit
                 File = package.File,
                 Recipient = (DotYouIdentity)r,
                 AppId = this._context.AppContext.AppId,
-                DeviceUid = Convert.ToBase64String(this._context.AppContext.DeviceUid)
+                AppClientId = this._context.AppContext.AppClientId
             }));
 
             return keyStatus;

@@ -15,29 +15,29 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext
     {
-        private readonly SensitiveByteArray _deviceSharedSecret;
+        private readonly SensitiveByteArray _clientSharedSecret;
         private readonly string _appId;
-        private readonly byte[] _deviceUid;
+        private readonly Guid _appClientId;
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
         private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
         private readonly SensitiveByteArray _deviceSecret;
 
-        public AppContext(string appId, byte[] deviceUid, SensitiveByteArray deviceSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray deviceSecret, List<DriveGrant> driveGrants )
+        public AppContext(string appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray deviceSecret, List<DriveGrant> driveGrants )
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
 
             this._appId = appId;
-            this._deviceSharedSecret = deviceSharedSecret;
+            this._clientSharedSecret = clientSharedSecret;
             this._driveId = driveId;
             this._encryptedAppKey = encryptedAppKey;
             this._deviceSecret = deviceSecret;
             this._driveGrants = driveGrants;
-            this._deviceUid = deviceUid;
+            this._appClientId = appClientId;
         }
 
-        public byte[] DeviceUid => this._deviceUid;
+        public Guid AppClientId => this._appClientId;
 
         public string AppId => this._appId;
 
@@ -51,9 +51,9 @@ namespace Youverse.Core.Services.Base
         /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <returns></returns>
-        public SensitiveByteArray GetDeviceSharedSecret()
+        public SensitiveByteArray GetClientSharedSecret()
         {
-            return this._deviceSharedSecret;
+            return this._clientSharedSecret;
         }
 
         /// <summary>

@@ -324,7 +324,6 @@ namespace Youverse.Hosting.Tests
         public async Task<(DotYouAuthenticationResult authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
             var rsa = new RsaFullKeyData(1);
-            var sharedSecretKey = ByteArrayUtil.GetRndByteArray(16);
 
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -362,7 +361,7 @@ namespace Youverse.Hosting.Tests
                     ClientHalfKek = clientKek.ToSensitiveByteArray()
                 };
                 
-                return (authResult, sharedSecretKey);
+                return (authResult, sharedSecret);
             }
         }
 

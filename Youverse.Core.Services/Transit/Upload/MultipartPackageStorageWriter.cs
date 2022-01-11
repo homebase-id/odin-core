@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 encryptedBytes = ms.ToArray();
             }
 
-            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetDeviceSharedSecret().GetKey(), this._initializationVector);
+            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetClientSharedSecret().GetKey(), this._initializationVector);
             var t = JsonConvert.DeserializeObject<T>(json);
             return t;
         }

@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Apps
         /// </summary>
         public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition)
         {
-            var sharedSecret = _context.AppContext.GetDeviceSharedSecret().GetKey();
+            var sharedSecret = _context.AppContext.GetClientSharedSecret().GetKey();
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
 
             return await _driveService.WriteKeyHeader(file, kh, storageDisposition);
@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Apps
         private EncryptedKeyHeader ToAppKeyHeader(EncryptedKeyHeader ekh, byte[] storageKey)
         {
             var keyHeader = ekh.DecryptAesToKeyHeader(storageKey);
-            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, _context.AppContext.GetDeviceSharedSecret().GetKey());
+            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, _context.AppContext.GetClientSharedSecret().GetKey());
             return appEkh;
         }
     }

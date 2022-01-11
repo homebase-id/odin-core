@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItemsNoContent()
+        public async Task CanQueryDriveRecentItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
             

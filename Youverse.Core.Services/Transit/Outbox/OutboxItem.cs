@@ -24,9 +24,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         public string AppId { get; set; }
 
         /// <summary>
-        /// The device that created this outbox item
+        /// The app client that created this outbox item
         /// </summary>
-        public string DeviceUid { get; set; }
+        public Guid AppClientId { get; set; }
         
         public DotYouIdentity Recipient { get; set; }
         

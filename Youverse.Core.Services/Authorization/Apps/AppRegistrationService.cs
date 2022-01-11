@@ -80,8 +80,14 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appClient = await this.GetClientRegistration(token);
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
 
-            return new AppContext(appId: appReg.ApplicationId.ToString(), deviceUid: null, //future
-                deviceSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey), driveId: appReg.DriveId, encryptedAppKey: appClient.EncryptedAppKey, deviceSecret: deviceSecret, driveGrants: appReg.DriveGrants);
+            return new AppContext(
+                appId: appReg.ApplicationId.ToString(),
+                appClientId: appClient.Id,
+                clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
+                driveId: appReg.DriveId,
+                encryptedAppKey: appClient.EncryptedAppKey,
+                deviceSecret: deviceSecret,
+                driveGrants: appReg.DriveGrants);
         }
 
         public async Task RevokeApp(Guid applicationId)
@@ -92,8 +98,6 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appReg.IsRevoked = true;
                 _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
             }
-
-            //TODO: do we do anything with storage DEK here?
 
             //TODO: Send notification?
         }

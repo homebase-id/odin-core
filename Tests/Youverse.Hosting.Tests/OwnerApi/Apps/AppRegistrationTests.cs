@@ -106,7 +106,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.That(clientKek.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
                 
-                var savedAppClientResponse = await svc.GetRegisteredAppClient(appId);
+                var savedAppClientResponse = await svc.GetRegisteredAppClient(reply.Token);
                 Assert.IsTrue(savedAppClientResponse.IsSuccessStatusCode);
                 var savedAppClient = savedAppClientResponse.Content;
                 

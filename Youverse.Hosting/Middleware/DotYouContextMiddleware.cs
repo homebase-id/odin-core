@@ -132,8 +132,8 @@ namespace Youverse.Hosting.Middleware
             var driveId = appReg.DriveId;
             dotYouContext.AppContext = new AppContext(
                 appId: appId.ToString(),
-                deviceUid: null,
-                deviceSharedSecret: null,
+                appClientId: Guid.Empty, //TODO: this should be nullable or we need to have a TransitContext instead of AppContext (the latter is best)
+                clientSharedSecret: null,
                 driveId: driveId,
                 null,
                 null,
