@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -14,7 +13,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authentication.AppAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
@@ -22,7 +20,6 @@ using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
@@ -30,8 +27,6 @@ namespace Youverse.Hosting.Tests
 {
     public class TestScaffold
     {
-        private static readonly SemaphoreSlim _semaphore = new(1, 1);
-
         private readonly string _folder;
         private readonly string _password = "EnSøienØ";
         private IHost _webserver;
@@ -326,26 +321,48 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<(AppDeviceRegistrationResponse deviceRegistrationResponse, byte[] sharedSecretKey)> AddAppDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
+        public async Task<(DotYouAuthenticationResult authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
+            var rsa = new RsaFullKeyData(1);
             var sharedSecretKey = ByteArrayUtil.GetRndByteArray(16);
 
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
-                var request = new AppDeviceRegistrationRequest()
+                var request = new AppClientRegistrationRequest()
                 {
                     ApplicationId = appId,
-                    DeviceId64 = Convert.ToBase64String(deviceUid),
-                    SharedSecretKey64 = Convert.ToBase64String(sharedSecretKey)
+                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
                 };
 
-                var regResponse = await svc.RegisterAppOnDevice(request);
+                var regResponse = await svc.RegisterAppOnClient(request);
                 Assert.IsTrue(regResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(regResponse.Content);
 
-                return (regResponse.Content, sharedSecretKey);
+                var reply = regResponse.Content;
+                var decryptedData = rsa.Decrypt(reply.Data);
+            
+                //only supporting version 1 for now
+                Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
+                Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(decryptedData, Is.Not.Null);
+                Assert.That(decryptedData.Length, Is.EqualTo(32));
+
+                var (clientKek, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16);
+
+                Assert.IsNotNull(clientKek);
+                Assert.IsNotNull(sharedSecret);
+                Assert.That(clientKek.Length, Is.EqualTo(16));
+                Assert.That(sharedSecret.Length, Is.EqualTo(16));
+
+                DotYouAuthenticationResult authResult = new DotYouAuthenticationResult()
+                {
+                    SessionToken = reply.Token,
+                    ClientHalfKek = clientKek.ToSensitiveByteArray()
+                };
+                
+                return (authResult, sharedSecretKey);
             }
         }
 
@@ -358,84 +375,14 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<Guid> CreateAppSession(DotYouIdentity identity, Guid appId, byte[] deviceUid)
-        {
-            var appDevice = new AppDevice()
-            {
-                ApplicationId = appId,
-                DeviceUid = deviceUid
-            };
-
-            using (var ownerClient = this.CreateOwnerApiHttpClient(identity))
-            {
-                var ownerAuthSvc = RestService.For<IOwnerAuthenticationClient>(ownerClient);
-                var authCodeResponse = await ownerAuthSvc.CreateAppSession(appDevice);
-                Assert.That(authCodeResponse.IsSuccessStatusCode, Is.True);
-
-                var authCode = authCodeResponse.Content;
-                Assert.That(authCode, Is.Not.EqualTo(Guid.Empty));
-
-                return authCode;
-            }
-        }
-
-        public async Task RevokeDevice(DotYouIdentity identity, Guid appId, byte[] deviceUid)
-        {
-            using (var client = this.CreateOwnerApiHttpClient(identity))
-            {
-                var svc = RestService.For<IAppRegistrationClient>(client);
-                await svc.RevokeAppDevice(appId, Convert.ToBase64String(deviceUid));
-            }
-        }
-
-        public async Task<DotYouAuthenticationResult> ExchangeAppAuthCode(DotYouIdentity identity, Guid authCode, Guid appId, byte[] deviceUid)
-        {
-            using (var appClient = this.CreateAnonymousApiHttpClient(identity))
-            {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-
-                var request = new AuthCodeExchangeRequest()
-                {
-                    AuthCode = authCode,
-                    AppDevice = new AppDevice()
-                    {
-                        ApplicationId = appId,
-                        DeviceUid = deviceUid
-                    }
-                };
-
-                var authResultResponse = await appAuthSvc.ExchangeAuthCode(request);
-                Assert.That(authResultResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(authResultResponse.Content, Is.Not.Null);
-                Assert.That(authResultResponse.Content, Is.Not.Empty);
-                Assert.That(DotYouAuthenticationResult.TryParse(authResultResponse.Content, out var result), Is.True);
-
-                return result;
-            }
-        }
-        
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity)
         {
-            byte[] deviceUid = Guid.NewGuid().ToByteArray();
-
             this.AddApp(identity, appId, true).GetAwaiter().GetResult();
             
-            //Tricky - registering a device is the only time we can get the device secret because we have the master key.
-            var (deviceRegistrationResponse, sharedSecret) = this.AddAppDevice(identity, appId, deviceUid).GetAwaiter().GetResult();
-            
-            var authCode = await this.CreateAppSession(identity, appId, deviceUid);
-            
-            //this call is done w/o access to the master key so it cannot return the device secret
-            var authResult = await this.ExchangeAppAuthCode(identity, authCode, appId, deviceUid);
-
-            throw new NotImplementedException("need to change app authentication to work correctly");
-            //hack: overwrite this for testing.
-            //authResult.ClientHalfKek = deviceRegistrationResponse.ClientKek.ToSensitiveByteArray();
-            
+            var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
             {
                 AppId = appId,
-                DeviceUid = deviceUid,
                 AuthResult = authResult,
                 AppSharedSecretKey = sharedSecret
             };

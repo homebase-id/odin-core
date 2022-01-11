@@ -32,7 +32,6 @@ namespace Youverse.Hosting.Tests.AppAPI
     public class TestSampleAppContext
     {
         public Guid AppId { get; set; }
-        public byte[] DeviceUid { get; set; }
         public DotYouAuthenticationResult AuthResult { get; set; }
         public byte[] AppSharedSecretKey { get; set; }
     }
@@ -221,7 +220,6 @@ namespace Youverse.Hosting.Tests.AppAPI
             return new TransitTestUtilsContext()
             {
                 AppId = testContext.AppId,
-                DeviceUid = testContext.DeviceUid,
                 AuthResult = testContext.AuthResult,
                 AppSharedSecretKey = testContext.AppSharedSecretKey,
                 InstructionSet = instructionSet,

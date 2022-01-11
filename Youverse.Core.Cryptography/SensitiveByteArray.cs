@@ -12,7 +12,7 @@ namespace Youverse.Core.Cryptography
     /// TODO write tests.
     /// </summary>
     [DebuggerDisplay("Key={string.Join(\"-\", _key)}")]
-    public sealed class SensitiveByteArray
+    public sealed class SensitiveByteArray: IDisposable
     {
         // TODO Move this to secure memory
         [JsonIgnore] private byte[] _key;
@@ -36,6 +36,11 @@ namespace Youverse.Core.Cryptography
         ~SensitiveByteArray()
         {
             //Wipe();
+        }
+
+        public void Dispose()
+        {
+            this.Wipe();
         }
 
         public void Wipe()

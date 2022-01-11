@@ -4,17 +4,15 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authentication.AppAuth;
+using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
@@ -100,8 +98,6 @@ namespace Youverse.Hosting.Middleware
 
             var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
             var authResult = DotYouAuthenticationResult.Parse(value);
-            var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
-            var appDevice = validationResult.AppDevice;
             var user = httpContext.User;
             
             dotYouContext.Caller = new CallerContext(
@@ -114,7 +110,7 @@ namespace Youverse.Hosting.Middleware
 
             //look up grant for this device and app
             var deviceHalfKek = authResult.ClientHalfKek;
-            dotYouContext.AppContext = await appRegSvc.GetAppContext(appDevice.ApplicationId, appDevice.DeviceUid, deviceHalfKek);
+            dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, deviceHalfKek);
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

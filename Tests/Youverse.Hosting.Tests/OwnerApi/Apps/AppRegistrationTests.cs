@@ -3,6 +3,9 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 
@@ -63,43 +66,55 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         }
 
         [Test]
-        public async Task RegisterAppOnDevice()
+        public async Task RegisterAppOnClient()
         {
+            var identity = TestIdentities.Frodo;
+            
+            var rsa = new RsaFullKeyData(1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
-
-                //TODO: rsa encrypt the shared secret
-
-                var payload = new AppDeviceRegistrationRequest()
+                var request = new AppClientRegistrationRequest()
                 {
                     ApplicationId = appId,
-                    DeviceId64 = Convert.ToBase64String(Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray()),
-                    SharedSecretKey64 = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
                 };
 
-                var regResponse = await svc.RegisterAppOnDevice(payload);
+                var regResponse = await svc.RegisterAppOnClient(request);
                 Assert.IsTrue(regResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(regResponse.Content);
 
-                var savedAppDeviceResponse = await svc.GetRegisteredAppDevice(appId, payload.DeviceId64);
+                var reply = regResponse.Content;
+                var decryptedData = rsa.Decrypt(reply.Data);
+            
+                //only supporting version 1 for now
+                Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
+                Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(decryptedData, Is.Not.Null);
+                Assert.That(decryptedData.Length, Is.EqualTo(32));
 
-                Assert.IsTrue(savedAppDeviceResponse.IsSuccessStatusCode);
-                var savedAppDevice = savedAppDeviceResponse.Content;
+                var (clientKek, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16);
 
-                Assert.IsNotNull(savedAppDevice);
-                Assert.IsTrue(savedAppDevice.ApplicationId == appId);
-                Assert.IsFalse(savedAppDevice.IsRevoked);
-                Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
+                Assert.IsNotNull(clientKek);
+                Assert.IsNotNull(sharedSecret);
+                Assert.That(clientKek.Length, Is.EqualTo(16));
+                Assert.That(sharedSecret.Length, Is.EqualTo(16));
+                
+                var savedAppClientResponse = await svc.GetRegisteredAppClient(appId);
+                Assert.IsTrue(savedAppClientResponse.IsSuccessStatusCode);
+                var savedAppClient = savedAppClientResponse.Content;
+                
+                Assert.IsNotNull(savedAppClient);
+                Assert.IsTrue(savedAppClient.ApplicationId == appId);
+                Assert.IsFalse(savedAppClient.IsRevoked);
+                Assert.IsFalse(savedAppClient.Id == Guid.Empty);
 
-                //Assert.IsTrue(savedAppDevice.HalfAdek); ???
-                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.SharedSecretKey) == payload.SharedSecretKey64);
-                Assert.IsTrue(Convert.ToBase64String(savedAppDevice.UniqueDeviceId) == payload.DeviceId64); //note: i suppose, this is kind of a hackish way to compare the byte arrays 
             }
         }
 

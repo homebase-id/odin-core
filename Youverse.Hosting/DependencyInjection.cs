@@ -8,7 +8,7 @@ using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authentication.AppAuth;
+using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
@@ -54,11 +54,11 @@ namespace Youverse.Hosting
             cb.RegisterType<YouAuthSessionStorage>().As<IYouAuthSessionStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
-            cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
-            
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
+
+            cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
 
             cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();

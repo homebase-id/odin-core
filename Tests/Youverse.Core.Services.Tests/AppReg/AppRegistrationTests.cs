@@ -84,16 +84,13 @@ namespace Youverse.Core.Services.Tests.AppReg
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
-
-            var uniqueDeviceId = Guid.Parse("a917c85f-732d-4991-a3d9-5aeba3e89f32").ToByteArray();
-           
+            
             var rsa = new RsaFullKeyData(1);
            
-            var appReg = AddSampleAppNoDrive(appId, name);
-
+            await AddSampleAppNoDrive(appId, name);
             var svc = CreateAppRegService();
 
-            var reply = await svc.RegisterClient(appId, uniqueDeviceId, rsa.publicKey);
+            var reply = await svc.RegisterClient(appId, rsa.publicKey);
 
             var decryptedData = rsa.Decrypt(reply.Data);
             
@@ -110,14 +107,13 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.That(clientKek.Length, Is.EqualTo(16));
             Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
-            var savedAppDevice = await svc.GetAppClientRegistration(appId, uniqueDeviceId);
+            var savedClient = await svc.GetClientRegistration(reply.Token);
 
-            Assert.IsNotNull(savedAppDevice);
-            Assert.IsTrue(savedAppDevice.ApplicationId == appId);
-            Assert.IsFalse(savedAppDevice.IsRevoked);
-            Assert.IsFalse(savedAppDevice.Id == Guid.Empty);
-
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(savedAppDevice.UniqueDeviceId, uniqueDeviceId));
+            Assert.IsNotNull(savedClient);
+            Assert.IsTrue(savedClient.ApplicationId == appId);
+            Assert.IsFalse(savedClient.IsRevoked);
+            Assert.IsFalse(savedClient.Id == Guid.Empty);
+            
         }
 
         private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)

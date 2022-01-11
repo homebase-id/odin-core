@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authentication.AppAuth;
+using Youverse.Core.Services.Authentication.Apps;
 
 namespace Youverse.Hosting.Controllers.Apps.Auth
 {
@@ -9,32 +9,18 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
     [Route(AppApiPathConstants.BasePathV1 + "/auth")]
     public class AppAuthenticationController : Controller
     {
-        private readonly IAppAuthenticationService _authService;
-
-        public AppAuthenticationController(IAppAuthenticationService authService)
+        private readonly IAppAuthenticationService _appAuth;
+        
+        public AppAuthenticationController(IAppAuthenticationService appAuth)
         {
-            _authService = authService;
+            _appAuth = appAuth;
         }
 
-        [HttpPost("exchangeCode")]
-        public async Task<string> ExchangeAuthCode([FromBody] AuthCodeExchangeRequest request)
+        [HttpGet("validate")]
+        public async Task<IActionResult> ValidateClientToken(Guid token)
         {
-            var authResult = await _authService.ExchangeAuthCode(request);
-            return authResult.ToString();
-        }
-
-
-        [HttpPost("validate")]
-        public async Task<IActionResult> ValidateSessionToken(Guid sessionToken)
-        {
-            var result = await _authService.ValidateSessionToken(sessionToken);
+            var result = await _appAuth.ValidateClientToken(token);
             return new JsonResult(result);
-        }
-
-        [HttpPost("expire")]
-        public void ExpireSessionToken(Guid sessionToken)
-        {
-            _authService.ExpireSession(sessionToken);
         }
     }
 }

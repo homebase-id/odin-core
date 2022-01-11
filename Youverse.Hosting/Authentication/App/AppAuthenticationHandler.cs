@@ -10,11 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authentication.AppAuth;
+using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Base;
 using Youverse.Hosting.Authentication.Owner;
 
 #nullable enable
@@ -40,9 +38,9 @@ namespace Youverse.Hosting.Authentication.App
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
-            if (GetAuthResut(out var authResult))
+            if (GetAuthResult(out var authResult))
             {
-                var validationResult = await authService.ValidateSessionToken(authResult.SessionToken);
+                var validationResult = await authService.ValidateClientToken(authResult.SessionToken);
                 if (validationResult.IsValid)
                 {
                     //TODO: this needs to be pulled from context rather than the domain
@@ -77,14 +75,9 @@ namespace Youverse.Hosting.Authentication.App
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
-        {
-            return base.HandleForbiddenAsync(properties);
-        }
-
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
-            if (GetAuthResut(out var result))
+            if (GetAuthResult(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
                 authService.ExpireToken(result.SessionToken);
@@ -98,7 +91,7 @@ namespace Youverse.Hosting.Authentication.App
             return Task.CompletedTask;
         }
 
-        private bool GetAuthResut(out DotYouAuthenticationResult result)
+        private bool GetAuthResult(out DotYouAuthenticationResult result)
         {
             var value = Context.Request.Cookies[AppAuthConstants.CookieName];
             if (DotYouAuthenticationResult.TryParse(value, out result))

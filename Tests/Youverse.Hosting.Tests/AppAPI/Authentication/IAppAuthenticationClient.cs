@@ -1,8 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Refit;
-using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authentication.AppAuth;
+using Youverse.Core.Services.Authentication.Apps;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
 {
@@ -10,13 +9,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
     {
         private const string RootPath = "/api/apps/v1/auth";
 
-        [Post(RootPath + "/exchangeCode")]
-        public Task<ApiResponse<string>> ExchangeAuthCode([Body] AuthCodeExchangeRequest request);
+        [Get(RootPath + "/validate")]
+        public Task<ApiResponse<AppTokenValidationResult>> ValidateClientToken(Guid token);
 
-        [Post(RootPath + "/validate")]
-        public Task<ApiResponse<SessionValidationResult>> ValidateSessionToken(Guid sessionToken);
-
-        [Post(RootPath + "/expire")]
-        public Task<ApiResponse<SessionValidationResult>> ExpireSessionToken(Guid sessionToken);
     }
 }

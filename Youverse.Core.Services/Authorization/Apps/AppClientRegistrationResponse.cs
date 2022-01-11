@@ -5,13 +5,13 @@ namespace Youverse.Core.Services.Authorization.Apps
     /// <summary>
     /// Data sent to client when registering the user of an app on a given device (phone, browser, etc.)
     /// </summary>
-    public class AppDeviceRegistrationResponse
+    public class AppClientRegistrationResponse
     {
      
         /// <summary>
         /// The version of the encryption used to RSA encrypt <see cref="Data"/>.
         /// </summary>
-        public int EncryptionVersion { get; internal set; }
+        public int EncryptionVersion { get; set; }
         
         /// <summary>
         /// Used to lookup the server half of the app's Dek

@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using AppContext = Youverse.Core.Services.Base.AppContext;
@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     public class AppRegistrationService : IAppRegistrationService
     {
         private const string AppRegistrationStorageName = "ars";
-        private const string AppDeviceRegistrationStorageName = "adrs";
+        private const string AppClientRegistrationStorageName = "adrs";
 
         private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = new SymmetricKeyEncryptedAes(masterKey);
-            
+
             List<DriveGrant> grants = null;
 
             if (createDrive)
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(appKey.DecryptKey(masterKey), ref storageKey);
 
                 grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant() { DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey });
+                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey});
                 driveId = drive.Id;
             }
 
@@ -75,22 +75,13 @@ namespace Youverse.Core.Services.Authorization.Apps
             return ToAppRegistrationResponse(result);
         }
 
-        public async Task<AppContext> GetAppContext(Guid applicationId, byte[] deviceUid, SensitiveByteArray deviceSecret)
+        public async Task<AppContext> GetAppContext(Guid token, SensitiveByteArray deviceSecret)
         {
-            var appReg = await this.GetAppRegistrationInternal(applicationId);
-            var deviceReg = await this.GetAppClientRegistration(applicationId, deviceUid);
+            var appClient = await this.GetClientRegistration(token);
+            var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
 
-            //var appEncryptionKey = deviceReg.EncryptedAppKey.DecryptKey(deviceSecret);
-
-
-            return new AppContext(
-                appId: appReg.ApplicationId.ToString(),
-                deviceUid: deviceUid,
-                deviceSharedSecret: new SensitiveByteArray(deviceReg.SharedSecretKey),
-                driveId: appReg.DriveId,
-                encryptedAppKey: deviceReg.EncryptedAppKey,
-                deviceSecret:deviceSecret,
-                driveGrants: appReg.DriveGrants);
+            return new AppContext(appId: appReg.ApplicationId.ToString(), deviceUid: null, //future
+                deviceSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey), driveId: appReg.DriveId, encryptedAppKey: appClient.EncryptedAppKey, deviceSecret: deviceSecret, driveGrants: appReg.DriveGrants);
         }
 
         public async Task RevokeApp(Guid applicationId)
@@ -126,7 +117,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             throw new NotImplementedException();
         }
 
-        public async Task<AppDeviceRegistrationResponse> RegisterClient(Guid applicationId, byte[] uniqueDeviceId, byte[] clientPublicKey)
+        public async Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey)
         {
             _context.Caller.AssertHasMasterKey();
 
@@ -134,74 +125,54 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             if (null == appReg || appReg.IsRevoked)
             {
-                throw new InvalidDataException($"Application with Id {applicationId} is not registered or has been revoked.");
+                throw new YouverseSecurityException($"Application with Id {applicationId} is not registered or has been revoked.");
             }
 
             //Note: never store clientAppToken
 
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
-           
+
             var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(appKey, out var clientKek);
-            
-            //TODO: encrypt shared secreet using the appkey
+
+            //TODO: encrypt shared secret using the appkey
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
-            var appDeviceReg = new AppDeviceRegistration()
+            var appClientReg = new AppClientRegistration()
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
-                UniqueDeviceId = uniqueDeviceId,
                 SharedSecretKey = sharedSecret,
                 EncryptedAppKey = clientEncryptedAppKey,
                 IsRevoked = false
             };
 
-            _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDeviceReg));
+            _systemStorage.WithTenantSystemStorage<AppClientRegistration>(AppClientRegistrationStorageName, s => s.Save(appClientReg));
 
-            var data = ByteArrayUtil.Combine(clientKek, sharedSecret).ToSensitiveByteArray();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            var encryptedData = publicKey.Encrypt(data.GetKey());
-            data.Wipe();
-
-            return new AppDeviceRegistrationResponse()
+            using (var data = ByteArrayUtil.Combine(clientKek, sharedSecret).ToSensitiveByteArray())
             {
-                EncryptionVersion = 1,
-                Token = appDeviceReg.Id,
-                Data = encryptedData
-            };
+                var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+                var encryptedData = publicKey.Encrypt(data.GetKey());
+
+                return new AppClientRegistrationResponse()
+                {
+                    EncryptionVersion = 1,
+                    Token = appClientReg.Id,
+                    Data = encryptedData
+                };
+            }
         }
 
-        public async Task<AppDeviceRegistration> GetAppClientRegistration(Guid applicationId, byte[] uniqueDeviceId)
+        public async Task<AppClientRegistration> GetClientRegistration(Guid id)
         {
-            var appDeviceReg = await _systemStorage.WithTenantSystemStorageReturnSingle<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId && a.UniqueDeviceId == uniqueDeviceId));
-            return appDeviceReg;
+            var clientReg = await _systemStorage.WithTenantSystemStorageReturnSingle<AppClientRegistration>(AppClientRegistrationStorageName, s => s.Get(id));
+            return clientReg;
         }
 
-        public async Task<PagedResult<AppDeviceRegistration>> GetRegisteredAppDevices(PageOptions pageOptions)
+        public async Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions)
         {
-            var list = await _systemStorage.WithTenantSystemStorageReturnList<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.GetList(pageOptions));
+            var list = await _systemStorage.WithTenantSystemStorageReturnList<AppClientRegistration>(AppClientRegistrationStorageName, s => s.GetList(pageOptions));
             return list;
-        }
-
-        public async Task<PagedResult<AppDeviceRegistration>> GetAppsByDevice(byte[] uniqueDeviceId, PageOptions pageOptions)
-        {
-            var list = await _systemStorage.WithTenantSystemStorageReturnList<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Find(ad => ad.UniqueDeviceId == uniqueDeviceId, pageOptions));
-            return list;
-        }
-
-        public async Task RevokeAppDevice(Guid applicationId, byte[] uniqueDeviceId)
-        {
-            var appDevice = await this.GetAppClientRegistration(applicationId, uniqueDeviceId);
-            appDevice.IsRevoked = true;
-            _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
-        }
-
-        public async Task RemoveAppDeviceRevocation(Guid applicationId, byte[] uniqueDeviceId)
-        {
-            var appDevice = await this.GetAppClientRegistration(applicationId, uniqueDeviceId);
-            appDevice.IsRevoked = false;
-            _systemStorage.WithTenantSystemStorage<AppDeviceRegistration>(AppDeviceRegistrationStorageName, s => s.Save(appDevice));
         }
 
         public async Task<PagedResult<AppRegistrationResponse>> GetRegisteredApps(PageOptions pageOptions)
@@ -225,7 +196,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
         {
-            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }
