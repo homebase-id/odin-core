@@ -97,7 +97,7 @@ namespace Youverse.Core.Cryptography
 
             try
             {
-                decryptedRSA = key.Decrypt(Convert.FromBase64String(reply.RsaEncrypted));
+                decryptedRSA = key.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), Convert.FromBase64String(reply.RsaEncrypted));
             }
             catch
             {

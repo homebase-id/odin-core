@@ -323,7 +323,7 @@ namespace Youverse.Hosting.Tests
 
         public async Task<(DotYouAuthenticationResult authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
-            var rsa = new RsaFullKeyData(1);
+            var rsa = new RsaFullKeyData(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1); // TODO
 
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -340,7 +340,7 @@ namespace Youverse.Hosting.Tests
                 Assert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(reply.Data);
+                var decryptedData = rsa.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), reply.Data); // TODO
             
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));

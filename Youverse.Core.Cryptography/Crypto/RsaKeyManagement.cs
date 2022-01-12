@@ -15,26 +15,6 @@ namespace Youverse.Core.Cryptography.Crypto
 
     public static class RsaKeyManagement
     {
-        /// <summary>
-        /// This is right now a hack for TESTING only. If this is needed then
-        /// we should work that out with CreateKey()
-        /// </summary>
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="derEncodedPrivateKey"></param>
-        public static void SetFullKey(RsaFullKeyData key, byte[] derEncodedPrivateKey)
-        {
-            key.privateKey = derEncodedPrivateKey;
-            var pkRestored = PublicKeyFactory.CreateKey(key.publicKey);
-            var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
-            key.publicKey = pk.GetDerEncoded();
-        }
-
-        public static void SetPublicKey(RsaPublicKeyData key, byte[] derEncodedPublicKey)
-        {
-            key.publicKey = derEncodedPublicKey;
-        }
-
         // Not a good place for this function. Should be in some of the login stuff... ?
         public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
         {

@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public async Task<TransitPublicKey> GetTransitPublicKey()
         {
             var rsaKeyList = await this.GetRsaKeyList();
-            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
+            var key = RsaKeyListManagement.GetCurrentKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), ref rsaKeyList, out var keyListWasUpdated); // TODO
 
             if (keyListWasUpdated)
             {
@@ -157,7 +157,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //HACK: need to refactor this when storage is rebuilt 
             const int MAX_KEYS = 4; //leave this size 
 
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), MAX_KEYS); // TODO
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
 
             _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
@@ -188,7 +188,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 throw new InvalidDataException("Invalid public key");
             }
 
-            var decryptedBytes = pk.Decrypt(header.EncryptedAesKey).ToSensitiveByteArray();
+            var decryptedBytes = pk.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), header.EncryptedAesKey).ToSensitiveByteArray(); // TODO
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16,16);
             decryptedBytes.Wipe();
         }
