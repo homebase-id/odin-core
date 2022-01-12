@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Drive
     
     public class StorageException : YouverseException
     {
-        public StorageException(Guid driveId): base($"General Storage Exception regarding drive Id: {driveId}")
+        public StorageException(Guid driveId): base($"General Storage Exception. drive Id: {driveId}")
         {
             
         }

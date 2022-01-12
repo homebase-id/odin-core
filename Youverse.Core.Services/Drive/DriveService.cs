@@ -24,7 +24,8 @@ namespace Youverse.Core.Services.Drive
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContext _context;
-        private readonly ConcurrentDictionary<Guid, IStorageManager> _storageManagers;
+        private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
+        private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private const string DriveCollectionName = "drives";
 
         private readonly ILoggerFactory _loggerFactory;
@@ -35,7 +36,8 @@ namespace Youverse.Core.Services.Drive
             _systemStorage = systemStorage;
             _loggerFactory = loggerFactory;
             _mediator = mediator;
-            _storageManagers = new ConcurrentDictionary<Guid, IStorageManager>();
+            _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
+            _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
@@ -96,12 +98,11 @@ namespace Youverse.Core.Services.Drive
             return converted;
         }
         
-        
         public DriveFileId CreateFileId(Guid driveId)
         {
             var df = new DriveFileId()
             {
-                FileId = GetStorageManager(driveId).CreateFileId(),
+                FileId = GetLongTermStorageManager(driveId).CreateFileId(),
                 DriveId = driveId,
             };
             
@@ -129,7 +130,7 @@ namespace Youverse.Core.Services.Drive
             
             var json = JsonConvert.SerializeObject(metadata);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            var result = GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
+            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream, storageDisposition);
 
             if (storageDisposition == StorageDisposition.LongTerm)
             {
@@ -139,7 +140,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            await GetStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream, storageDisposition);
+            await GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream, storageDisposition);
 
             //update the metadata file - updated date
             var metadata = await GetMetadata(file,storageDisposition);
@@ -152,18 +153,33 @@ namespace Youverse.Core.Services.Drive
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            var task = GetStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
+            var task = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream, storageDisposition);
             return task;
+        }
+
+        public Task WriteTempStream(DriveFileId file, string extension, Stream stream)
+        {
+            return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
+        }
+
+        public Task DeleteTempFile(DriveFileId file, string extension)
+        {
+            return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
+        }
+        
+        public Task DeleteTempFiles(DriveFileId file)
+        {
+            return GetTempStorageManager(file.DriveId).Delete(file.FileId);
         }
 
         public Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
-            return GetStorageManager(driveId).GetMetadataFiles(pageOptions);
+            return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
 
         public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition)
         {
-            var manager = GetStorageManager(file.DriveId);
+            var manager = GetLongTermStorageManager(file.DriveId);
             var drive = manager.Drive;
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
             
@@ -182,54 +198,54 @@ namespace Youverse.Core.Services.Drive
 
         public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId, storageDisposition);
         }
 
         public async Task<FileMetadata> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            var metadata = await GetStorageManager(file.DriveId).GetMetadata(file.FileId, storageDisposition);
+            var metadata = await GetLongTermStorageManager(file.DriveId).GetMetadata(file.FileId, storageDisposition);
             return metadata;
         }
 
         public async Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            var stream = await GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, storageDisposition);
+            var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, storageDisposition);
             return stream;
         }
         
         public Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).GetFileSize(file.FileId, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).GetFileSize(file.FileId, storageDisposition);
         }
 
         public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).GetFilePartStream(file.FileId, filePart, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, filePart, storageDisposition);
         }
 
         public Task<StorageDisposition> GetStorageType(DriveFileId file)
         {
-            return GetStorageManager(file.DriveId).GetStorageType(file.FileId);
+            return GetLongTermStorageManager(file.DriveId).GetStorageType(file.FileId);
         }
         
         public void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            GetStorageManager(file.DriveId).AssertFileIsValid(file.FileId, storageDisposition);
+            GetLongTermStorageManager(file.DriveId).AssertFileIsValid(file.FileId, storageDisposition);
         }
         
         public bool FileExists(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).FileExists(file.FileId, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId, storageDisposition);
         }
 
-        public Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task DeleteLongTermFile(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).Delete(file.FileId, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).Delete(file.FileId, storageDisposition);
         }
 
         public async Task MoveToLongTerm(DriveFileId file)
         {
-            await GetStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
+            await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
 
             //HACK: I don't like having to call getmetadata when i move a file.  i wonder if there's a better way
             var metadata = await this.GetMetadata(file, StorageDisposition.LongTerm);
@@ -238,12 +254,12 @@ namespace Youverse.Core.Services.Drive
 
         public Task MoveToTemp(DriveFileId file)
         {
-            return GetStorageManager(file.DriveId).MoveToTemp(file.FileId);
+            return GetLongTermStorageManager(file.DriveId).MoveToTemp(file.FileId);
         }
 
         public Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
         {
-            return GetStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
+            return GetLongTermStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
         }
 
         private void OnLongTermFileChanged(DriveFileId file, FileMetadata metadata)
@@ -271,32 +287,56 @@ namespace Youverse.Core.Services.Drive
             var drives = await this.GetDrives(PageOptions.All);
             foreach (var drive in drives.Results)
             {
-                Load(drive, out var _);
+                LoadLongTermStorage(drive, out var _);
             }
         }
 
-        private IStorageManager GetStorageManager(Guid driveId)
+        private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
-            if (_storageManagers.TryGetValue(driveId, out var manager))
+            if (_longTermStorageManagers.TryGetValue(driveId, out var manager))
             {
                 return manager;
             }
 
             var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var success = Load(sd, out manager);
+            var success = LoadLongTermStorage(sd, out manager);
             if (!success)
             {
-                throw new StorageException(driveId);
+                throw new StorageException($"Could not load long term storage for drive {driveId}");
+            }
+
+            return manager;
+        }
+        
+        private ITempStorageManager GetTempStorageManager(Guid driveId)
+        {
+            if (_tempStorageManagers.TryGetValue(driveId, out var manager))
+            {
+                return manager;
+            }
+
+            var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var success = LoadTempStorage(sd, out manager);
+            if (!success)
+            {
+                throw new StorageException($"Could not load temporary storage for drive {driveId}");
             }
 
             return manager;
         }
 
-        private bool Load(StorageDrive drive, out IStorageManager manager)
+        private bool LoadLongTermStorage(StorageDrive drive, out ILongTermStorageManager manager)
         {
-            var logger = _loggerFactory.CreateLogger<IStorageManager>();
-            manager = new FileBasedStorageManager(drive, logger);
-            return _storageManagers.TryAdd(drive.Id, manager);
+            var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
+            manager = new FileBasedLongTermStorageManager(drive, logger);
+            return _longTermStorageManagers.TryAdd(drive.Id, manager);
+        }
+        
+        private bool LoadTempStorage(StorageDrive drive, out ITempStorageManager manager)
+        {
+            var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
+            manager = new FileBasedTempStorageManager(drive, logger);
+            return _tempStorageManagers.TryAdd(drive.Id, manager);
         }
     }
 }

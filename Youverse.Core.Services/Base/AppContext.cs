@@ -21,9 +21,10 @@ namespace Youverse.Core.Services.Base
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
         private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
-        private readonly SensitiveByteArray _deviceSecret;
+        private readonly SensitiveByteArray _clientHalfKek;
+        private readonly bool _canManageConnections;
 
-        public AppContext(string appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray deviceSecret, List<DriveGrant> driveGrants )
+        public AppContext(string appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -32,8 +33,9 @@ namespace Youverse.Core.Services.Base
             this._clientSharedSecret = clientSharedSecret;
             this._driveId = driveId;
             this._encryptedAppKey = encryptedAppKey;
-            this._deviceSecret = deviceSecret;
+            this._clientHalfKek = clientHalfKek;
             this._driveGrants = driveGrants;
+            _canManageConnections = canManageConnections;
             this._appClientId = appClientId;
         }
 
@@ -46,6 +48,11 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public Guid? DriveId => this._driveId;
 
+        /// <summary>
+        /// Indicates this app can manage connections and requests.
+        /// </summary>
+        public bool CanManageConnections => _canManageConnections;
+        
         /// <summary>
         /// Returns the shared secret between the client app and
         /// the server.  Do not use for permanent storage.  
@@ -71,7 +78,7 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
             }
 
-            var appKey = this._encryptedAppKey.DecryptKey(this._deviceSecret);
+            var appKey = this._encryptedAppKey.DecryptKey(this._clientHalfKek);
             var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(appKey);
             return storageKey;
         }

@@ -22,6 +22,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <param name="part">The <see cref="FilePart"/> being processed by the filter</param>
         /// <param name="data">The stream of data to be processed</param>
         /// <returns>A <see cref="FilterResult"/> indicating the result of the filter</returns>
-        Task<FilterResult> Apply(IFilterContext context, FilePart part, Stream data);
+        Task<FilterResult> Apply(IFilterContext context, MultipartHostTransferParts part, Stream data);
     }
 }

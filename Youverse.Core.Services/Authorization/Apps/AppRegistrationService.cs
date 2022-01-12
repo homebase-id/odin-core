@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return ToAppRegistrationResponse(result);
         }
 
-        public async Task<AppContext> GetAppContext(Guid token, SensitiveByteArray deviceSecret)
+        public async Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek)
         {
             var appClient = await this.GetClientRegistration(token);
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
@@ -86,8 +86,10 @@ namespace Youverse.Core.Services.Authorization.Apps
                 clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
                 driveId: appReg.DriveId,
                 encryptedAppKey: appClient.EncryptedAppKey,
-                deviceSecret: deviceSecret,
-                driveGrants: appReg.DriveGrants);
+                clientHalfKek: clientHalfKek,
+                driveGrants: appReg.DriveGrants,
+                canManageConnections: appReg.CanManageConnections
+            );
         }
 
         public async Task RevokeApp(Guid applicationId)

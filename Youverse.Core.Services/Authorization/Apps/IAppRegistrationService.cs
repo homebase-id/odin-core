@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Creates the AppContext for a given client registration
         /// </summary>
         /// <returns></returns>
-        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray deviceSecret);
+        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek);
         
         /// <summary>
         /// Gets all registered apps

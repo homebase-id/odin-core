@@ -45,9 +45,9 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
 
             var section = await reader.ReadNextSectionAsync();
             var firstPartName = GetSectionName(section!.ContentDisposition);
-            if (!Enum.TryParse<MultipartSectionNames>(firstPartName, true, out var part) || part != MultipartSectionNames.Instructions)
+            if (!Enum.TryParse<MultipartUploadParts>(firstPartName, true, out var part) || part != MultipartUploadParts.Instructions)
             {
-                throw new UploadException($"First part must be {Enum.GetName(MultipartSectionNames.Instructions)}");
+                throw new UploadException($"First part must be {Enum.GetName(MultipartUploadParts.Instructions)}");
             }
 
             var packageId = await _packageStorageWriter.CreatePackage(section.Body);

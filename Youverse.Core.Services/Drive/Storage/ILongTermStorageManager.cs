@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Drive.Storage
     /// <summary>
     /// Handles the storage, retrieval, and management of data storage for a single <see cref="StorageDrive"/>.
     /// </summary>
-    public interface IStorageManager
+    public interface ILongTermStorageManager
     {
         /// <summary>
         /// The drive managed by this instance
@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Drive.Storage
         Guid CreateFileId();
 
         /// <summary>
-        /// Writes a stream for a given file and part to the configured provider.  To write the KeyHeader, use 
+        /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 

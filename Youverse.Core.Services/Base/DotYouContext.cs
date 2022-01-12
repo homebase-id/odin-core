@@ -50,5 +50,7 @@ namespace Youverse.Core.Services.Base
         public CallerContext Caller { get; set; }
         
         public AppContext AppContext { get; set; }
+        
+        public TransitContext TransitContext { get; set; }
     }
 }

@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit.Quarantine.Filter
     {
         public Guid Id => Guid.Parse("00000000-0000-0000-833e-8bf7bcf62478");
 
-        public Task<FilterResult> Apply(IFilterContext context, FilePart part, Stream data)
+        public Task<FilterResult> Apply(IFilterContext context, MultipartHostTransferParts part, Stream data)
         {
             var result = new FilterResult()
             {

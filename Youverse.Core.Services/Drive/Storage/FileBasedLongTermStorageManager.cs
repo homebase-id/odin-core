@@ -9,14 +9,14 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
-    public class FileBasedStorageManager : IStorageManager
+    public class FileBasedLongTermStorageManager : ILongTermStorageManager
     {
-        private readonly ILogger<IStorageManager> _logger;
+        private readonly ILogger<ILongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
         
-        public FileBasedStorageManager(StorageDrive drive, ILogger<IStorageManager> logger)
+        public FileBasedLongTermStorageManager(StorageDrive drive, ILogger<ILongTermStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
@@ -72,8 +72,10 @@ namespace Youverse.Core.Services.Drive.Storage
             //TODO: this is probably highly inefficient and probably need to revisit 
             string filePath = GetFilenameAndPath(fileId, part, storageDisposition, true);
             string tempFilePath = GetTempFilePath(fileId, part, storageDisposition);
+            
             try
             {
+                //Process: if there's a file, we write to a temp file then rename.
                 if (File.Exists(filePath))
                 {
                     WriteStream(stream, tempFilePath);
@@ -321,9 +323,9 @@ namespace Youverse.Core.Services.Drive.Storage
             return Path.Combine(dir, GetFilename(fileId,part));
         }
 
-        private string GetTempFilePath(Guid id, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetTempFilePath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
         {
-            string dir = GetFileDirectory(id, storageDisposition, ensureExists);
+            string dir = GetFileDirectory(fileId, storageDisposition, ensureExists);
             string filename = $"{Guid.NewGuid()}{part}.tmp";
             return Path.Combine(dir, filename);
         }

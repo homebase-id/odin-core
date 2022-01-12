@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Middleware
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
             var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
-            
+
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: true,
@@ -99,7 +99,7 @@ namespace Youverse.Hosting.Middleware
             var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
             var authResult = DotYouAuthenticationResult.Parse(value);
             var user = httpContext.User;
-            
+
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
@@ -109,8 +109,7 @@ namespace Youverse.Hosting.Middleware
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
             //look up grant for this device and app
-            var deviceHalfKek = authResult.ClientHalfKek;
-            dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, deviceHalfKek);
+            dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -126,18 +125,15 @@ namespace Youverse.Hosting.Middleware
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
-            
-            //TODO: fix for transit
+
+            //TODO: fix for transit. need to make a transit context class
             var grants = new List<DriveGrant>();
             var driveId = appReg.DriveId;
-            dotYouContext.AppContext = new AppContext(
+
+            dotYouContext.TransitContext = new TransitContext(
                 appId: appId.ToString(),
-                appClientId: Guid.Empty, //TODO: this should be nullable or we need to have a TransitContext instead of AppContext (the latter is best)
-                clientSharedSecret: null,
-                driveId: driveId,
-                null,
-                null,
-                driveGrants: grants);
+                driveId: null,
+                encryptedAppKey: null);
         }
     }
 }

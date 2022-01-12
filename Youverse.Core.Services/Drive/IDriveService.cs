@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions);
-        
+
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
@@ -50,6 +50,24 @@ namespace Youverse.Core.Services.Drive
         Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
+        /// Writes a stream to the drive's temporary storage
+        /// </summary>
+        Task WriteTempStream(DriveFileId file, string extension, Stream stream);
+
+        /// <summary>
+        /// Deletes the specified temp file matching the driveId, fileId and extension
+        /// </summary>
+        /// <returns></returns>
+        Task DeleteTempFile(DriveFileId file, string extension);
+
+        /// <summary>
+        /// Deletes all temp files matching the fileId regardless of extension
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        Task DeleteTempFiles(DriveFileId file);
+        
+        /// <summary>
         /// Gets the <see cref="FileMetadata"/>
         /// </summary>
         /// <param name="file"></param>
@@ -58,7 +76,7 @@ namespace Youverse.Core.Services.Drive
         Task<FileMetadata> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
         Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
@@ -90,12 +108,12 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         //// <returns></returns>
         bool FileExists(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
         /// <summary>
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
-        Task Delete(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task DeleteLongTermFile(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Moves the specified <param name="file"></param> to <see cref="StorageDisposition.LongTerm"/>
@@ -110,13 +128,12 @@ namespace Youverse.Core.Services.Drive
         Task MoveToTemp(DriveFileId file);
 
         Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-        
+
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
-        
+
         /// <summary>
         /// Encrypts and writes a KeyHeader
         /// </summary>
         Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition);
-        
     }
 }

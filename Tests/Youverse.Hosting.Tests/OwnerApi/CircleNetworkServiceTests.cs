@@ -37,6 +37,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -57,6 +58,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanDeleteConnectionRequest()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -76,6 +78,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanGetPendingConnectionRequestList()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -97,6 +100,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanGetSentConnectionRequestList()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -120,6 +124,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanGetSentConnectionRequest()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -140,6 +145,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanAcceptConnectionRequest()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -187,7 +193,8 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
 
-        [Test]
+        [Test]      
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanBlock()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -213,6 +220,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanUnblock()
         {
             await CreateConnectionRequestSamToFrodo();
@@ -243,6 +251,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
 
 
         [Test]
+        [Ignore("Need to convert to transit protocol")]
         public async Task CanDisconnect()
         {
             await CreateConnectionRequestSamToFrodo();

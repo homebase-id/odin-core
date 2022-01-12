@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <param name="trackerId">The Id used when auditing the result of each filtered applied to the incoming transfer</param>
         /// <param name="part"></param>
         /// <param name="data"></param>
-        Task<CollectiveFilterResult> ApplyFirstStageFilters(Guid trackerId, FilePart part, Stream data);
+        Task<CollectiveFilterResult> ApplyFirstStageFilters(Guid trackerId, MultipartHostTransferParts part, Stream data);
 
         /// <summary>
         /// Writes the stream to a quarantined location
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <param name="trackerId">The Id used when auditing an incoming transfer</param>
         /// <param name="part"></param>
         /// <param name="data"></param>
-        Task QuarantinePart(Guid trackerId, FilePart part, Stream data);
+        Task QuarantinePart(Guid trackerId, MultipartHostTransferParts part, Stream data);
 
 
         /// <summary>

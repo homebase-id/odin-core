@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new InvalidDataException("Data is not multi-part content");
+                throw new HostToHostTransferException("Data is not multi-part content");
             }
 
             //TODO: support for validating the app id is specified and this host has authorized the app
@@ -51,7 +51,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
 
-            var expectedFilePart = GetNextExpectedFilePart(null);
+            var expectedPart = GetNextExpectedFilePart(null);
+            
+            //
             var trackerId = await _perimeterService.CreateFileTracker();
 
             while (section != null)
@@ -59,62 +61,61 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 var name = GetSectionName(section.ContentDisposition);
                 var part = GetFilePart(name);
 
-                if (null == expectedFilePart)
+                if (null == expectedPart)
                 {
-                    throw new InvalidDataException("Multipart - provided part is not expected");
+                    throw new HostToHostTransferException("Multipart - provided part is not expected");
                 }
 
-                if (part != expectedFilePart)
+                if (part != expectedPart)
                 {
-                    throw new InvalidDataException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
+                    throw new HostToHostTransferException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
                 }
-
-
+                
 
                 //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-                var response = await _perimeterService.ApplyFirstStageFilterToPart(trackerId, part, section.Body);
+                var response = await _perimeterService.ApplyFirstStageFilter(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)
                 {
                     HttpContext.Abort(); //TODO:does this abort also kill the response?
-                    throw new InvalidDataException("Transmission Aborted");
+                    throw new HostToHostTransferException("Transmission Aborted");
                 }
 
                 section = await reader.ReadNextSectionAsync();
-                expectedFilePart = GetNextExpectedFilePart(part);
+                expectedPart = GetNextExpectedFilePart(part);
             }
 
             if (!_perimeterService.IsFileValid(trackerId))
             {
-                throw new InvalidDataException("Upload does not contain all required parts.");
+                throw new HostToHostTransferException("Upload does not contain all required parts.");
             }
 
             var result = await _perimeterService.FinalizeTransfer(trackerId);
             if (result.Code == FinalFilterAction.Rejected)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
-                throw new InvalidDataException("Transmission Aborted");
+                throw new HostToHostTransferException("Transmission Aborted");
             }
 
             return new JsonResult(result);
         }
 
-        private FilePart? GetNextExpectedFilePart(FilePart? part)
+        private MultipartHostTransferParts? GetNextExpectedFilePart(MultipartHostTransferParts? part)
         {
             if (!part.HasValue)
             {
-                return FilePart.Header;
+                return MultipartHostTransferParts.TransferKeyHeader;
             }
 
             switch (part.GetValueOrDefault())
             {
-                case FilePart.Header:
-                    return FilePart.Metadata;
-                case FilePart.Metadata:
-                    return FilePart.Payload;
-                case FilePart.Payload:
+                case MultipartHostTransferParts.TransferKeyHeader:
+                    return MultipartHostTransferParts.Metadata;
+                case MultipartHostTransferParts.Metadata:
+                    return MultipartHostTransferParts.TransferKeyHeader;
+                case MultipartHostTransferParts.Payload:
                     return null;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new HostToHostTransferException("Unknown MultipartHostTransferParts");
             }
         }
 
@@ -140,11 +141,11 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             return boundary;
         }
 
-        private FilePart GetFilePart(string name)
+        private MultipartHostTransferParts GetFilePart(string name)
         {
-            if (Enum.TryParse<FilePart>(name, true, out var part) == false)
+            if (Enum.TryParse<MultipartHostTransferParts>(name, true, out var part) == false)
             {
-                throw new InvalidDataException("Unknown file part");
+                throw new HostToHostTransferException("Unknown MultipartHostTransferPart");
             }
 
             return part;

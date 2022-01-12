@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -23,7 +22,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly DotYouContext _context;
         private readonly ITransitService _transitService;
         private readonly IDriveService _fileDrive;
-        private readonly IDictionary<Guid, FileTracker> _fileTrackers;
+        private readonly IDictionary<Guid, IncomingFileTracker> _fileTrackers;
         private readonly ITransitQuarantineService _quarantineService;
         private readonly ISystemStorage _systemStorage;
 
@@ -40,23 +39,29 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _quarantineService = quarantineService;
             _fileDrive = fileDrive;
             _systemStorage = systemStorage;
-            _fileTrackers = new Dictionary<Guid, FileTracker>();
+            _fileTrackers = new Dictionary<Guid, IncomingFileTracker>();
         }
 
         public async Task<Guid> CreateFileTracker()
         {
+
+            //validate I have this app id
+            //this._context.TransitContext.AppId;
+            
+            //validate I have the public/private key for the incoming CRC
+                
             var id = await this.AuditWriter.CreateAuditTrackerId();
-            _fileTrackers.Add(id, new FileTracker(id));
+            _fileTrackers.Add(id, new IncomingFileTracker(id));
             return id;
         }
 
-        public async Task<AddPartResponse> ApplyFirstStageFilterToPart(Guid fileId, FilePart part, Stream data)
+        public async Task<AddPartResponse> ApplyFirstStageFilter(Guid fileId, MultipartHostTransferParts part, Stream data)
         {
             var tracker = GetTrackerOrFail(fileId);
 
             if (tracker.HasAcquiredRejectedPart())
             {
-                throw new InvalidDataException("Corresponding part has been rejected");
+                throw new HostToHostTransferException("Corresponding part has been rejected");
             }
 
             if (tracker.HasAcquiredQuarantinedPart())
@@ -131,7 +136,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 return Task.FromResult(result);
             }
 
-            throw new Exception("Unhandled error");
+            throw new HostToHostTransferException("Unhandled error");
         }
 
         public async Task<TransitPublicKey> GetTransitPublicKey()
@@ -193,7 +198,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             decryptedBytes.Wipe();
         }
 
-        private FileTracker GetTrackerOrFail(Guid trackerId)
+        private IncomingFileTracker GetTrackerOrFail(Guid trackerId)
         {
             if (!_fileTrackers.TryGetValue(trackerId, out var marker))
             {
@@ -203,10 +208,10 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return marker;
         }
 
-        private AddPartResponse RejectPart(FileTracker tracker, FilePart part, Stream data)
+        private AddPartResponse RejectPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
         {
-            //remove all other file parts
-            _fileDrive.Delete(tracker.File.GetValueOrDefault(), StorageDisposition.Temporary);
+            //Note: we remove all temp files if a single part is rejected
+            _fileDrive.DeleteTempFiles(tracker.File.GetValueOrDefault());
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -216,7 +221,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             };
         }
 
-        private async Task<AddPartResponse> QuarantinePart(FileTracker tracker, FilePart part, Stream data)
+        private async Task<AddPartResponse> QuarantinePart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
         {
             //TODO: move all other file parts to quarantine.
 
@@ -227,7 +232,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             };
         }
 
-        private async Task<AddPartResponse> AcceptPart(FileTracker tracker, FilePart part, Stream data)
+        private async Task<AddPartResponse> AcceptPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
         {
             data.Position = 0;
             tracker.SetAccepted(part);
@@ -238,8 +243,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId.GetValueOrDefault()));
             }
             
-            await _fileDrive.WritePartStream(tracker.File.GetValueOrDefault(), part, data, StorageDisposition.Temporary);
-
+            await _fileDrive.WriteTempStream(tracker.File.GetValueOrDefault(), part.ToString(), data);
+            
             //triage, decrypt, route the payload
             var result = new AddPartResponse()
             {
@@ -283,9 +288,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
         }
 
-        private class FileTracker
+        private class IncomingFileTracker
         {
-            public FileTracker(Guid id)
+            public IncomingFileTracker(Guid id)
             {
                 Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
                 this.Id = id;
@@ -302,19 +307,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
             public PartState MetadataState;
             public PartState PayloadState;
 
-            public void SetAccepted(FilePart part)
+            public void SetAccepted(MultipartHostTransferParts part)
             {
                 switch (part)
                 {
-                    case FilePart.Header:
+                    case MultipartHostTransferParts.TransferKeyHeader:
                         HeaderState.SetValid();
                         break;
 
-                    case FilePart.Metadata:
+                    case MultipartHostTransferParts.Metadata:
                         MetadataState.SetValid();
                         break;
 
-                    case FilePart.Payload:
+                    case MultipartHostTransferParts.Payload:
                         PayloadState.SetValid();
                         break;
                 }

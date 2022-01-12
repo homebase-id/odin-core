@@ -78,12 +78,12 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid package Id");
             }
 
-            if (!Enum.TryParse<MultipartSectionNames>(name, true, out var part))
+            if (!Enum.TryParse<MultipartUploadParts>(name, true, out var part))
             {
                 throw new UploadException("Invalid part name specified");
             }
 
-            if (part == MultipartSectionNames.Metadata)
+            if (part == MultipartUploadParts.Metadata)
             {
                 var descriptor = await this.Decrypt<UploadFileDescriptor>(data);
                 var transferEncryptedKeyHeader = descriptor.EncryptedKeyHeader;
@@ -112,12 +112,12 @@ namespace Youverse.Core.Services.Transit.Upload
 
                 _partCounts[pkgId]++;
             }
-            else if (part == MultipartSectionNames.Payload)
+            else if (part == MultipartUploadParts.Payload)
             {
                 await _driveService.WritePayload(pkg.File, data, StorageDisposition.Temporary);
                 _partCounts[pkgId]++;
             }
-            else if (part == MultipartSectionNames.Instructions)
+            else if (part == MultipartUploadParts.Instructions)
             {
                 throw new UploadException("MultipartSectionNames.Instructions must be used by CreatePackage");
             }
@@ -144,7 +144,7 @@ namespace Youverse.Core.Services.Transit.Upload
         {
             if (null == _initializationVector)
             {
-                throw new UploadException($"The part named [{Enum.GetName(MultipartSectionNames.Instructions)}] must be provided first");
+                throw new UploadException($"The part named [{Enum.GetName(MultipartUploadParts.Instructions)}] must be provided first");
             }
 
             byte[] encryptedBytes;
