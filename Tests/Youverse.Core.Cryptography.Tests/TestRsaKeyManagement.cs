@@ -29,14 +29,6 @@ namespace Youverse.Core.Cryptography.Tests
         }
 
         [Test]
-        public void RsaKeyUnencryptedUsage()
-        {
-            var key = new SensitiveByteArray(Guid.Empty.ToByteArray());
-
-            var rsa = new RsaFullKeyData(key, 1);
-        }
-
-        [Test]
         public void RsaKeyEncryptPublicTest()
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
@@ -51,6 +43,33 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Fail();
             else
                 Assert.Pass();
+        }
+
+        [Test]
+        public void RsaKeyInvalidKeyTest()
+        {
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            var rsa = new RsaFullKeyData(key, 1);
+            byte[] data = { 1, 2, 3, 4, 5 };
+
+            var cipher = rsa.Encrypt(data); // Encrypt with public key 
+            var decrypt = rsa.Decrypt(key, cipher); // Decrypt with private key
+
+            if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
+                Assert.Fail();
+
+            var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            
+            try
+            {
+                decrypt = rsa.Decrypt(junk, cipher);
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
         }
 
         [Test]

@@ -105,41 +105,23 @@ namespace Youverse.Core.Cryptography.Data
         public UInt64 createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key
 
 
-        public RsaFullKeyData() // Do not create with this
+        /// <summary>
+        /// For LiteDB read only.
+        /// </summary>
+        public RsaFullKeyData() 
         {
+            // Do not create with this
             // Do nothing when deserialized via LiteDB
         }
 
 
-        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
-        {
-            this.Iv = ByteArrayUtil.GetRndByteArray(16);
-            this.KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
-            this._privateKey = new SensitiveByteArray(fullDerKey);
-            this.storedKey = AesCbc.EncryptBytesToBytes_Aes(this._privateKey.GetKey(), key.GetKey(), this.Iv);
-        }
-
-
-        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
-        {
-            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key.GetKey())) == false)
-                throw new Exception("Incorrect key");
-
-            if (_privateKey == null)
-            {
-                _privateKey = new SensitiveByteArray(AesCbc.DecryptBytesFromBytes_Aes(storedKey, key.GetKey(), Iv));
-            }
-
-            return _privateKey;
-        }
-
         /// <summary>
-        /// 
+        /// Use this constructor. Key is the encryption key used to encrypt the private key
         /// </summary>
-        /// <param name="key">The key used to (AES) encrypt the storedKey</param>
-        /// <param name="hours"></param>
-        /// <param name="minutes"></param>
-        /// <param name="seconds"></param>
+        /// <param name="key">The key used to (AES) encrypt the private key</param>
+        /// <param name="hours">Lifespan of the key, required</param>
+        /// <param name="minutes">Lifespan of the key, optional</param>
+        /// <param name="seconds">Lifespan of the key, optional</param>
         public RsaFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
         {
             // Generate with BC an asymmetric key with BC, 2048 bits
@@ -165,12 +147,8 @@ namespace Youverse.Core.Cryptography.Data
         }
 
         /// <summary>
-        /// This is right now a hack for TESTING only. If this is needed then
-        /// we should work that out with CreateKey()
+        /// Hack used only for TESTING.
         /// </summary>
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="derEncodedPrivateKey"></param>
         public RsaFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
         {
             // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
@@ -184,6 +162,28 @@ namespace Youverse.Core.Cryptography.Data
         }
 
 
+
+        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
+        {
+            this.Iv = ByteArrayUtil.GetRndByteArray(16);
+            this.KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
+            this._privateKey = new SensitiveByteArray(fullDerKey);
+            this.storedKey = AesCbc.EncryptBytesToBytes_Aes(this._privateKey.GetKey(), key.GetKey(), this.Iv);
+        }
+
+
+        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        {
+            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key.GetKey())) == false)
+                throw new Exception("Incorrect key");
+
+            if (_privateKey == null)
+            {
+                _privateKey = new SensitiveByteArray(AesCbc.DecryptBytesFromBytes_Aes(storedKey, key.GetKey(), Iv));
+            }
+
+            return _privateKey;
+        }
 
         // privatePEM needs work in case it's encrypted
         public string privatePem(SensitiveByteArray key)
