@@ -23,17 +23,34 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RsaKeyCreateTest()
         {
-            var key = new RsaFullKeyData(1);
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            var rsa = new RsaFullKeyData2(masterKey, key, 1);
+            Assert.True(ByteArrayUtil.EquiByteArrayCompare(rsa.GetKeyWithMasterKey(masterKey).GetKey(), key.GetKey()));
+        }
+
+        [Test]
+        public void RsaKeyUnencryptedUsage()
+        {
+            var masterKey = new SensitiveByteArray(Guid.Empty.ToByteArray());
+            var key = new SensitiveByteArray(Guid.Empty.ToByteArray());
+
+            var rsa = new RsaFullKeyData2(masterKey, key, 1);
+            Assert.True(ByteArrayUtil.EquiByteArrayCompare(rsa.GetKeyWithMasterKey(masterKey).GetKey(), key.GetKey()));
         }
 
         [Test]
         public void RsaKeyEncryptPublicTest()
         {
-            var key = new RsaFullKeyData(1);
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            var rsa = new RsaFullKeyData2(masterKey, key, 1);
             byte[] data = {1, 2, 3, 4, 5};
 
-            var cipher = key.Encrypt(data); // Encrypt with public key 
-            var decrypt = key.Decrypt(cipher); // Decrypt with private key
+            var cipher = rsa.Encrypt(data); // Encrypt with public key 
+            var decrypt = rsa.Decrypt(key, cipher); // Decrypt with private key
 
             if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
@@ -46,7 +63,9 @@ namespace Youverse.Core.Cryptography.Tests
         {
             try
             {
-                var key = new RsaFullKeyData(0);
+                var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+                var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+                var rsa = new RsaFullKeyData2(masterKey, key, 0);
             }
             catch
             {
@@ -60,37 +79,39 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RsaKeyCreateTimerTest()
         {
-            var key = new RsaFullKeyData(0, seconds: 2);
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var rsa = new RsaFullKeyData2(masterKey, key, 0, seconds: 2);
 
-            if (!key.IsValid())
+            if (!rsa.IsValid())
                 Assert.Fail();
 
-            if (key.IsExpired())
+            if (rsa.IsExpired())
                 Assert.Fail();
 
-            if (key.IsDead())
+            if (rsa.IsDead())
                 Assert.Fail();
 
             Thread.Sleep(3000); // The key is now 1 second expired.
 
-            if (!key.IsExpired())
+            if (!rsa.IsExpired())
                 Assert.Fail();
 
-            if (key.IsValid())
+            if (rsa.IsValid())
                 Assert.Fail();
 
-            if (key.IsDead())
+            if (rsa.IsDead())
                 Assert.Fail();
 
             Thread.Sleep(3000); // The key is now 4 seconds expired, so dead.
 
-            if (!key.IsExpired())
+            if (!rsa.IsExpired())
                 Assert.Fail();
 
-            if (key.IsValid())
+            if (rsa.IsValid())
                 Assert.Fail();
 
-            if (!key.IsDead())
+            if (!rsa.IsDead())
                 Assert.Fail();
 
             Assert.Pass();
@@ -103,14 +124,16 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RsaKeyLengthTest()
         {
-            var key = new RsaFullKeyData(1);
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var rsa = new RsaFullKeyData2(masterKey, key, 1);
 
             // 190 chars
             var myData = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
                          "01234567890123456789012345678901234567890123456789" + "0123456789012345678901234567890123456789";
 
             byte[] toEncryptData = Encoding.ASCII.GetBytes(myData);
-            byte[] cipher = key.Encrypt(toEncryptData);
+            byte[] cipher = rsa.Encrypt(toEncryptData);
             if (cipher.Length != 256)
                 Assert.Fail();
 
@@ -120,7 +143,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             try
             {
-                byte[] cipher2 = key.Encrypt(toEncryptData2);
+                byte[] cipher2 = rsa.Encrypt(toEncryptData2);
             }
             catch
             {
@@ -135,16 +158,18 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void RsaKeyCrossJSTest()
         {
-            var key = new RsaFullKeyData(1);
-            var publicKey = key.publicDerBase64();
-            var privateKey = key.privateDerBase64();
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var rsa = new RsaFullKeyData2(masterKey, key, 1);
+            var publicKey = rsa.publicDerBase64();
+            var privateKey = rsa.privateDerBase64(key);
 
             // max chars
             var myData = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
                          "01234567890123456789012345678901234567890123456789" + "0123456789012345678901234567890123456789";
             byte[] toEncryptData = Encoding.ASCII.GetBytes(myData);
 
-            byte[] cipher = key.Encrypt(toEncryptData);
+            byte[] cipher = rsa.Encrypt(toEncryptData);
             var base64cipher = Convert.ToBase64String(cipher);
             Console.WriteLine($"Public Key: {publicKey}");
             Console.WriteLine($"Private Key: {privateKey}");
@@ -214,11 +239,14 @@ namespace Youverse.Core.Cryptography.Tests
             var cipher64 = "CMp08Cbr3ExoPuXcJO+9HnKQaC1bvifZxSLxJw1NZk4tZCLmBJpDwYUfGl26ffEyhc4Og01nekVwKf15Rf/bjPk5Cu6gnbGsSCB18eUUJgvPWPP34dF2Oh8jECNczQKp8q7QbujFv7Tsou+rumbbtDTnHziC7r9BBZsDW6xLY3jSRFyWJFsExHzZCd/vX4CCpHiSUZRB9Z1CnxwQ8jIjto+dRAcjE0ggeMCtoz78q43eG9CglUhiwQNTTF85goffzQqAjnNW0+1mdcay0pFGS+SGK4QODzPZX3VRT4PKh2aGhSUiVvzmKL6ptZCrIowOKnssiC89sOeIilStL5fhkw==";
             var fullKey64 = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCrISxm5mkLUlSq3W7Yva9kDkh9QAW6mrfsWJzc0Ah+RTN0ohsIvDInuxzjol2mw7lFa6jsGCbCh0VJrhN7Mt/MRbNWvcUlZA71dON40yL856iWVYOxL9TpJgnyFIbpO3Gsn7SttUXFrijrvymlVt5eI2acPSra3g0Y/FRByajEqv528wkT+F0AxSn+Dt/vLZJq9xT9t1MakU624pzLd07hvWmHhRM8whGn2UbP+nTrIiPPHECQ0whghIwJ4AYsru3V8wDR8Mqx0+7juen5oXW9bQF1+qwXyjo3kEy6p+sULnlLPiT36PD0LPJTHiieX/Si/72eQX2CLTPrTMX0i2b9AgMBAAECggEAMbI4islux/Lo05XqktbDEHN1aaol/8LelqxFIXrofILsJnrNDwRYLGGSSijkuYEtVJOnQqjg2K0f2f3LeoOTqmazZgVGM02TaoS/al8mUfuUYdQDonkZg3ugd8SuSR0SLedTOP7jfDzPdWbWWUWY3g25xrWctGK3uwHMFi7R7Aqit/U9poC50HJkfyIFsoBSKEv80V5PJbsiHD+fE/9Jk/oo6xNOztuE9NwHFu/deOroNxvHhgjW9Q/bhXhQ/XwhlKSSgcgsapqri7nvqWSigeIG1XRESKe7qPU8NxdL7h7BpXfaTS6Maay6aqO/h3hfbKqpVMB+54Zltu8nuFnaoQKBgQDTs75ndP4JDg8lGqgfmaquRnadd/pCSovHzKrdbWXygZZx1UgfZXBEuZj1yvyi7vvl70DBp80Z5RwEgpVu9ZbZIbTtB4mHqzWIT0ZlM0fW483n5n5kSmNArD+fQX0CQHmmtmJqDouWSMv63BKrZbXHrW64hn50n4Xlu0UBw5wZYwKBgQDO8BQqcsXPkv2eo9MnytS36EQjMXBxEU8iGCSn98EeIlW2F6fjx0Etcz3lXxLaJxR4mfdG7ffgFz2xiBnB247kl8BLcjx1PdWFYJ4xjIG0tukf6paDdW6qHrn03fMFKaYw5ablx5ByVxsudhnhJWd5L4oNYvSXyfCfrtW/I+ScHwKBgFr3tIx+IB7B9M4Ly0xw2n+ydYuqn1XW9INxNcaaGKGA/6WAcVJUY06Utd6AT9ivenxON3Q/Z4mGAmkJt66LRzucGUN05qrubb1Z2zTnOSpkjvjj+VGdCVMj8N685DuQevWhD17lSyPTuhrccAVIWjkoFBikajgwx/d0Ze2hITVjAoGBAKxvXT5p2O842uFgPcmAuHRutKhmv/1XoQsV9yWHy4Iiti0/1QR2upb22nLRIFJsEiDUmzqdfNlcRGo0sNHa9F0DHpc/n6VKWywC8I71N/ewGt4fikAMkKRtaiLi92gr5nIES2hZPMIqV1oFy1bS5kATHwQ8mvgIq9tDwpS9gfedAoGBAMpSZUEkseFezu9bLL46Ca0uoDl3fegZFrLHbcLqlKn7mPRrqCc0KEM+P2BGQgSwBinzwU+SBHaspSJsIf39Z8N1h+KjEO9EeydFoACgLxQjp+TmJzAiczEvE1rN8bmOS615skQhJuEMtDc2/fnPrePfeT9eFp0ZpO8rwdrIlPbS";
 
+            var masterKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
             // var myRsa = new RSACng();
-            var myRsa = new RsaFullKeyData(Convert.FromBase64String(fullKey64));
+            var myRsa = new RsaFullKeyData2(masterKey, key, Convert.FromBase64String(fullKey64));
 
             var bin = Convert.FromBase64String(cipher64);
-            var orgData = myRsa.Decrypt(bin);
+            var orgData = myRsa.Decrypt(key, bin);
 
             var my256 = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
                         "01234567890123456789012345678901234567890123456789"; // + "01234567890123456789012345678901234567890123456789";// +
