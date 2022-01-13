@@ -19,11 +19,11 @@ namespace Youverse.Core.Services.Apps
 
         public async Task<ClientFileHeader> GetDeviceEncryptedFileHeader(DriveFileId file)
         {
-            var ekh = await _driveService.GetEncryptedKeyHeader(file, StorageDisposition.LongTerm);
+            var ekh = await _driveService.GetEncryptedKeyHeader(file);
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
             var appEkh = ToAppKeyHeader(ekh, storageKey.GetKey());
 
-            var md = await _driveService.GetMetadata(file, StorageDisposition.LongTerm);
+            var md = await _driveService.GetMetadata(file);
 
             return new ClientFileHeader()
             {

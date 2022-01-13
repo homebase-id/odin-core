@@ -25,45 +25,38 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WritePartStream(Guid fileId, FilePart part, Stream stream);
 
-        Task<long> GetFileSize(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<long> GetFileSize(Guid fileId);
         
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
         /// <returns></returns>
-        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-
-        /// <summary>
-        /// Get the <see cref="StorageDisposition"/> for the specified  <param name="fileId"></param>
-        /// </summary>
-        /// <param name="fileId"></param>
-        /// <returns></returns>
-        Task<StorageDisposition> GetStorageType(Guid fileId);
+        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart);
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <returns></returns>
-        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
-        void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        void AssertFileIsValid(Guid fileId);
 
         /// <summary>
         /// Checks if the file exists.  Returns true if all parts exist, otherwise false
         /// </summary>
-        bool FileExists(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        bool FileExists(Guid fileId);
         
         /// <summary>
         /// Deletes all parts matching <param name="fileId"></param>
         /// </summary>
         /// <returns></returns>
-        Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task Delete(Guid fileId);
 
         /// <summary>
         /// Moves the specified <param name="filePath"></param> to long term storage.
@@ -76,9 +69,8 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         /// <param name="fileId"></param>
         /// <param name="encryptedKeyHeader"></param>
-        /// <param name="storageDisposition"></param>
         /// <returns></returns>
-        Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader);
         
         /// <summary>
         /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
@@ -87,6 +79,6 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <returns></returns>
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(PageOptions pageOptions);
 
-        Task<FileMetadata> GetMetadata(Guid fileId, StorageDisposition storageDisposition);
+        Task<FileMetadata> GetMetadata(Guid fileId);
     }
 }

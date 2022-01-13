@@ -67,11 +67,11 @@ namespace Youverse.Core.Services.Drive.Storage
             return new Guid(bytes);
         }
 
-        public Task WritePartStream(Guid fileId, FilePart part, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task WritePartStream(Guid fileId, FilePart part, Stream stream)
         {
             //TODO: this is probably highly inefficient and probably need to revisit 
-            string filePath = GetFilenameAndPath(fileId, part, storageDisposition, true);
-            string tempFilePath = GetTempFilePath(fileId, part, storageDisposition);
+            string filePath = GetFilenameAndPath(fileId, part, true);
+            string tempFilePath = GetTempFilePath(fileId, part);
 
             try
             {
@@ -102,35 +102,16 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
-            string path = GetFilenameAndPath(fileId, filePart, storageDisposition);
+            string path = GetFilenameAndPath(fileId, filePart);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
             return Task.FromResult((Stream)fileStream);
         }
 
-        public Task<StorageDisposition> GetStorageType(Guid fileId)
+        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId)
         {
-            //just check for the header, this assumes the file is valid
-            var longTermPath = GetFilenameAndPath(fileId, FilePart.Header, StorageDisposition.LongTerm);
-
-            if (File.Exists(longTermPath))
-            {
-                return Task.FromResult(StorageDisposition.LongTerm);
-            }
-
-            var tempPath = GetFilenameAndPath(fileId, FilePart.Header, StorageDisposition.Temporary);
-            if (File.Exists(tempPath))
-            {
-                return Task.FromResult(StorageDisposition.Temporary);
-            }
-
-            return Task.FromResult(StorageDisposition.Unknown);
-        }
-
-        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
-        {
-            await using var stream = File.Open(GetFilenameAndPath(fileId, FilePart.Header, storageDisposition), FileMode.Open, FileAccess.Read);
+            await using var stream = File.Open(GetFilenameAndPath(fileId, FilePart.Header), FileMode.Open, FileAccess.Read);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
 
@@ -138,62 +119,48 @@ namespace Youverse.Core.Services.Drive.Storage
             return ekh;
         }
 
-        public void AssertFileIsValid(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public void AssertFileIsValid(Guid fileId)
         {
             if (fileId == Guid.Empty)
             {
                 throw new Exception("No file specified");
             }
 
-            //check both
-            if (storageDisposition == StorageDisposition.Unknown)
-            {
-                if (IsFileValid(fileId, StorageDisposition.LongTerm))
-                {
-                    return;
-                }
-
-                if (IsFileValid(fileId, StorageDisposition.Temporary))
-                {
-                    return;
-                }
-            }
-
-            if (!IsFileValid(fileId, storageDisposition))
+            if (!IsFileValid(fileId))
             {
                 throw new Exception("File does not contain all parts");
             }
         }
 
-        public bool FileExists(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public bool FileExists(Guid fileId)
         {
-            return this.IsFileValid(fileId, storageDisposition);
+            return IsFileValid(fileId);
         }
 
-        private bool IsFileValid(Guid fileId, StorageDisposition storageDisposition)
+        private bool IsFileValid(Guid fileId)
         {
-            string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
-            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata, storageDisposition);
-            string payload = GetFilenameAndPath(fileId, FilePart.Payload, storageDisposition);
+            string header = GetFilenameAndPath(fileId, FilePart.Header);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
+            string payload = GetFilenameAndPath(fileId, FilePart.Payload);
 
             return File.Exists(header) && File.Exists(metadata) && File.Exists(payload);
         }
 
-        public Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task Delete(Guid fileId)
         {
-            string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
+            string header = GetFilenameAndPath(fileId, FilePart.Header);
             if (File.Exists(header))
             {
                 File.Delete(header);
             }
 
-            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata, storageDisposition);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
             if (File.Exists(metadata))
             {
                 File.Delete(metadata);
             }
 
-            string payload = GetFilenameAndPath(fileId, FilePart.Payload, storageDisposition);
+            string payload = GetFilenameAndPath(fileId, FilePart.Payload);
 
             if (File.Exists(payload))
             {
@@ -205,16 +172,16 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Task MoveToLongTerm(Guid fileId, string filePath, FilePart part)
         {
-            var dest = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm, ensureDirectoryExists: true);
+            var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
             File.Move(filePath, dest);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
         }
 
-        public Task<long> GetFileSize(Guid id, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public Task<long> GetFileSize(Guid id)
         {
             //TODO: make more efficient by reading metadata or something else?
-            var path = GetFilenameAndPath(id, FilePart.Payload, storageDisposition);
+            var path = GetFilenameAndPath(id, FilePart.Payload);
             return Task.FromResult(new FileInfo(path).Length);
         }
 
@@ -236,33 +203,33 @@ namespace Youverse.Core.Services.Drive.Storage
             {
                 string filename = Path.GetFileNameWithoutExtension(filePath);
                 Guid fileId = Guid.Parse(filename);
-                var md = await this.GetMetadata(fileId, StorageDisposition.LongTerm);
+                var md = await this.GetMetadata(fileId);
                 results.Add(md);
             }
 
             return results;
         }
 
-        public async Task<FileMetadata> GetMetadata(Guid fileId, StorageDisposition storageDisposition)
+        public async Task<FileMetadata> GetMetadata(Guid fileId)
         {
-            var stream = await this.GetFilePartStream(fileId, FilePart.Metadata, storageDisposition);
+            var stream = await this.GetFilePartStream(fileId, FilePart.Metadata);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             return metadata;
         }
 
-        public async Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
+        public async Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader)
         {
             var json = JsonConvert.SerializeObject(keyHeader);
             var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
-            await this.WritePartStream(fileId, FilePart.Header, stream, storageDisposition);
+            await this.WritePartStream(fileId, FilePart.Header, stream);
             stream.Close();
         }
 
-        private string GetFileDirectory(Guid fileId, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetFileDirectory(Guid fileId, bool ensureExists = false)
         {
-            string path = _drive.GetStoragePath(storageDisposition);
+            string path = _drive.GetStoragePath(StorageDisposition.LongTerm);
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows
@@ -292,15 +259,15 @@ namespace Youverse.Core.Services.Drive.Storage
             return $"{fileId.ToString()}.{part.ToString().ToLower()}";
         }
 
-        private string GetFilenameAndPath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureDirectoryExists = false)
+        private string GetFilenameAndPath(Guid fileId, FilePart part, bool ensureDirectoryExists = false)
         {
-            string dir = GetFileDirectory(fileId, storageDisposition, ensureDirectoryExists);
+            string dir = GetFileDirectory(fileId, ensureDirectoryExists);
             return Path.Combine(dir, GetFilename(fileId, part));
         }
 
-        private string GetTempFilePath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetTempFilePath(Guid fileId, FilePart part, bool ensureExists = false)
         {
-            string dir = GetFileDirectory(fileId, storageDisposition, ensureExists);
+            string dir = GetFileDirectory(fileId, ensureExists);
             string filename = $"{Guid.NewGuid()}{part}.tmp";
             return Path.Combine(dir, filename);
         }

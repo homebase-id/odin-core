@@ -47,13 +47,19 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             AssertIsPart(section, MultipartUploadParts.Instructions);
             var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
             
+            //
+            
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             await _packageStorageWriter.AddMetadata(packageId, section!.Body);
             
+            //
+            
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
             await _packageStorageWriter.AddPayload(packageId, section!.Body);
+            
+            //
             
             var package = await _packageStorageWriter.GetPackage(packageId);
             var status = await _transitService.AcceptUpload(package);

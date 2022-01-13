@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Tests.Drive
 
             var keyHeader = KeyHeader.NewRandom16();
             var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, InitializationVector, EncryptionKey);
-            await driveService.WriteEncryptedKeyHeader(file, ekh, StorageDisposition.LongTerm);
+            await driveService.WriteEncryptedKeyHeader(file, ekh);
 
             var metadata = new FileMetadata(file)
             {
@@ -49,19 +49,19 @@ namespace Youverse.Core.Services.Tests.Drive
                 }
             };
 
-            await driveService.WriteMetaData(file, metadata, StorageDisposition.LongTerm);
+            await driveService.WriteMetaData(file, metadata);
 
             var payloadCipherStream = keyHeader.GetEncryptedStreamAes(testFileProps.PayloadData);
-            await driveService.WritePayload(file, payloadCipherStream, StorageDisposition.LongTerm);
+            await driveService.WritePayload(file, payloadCipherStream);
 
-            var storedEkh = await driveService.GetEncryptedKeyHeader(file, StorageDisposition.LongTerm);
+            var storedEkh = await driveService.GetEncryptedKeyHeader(file);
 
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.EncryptedAesKey, storedEkh.EncryptedAesKey));
             ByteArrayUtil.EquiByteArrayCompare(ekh.Iv, storedEkh.Iv);
             Assert.IsTrue(ekh.Type == storedEkh.Type);
             Assert.IsTrue(ekh.EncryptionVersion == storedEkh.EncryptionVersion);
 
-            var storedMetadata = await driveService.GetMetadata(file, StorageDisposition.LongTerm);
+            var storedMetadata = await driveService.GetMetadata(file);
 
             Assert.IsTrue(metadata.Created == storedMetadata.Created);
             Assert.IsTrue(metadata.ContentType == storedMetadata.ContentType);
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 
-            await using var storedPayload = await driveService.GetPayloadStream(file, StorageDisposition.LongTerm);
+            await using var storedPayload = await driveService.GetPayloadStream(file);
             var storedPayloadBytes = StreamToBytes(storedPayload);
             var payloadCipherBytes = StreamToBytes(payloadCipherStream);
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));

@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         DriveFileId CreateFileId(Guid driveId);
 
-        Task WriteMetaData(DriveFileId file, FileMetadata metadata, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteMetaData(DriveFileId file, FileMetadata metadata);
 
         /// <summary>
         /// Writes the payload stream
@@ -42,12 +42,12 @@ namespace Youverse.Core.Services.Drive
         /// <param name="stream"></param>
         /// <param name="storageDisposition"></param>
         /// <returns></returns>
-        Task WritePayload(DriveFileId file, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WritePayload(DriveFileId file, Stream stream);
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
-        Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream);
 
         /// <summary>
         /// Writes a stream to the drive's temporary storage
@@ -79,52 +79,45 @@ namespace Youverse.Core.Services.Drive
         /// Gets the <see cref="FileMetadata"/>
         /// </summary>
         /// <param name="file"></param>
-        /// <param name="storageDisposition"></param>
         /// <returns></returns>
-        Task<FileMetadata> GetMetadata(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<FileMetadata> GetMetadata(DriveFileId file);
 
-        Task<Stream> GetPayloadStream(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<Stream> GetPayloadStream(DriveFileId file);
 
-        Task<long> GetFileSize(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<long> GetFileSize(DriveFileId file);
 
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
         /// <returns></returns>
-        Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
-
-        /// <summary>
-        /// Get the <see cref="StorageDisposition"/> for the specified
-        /// </summary>
-        /// <returns></returns>
-        Task<StorageDisposition> GetStorageType(DriveFileId file);
+        Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart);
 
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <returns></returns>
-        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
-        void AssertFileIsValid(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        void AssertFileIsValid(DriveFileId file);
 
         /// <summary>
         /// Returns true if all parts of the file exist, otherwise false.
         /// </summary>
         //// <returns></returns>
-        bool FileExists(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        bool FileExists(DriveFileId file);
 
         /// <summary>
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
-        Task DeleteLongTermFile(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task DeleteLongTermFile(DriveFileId file);
 
 
-        Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
+        Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
 
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 
