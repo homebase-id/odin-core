@@ -1,25 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using Refit;
 using System.Linq;
+using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using NUnit.Framework;
-using Refit;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Inbox;
-using Youverse.Core.Services.Transit.Upload;
+using System.Collections.Generic;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
     public class InboxTests
     {
         private TestScaffold _scaffold;
-
 
         [OneTimeSetUp]
         public void OneTimeSetUp()

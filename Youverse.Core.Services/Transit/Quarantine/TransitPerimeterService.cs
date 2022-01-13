@@ -41,25 +41,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _fileTrackers = new Dictionary<Guid, IncomingFileTracker>();
         }
 
-        public async Task<Guid> CreateFileTracker(EncryptedRecipientTransferKeyHeader transferKeyHeader)
+        public async Task<Guid> CreateFileTracker(uint transferPublicKeyCrc)
         {
-            Guard.Argument(transferKeyHeader, nameof(transferKeyHeader)).NotNull();
-            Guard.Argument(transferKeyHeader.PublicKeyCrc, nameof(transferKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
-            Guard.Argument(transferKeyHeader.EncryptedAesKey.Length, nameof(transferKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
-
             var file = _fileDrive.CreateFileId(_context.TransitContext.DriveId);
             var id = await this.AuditWriter.CreateAuditTrackerId();
 
             var tracker = new IncomingFileTracker(
                 id: id,
                 tempFile: file,
-                publicKeyCrc: transferKeyHeader.PublicKeyCrc);
-
-            //Note: we're not currently applying filters to the transfer key header since
-            //we generate it.  It is feasible to, at a future point, apply filters by
-            //encryption version or strength
-            //therefore - just mark it good to go
-            tracker.SetAccepted(MultipartHostTransferParts.TransferKeyHeader);
+                publicKeyCrc: transferPublicKeyCrc);
 
             _fileTrackers.Add(id, tracker);
 

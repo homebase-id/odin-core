@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -42,57 +44,28 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         [HttpPost("stream")]
         public async Task<IActionResult> AcceptHostToHostTransfer()
         {
+            //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
+
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
                 throw new HostToHostTransferException("Data is not multi-part content");
             }
 
-            //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
-
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
-            
-            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != MultipartHostTransferParts.TransferKeyHeader)
-            {
-                throw new HostToHostTransferException($"First part must be {Enum.GetName(MultipartHostTransferParts.TransferKeyHeader)}");
-            }
 
-            string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var recipientKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
+            var trackerId = await ProcessTransferKeyHeader(section);
+
+            // 
             
-            var trackerId = await _perimeterService.CreateFileTracker(recipientKeyHeader);
-            
+            section = await reader.ReadNextSectionAsync();
+            await ProcessMetadataSection(trackerId, section);
+
             //
             
             section = await reader.ReadNextSectionAsync();
-            var expectedPart = GetNextExpectedFilePart(part);
-            while (section != null)
-            {
-                var name = GetSectionName(section.ContentDisposition);
-                part = GetFilePart(name);
-
-                if (null == expectedPart)
-                {
-                    throw new HostToHostTransferException("Multipart - provided part is not expected");
-                }
-
-                if (part != expectedPart)
-                {
-                    throw new HostToHostTransferException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
-                }
-                
-                //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-                var response = await _perimeterService.ApplyFirstStageFilter(trackerId, part, section.Body);
-                if (response.FilterAction == FilterAction.Reject)
-                {
-                    HttpContext.Abort(); //TODO:does this abort also kill the response?
-                    throw new HostToHostTransferException("Transmission Aborted");
-                }
-
-                section = await reader.ReadNextSectionAsync();
-                expectedPart = GetNextExpectedFilePart(part);
-            }
+            await ProcessPayloadSection(trackerId, section);
 
             if (!_perimeterService.IsFileValid(trackerId))
             {
@@ -108,32 +81,70 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
             return new JsonResult(result);
         }
-
-        private MultipartHostTransferParts? GetNextExpectedFilePart(MultipartHostTransferParts? part)
+        
+        private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)
         {
-            if (!part.HasValue)
+            AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
+
+            
+            string json = await new StreamReader(section.Body).ReadToEndAsync();
+            var transferKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
+
+            Guard.Argument(transferKeyHeader, nameof(transferKeyHeader)).NotNull();
+            Guard.Argument(transferKeyHeader!.PublicKeyCrc, nameof(transferKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
+            Guard.Argument(transferKeyHeader.EncryptedAesKey.Length, nameof(transferKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
+
+            var trackerId = await _perimeterService.CreateFileTracker(transferKeyHeader.PublicKeyCrc);
+
+            //Note: not a fan of building another stream but its safer than seeking along the existing stream. (that or i'm tired)
+            var restream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.TransferKeyHeader, restream);
+            if (response.FilterAction == FilterAction.Reject)
             {
-                return MultipartHostTransferParts.TransferKeyHeader;
+                HttpContext.Abort(); //TODO:does this abort also kill the response?
+                throw new HostToHostTransferException("Transmission Aborted");
             }
 
-            switch (part.GetValueOrDefault())
+            return trackerId;
+        }
+
+        private async Task ProcessMetadataSection(Guid trackerId, MultipartSection section)
+        {
+            AssertIsPart(section, MultipartHostTransferParts.Metadata);
+
+            //TODO: determine if the filter needs to decide if its result should be sent back to the sender
+            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.Metadata, section.Body);
+            if (response.FilterAction == FilterAction.Reject)
             {
-                case MultipartHostTransferParts.TransferKeyHeader:
-                    return MultipartHostTransferParts.Metadata;
-                case MultipartHostTransferParts.Metadata:
-                    return MultipartHostTransferParts.Payload;
-                case MultipartHostTransferParts.Payload:
-                    return null; //nothing after payload
-                default:
-                    throw new HostToHostTransferException("Unknown MultipartHostTransferParts");
+                HttpContext.Abort(); //TODO:does this abort also kill the response?
+                throw new HostToHostTransferException("Transmission Aborted");
             }
         }
 
+        private async Task ProcessPayloadSection(Guid trackerId, MultipartSection section)
+        {
+            AssertIsPart(section, MultipartHostTransferParts.Payload);
+
+            //TODO: determine if the filter needs to decide if its result should be sent back to the sender
+            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.Payload, section.Body);
+            if (response.FilterAction == FilterAction.Reject)
+            {
+                HttpContext.Abort(); //TODO:does this abort also kill the response?
+                throw new HostToHostTransferException("Transmission Aborted");
+            }
+        }
+
+        private void AssertIsPart(MultipartSection section, MultipartHostTransferParts expectedPart)
+        {
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new HostToHostTransferException($"First part must be {Enum.GetName(expectedPart)}");
+            }
+        }
+        
         private static bool IsMultipartContentType(string contentType)
         {
-            return
-                !string.IsNullOrEmpty(contentType) &&
-                contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
+            return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static string GetBoundary(string contentType)

@@ -16,9 +16,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="ApplyFirstStageFilter"/>
         /// </summary>
-        /// <param name="transferKeyHeader"></param>
+        /// <param name="transferPublicKeyCrc">The CRC value of the public key used by the sender</param>
         /// <returns></returns>
-        Task<Guid> CreateFileTracker(EncryptedRecipientTransferKeyHeader transferKeyHeader);
+        Task<Guid> CreateFileTracker(uint transferPublicKeyCrc);
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler
