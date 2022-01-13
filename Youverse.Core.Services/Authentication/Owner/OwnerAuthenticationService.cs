@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             var rsa = await _secretService.GetRsaKeyList();
 
-            var key = RsaKeyListManagement.GetCurrentKey(ref rsa, out var keyListWasUpdated);
+            var key = RsaKeyListManagement.GetCurrentKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), ref rsa, out var keyListWasUpdated); // TODO
 
             if (keyListWasUpdated)
             {

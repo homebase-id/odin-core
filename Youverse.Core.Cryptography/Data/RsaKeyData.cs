@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using Youverse.Core.Cryptography.Crypto;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
@@ -11,7 +10,7 @@ namespace Youverse.Core.Cryptography.Data
 {
     public class RsaPublicKeyData
     {
-        public byte[] publicKey { get; set; }
+        public byte[] publicKey { get; set; }    // DER encoded public key
         public UInt32 crc32c { get; set; }       // The CRC32C of the public key
         public UInt64 expiration { get; set; }   // Time when this key expires
 
@@ -91,18 +90,39 @@ namespace Youverse.Core.Cryptography.Data
     }
 
 
+    // ===========================================
+    // NEW SHOT AT RSA KEY. ALWAYS ENCRYPTED. PASS CONSTANT FOR NON-ENCRYPTED. IS THAT NICE?
+    // ===========================================
+
     public class RsaFullKeyData : RsaPublicKeyData
     {
-        public byte[] privateKey { get; set; }  // Ought be a secureKey
+        private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
+
+        public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
+
+        public byte[] Iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
+        public byte[] KeyHash { get; set; }  // The hash of the encryption key 
         public UInt64 createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key
 
 
-        public RsaFullKeyData() // Do not create with this
+        /// <summary>
+        /// For LiteDB read only.
+        /// </summary>
+        public RsaFullKeyData() 
         {
-            // Do nothing is deserialized via LiteDB
+            // Do not create with this
+            // Do nothing when deserialized via LiteDB
         }
 
-        public RsaFullKeyData(int hours, int minutes = 0, int seconds = 0)
+
+        /// <summary>
+        /// Use this constructor. Key is the encryption key used to encrypt the private key
+        /// </summary>
+        /// <param name="key">The key used to (AES) encrypt the private key</param>
+        /// <param name="hours">Lifespan of the key, required</param>
+        /// <param name="minutes">Lifespan of the key, optional</param>
+        /// <param name="seconds">Lifespan of the key, optional</param>
+        public RsaFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
         {
             // Generate with BC an asymmetric key with BC, 2048 bits
             RsaKeyPairGenerator r = new RsaKeyPairGenerator();
@@ -115,7 +135,8 @@ namespace Youverse.Core.Cryptography.Data
 
             // Save the DER encoded private and public keys in our own data structure
             this.createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
-            this.privateKey = privateKeyInfo.GetDerEncoded();
+
+            CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
@@ -126,15 +147,15 @@ namespace Youverse.Core.Cryptography.Data
         }
 
         /// <summary>
-        /// This is right now a hack for TESTING only. If this is needed then
-        /// we should work that out with CreateKey()
+        /// Hack used only for TESTING.
         /// </summary>
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="derEncodedPrivateKey"></param>
-        public RsaFullKeyData(byte[] derEncodedFullKey)
+        public RsaFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
         {
-            privateKey = derEncodedFullKey;
+            // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
+            CreatePrivate(key, derEncodedFullKey);
+
+            //_privateKey = new SensitiveByteArray(derEncodedFullKey);
+            // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
             //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
             //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             //publicKey = pk.GetDerEncoded();
@@ -142,24 +163,49 @@ namespace Youverse.Core.Cryptography.Data
 
 
 
+        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
+        {
+            this.Iv = ByteArrayUtil.GetRndByteArray(16);
+            this.KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
+            this._privateKey = new SensitiveByteArray(fullDerKey);
+            this.storedKey = AesCbc.EncryptBytesToBytes_Aes(this._privateKey.GetKey(), key.GetKey(), this.Iv);
+        }
+
+
+        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        {
+            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key.GetKey())) == false)
+                throw new Exception("Incorrect key");
+
+            if (_privateKey == null)
+            {
+                _privateKey = new SensitiveByteArray(AesCbc.DecryptBytesFromBytes_Aes(storedKey, key.GetKey(), Iv));
+            }
+
+            return _privateKey;
+        }
+
         // privatePEM needs work in case it's encrypted
-        public string privatePem()
+        public string privatePem(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64() + "\n-----END PRIVATE KEY-----";
+            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
         }
 
-        public string privateDerBase64()
+        public string privateDerBase64(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return Convert.ToBase64String(privateKey);
+            var pk = GetFullKey(key);
+            return Convert.ToBase64String(pk.GetKey());
         }
 
-        public byte[] Decrypt(byte[] cipherData)
+        public byte[] Decrypt(SensitiveByteArray key, byte[] cipherData)
         {
-            var privateKeyRestored = PrivateKeyFactory.CreateKey(privateKey);
+            var pk = GetFullKey(key);
+
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
             var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
             cipher.Init(false, privateKeyRestored);
@@ -182,39 +228,6 @@ namespace Youverse.Core.Cryptography.Data
                 return false;
         }
     }
-
-    // Encrypted private key below here
-
-    public class RsaPrivateKeyEncryptedData
-    {
-        public byte[] encryptedPrivateKey { get; set; }
-        public UInt64 createdTimeStamp { get; set; } // UTC time when this key was created
-        public byte[] iv { get; set; }           // The IV used for encrypting this key
-    }
-
-
-    public class RsaFullKeyEncryptedData : RsaPublicKeyData
-    {
-        public RsaPrivateKeyEncryptedData encryptedPrivateKeyData;
-    }
-
-
-    /*    public class RsaKeyData
-        {
-            // public byte[] publicKey;
-            // public byte[] privateKey;   // Can we allow it to be encrypted?
-            // public UInt32 crc32c;       // The CRC32C of the public key
-            // public UInt64 expiration;   // Time when this key expires
-            // public UInt64 instantiated; // Time when this key was made available
-            // public Guid iv;             // If encrypted, this will hold the IV
-            // public bool encrypted;      // If false then privateKey is the XML, otherwise it's AES-CBC base64 encrypted
-
-            public byte[] publicKey { get; set; }
-            public byte[] privateKey{ get; set; }   // Can we allow it to be encrypted?
-            public UInt32 crc32c { get; set; }       // The CRC32C of the public key
-            public UInt64 expiration { get; set; }   // Time when this key expires
-            public UInt64 instantiated { get; set; } // Time when this key was made available
-            public Guid iv { get; set; }             // If encrypted, this will hold the IV
-            public bool encrypted { get; set; }      // If false then privateKey is the XML, otherwise it's AES-CBC base64 encrypted
-        }*/
 }
+
+

@@ -10,32 +10,10 @@ using Org.BouncyCastle.X509;
 
 namespace Youverse.Core.Cryptography.Crypto
 {
-    // Unfortunately, the C# class RSACng() is the only class compatible with
-    // the javaScript crypto.subtle. So we had to implement BouncyCastle for RSA OAEP.
-
     public static class RsaKeyManagement
     {
-        /// <summary>
-        /// This is right now a hack for TESTING only. If this is needed then
-        /// we should work that out with CreateKey()
-        /// </summary>
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="derEncodedPrivateKey"></param>
-        public static void SetFullKey(RsaFullKeyData key, byte[] derEncodedPrivateKey)
-        {
-            key.privateKey = derEncodedPrivateKey;
-            var pkRestored = PublicKeyFactory.CreateKey(key.publicKey);
-            var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
-            key.publicKey = pk.GetDerEncoded();
-        }
-
-        public static void SetPublicKey(RsaPublicKeyData key, byte[] derEncodedPublicKey)
-        {
-            key.publicKey = derEncodedPublicKey;
-        }
-
         // Not a good place for this function. Should be in some of the login stuff... ?
+        // I think this is the helper function for login, i.e. replicating what's normally in JS.
         public static (UInt32 crc, string rsaCipher64) PasswordCalculateReplyHelper(string publicKey, string payload)
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(RsaPublicKeyData.decodePublicPem(publicKey));

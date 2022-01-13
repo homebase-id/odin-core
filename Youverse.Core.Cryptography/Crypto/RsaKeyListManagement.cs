@@ -15,7 +15,7 @@ namespace Youverse.Core.Cryptography.Crypto
     {
         const int DefaultKeyHours = 24;
 
-        public static RsaKeyListData CreateRsaKeyList(int max, int hours = DefaultKeyHours)
+        public static RsaKeyListData CreateRsaKeyList(SensitiveByteArray key, int max, int hours = DefaultKeyHours)
         {
             if (max < 1)
                 throw new Exception("Max cannot be less than 1");
@@ -27,7 +27,7 @@ namespace Youverse.Core.Cryptography.Crypto
             rkl.ListRSA = new List<RsaFullKeyData>();
             rkl.MaxKeys = max;
 
-            GenerateNewKey(rkl, hours);
+            GenerateNewKey(key, rkl, hours);
 
             return rkl;
         }
@@ -48,7 +48,7 @@ namespace Youverse.Core.Cryptography.Crypto
         // The precise timing depends on how quickly we want keys to expire,
         // maybe the minimum is 24 hours. Generating a new key takes a significant
         // amount of CPU.
-        public static void GenerateNewKey(RsaKeyListData listRsa, int hours)
+        public static void GenerateNewKey(SensitiveByteArray key, RsaKeyListData listRsa, int hours)
         {
             if (hours < 24)
                 throw new Exception("RSA key must live for at least 24 hours");
@@ -56,7 +56,7 @@ namespace Youverse.Core.Cryptography.Crypto
             if (CanGenerateNewKey(listRsa) == false)
                 throw new Exception("Cannot generate new RSA key because the previous is in use");
 
-            var rsa = new RsaFullKeyData(hours);
+            var rsa = new RsaFullKeyData(key, hours);
 
             listRsa.ListRSA.Insert(0, rsa);
             if (listRsa.ListRSA.Count > listRsa.MaxKeys)
@@ -64,7 +64,7 @@ namespace Youverse.Core.Cryptography.Crypto
         }
 
 
-        public static RsaFullKeyData GetCurrentKey(ref RsaKeyListData listRsa, out bool wasUpdated)
+        public static RsaFullKeyData GetCurrentKey(SensitiveByteArray key, ref RsaKeyListData listRsa, out bool wasUpdated)
         {
             wasUpdated = false;
 
@@ -74,13 +74,13 @@ namespace Youverse.Core.Cryptography.Crypto
             if (listRsa.ListRSA[0].IsDead())
             {
                 listRsa.ListRSA.RemoveAt(0); // Remove First
-                GenerateNewKey(listRsa, DefaultKeyHours);
+                GenerateNewKey(key, listRsa, DefaultKeyHours);
                 wasUpdated = true;
             }
 
             if (listRsa.ListRSA.Count < 1)
             {
-                GenerateNewKey(listRsa, DefaultKeyHours);
+                GenerateNewKey(key, listRsa, DefaultKeyHours);
                 wasUpdated = true;
             }
 
@@ -130,7 +130,7 @@ namespace Youverse.Core.Cryptography.Crypto
             return null;
         }
 
-        public static UInt64 GetExpiration(RsaKeyListData listRsa)
+/*        public static UInt64 GetExpiration(RsaKeyListData listRsa)
         {
             return GetCurrentKey(ref listRsa, out var _).expiration;
         }
@@ -139,6 +139,6 @@ namespace Youverse.Core.Cryptography.Crypto
         public static string GetCurrentPublicKeyPem(RsaKeyListData listRsa)
         {
             return GetCurrentKey(ref listRsa, out var _).publicPem();
-        }
+        }*/
     }
 }

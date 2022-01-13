@@ -15,7 +15,7 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyDefaultsPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(7);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 7);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
@@ -28,7 +28,7 @@ namespace Youverse.Core.Cryptography.Tests
         {
             try
             {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(0);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 0);
             }
             catch (Exception)
             {
@@ -44,7 +44,7 @@ namespace Youverse.Core.Cryptography.Tests
         {
             try
             {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(1, 23);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1, 23);
             }
             catch (Exception)
             {
@@ -59,17 +59,17 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(1);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), rsaList, 24);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), rsaList, 24);
 
             // Got to make this part of the code
             if (rsaList.ListRSA.Count != 1)
@@ -81,7 +81,7 @@ namespace Youverse.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyTwoPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(2);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 2);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
@@ -94,7 +94,7 @@ namespace Youverse.Core.Cryptography.Tests
             if (RsaKeyListManagement.FindKey(rsaList, crc1+1) != null)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), rsaList, 24);
 
             if (rsaList.ListRSA.Count != 2)
                 Assert.Fail();

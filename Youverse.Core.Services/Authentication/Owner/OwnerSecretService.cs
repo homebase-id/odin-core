@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         public async Task<NonceData> GenerateNewSalts()
         {
             var rsaKeyList = await this.GetRsaKeyList();
-            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
+            var key = RsaKeyListManagement.GetCurrentKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), ref rsaKeyList, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
                 _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             const int MAX_KEYS = 2; //leave this size 
 
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(MAX_KEYS);
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), MAX_KEYS); // TODO
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
 
             _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
