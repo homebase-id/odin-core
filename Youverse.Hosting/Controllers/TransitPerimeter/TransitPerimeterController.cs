@@ -85,7 +85,6 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-
             
             string json = await new StreamReader(section.Body).ReadToEndAsync();
             var transferKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
@@ -138,7 +137,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         {
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new HostToHostTransferException($"First part must be {Enum.GetName(expectedPart)}");
+                throw new HostToHostTransferException($"Part must be {Enum.GetName(expectedPart)}");
             }
         }
         

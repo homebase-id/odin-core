@@ -66,18 +66,10 @@ namespace Youverse.Core.Services.Drive.Storage
         Task Delete(Guid fileId, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.LongTerm"/>
+        /// Moves the specified <param name="filePath"></param> to long term storage.
         /// </summary>
-        /// <param name="fileId"></param>
         /// <returns></returns>
-        Task MoveToLongTerm(Guid fileId);
-
-        /// <summary>
-        /// Moves the specified <param name="fileId"></param> to <see cref="StorageDisposition.Temporary"/>
-        /// </summary>
-        /// <param name="fileId"></param>
-        /// <returns></returns>
-        Task MoveToTemp(Guid fileId);
+        Task MoveToLongTerm(Guid fileId, string filePath, FilePart part);
 
         /// <summary>
         /// Writes an <see cref="EncryptedKeyHeader"/> to storage

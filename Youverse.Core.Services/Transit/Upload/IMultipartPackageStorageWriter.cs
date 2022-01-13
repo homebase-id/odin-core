@@ -16,14 +16,9 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <returns></returns>
         Task<Guid> CreatePackage(Stream data);
         
-        /// <summary>
-        /// Accepts a part of a Multipart stream.  When all required parts are received
-        /// </summary>
-        /// <param name="pkgId"></param>
-        /// <param name="name"></param>
-        /// <param name="data"></param>
-        /// <returns>True when all parts are received, otherwise false</returns>
-        Task<bool> AddPart(Guid pkgId, string name, Stream data);
+        Task AddPayload(Guid packageId, Stream data);
+        
+        Task AddMetadata(Guid packageId, Stream data);
 
         /// <summary>
         /// Gets the <see cref="UploadPackage"/>

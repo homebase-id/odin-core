@@ -42,5 +42,10 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <param name="fileId"></param>
         /// <returns></returns>
         Task Delete(Guid fileId);
+
+        /// <summary>
+        /// Gets the physical path of the specified file
+        /// </summary>
+        Task<string> GetPath(Guid fileId, string extension);
     }
 }

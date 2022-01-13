@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
-        
+
         public FileBasedLongTermStorageManager(StorageDrive drive, ILogger<ILongTermStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Drive.Storage
             //TODO: this is probably highly inefficient and probably need to revisit 
             string filePath = GetFilenameAndPath(fileId, part, storageDisposition, true);
             string tempFilePath = GetTempFilePath(fileId, part, storageDisposition);
-            
+
             try
             {
                 //Process: if there's a file, we write to a temp file then rename.
@@ -169,7 +169,7 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             return this.IsFileValid(fileId, storageDisposition);
         }
-        
+
         private bool IsFileValid(Guid fileId, StorageDisposition storageDisposition)
         {
             string header = GetFilenameAndPath(fileId, FilePart.Header, storageDisposition);
@@ -203,36 +203,11 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
-        public Task MoveToLongTerm(Guid fileId)
+        public Task MoveToLongTerm(Guid fileId, string filePath, FilePart part)
         {
-            AssertFileIsValid(fileId, StorageDisposition.Temporary);
-
-            var parts = Enum.GetNames<FilePart>();
-            foreach (var p in parts)
-            {
-                FilePart part = Enum.Parse<FilePart>(p);
-                var source = GetFilenameAndPath(fileId, part, StorageDisposition.Temporary);
-                var dest = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm, ensureExists: true);
-
-                File.Move(source, dest);
-
-                _logger.LogInformation($"File Moved to {dest}");
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public Task MoveToTemp(Guid fileId)
-        {
-            var parts = Enum.GetNames<FilePart>();
-            foreach (var p in parts)
-            {
-                FilePart part = Enum.Parse<FilePart>(p);
-                var source = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm);
-                var dest = GetFilenameAndPath(fileId, part, StorageDisposition.Temporary, ensureExists: true);
-                File.Move(source, dest);
-            }
-
+            var dest = GetFilenameAndPath(fileId, part, StorageDisposition.LongTerm, ensureDirectoryExists: true);
+            File.Move(filePath, dest);
+            _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
         }
 
@@ -284,7 +259,7 @@ namespace Youverse.Core.Services.Drive.Storage
             await this.WritePartStream(fileId, FilePart.Header, stream, storageDisposition);
             stream.Close();
         }
-        
+
         private string GetFileDirectory(Guid fileId, StorageDisposition storageDisposition, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(storageDisposition);
@@ -301,7 +276,7 @@ namespace Youverse.Core.Services.Drive.Storage
             var day = yearMonthDay.Substring(6, 2);
             var hourMinute = parts[1];
             var hour = hourMinute[..2];
-            
+
             string dir = Path.Combine(path, year, month, day, hour);
 
             if (ensureExists)
@@ -317,10 +292,10 @@ namespace Youverse.Core.Services.Drive.Storage
             return $"{fileId.ToString()}.{part.ToString().ToLower()}";
         }
 
-        private string GetFilenameAndPath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)
+        private string GetFilenameAndPath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureDirectoryExists = false)
         {
-            string dir = GetFileDirectory(fileId, storageDisposition, ensureExists);
-            return Path.Combine(dir, GetFilename(fileId,part));
+            string dir = GetFileDirectory(fileId, storageDisposition, ensureDirectoryExists);
+            return Path.Combine(dir, GetFilename(fileId, part));
         }
 
         private string GetTempFilePath(Guid fileId, FilePart part, StorageDisposition storageDisposition, bool ensureExists = false)

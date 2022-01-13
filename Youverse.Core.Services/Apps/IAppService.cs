@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Apps
         /// <summary>
         /// Converts a transfer key header to a long term key header and stores it for the specified file.
         /// </summary>
-        Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition);
+        Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader);
 
     }
 }

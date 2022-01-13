@@ -44,33 +44,30 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
             var section = await reader.ReadNextSectionAsync();
-            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != MultipartUploadParts.Instructions)
-            {
-                throw new UploadException($"First part must be {Enum.GetName(MultipartUploadParts.Instructions)}");
-            }
-
-            var packageId = await _packageStorageWriter.CreatePackage(section.Body);
-
-            bool isComplete = false;
+            AssertIsPart(section, MultipartUploadParts.Instructions);
+            var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
+            
             section = await reader.ReadNextSectionAsync();
-            while (section != null || !isComplete)
-            {
-                var partName = GetSectionName(section!.ContentDisposition);
-                var partStream = section.Body;
-                isComplete = await _packageStorageWriter.AddPart(packageId, partName, partStream);
-                section = await reader.ReadNextSectionAsync();
-            }
-
-            if (!isComplete)
-            {
-                throw new UploadException("Upload does not contain all required parts.");
-            }
-
+            AssertIsPart(section, MultipartUploadParts.Metadata);
+            await _packageStorageWriter.AddMetadata(packageId, section!.Body);
+            
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Payload);
+            await _packageStorageWriter.AddPayload(packageId, section!.Body);
+            
             var package = await _packageStorageWriter.GetPackage(packageId);
             var status = await _transitService.AcceptUpload(package);
             return new JsonResult(status);
         }
 
+        private void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new UploadException($"Part must be {Enum.GetName(expectedPart)}");
+            }
+        }
+        
         private static bool IsMultipartContentType(string contentType)
         {
             return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;

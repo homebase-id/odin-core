@@ -35,12 +35,11 @@ namespace Youverse.Core.Services.Apps
         /// <summary>
         /// Converts a transfer key header to a long term key header and stores it for the specified file.
         /// </summary>
-        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader, StorageDisposition storageDisposition)
+        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, EncryptedKeyHeader transferEncryptedKeyHeader)
         {
             var sharedSecret = _context.AppContext.GetClientSharedSecret().GetKey();
             var kh = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
-
-            return await _driveService.WriteKeyHeader(file, kh, storageDisposition);
+            return await _driveService.WriteKeyHeader(file, kh);
         }
 
         private EncryptedKeyHeader ToAppKeyHeader(EncryptedKeyHeader ekh, byte[] storageKey)

@@ -53,7 +53,15 @@ namespace Youverse.Core.Services.Drive
         /// Writes a stream to the drive's temporary storage
         /// </summary>
         Task WriteTempStream(DriveFileId file, string extension, Stream stream);
+        
+        Task<Stream> GetTempStream(DriveFileId file, string extension);
 
+        /// <summary>
+        /// Stores the metadata and associated payload (from the temp storage) in long term storage 
+        /// </summary>
+        /// <returns></returns>
+        Task StoreLongTerm(KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
+        
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
         /// </summary>
@@ -115,17 +123,6 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task DeleteLongTermFile(DriveFileId file, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
-        /// <summary>
-        /// Moves the specified <param name="file"></param> to <see cref="StorageDisposition.LongTerm"/>
-        /// </summary>
-        /// <returns></returns>
-        Task MoveToLongTerm(DriveFileId file);
-
-        /// <summary>
-        /// Moves the specified <param name="file"></param> to <see cref="StorageDisposition.Temporary"/>
-        /// </summary>
-        /// <returns></returns>
-        Task MoveToTemp(DriveFileId file);
 
         Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm);
 
@@ -134,6 +131,6 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// Encrypts and writes a KeyHeader
         /// </summary>
-        Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition);
+        Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader);
     }
 }

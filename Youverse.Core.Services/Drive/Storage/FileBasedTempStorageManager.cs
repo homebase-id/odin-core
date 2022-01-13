@@ -98,6 +98,12 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
+        public Task<string> GetPath(Guid fileId, string extension)
+        {
+            string filePath = GetFilenameAndPath(fileId, extension);
+            return Task.FromResult(filePath);
+        }
+
         private string GetFileDirectory(Guid fileId, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(StorageDisposition.Temporary);

@@ -161,6 +161,11 @@ namespace Youverse.Core.Services.Drive
         {
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
+        
+        public Task<Stream> GetTempStream(DriveFileId file, string extension)
+        {
+            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+        }
 
         public Task DeleteTempFile(DriveFileId file, string extension)
         {
@@ -177,7 +182,7 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
 
-        public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader, StorageDisposition storageDisposition)
+        public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader)
         {
             var manager = GetLongTermStorageManager(file.DriveId);
             var drive = manager.Drive;
@@ -192,7 +197,7 @@ namespace Youverse.Core.Services.Drive
             
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, storageKey.GetKey());
             
-            await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader, storageDisposition);
+            await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
             return encryptedKeyHeader;
         }
 
@@ -243,18 +248,18 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(file.DriveId).Delete(file.FileId, storageDisposition);
         }
 
-        public async Task MoveToLongTerm(DriveFileId file)
+        public async Task StoreLongTerm(KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
-            await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId);
+            //TODO: this method is so hacky 🤢
+            var file = metadata.File;
 
-            //HACK: I don't like having to call getmetadata when i move a file.  i wonder if there's a better way
-            var metadata = await this.GetMetadata(file, StorageDisposition.LongTerm);
+            await this.WriteKeyHeader(file, keyHeader);
+            await this.WriteMetaData(file, metadata);
+            
+            string sourceFile = await GetTempStorageManager(file.DriveId).GetPath(file.FileId, payloadExtension);
+            await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
+
             OnLongTermFileChanged(file, metadata);
-        }
-
-        public Task MoveToTemp(DriveFileId file)
-        {
-            return GetLongTermStorageManager(file.DriveId).MoveToTemp(file.FileId);
         }
 
         public Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader, StorageDisposition storageDisposition = StorageDisposition.LongTerm)
