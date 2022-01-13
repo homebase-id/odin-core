@@ -15,35 +15,23 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class TransitContext
     {
-        private readonly string _appId;
-        private readonly Guid? _driveId;
-        private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
+        private readonly Guid _appId;
+        private readonly Guid _driveId;
 
-        public TransitContext(string appId, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey)
+        public TransitContext(Guid appId, Guid driveId)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
 
             this._appId = appId;
             this._driveId = driveId;
-            this._encryptedAppKey = encryptedAppKey;
         }
 
-        public string AppId => this._appId;
+        public Guid AppId => this._appId;
 
         /// <summary>
         /// Specifies the drive associated with this app
         /// </summary>
-        public Guid? DriveId => this._driveId;
-        
-        /// <summary>
-        /// Returns the encryption key specific to this app.  This is only available
-        /// when the owner is making an HttpRequest.
-        /// </summary>
-        /// <returns></returns>
-        public SensitiveByteArray GetDriveStorageKey(Guid driveId)
-        {
-            return null;
-        }
+        public Guid DriveId => this._driveId;
     }
 }

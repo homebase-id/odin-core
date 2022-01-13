@@ -32,6 +32,8 @@ namespace Youverse.Core.Services.Transit.Inbox
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
+            
+            //TODO: send notification via mediator 
             return Task.CompletedTask;
         }
 
@@ -63,7 +65,7 @@ namespace Youverse.Core.Services.Transit.Inbox
         public async Task Remove(DotYouIdentity recipient, DriveFileId file)
         {
             //TODO: need to make a better queue here
-            Expression<Func<InboxItem, bool>> predicate = item => item.Sender == recipient && item.File == file;
+            Expression<Func<InboxItem, bool>> predicate = item => item.Sender == recipient && item.TempFile == file;
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<InboxItem>(InboxItemsCollection, s => s.FindOne(predicate));
             _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(item.Id));
         }

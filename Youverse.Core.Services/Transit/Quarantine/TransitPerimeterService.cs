@@ -9,7 +9,6 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -42,16 +41,28 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _fileTrackers = new Dictionary<Guid, IncomingFileTracker>();
         }
 
-        public async Task<Guid> CreateFileTracker()
+        public async Task<Guid> CreateFileTracker(EncryptedRecipientTransferKeyHeader transferKeyHeader)
         {
+            Guard.Argument(transferKeyHeader, nameof(transferKeyHeader)).NotNull();
+            Guard.Argument(transferKeyHeader.PublicKeyCrc, nameof(transferKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
+            Guard.Argument(transferKeyHeader.EncryptedAesKey.Length, nameof(transferKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
 
-            //validate I have this app id
-            //this._context.TransitContext.AppId;
-            
-            //validate I have the public/private key for the incoming CRC
-                
+            var file = _fileDrive.CreateFileId(_context.TransitContext.DriveId);
             var id = await this.AuditWriter.CreateAuditTrackerId();
-            _fileTrackers.Add(id, new IncomingFileTracker(id));
+
+            var tracker = new IncomingFileTracker(
+                id: id,
+                tempFile: file,
+                publicKeyCrc: transferKeyHeader.PublicKeyCrc);
+
+            //Note: we're not currently applying filters to the transfer key header since
+            //we generate it.  It is feasible to, at a future point, apply filters by
+            //encryption version or strength
+            //therefore - just mark it good to go
+            tracker.SetAccepted(MultipartHostTransferParts.TransferKeyHeader);
+
+            _fileTrackers.Add(id, tracker);
+
             return id;
         }
 
@@ -98,7 +109,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (tracker.IsCompleteAndValid())
             {
-                _transitService.AcceptTransfer(tracker.Id, tracker.File.GetValueOrDefault());
+                _transitService.AcceptTransfer(tracker.Id, tracker.TempFile, tracker.PublicKeyCrc);
 
                 var result = new CollectiveFilterResult()
                 {
@@ -184,7 +195,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private async void DecryptTransferKeyHeader(EncryptedRecipientTransferKeyHeader header)
         {
             throw new NotImplementedException("TODO wip");
-            
+
             var keys = await GetRsaKeyList();
             var pk = RsaKeyListManagement.FindKey(keys, header.PublicKeyCrc);
 
@@ -194,7 +205,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             var decryptedBytes = pk.Decrypt(header.EncryptedAesKey).ToSensitiveByteArray();
-            var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16,16);
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16, 16);
             decryptedBytes.Wipe();
         }
 
@@ -211,7 +222,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private AddPartResponse RejectPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
         {
             //Note: we remove all temp files if a single part is rejected
-            _fileDrive.DeleteTempFiles(tracker.File.GetValueOrDefault());
+            _fileDrive.DeleteTempFiles(tracker.TempFile);
 
             this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
             //do nothing with the stream since it's bad
@@ -234,22 +245,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         private async Task<AddPartResponse> AcceptPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
         {
-            data.Position = 0;
-            tracker.SetAccepted(part);
-            
-            //TODO: validate 
-            if (tracker.File == null)
-            {
-                tracker.SetStorageInfo(_fileDrive.CreateFileId(_context.AppContext.DriveId.GetValueOrDefault()));
-            }
-            
-            await _fileDrive.WriteTempStream(tracker.File.GetValueOrDefault(), part.ToString(), data);
-            
+            await _fileDrive.WriteTempStream(tracker.TempFile, part.ToString(), data);
+
             //triage, decrypt, route the payload
             var result = new AddPartResponse()
             {
                 FilterAction = FilterAction.Accept
             };
+
+            tracker.SetAccepted(part);
 
             return result;
         }
@@ -290,18 +294,28 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         private class IncomingFileTracker
         {
-            public IncomingFileTracker(Guid id)
+            public IncomingFileTracker(Guid id, UInt32 publicKeyCrc, DriveFileId tempFile)
             {
                 Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
+                Guard.Argument(publicKeyCrc, nameof(publicKeyCrc)).NotEqual<UInt32>(0);
+                Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
+
                 this.Id = id;
+                this.PublicKeyCrc = publicKeyCrc;
+                this.TempFile = tempFile;
             }
+
+            /// <summary>
+            /// The CRC of the Transit public key used when receiving this transfer
+            /// </summary>
+            public uint PublicKeyCrc { get; set; }
 
             /// <summary>
             /// The id of this tracker
             /// </summary>
             public Guid Id { get; init; }
 
-            public DriveFileId? File { get; set; }
+            public DriveFileId TempFile { get; set; }
 
             public PartState HeaderState;
             public PartState MetadataState;
@@ -344,21 +358,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             public bool IsCompleteAndValid()
             {
                 return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
-            }
-
-            /// <summary>
-            /// Sets the FileId to be used when storing the file
-            /// </summary>
-            public void SetStorageInfo(DriveFileId file)
-            {
-                Guard.Argument(file, nameof(file)).Require(file.IsValid());
-
-                if (File.HasValue)
-                {
-                    throw new Exception("Drive and/or FileId is already set");
-                }
-
-                File = file;
             }
         }
     }

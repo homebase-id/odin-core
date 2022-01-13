@@ -44,8 +44,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
             var section = await reader.ReadNextSectionAsync();
-            var firstPartName = GetSectionName(section!.ContentDisposition);
-            if (!Enum.TryParse<MultipartUploadParts>(firstPartName, true, out var part) || part != MultipartUploadParts.Instructions)
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != MultipartUploadParts.Instructions)
             {
                 throw new UploadException($"First part must be {Enum.GetName(MultipartUploadParts.Instructions)}");
             }
@@ -74,9 +73,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
 
         private static bool IsMultipartContentType(string contentType)
         {
-            return
-                !string.IsNullOrEmpty(contentType) &&
-                contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
+            return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static string GetBoundary(string contentType)

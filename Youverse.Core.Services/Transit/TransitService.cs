@@ -1,9 +1,11 @@
 ﻿using Refit;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -14,6 +16,7 @@ using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -82,24 +85,23 @@ namespace Youverse.Core.Services.Transit
             return tx;
         }
 
-        public void AcceptTransfer(Guid trackerId, DriveFileId file)
+        public void AcceptTransfer(Guid trackerId, DriveFileId file, uint publicKeyCrc)
         {
             this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
 
-            _logger.LogInformation($"TransitService.Accept fileId:{file.FileId} driveId:{file.DriveId}");
+            _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
 
-            //TODO: app routing, app notification and so on
-            //Get the app Inbox storage
-            // store item 
             var item = new InboxItem()
             {
                 Id = Guid.NewGuid(),
                 Sender = this._context.Caller.DotYouId,
-                AppId = this._context.AppContext.AppId,
-                File = file,
-                TrackerId = trackerId
+                AppId = this._context.TransitContext.AppId, //Note: best to use the appId in from transit context since it's been verified
+                TempFile = file,
+                TrackerId = trackerId,
+                PublicKeyCrc = publicKeyCrc
             };
 
+            //Note: the inbox service will send the notification
             _inboxService.Add(item);
         }
 
@@ -152,6 +154,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         AddToTransferKeyEncryptionQueue(recipient, package);
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
+                        continue;
                     }
                     
                     var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey.PublicKey, keyHeader);
@@ -162,9 +165,9 @@ namespace Youverse.Core.Services.Transit
                         Header = header,
                         File = package.File
                     };
-
-                    results.Add(recipient, TransferStatus.TransferKeyCreated);
+                    
                     _systemStorage.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
+                    results.Add(recipient, TransferStatus.TransferKeyCreated);
                 }
                 catch (Exception)
                 {
@@ -257,16 +260,16 @@ namespace Youverse.Core.Services.Transit
                         FailureReason = TransferFailureReason.EncryptedTransferKeyNotAvailable
                     };
                 }
-
-                var metaDataStream = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(FilePart.Metadata));
-                var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(FilePart.Payload));
+                
+                var transferKeyHeaderBytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(transferKeyHeader));
+                var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+                var metaDataStream = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
+                var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
-
-                //HACK: i override the appId here so the recipient server knows the corresponding
-                //app.  I'd rather load this into app context some how
+                
                 var client = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
-                var result = client.SendHostToHost(transferKeyHeader, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                var result = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = result.IsSuccessStatusCode;
 
                 //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)

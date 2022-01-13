@@ -19,11 +19,11 @@ namespace Youverse.Core.Services.Transit.Inbox
         /// <summary>
         /// The application that created this outbox item
         /// </summary>
-        public string AppId { get; set; }
+        public Guid AppId { get; set; }
 
         public DotYouIdentity Sender { get; set; }
 
-        public DriveFileId File { get; set; }
+        public DriveFileId TempFile { get; set; }
 
         /// <summary>
         /// The Id used to track the reception of this inbox item
@@ -36,5 +36,9 @@ namespace Youverse.Core.Services.Transit.Inbox
         /// </summary>
         public int Priority { get; set; }
 
+        /// <summary>
+        /// The CRC of the <see cref="TransitPublicKey"/> used by the sender
+        /// </summary>
+        public uint PublicKeyCrc { get; set; }
     }
 }

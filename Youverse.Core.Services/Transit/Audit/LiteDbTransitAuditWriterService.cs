@@ -19,13 +19,12 @@ namespace Youverse.Core.Services.Transit.Audit
             _systemStorage = systemStorage;
         }
 
-        public async Task<Guid> CreateAuditTrackerId()
+        public Task<Guid> CreateAuditTrackerId()
         {
-            //TODO: determine if i want to create a primary collection mapping sender to their trackers or just rely on the long list written by WriteEvent
+            //TODO: determine if i want to create a primary collection mapping a sender to their trackers or just rely on the long list written by WriteEvent
             var id = Guid.NewGuid();
-            var sender = this._context.Caller.DotYouId;
-
-            return id;
+            //var sender = this._context.Caller.DotYouId;
+            return Task.FromResult(id);
         }
 
         public void WriteEvent(Guid trackerId, TransitAuditEvent auditEvent)

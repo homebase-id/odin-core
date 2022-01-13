@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
+using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
@@ -108,8 +109,9 @@ namespace Youverse.Hosting.Middleware
 
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
-            //look up grant for this device and app
             dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+
+            dotYouContext.TransitContext = null;
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -119,21 +121,18 @@ namespace Youverse.Hosting.Middleware
 
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var appReg = await appRegSvc.GetAppRegistration(appId);
-
+            
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null // Note: we're logged in using an app token so we do not have the master key
+                masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
             );
 
-            //TODO: fix for transit. need to make a transit context class
-            var grants = new List<DriveGrant>();
-            var driveId = appReg.DriveId;
+            dotYouContext.AppContext = null;
 
             dotYouContext.TransitContext = new TransitContext(
-                appId: appId.ToString(),
-                driveId: null,
-                encryptedAppKey: null);
+                appId: appId,
+                driveId: appReg.DriveId.GetValueOrDefault());
         }
     }
 }

@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 
@@ -45,21 +47,30 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 throw new HostToHostTransferException("Data is not multi-part content");
             }
 
-            //TODO: support for validating the app id is specified and this host has authorized the app
+            //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
+            
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != MultipartHostTransferParts.TransferKeyHeader)
+            {
+                throw new HostToHostTransferException($"First part must be {Enum.GetName(MultipartHostTransferParts.TransferKeyHeader)}");
+            }
 
-            var expectedPart = GetNextExpectedFilePart(null);
+            string json = await new StreamReader(section.Body).ReadToEndAsync();
+            var recipientKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
+            
+            var trackerId = await _perimeterService.CreateFileTracker(recipientKeyHeader);
             
             //
-            var trackerId = await _perimeterService.CreateFileTracker();
-
+            
+            section = await reader.ReadNextSectionAsync();
+            var expectedPart = GetNextExpectedFilePart(part);
             while (section != null)
             {
                 var name = GetSectionName(section.ContentDisposition);
-                var part = GetFilePart(name);
+                part = GetFilePart(name);
 
                 if (null == expectedPart)
                 {
@@ -71,7 +82,6 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                     throw new HostToHostTransferException("Multipart order is invalid.  It must be 1) Header, 2) Metadata, 3) Payload");
                 }
                 
-
                 //TODO: determine if the filter needs to decide if its result should be sent back to the sender
                 var response = await _perimeterService.ApplyFirstStageFilter(trackerId, part, section.Body);
                 if (response.FilterAction == FilterAction.Reject)
@@ -86,7 +96,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
             if (!_perimeterService.IsFileValid(trackerId))
             {
-                throw new HostToHostTransferException("Upload does not contain all required parts.");
+                throw new HostToHostTransferException("Transfer does not contain all required parts.");
             }
 
             var result = await _perimeterService.FinalizeTransfer(trackerId);
@@ -111,9 +121,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 case MultipartHostTransferParts.TransferKeyHeader:
                     return MultipartHostTransferParts.Metadata;
                 case MultipartHostTransferParts.Metadata:
-                    return MultipartHostTransferParts.TransferKeyHeader;
+                    return MultipartHostTransferParts.Payload;
                 case MultipartHostTransferParts.Payload:
-                    return null;
+                    return null; //nothing after payload
                 default:
                     throw new HostToHostTransferException("Unknown MultipartHostTransferParts");
             }

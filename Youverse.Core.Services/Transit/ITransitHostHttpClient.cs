@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit
         [Multipart]
         [Post(HostRootEndpoint + "/stream")]
         Task<ApiResponse<CollectiveFilterResult>> SendHostToHost(
-            [AliasAs("header")] EncryptedRecipientTransferKeyHeader header,
+            [AliasAs("header")] StreamPart header,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
 

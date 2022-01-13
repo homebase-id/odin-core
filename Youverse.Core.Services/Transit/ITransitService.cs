@@ -16,14 +16,15 @@ namespace Youverse.Core.Services.Transit
         /// <param name="package"></param>
         /// <returns></returns>
         Task<UploadResult> AcceptUpload(UploadPackage package);
-        
+
 
         /// <summary>
         /// Accepts an incoming transfer as complete and valid.
         /// </summary>
         /// <param name="trackerId">The trackerId to be used during auditing</param>
-        /// <param name="file">The file Id in storage</param>
-        void AcceptTransfer(Guid trackerId, DriveFileId file);
+        /// <param name="tempFile">The file Id in storage</param>
+        /// <param name="publicKeyCrc">The CRC value of the public key used to encrypt the transfer key header</param>
+        void AcceptTransfer(Guid trackerId, DriveFileId tempFile, uint publicKeyCrc);
 
         /// <summary>
         /// Sends a collection if <see cref="OutboxItem"/>s

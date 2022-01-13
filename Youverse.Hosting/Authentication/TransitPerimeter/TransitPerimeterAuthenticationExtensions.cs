@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
 
@@ -62,9 +63,19 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
             //TODO: this needs to be moved to a central location so certificate auth can use it too
-            string appId = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
+            string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
 
-            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
+            Guard.Argument(appIdValue, nameof(appIdValue)).NotNull().NotEmpty();
+            Guard.Argument(appIdValue, nameof(appIdValue)).Require(Guid.TryParse(appIdValue, out var appId));
+            
+            var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
+
+            //TODO: is this the best place to check this?  
+            if (null == appReg || appReg.IsRevoked) 
+            {
+                throw new UnauthorizedAccessException($"Invalid AppId {appId} for recipient");
+            }
 
             var claims = new[]
             {
@@ -72,7 +83,7 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.AppId, appId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.AppId, appId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                 
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
