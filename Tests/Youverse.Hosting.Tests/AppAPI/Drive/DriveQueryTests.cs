@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var uploadContext = await TransitTestUtils.Upload(_scaffold, identity, metadata);
+            var uploadContext = await _scaffold.Upload(identity, metadata);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
             {
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
             
-            var uploadContext = await TransitTestUtils.Upload(_scaffold, identity);
+            var uploadContext = await _scaffold.Upload(identity);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
             {

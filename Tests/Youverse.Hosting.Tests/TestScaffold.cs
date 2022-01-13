@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
@@ -15,16 +16,21 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests
 {
+    //Note: this class is wayyy to big, need to decompose :)
     public class TestScaffold
     {
         private readonly string _folder;
@@ -283,7 +289,7 @@ namespace Youverse.Hosting.Tests
 
             return Task.CompletedTask;
         }
-        
+
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
@@ -341,7 +347,7 @@ namespace Youverse.Hosting.Tests
 
                 var reply = regResponse.Content;
                 var decryptedData = rsa.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), reply.Data); // TODO
-            
+
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
@@ -360,7 +366,7 @@ namespace Youverse.Hosting.Tests
                     SessionToken = reply.Token,
                     ClientHalfKek = clientKek.ToSensitiveByteArray()
                 };
-                
+
                 return (authResult, sharedSecret);
             }
         }
@@ -377,7 +383,7 @@ namespace Youverse.Hosting.Tests
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity)
         {
             this.AddApp(identity, appId, true).GetAwaiter().GetResult();
-            
+
             var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
             {
@@ -395,6 +401,170 @@ namespace Youverse.Hosting.Tests
         {
             Guid appId = Guid.NewGuid();
             return await this.SetupTestSampleApp(appId, identity);
+        }
+
+        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AppData = new()
+                {
+                    CategoryId = Guid.Empty,
+                    ContentIsComplete = true,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                }
+            };
+
+
+            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
+        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
+        /// <summary>
+        /// Transfers a file using default file metadata
+        /// </summary>
+        /// <returns></returns>
+        public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveId = null,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Recipients = recipients
+                }
+            };
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AppData = new()
+                {
+                    CategoryId = Guid.Empty,
+                    ContentIsComplete = true,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                }
+            };
+
+            return await TransferFile(sender, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
+        public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        {
+            var testContext = await this.SetupTestSampleApp(identity);
+
+            //Setup the app on all recipient DIs
+            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+            foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
+            {
+                var recipient = (DotYouIdentity)r;
+                var ctx = await this.SetupTestSampleApp(testContext.AppId, recipient);
+                recipientContexts.Add(recipient, ctx);
+            }
+
+            var keyHeader = KeyHeader.NewRandom16();
+            var transferIv = instructionSet.TransferIv;
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+
+            using (var client = this.CreateAppApiHttpClient(identity, testContext.AuthResult))
+            {
+                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+
+                if (instructionSet.TransitOptions?.Recipients != null)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+
+                    foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+                    {
+                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                    }
+                }
+
+                if (options is { ProcessOutbox: true })
+                {
+                    await transitSvc.ProcessOutbox();
+                }
+            }
+
+            keyHeader.AesKey.Wipe();
+
+            return new TransitTestUtilsContext()
+            {
+                AppId = testContext.AppId,
+                AuthResult = testContext.AuthResult,
+                AppSharedSecretKey = testContext.AppSharedSecretKey,
+                InstructionSet = instructionSet,
+                FileMetadata = fileMetadata,
+                RecipientContexts = recipientContexts
+            };
         }
     }
 }

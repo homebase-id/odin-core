@@ -97,19 +97,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             var tracker = GetTrackerOrFail(trackerId);
 
-            if (tracker.IsCompleteAndValid())
-            {
-                _transitService.AcceptTransfer(tracker.Id, tracker.TempFile, tracker.PublicKeyCrc);
-
-                var result = new CollectiveFilterResult()
-                {
-                    Code = FinalFilterAction.Accepted,
-                    Message = ""
-                };
-
-                return Task.FromResult(result);
-            }
-
             if (tracker.HasAcquiredQuarantinedPart())
             {
                 //TODO: how do i know which filter quarantined it??
@@ -137,6 +124,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 return Task.FromResult(result);
             }
 
+            if (tracker.IsCompleteAndValid())
+            {
+                _transitService.AcceptTransfer(tracker.Id, tracker.TempFile, tracker.PublicKeyCrc);
+
+                var result = new CollectiveFilterResult()
+                {
+                    Code = FinalFilterAction.Accepted,
+                    Message = ""
+                };
+
+                return Task.FromResult(result);
+            }
+            
             throw new HostToHostTransferException("Unhandled error");
         }
 

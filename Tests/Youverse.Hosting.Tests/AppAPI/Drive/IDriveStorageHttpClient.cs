@@ -20,5 +20,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         [Get(DriveRootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId);
+        
+        [Get(DriveRootEndpoint + "/temp/files/header")]
+        Task<ApiResponse<ClientFileHeader>> GetTempFileHeader(Guid fileId);
+
+        [Get(DriveRootEndpoint + "/temp/files/payload")]
+        Task<ApiResponse<HttpContent>> GetTempPayload(Guid fileId);
     }
 }

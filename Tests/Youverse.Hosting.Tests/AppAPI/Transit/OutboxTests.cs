@@ -50,13 +50,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         // {
         // }
 
-       
+
         [Test(Description = "")]
         public async Task CanGetOutboxList()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients);
+            var recipients = new List<string>() { TestIdentities.Frodo };
+            var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
@@ -76,8 +76,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanRemoveOutboxItem()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients);
+            var recipients = new List<string>() { TestIdentities.Frodo };
+            var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
@@ -102,8 +102,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanGetOutboxItem()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients);
+            var recipients = new List<string>() { TestIdentities.Frodo };
+            var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {
@@ -128,8 +128,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanUpdateOutboxItemPriority()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await TransitTestUtils.TransferFile(this._scaffold, sender, recipients);
+            var recipients = new List<string>() { TestIdentities.Frodo };
+            var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
             {

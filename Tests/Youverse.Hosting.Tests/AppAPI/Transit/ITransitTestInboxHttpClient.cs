@@ -21,6 +21,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
         [Delete(RootEndpoint + "/item")]
         Task<ApiResponse<bool>> RemoveInboxItem(Guid id);
-        
+
+        [Get(RootEndpoint)]
+        Task<ApiResponse<bool>> ProcessIncoming();
     }
 }
