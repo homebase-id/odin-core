@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography.Crypto;
@@ -32,8 +33,7 @@ namespace Youverse.Core.Services.Transit
         private readonly ILogger<TransitService> _logger;
         private readonly ISystemStorage _systemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        private readonly IAppService _appService;
-
+        
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
@@ -45,8 +45,7 @@ namespace Youverse.Core.Services.Transit
             ITransitAuditWriterService auditWriter,
             IInboxService inboxService,
             ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory,
-            IAppService appService) : base(auditWriter)
+            IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
         {
             _context = context;
             _outboxService = outboxService;
@@ -55,7 +54,6 @@ namespace Youverse.Core.Services.Transit
             _inboxService = inboxService;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
-            _appService = appService;
             _logger = logger;
         }
 
@@ -67,6 +65,7 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
             
+            //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
             await _driveService.StoreLongTerm(keyHeader, metadata, MultipartUploadParts.Payload.ToString());
 

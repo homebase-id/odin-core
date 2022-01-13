@@ -16,6 +16,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
@@ -43,7 +44,10 @@ namespace Youverse.Hosting
             cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
-            cb.RegisterType<AppNotificationHandler>().AsSelf().SingleInstance();
+            cb.RegisterType<AppNotificationHandler>()
+                .As<INotificationHandler<NewInboxItemNotification>>()
+                .AsSelf()
+                .SingleInstance();
 
             cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
@@ -66,6 +70,7 @@ namespace Youverse.Hosting
                 .As<IDriveQueryService>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .SingleInstance();
+            
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();

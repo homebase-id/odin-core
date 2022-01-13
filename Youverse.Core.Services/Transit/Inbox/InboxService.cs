@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Inbox
@@ -18,10 +20,12 @@ namespace Youverse.Core.Services.Transit.Inbox
         private const string InboxItemsCollection = "inbxitems";
 
         private readonly ISystemStorage _systemStorage;
+        private readonly IMediator _mediator;
 
-        public InboxService(DotYouContext context, ILogger<IInboxService> logger, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
+        public InboxService(ILogger<IInboxService> logger, AppNotificationHandler appNotificationHub, ISystemStorage systemStorage, IMediator mediator)
         {
             _systemStorage = systemStorage;
+            _mediator = mediator;
         }
 
         /// <summary>
@@ -33,7 +37,14 @@ namespace Youverse.Core.Services.Transit.Inbox
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
             
-            //TODO: send notification via mediator 
+            _mediator.Publish(new NewInboxItemNotification()
+            {
+                InboxItemId = item.Id,
+                Sender = item.Sender,
+                AppId = item.AppId,
+                TempFile = item.TempFile
+            });
+            
             return Task.CompletedTask;
         }
 

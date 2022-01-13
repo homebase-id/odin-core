@@ -8,6 +8,7 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.Drive
 {

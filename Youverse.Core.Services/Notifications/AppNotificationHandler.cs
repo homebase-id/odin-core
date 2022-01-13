@@ -1,10 +1,15 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
+using Newtonsoft.Json;
+using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.Notifications
 {
-    public class AppNotificationHandler : WebSocketHandlerBase
+    public class AppNotificationHandler : WebSocketHandlerBase, INotificationHandler<NewInboxItemNotification>
     {
         public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
         {
@@ -29,6 +34,13 @@ namespace Youverse.Core.Services.Notifications
         public override Task OnDisconnected(WebSocket socket)
         {
             return base.OnDisconnected(socket);
+        }
+        
+        public async Task Handle(NewInboxItemNotification notification, CancellationToken cancellationToken)
+        {
+            //TODO: add some standard fields to this notification
+            var json = JsonConvert.SerializeObject(notification);
+            await SendMessageToAllAsync(json);
         }
     }
 }
