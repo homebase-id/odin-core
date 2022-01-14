@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
 
             return new AppContext(
-                appId: appReg.ApplicationId.ToString(),
+                appId: appReg.ApplicationId,
                 appClientId: appClient.Id,
                 clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
                 driveId: appReg.DriveId,

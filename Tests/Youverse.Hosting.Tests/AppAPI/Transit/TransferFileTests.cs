@@ -190,57 +190,57 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var singleItem = singleItemResponse.Content;
                 Assert.IsNotNull(singleItem);
                 Assert.IsTrue(singleItem.Id == items.Results.First().Id);
-
-
-                await svc.ProcessIncoming();
-                //
                 
-                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+                await svc.ProcessIncoming();
 
-                var fileResponse = await driveSvc.GetFileHeader(singleItem.TempFile.FileId);
-
-                Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(fileResponse.Content, Is.Not.Null);
-
-                var clientFileHeader = fileResponse.Content;
-
-                Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
-                Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
-
-                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.CategoryId));
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
-
-                Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
-
-                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                var fileKey = decryptedKeyHeader.AesKey;
-                Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-
-                //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(fileId);
-                Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(payloadResponse.Content, Is.Not.Null);
-
-                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
-                    cipherText: payloadResponseCipher,
-                    Key: decryptedKeyHeader.AesKey.GetKey(),
-                    IV: decryptedKeyHeader.Iv);
-
-                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
-                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-
-                var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                // //
+                //
+                // var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+                //
+                // var fileResponse = await driveSvc.GetFileHeader(singleItem.TempFile.FileId);
+                //
+                // Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
+                // Assert.That(fileResponse.Content, Is.Not.Null);
+                //
+                // var clientFileHeader = fileResponse.Content;
+                //
+                // Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
+                // Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
+                //
+                // Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
+                // Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.CategoryId));
+                // Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                // Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                //
+                // Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
+                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
+                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
+                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                // Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+                //
+                // var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
+                //
+                // Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
+                // var fileKey = decryptedKeyHeader.AesKey;
+                // Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                //
+                // //get the payload and decrypt, then compare
+                // var payloadResponse = await driveSvc.GetPayload(fileId);
+                // Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
+                // Assert.That(payloadResponse.Content, Is.Not.Null);
+                //
+                // var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
+                // Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
+                //
+                // var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
+                //     cipherText: payloadResponseCipher,
+                //     Key: decryptedKeyHeader.AesKey.GetKey(),
+                //     IV: decryptedKeyHeader.Iv);
+                //
+                // var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
+                // Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+                //
+                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
             }
         }
     }

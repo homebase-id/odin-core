@@ -199,7 +199,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             
             var decryptedBytes = pk.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), header.EncryptedAesKey).ToSensitiveByteArray(); // TODO
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16,16);
-
             
             decryptedBytes.Wipe();
         }

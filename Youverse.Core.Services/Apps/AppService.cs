@@ -1,4 +1,7 @@
+using System.IO;
+using System.Runtime;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
@@ -30,6 +33,14 @@ namespace Youverse.Core.Services.Apps
                 EncryptedKeyHeader = appEkh,
                 FileMetadata = md
             };
+        }
+
+        public async Task<EncryptedKeyHeader> WriteTransferKeyHeader(DriveFileId file, Stream stream)
+        {
+            string json = await new StreamReader(stream).ReadToEndAsync();
+            var transferKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
+
+            return await this.WriteTransferKeyHeader(file, transferKeyHeader);
         }
 
         /// <summary>

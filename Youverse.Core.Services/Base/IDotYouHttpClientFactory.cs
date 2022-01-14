@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Identity;
+﻿using System;
+using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Base
 {
@@ -6,6 +7,6 @@ namespace Youverse.Core.Services.Base
     {
         IPerimeterHttpClient CreateClient(DotYouIdentity dotYouId);
         
-        T CreateClient<T>(DotYouIdentity dotYouId, string appIdOverride = null);
+        T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null);
     }
 }

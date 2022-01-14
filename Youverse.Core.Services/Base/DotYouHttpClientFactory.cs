@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Base
             return this.CreateClient<IPerimeterHttpClient>(dotYouId);
         }
         
-        public T CreateClient<T>(DotYouIdentity dotYouId, string appIdOverride = null)
+        public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null)
         {
             //HACK: this appIdOverride is strange but required so the background sender
             //can specify the app since it doesnt know
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
             
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride ?? _context.AppContext.AppId);
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride.HasValue ? appIdOverride.ToString() : _context.AppContext.AppId.ToString());
 
             var ogClient = RestService.For<T>(client);
 

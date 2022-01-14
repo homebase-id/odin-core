@@ -54,9 +54,10 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             // var request = new HttpRequestMessage(HttpMethod.Get, url);
             // var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
 
+            
             var dotYouId = new DotYouIdentity(subject);
             var response = await _dotYouHttpClientFactory
-                .CreateClient<IPerimeterHttpClient>(dotYouId, "YouAuthVerification")
+                .CreateClient<IPerimeterHttpClient>(dotYouId, Guid.Parse("00000000-1111-0000-0000-00000000011"))
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 
             if (response.IsSuccessStatusCode)

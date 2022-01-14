@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class TransitKeyEncryptionQueueItem
     {
-        public string AppId { get; set; }
+        public Guid AppId { get; set; }
         public Guid FileId { get; set; }
         public DotYouIdentity Recipient { get; set; }
         public int Attempts { get; set; }

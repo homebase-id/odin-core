@@ -19,7 +19,12 @@ namespace Youverse.Core.Services.Transit.Inbox
         
         Task Add(IEnumerable<InboxItem> items);
 
-
+        /// <summary>
+        /// Processes incoming transfers by converting their transfer keys and moving files to long term storage
+        /// </summary>
+        /// <returns></returns>
+        Task ProcessTransfers();
+        
         Task<PagedResult<InboxItem>> GetNextBatch();
 
         /// <summary>

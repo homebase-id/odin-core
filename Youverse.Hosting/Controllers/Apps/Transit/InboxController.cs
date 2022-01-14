@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,13 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
         public InboxController(ITransitService svc, IInboxService inbox)
         {
             _inbox = inbox;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ProcessLatest()
+        {
+            await _inbox.ProcessTransfers();
+            return new JsonResult("");
         }
 
         [HttpGet]

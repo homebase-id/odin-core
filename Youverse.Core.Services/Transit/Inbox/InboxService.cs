@@ -5,10 +5,10 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Core.Services.Transit.Inbox
 {
@@ -21,11 +21,17 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
+        private readonly DotYouContext _context;
+        private readonly IDriveService _driveService;
+        private readonly IAppService _appService;
 
-        public InboxService(ILogger<IInboxService> logger, AppNotificationHandler appNotificationHub, ISystemStorage systemStorage, IMediator mediator)
+        public InboxService(ILogger<IInboxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContext context, IDriveService driveService, IAppService appService)
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
+            _context = context;
+            _driveService = driveService;
+            _appService = appService;
         }
 
         /// <summary>
@@ -36,7 +42,7 @@ namespace Youverse.Core.Services.Transit.Inbox
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Save(item));
-            
+
             _mediator.Publish(new NewInboxItemNotification()
             {
                 InboxItemId = item.Id,
@@ -44,7 +50,7 @@ namespace Youverse.Core.Services.Transit.Inbox
                 AppId = item.AppId,
                 TempFile = item.TempFile
             });
-            
+
             return Task.CompletedTask;
         }
 
@@ -56,6 +62,17 @@ namespace Youverse.Core.Services.Transit.Inbox
             }
 
             return Task.CompletedTask;
+        }
+
+        public async Task ProcessTransfers()
+        {
+            var items = await GetPendingItems(PageOptions.All);
+            foreach (var item in items.Results)
+            {
+                var stream = _driveService.GetTempStream(item.TempFile, MultipartHostTransferParts.TransferKeyHeader.ToString());
+
+                _appService.WriteTransferKeyHeader(item.TempFile,)
+            }
         }
 
         public Task<PagedResult<InboxItem>> GetNextBatch()
@@ -89,8 +106,19 @@ namespace Youverse.Core.Services.Transit.Inbox
 
         public Task RemoveItem(Guid id)
         {
-            _systemStorage.WithTenantSystemStorage<InboxItem>(InboxItemsCollection, s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<InboxItem>(GetAppCollectionName(), s => s.Delete(id));
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Gets the collection name for a given app
+        /// </summary>
+        /// <param name="appId"></param>
+        /// <returns></returns>
+        private string GetAppCollectionName()
+        {
+            var appId = _context.AppContext?.AppId ?? _context.TransitContext.AppId;
+            return $"ibx_{appId:N}";
         }
     }
 }

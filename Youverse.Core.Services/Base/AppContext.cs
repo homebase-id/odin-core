@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Base
     public class AppContext
     {
         private readonly SensitiveByteArray _clientSharedSecret;
-        private readonly string _appId;
+        private readonly Guid _appId;
         private readonly Guid _appClientId;
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Base
         private readonly SensitiveByteArray _clientHalfKek;
         private readonly bool _canManageConnections;
 
-        public AppContext(string appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
+        public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Base
 
         public Guid AppClientId => this._appClientId;
 
-        public string AppId => this._appId;
+        public Guid AppId => this._appId;
 
         /// <summary>
         /// Specifies the drive associated with this app
