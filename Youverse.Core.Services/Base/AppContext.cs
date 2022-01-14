@@ -78,9 +78,15 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
             }
 
-            var appKey = this._encryptedAppKey.DecryptKey(this._clientHalfKek);
+            var appKey = this.GetAppKey();
             var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(appKey);
             return storageKey;
+        }
+
+        public SensitiveByteArray GetAppKey()
+        {
+            var appKey = this._encryptedAppKey.DecryptKey(this._clientHalfKek);
+            return appKey;
         }
     }
 }

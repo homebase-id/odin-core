@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
                 DriveId = _context.AppContext.DriveId.GetValueOrDefault(),
                 FileId = fileId
             };
-            var result = await _appService.GetDeviceEncryptedFileHeader(file);
+            var result = await _appService.GetClientEncryptedFileHeader(file);
             return new JsonResult(result);
         }
 

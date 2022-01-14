@@ -57,6 +57,12 @@ namespace Youverse.Core.Services.Drive
         Task<Stream> GetTempStream(DriveFileId file, string extension);
 
         /// <summary>
+        /// Deserializes the file to an instance of {T}.  Assumes format is JSON
+        /// </summary>
+        /// <returns></returns>
+        Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm);
+        
+        /// <summary>
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>

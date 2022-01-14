@@ -155,6 +155,19 @@ namespace Youverse.Core.Services.Drive
             return task;
         }
 
+        public async Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
+        {
+            if (disposition == StorageDisposition.LongTerm)
+            {
+                throw new NotImplementedException("Not supported for long term storage");
+            }
+
+            var stream = await this.GetTempStream(file, extension);
+            string json = await new StreamReader(stream).ReadToEndAsync();
+            var o = JsonConvert.DeserializeObject<T>(json);
+            return o;
+        }
+
         public Task WriteTempStream(DriveFileId file, string extension, Stream stream)
         {
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);

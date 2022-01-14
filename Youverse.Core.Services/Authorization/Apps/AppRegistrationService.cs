@@ -31,6 +31,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false)
         {
+
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 

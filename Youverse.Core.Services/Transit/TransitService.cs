@@ -14,11 +14,11 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Inbox;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly IDriveService _driveService;
         private readonly IOutboxService _outboxService;
-        private readonly IInboxService _inboxService;
+        private readonly ITransferBoxService _transferBoxService;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContext _context;
         private readonly ILogger<TransitService> _logger;
@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit
             IDriveService driveService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
-            IInboxService inboxService,
+            ITransferBoxService transferBoxService,
             ISystemStorage systemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
         {
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Transit
             _outboxService = outboxService;
             _driveService = driveService;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
-            _inboxService = inboxService;
+            _transferBoxService = transferBoxService;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _logger = logger;
@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit
 
             _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
 
-            var item = new InboxItem()
+            var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
                 Sender = this._context.Caller.DotYouId,
@@ -100,7 +100,7 @@ namespace Youverse.Core.Services.Transit
             };
 
             //Note: the inbox service will send the notification
-            _inboxService.Add(item);
+            _transferBoxService.Add(item);
         }
 
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
@@ -209,14 +209,14 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private EncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(byte[] recipientPublicKeyDer, KeyHeader keyHeader)
+        private RsaEncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(byte[] recipientPublicKeyDer, KeyHeader keyHeader)
         {
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
             var secureKeyHeader = keyHeader.Combine();
             var data = publicKey.Encrypt(secureKeyHeader.GetKey());
             secureKeyHeader.Wipe();
 
-            return new EncryptedRecipientTransferKeyHeader()
+            return new RsaEncryptedRecipientTransferKeyHeader()
             {
                 PublicKeyCrc = publicKey.crc32c,
                 EncryptedAesKey = data
@@ -328,7 +328,7 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<EncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, DriveFileId file)
+        private async Task<RsaEncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, DriveFileId file)
         {
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
             return item?.Header;

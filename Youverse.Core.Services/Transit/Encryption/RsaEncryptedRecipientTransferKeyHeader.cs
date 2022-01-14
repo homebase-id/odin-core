@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Transit.Encryption
     /// The encrypted version of the KeyHeader for a given recipient
     /// which as been encrypted using the RecipientTransitPublicKey
     /// </summary>
-    public class EncryptedRecipientTransferKeyHeader
+    public class RsaEncryptedRecipientTransferKeyHeader
     {
         public UInt32 PublicKeyCrc { get; set; }
 

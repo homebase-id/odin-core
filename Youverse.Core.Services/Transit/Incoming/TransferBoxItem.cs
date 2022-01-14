@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Transit.Inbox
+namespace Youverse.Core.Services.Transit.Incoming
 {
-    public class InboxItem
+    public class TransferBoxItem
     {
-        public InboxItem()
+        public TransferBoxItem()
         {
             this.Id = Guid.NewGuid();
         }

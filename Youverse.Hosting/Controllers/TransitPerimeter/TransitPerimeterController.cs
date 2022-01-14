@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
             
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = JsonConvert.DeserializeObject<EncryptedRecipientTransferKeyHeader>(json);
+            var transferKeyHeader = JsonConvert.DeserializeObject<RsaEncryptedRecipientTransferKeyHeader>(json);
 
             Guard.Argument(transferKeyHeader, nameof(transferKeyHeader)).NotNull();
             Guard.Argument(transferKeyHeader!.PublicKeyCrc, nameof(transferKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
