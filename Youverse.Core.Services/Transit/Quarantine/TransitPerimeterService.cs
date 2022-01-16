@@ -1,13 +1,14 @@
+using Dawn;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit.Audit;
+using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Transit.Quarantine.Filter;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
@@ -15,281 +16,143 @@ namespace Youverse.Core.Services.Transit.Quarantine
     {
         private readonly DotYouContext _context;
         private readonly ITransitService _transitService;
-        private readonly IDriveService _fileDrive;
-        private readonly IDictionary<Guid, IncomingFileTracker> _fileTrackers;
-        private readonly ITransitQuarantineService _quarantineService;
-        private readonly IAppService _appService;
+        private readonly IAppRegistrationService _appRegService;
+        private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
 
         public TransitPerimeterService(
             DotYouContext context,
             ILogger<ITransitPerimeterService> logger,
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
-            ITransitQuarantineService quarantineService,
-            IDriveService fileDrive, IAppService appService) : base(auditWriter)
+            IAppRegistrationService appRegService, 
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService) : base(auditWriter)
         {
             _context = context;
             _transitService = transitService;
-            _quarantineService = quarantineService;
-            _fileDrive = fileDrive;
-            _appService = appService;
-            _fileTrackers = new Dictionary<Guid, IncomingFileTracker>();
+            _appRegService = appRegService;
+            _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
         }
 
-        public async Task<Guid> CreateFileTracker(uint transferPublicKeyCrc)
+        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
         {
-            var file = _fileDrive.CreateFileId(_context.TransitContext.DriveId);
-            var id = await this.AuditWriter.CreateAuditTrackerId();
+            Guard.Argument(rsaKeyHeader, nameof(rsaKeyHeader)).NotNull();
+            Guard.Argument(rsaKeyHeader!.PublicKeyCrc, nameof(rsaKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
+            Guard.Argument(rsaKeyHeader.EncryptedAesKey.Length, nameof(rsaKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
 
-            var tracker = new IncomingFileTracker(
-                id: id,
-                tempFile: file,
-                publicKeyCrc: transferPublicKeyCrc);
+            if (!await _appRegService.IsValidPublicKey(_context.TransitContext.AppId, rsaKeyHeader.PublicKeyCrc))
+            {
+                throw new TransitException("Invalid Public Key CRC provided");
+            }
 
-            _fileTrackers.Add(id, tracker);
-
-            return id;
+            return await _transitPerimeterTransferStateService.CreateTransferStateItem(rsaKeyHeader);
         }
 
-        public async Task<AddPartResponse> ApplyFirstStageFilter(Guid fileId, MultipartHostTransferParts part, Stream data)
+        public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
         {
-            var tracker = GetTrackerOrFail(fileId);
-
-            if (tracker.HasAcquiredRejectedPart())
+            var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
+            
+            if (item.HasAcquiredRejectedPart())
             {
                 throw new HostToHostTransferException("Corresponding part has been rejected");
             }
 
-            if (tracker.HasAcquiredQuarantinedPart())
+            if (item.HasAcquiredQuarantinedPart())
             {
                 //quarantine the rest
-                return await QuarantinePart(tracker, part, data);
+                await _transitPerimeterTransferStateService.Quarantine(item.Id, part, data);
             }
 
-            var filterResponse = await _quarantineService.ApplyFirstStageFilters(tracker.Id, part, data);
+            var filterResponse = await ApplyFilters(part, data);
 
-            switch (filterResponse.Code)
+            switch (filterResponse)
             {
-                case FinalFilterAction.Accepted:
-                    return await AcceptPart(tracker, part, data);
+                case FilterAction.Accept:
+                    await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, data);
+                    break;
 
-                case FinalFilterAction.QuarantinedPayload:
-                case FinalFilterAction.QuarantinedSenderNotConnected:
-                    return await QuarantinePart(tracker, part, data);
+                case FilterAction.Quarantine:
+                    await _transitPerimeterTransferStateService.Quarantine(item.Id, part, data);
+                    break;
 
-                case FinalFilterAction.Rejected:
+                case FilterAction.Reject:
                 default:
-                    return RejectPart(tracker, part, data);
+                    await _transitPerimeterTransferStateService.Reject(item.Id, part);
+                    break;
             }
+
+            return new AddPartResponse()
+            {
+                FilterAction = filterResponse
+            };
         }
 
-        public bool IsFileValid(Guid fileId)
+        public async Task<bool> IsFileValid(Guid transferStateItemId)
         {
-            return _fileTrackers[fileId].IsCompleteAndValid();
+            var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
+            return item.IsCompleteAndValid();
         }
 
-        public Task<CollectiveFilterResult> FinalizeTransfer(Guid trackerId)
+        public async Task<FilterAction> FinalizeTransfer(Guid transferStateItemId)
         {
-            var tracker = GetTrackerOrFail(trackerId);
+            var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
-            if (tracker.HasAcquiredQuarantinedPart())
+            if (item.HasAcquiredQuarantinedPart())
             {
                 //TODO: how do i know which filter quarantined it??
-
-                //_quarantineService.QuarantinePart(trackerId);
-
-                var result = new CollectiveFilterResult()
-                {
-                    Code = FinalFilterAction.QuarantinedPayload,
-                    Message = ""
-                };
-
-                return Task.FromResult(result);
+                return FilterAction.Quarantine;
             }
 
-            if (tracker.HasAcquiredRejectedPart())
+            if (item.HasAcquiredRejectedPart())
             {
-                var result = new CollectiveFilterResult()
-                {
-                    Code = FinalFilterAction.Rejected,
-                    Message = ""
-                };
-
-                AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Rejected);
-                return Task.FromResult(result);
+                return FilterAction.Reject;
             }
 
-            if (tracker.IsCompleteAndValid())
+            if (item.IsCompleteAndValid())
             {
-                _transitService.AcceptTransfer(tracker.Id, tracker.TempFile, tracker.PublicKeyCrc);
-
-                var result = new CollectiveFilterResult()
-                {
-                    Code = FinalFilterAction.Accepted,
-                    Message = ""
-                };
-
-                return Task.FromResult(result);
+                await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
+                return FilterAction.Accept;
             }
-            
+
             throw new HostToHostTransferException("Unhandled error");
         }
 
         public async Task<TransitPublicKey> GetTransitPublicKey()
         {
-            var tpk = await _appService.GetTransitPublicKey(_context.TransitContext.AppId);
+            var tpk = await _appRegService.GetTransitPublicKey(_context.TransitContext.AppId);
             return tpk;
         }
 
-        private IncomingFileTracker GetTrackerOrFail(Guid trackerId)
+        private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)
         {
-            if (!_fileTrackers.TryGetValue(trackerId, out var marker))
+            //TODO: when this has the full set of filters
+            // applied, we need to spawn into multiple
+            // threads/tasks so we don't cause a long delay
+            // of deciding on incoming data
+
+            //TODO: will need to come from a configuration list
+            var filters = new List<ITransitStreamFilter>()
             {
-                throw new InvalidDataException("Invalid tracker Id");
-            }
-
-            return marker;
-        }
-
-        private AddPartResponse RejectPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
-        {
-            //Note: we remove all temp files if a single part is rejected
-            _fileDrive.DeleteTempFiles(tracker.TempFile);
-
-            this.AuditWriter.WriteEvent(tracker.Id, TransitAuditEvent.Rejected);
-            //do nothing with the stream since it's bad
-            return new AddPartResponse()
-            {
-                FilterAction = FilterAction.Reject
-            };
-        }
-
-        private async Task<AddPartResponse> QuarantinePart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
-        {
-            //TODO: move all other file parts to quarantine.
-
-            await _quarantineService.QuarantinePart(tracker.Id, part, data);
-            return new AddPartResponse()
-            {
-                FilterAction = FilterAction.Quarantine,
-            };
-        }
-
-        private async Task<AddPartResponse> AcceptPart(IncomingFileTracker tracker, MultipartHostTransferParts part, Stream data)
-        {
-            await _fileDrive.WriteTempStream(tracker.TempFile, part.ToString(), data);
-
-            var result = new AddPartResponse()
-            {
-                FilterAction = FilterAction.Accept
+                new MustBeConnectedContactFilter()
             };
 
-            tracker.SetAccepted(part);
-
-            return result;
-        }
-
-        private struct PartState
-        {
-            /// <summary>
-            /// Specifies the part has been provided to the perimeter service
-            /// </summary>
-            public bool IsAcquired;
-
-            /// <summary>
-            /// Specifies the result of the filter applied to the part
-            /// </summary>
-            public FilterAction FilterResult;
-
-            public bool IsValid()
+            var context = new FilterContext()
             {
-                return IsAcquired && FilterResult == FilterAction.Accept;
-            }
+                Sender = this._context.Caller.DotYouId,
+                AppId = ""
+            };
 
-            public bool IsRejected()
+            //TODO: this should be executed in parallel
+            foreach (var filter in filters)
             {
-                return this.IsAcquired && this.FilterResult == FilterAction.Reject;
-            }
+                var result = await filter.Apply(context, part, data);
 
-            public bool IsQuarantined()
-            {
-                return this.IsAcquired && this.FilterResult == FilterAction.Quarantine;
-            }
-
-            public void SetValid()
-            {
-                this.FilterResult = FilterAction.Accept;
-                this.IsAcquired = true;
-            }
-        }
-
-        private class IncomingFileTracker
-        {
-            public IncomingFileTracker(Guid id, UInt32 publicKeyCrc, DriveFileId tempFile)
-            {
-                Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
-                Guard.Argument(publicKeyCrc, nameof(publicKeyCrc)).NotEqual<UInt32>(0);
-                Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
-
-                this.Id = id;
-                this.PublicKeyCrc = publicKeyCrc;
-                this.TempFile = tempFile;
-            }
-
-            /// <summary>
-            /// The CRC of the Transit public key used when receiving this transfer
-            /// </summary>
-            public uint PublicKeyCrc { get; set; }
-
-            /// <summary>
-            /// The id of this tracker
-            /// </summary>
-            public Guid Id { get; init; }
-
-            public DriveFileId TempFile { get; set; }
-
-            public PartState HeaderState;
-            public PartState MetadataState;
-            public PartState PayloadState;
-
-            public void SetAccepted(MultipartHostTransferParts part)
-            {
-                switch (part)
+                if (result.Recommendation == FilterAction.Reject)
                 {
-                    case MultipartHostTransferParts.TransferKeyHeader:
-                        HeaderState.SetValid();
-                        break;
-
-                    case MultipartHostTransferParts.Metadata:
-                        MetadataState.SetValid();
-                        break;
-
-                    case MultipartHostTransferParts.Payload:
-                        PayloadState.SetValid();
-                        break;
+                    return FilterAction.Reject;
                 }
             }
 
-            /// <summary>
-            /// Indicates if the marker has at least one part that's been rejected by a filter
-            /// </summary>
-            public bool HasAcquiredRejectedPart()
-            {
-                return HeaderState.IsRejected() || MetadataState.IsRejected() || PayloadState.IsRejected();
-            }
-
-            /// <summary>
-            /// Indicates if the marker has at least one part that's been quarantined by a filter
-            /// </summary>
-            public bool HasAcquiredQuarantinedPart()
-            {
-                return HeaderState.IsQuarantined() || MetadataState.IsQuarantined() || PayloadState.IsQuarantined();
-            }
-
-            public bool IsCompleteAndValid()
-            {
-                return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
-            }
+            return FilterAction.Accept;
         }
     }
 }

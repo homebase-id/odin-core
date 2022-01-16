@@ -257,6 +257,7 @@ namespace Youverse.Core.Services.Drive
         public async Task StoreLongTerm(KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
             //TODO: this method is so hacky 🤢
+
             var file = metadata.File;
 
             await this.WriteKeyHeader(file, keyHeader);

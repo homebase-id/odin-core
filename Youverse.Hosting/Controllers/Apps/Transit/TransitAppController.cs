@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
@@ -10,13 +11,13 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
-    [Route("/api/transit/quarantine")]
+    [Route(AppApiPathConstants.TransitV1 + "/app")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
-    public class QuarantineController : ControllerBase
+    public class TransitAppController : ControllerBase
     {
-        private readonly ITransitQuarantineService _svc;
+        private readonly ITransitAppService _svc;
 
-        public QuarantineController(ITransitQuarantineService svc)
+        public TransitAppController(ITransitAppService svc)
         {
             _svc = svc;
         }

@@ -1,16 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Newtonsoft.Json;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -27,12 +23,11 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     public class TransitPerimeterController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;
-        private readonly ITransitQuarantineService _quarantineService;
+        private Guid _stateItemId;
 
-        public TransitPerimeterController(ITransitPerimeterService perimeterService, ITransitQuarantineService quarantineService)
+        public TransitPerimeterController(ITransitPerimeterService perimeterService)
         {
             _perimeterService = perimeterService;
-            _quarantineService = quarantineService;
         }
 
         [HttpGet("tpk")]
@@ -56,25 +51,23 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
             var section = await reader.ReadNextSectionAsync();
 
-            var trackerId = await ProcessTransferKeyHeader(section);
+            this._stateItemId = await ProcessTransferKeyHeader(section);
 
             // 
-            
-            section = await reader.ReadNextSectionAsync();
-            await ProcessMetadataSection(trackerId, section);
+
+            await ProcessMetadataSection(await reader.ReadNextSectionAsync());
 
             //
-            
-            section = await reader.ReadNextSectionAsync();
-            await ProcessPayloadSection(trackerId, section);
 
-            if (!_perimeterService.IsFileValid(trackerId))
+            await ProcessPayloadSection(await reader.ReadNextSectionAsync());
+
+            if (!await _perimeterService.IsFileValid(_stateItemId))
             {
                 throw new HostToHostTransferException("Transfer does not contain all required parts.");
             }
 
-            var result = await _perimeterService.FinalizeTransfer(trackerId);
-            if (result.Code == FinalFilterAction.Rejected)
+            var result = await _perimeterService.FinalizeTransfer(this._stateItemId);
+            if (result == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
                 throw new HostToHostTransferException("Transmission Aborted");
@@ -82,38 +75,24 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
             return new JsonResult(result);
         }
-        
+
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-            
+
             string json = await new StreamReader(section.Body).ReadToEndAsync();
             var transferKeyHeader = JsonConvert.DeserializeObject<RsaEncryptedRecipientTransferKeyHeader>(json);
 
-            Guard.Argument(transferKeyHeader, nameof(transferKeyHeader)).NotNull();
-            Guard.Argument(transferKeyHeader!.PublicKeyCrc, nameof(transferKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
-            Guard.Argument(transferKeyHeader.EncryptedAesKey.Length, nameof(transferKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
-
-            var trackerId = await _perimeterService.CreateFileTracker(transferKeyHeader.PublicKeyCrc);
-
-            //Note: not a fan of building another stream but its safer than seeking along the existing stream. (that or i'm tired)
-            var restream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
-            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.TransferKeyHeader, restream);
-            if (response.FilterAction == FilterAction.Reject)
-            {
-                HttpContext.Abort(); //TODO:does this abort also kill the response?
-                throw new HostToHostTransferException("Transmission Aborted");
-            }
-
-            return trackerId;
+            var transferStateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
+            return transferStateItemId;
         }
 
-        private async Task ProcessMetadataSection(Guid trackerId, MultipartSection section)
+        private async Task ProcessMetadataSection(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.Metadata);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.Metadata, section.Body);
+            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Metadata, section.Body);
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -121,12 +100,12 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             }
         }
 
-        private async Task ProcessPayloadSection(Guid trackerId, MultipartSection section)
+        private async Task ProcessPayloadSection(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.Payload);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-            var response = await _perimeterService.ApplyFirstStageFilter(trackerId, MultipartHostTransferParts.Payload, section.Body);
+            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Payload, section.Body);
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -141,7 +120,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 throw new HostToHostTransferException($"Part must be {Enum.GetName(expectedPart)}");
             }
         }
-        
+
         private static bool IsMultipartContentType(string contentType)
         {
             return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;

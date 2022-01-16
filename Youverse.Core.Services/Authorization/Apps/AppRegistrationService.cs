@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
@@ -17,6 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     {
         private const string AppRegistrationStorageName = "ars";
         private const string AppClientRegistrationStorageName = "adrs";
+        private const string AppRsaKeyList = "arsa";
 
         private readonly DotYouContext _context;
         private readonly ISystemStorage _systemStorage;
@@ -188,7 +190,57 @@ namespace Youverse.Core.Services.Authorization.Apps
             var redactedList = apps.Results.Select(ToAppRegistrationResponse).ToList();
             return new PagedResult<AppRegistrationResponse>(pageOptions, apps.TotalPages, redactedList);
         }
+        
+        public async Task<TransitPublicKey> GetTransitPublicKey(Guid appId)
+        {
+            var rsaKeyList = await this.GetRsaKeyList(appId);
+            var appKey = Guid.Empty.ToByteArray(); 
+            var key = RsaKeyListManagement.GetCurrentKey(appKey.ToSensitiveByteArray(), ref rsaKeyList, out var keyListWasUpdated); // TODO
 
+            if (keyListWasUpdated)
+            {
+                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
+            }
+
+            return new TransitPublicKey
+            {
+                AppId = appId,
+                PublicKey = key.publicKey,
+                Expiration = key.expiration,
+                Crc = key.crc32c
+            };
+        }
+
+        public async Task<bool> IsValidPublicKey(Guid appId, uint crc)
+        {
+            var rsaKeyList = await this.GetRsaKeyList(appId);
+            var appKey = Guid.Empty.ToByteArray();
+            
+            var key = RsaKeyListManagement.FindKey(rsaKeyList, crc);
+            return null != key;
+        }
+        
+        public async Task<RsaKeyListData> GetRsaKeyList(Guid appId)
+        {
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaKeyListData>(AppRsaKeyList, s => s.Get(appId));
+
+            if (result == null)
+            {
+                const int maxKeys = 4; //leave this size 
+
+                //TODO: need the app key
+                var appKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(appKey, maxKeys); // TODO
+                rsaKeyList.Id = appId;
+
+                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
+
+                result = rsaKeyList;
+            }
+
+            return result;
+        }
+        
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
         {
             //NOTE: we're not sharing the encrypted app dek, this is crucial

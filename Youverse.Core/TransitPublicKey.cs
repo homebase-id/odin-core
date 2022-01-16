@@ -5,7 +5,7 @@ namespace Youverse.Core
 {
     public class TransitPublicKey
     {
-        public Guid Id { get; set; }
+        public Guid AppId { get; set; }
         public byte[] PublicKey { get; set; }
         public UInt64 Expiration { get; set; }
         public UInt32 Crc { get; set; }

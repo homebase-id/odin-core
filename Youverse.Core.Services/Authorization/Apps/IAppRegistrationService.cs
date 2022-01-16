@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -68,5 +69,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="pageOptions"></param>
         /// <returns></returns>
         Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions);
+
+        Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
+        
+        Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
+
+        Task<RsaKeyListData> GetRsaKeyList(Guid appId);
+
     }
 }

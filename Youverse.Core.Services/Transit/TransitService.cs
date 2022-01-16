@@ -27,13 +27,13 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly IDriveService _driveService;
         private readonly IOutboxService _outboxService;
-        private readonly ITransferBoxService _transferBoxService;
+        private readonly ITransitBoxService _transitBoxService;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContext _context;
         private readonly ILogger<TransitService> _logger;
         private readonly ISystemStorage _systemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        
+
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit
             IDriveService driveService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitAuditWriterService auditWriter,
-            ITransferBoxService transferBoxService,
+            ITransitBoxService transitBoxService,
             ISystemStorage systemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory) : base(auditWriter)
         {
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Transit
             _outboxService = outboxService;
             _driveService = driveService;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
-            _transferBoxService = transferBoxService;
+            _transitBoxService = transitBoxService;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _logger = logger;
@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Transit
             {
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
-            
+
             //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
             await _driveService.StoreLongTerm(keyHeader, metadata, MultipartUploadParts.Payload.ToString());
@@ -83,24 +83,22 @@ namespace Youverse.Core.Services.Transit
             return tx;
         }
 
-        public void AcceptTransfer(Guid trackerId, DriveFileId file, uint publicKeyCrc)
+        public async Task AcceptTransfer(DriveFileId file, uint publicKeyCrc)
         {
-            this.AuditWriter.WriteEvent(trackerId, TransitAuditEvent.Accepted);
-
             _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
 
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
+                AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 Sender = this._context.Caller.DotYouId,
                 AppId = this._context.TransitContext.AppId, //Note: best to use the appId in from transit context since it's been verified
                 TempFile = file,
-                TrackerId = trackerId,
                 PublicKeyCrc = publicKeyCrc
             };
 
             //Note: the inbox service will send the notification
-            _transferBoxService.Add(item);
+            await _transitBoxService.Add(item);
         }
 
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
@@ -115,29 +113,29 @@ namespace Youverse.Core.Services.Transit
             }
 
             var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetClientSharedSecret().GetKey(), package.InstructionSet.TransferIv);
-            var descriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
-            var transferEncryptedKeyHeader = descriptor!.EncryptedKeyHeader;
+            var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
+            var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
             if (null == transferEncryptedKeyHeader)
             {
                 throw new UploadException("Invalid transfer key header");
             }
-            
+
             var sharedSecret = _context.AppContext.GetClientSharedSecret().GetKey();
             var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
 
             var metadata = new FileMetadata(package.File)
             {
-                ContentType = descriptor.FileMetadata.ContentType,
+                ContentType = uploadDescriptor.FileMetadata.ContentType,
 
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = descriptor.FileMetadata.AppData.CategoryId,
-                    JsonContent = descriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = descriptor.FileMetadata.AppData.ContentIsComplete
+                    CategoryId = uploadDescriptor.FileMetadata.AppData.CategoryId,
+                    JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
                 }
             };
-            
+
             return (keyHeader, metadata);
         }
 
@@ -155,7 +153,7 @@ namespace Youverse.Core.Services.Transit
             await _outboxService.Add(recipients.Select(r => new OutboxItem()
             {
                 File = package.File,
-                Recipient = (DotYouIdentity)r,
+                Recipient = (DotYouIdentity) r,
                 AppId = this._context.AppContext.AppId,
                 AppClientId = this._context.AppContext.AppClientId
             }));
@@ -173,7 +171,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var r in package.InstructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity)r;
+                var recipient = (DotYouIdentity) r;
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue

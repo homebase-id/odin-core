@@ -14,30 +14,28 @@ namespace Youverse.Core.Services.Transit.Quarantine
     public interface ITransitPerimeterService
     {
         /// <summary>
-        /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="ApplyFirstStageFilter"/>
+        /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="ApplyFirstStageFiltering"/>
         /// </summary>
-        /// <param name="transferPublicKeyCrc">The CRC value of the public key used by the sender</param>
+        /// <param name="rsaKeyHeader"></param>
         /// <returns></returns>
-        Task<Guid> CreateFileTracker(uint transferPublicKeyCrc);
+        Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader);
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler
         /// </summary>
         /// <returns></returns>
-        Task<AddPartResponse> ApplyFirstStageFilter(Guid fileId, MultipartHostTransferParts part, Stream data);
+        Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data);
 
         /// <summary>
         /// Indicates if the file has all required parts and all parts are valid
         /// </summary>
-        /// <param name="fileId"></param>
         /// <returns></returns>
-        bool IsFileValid(Guid fileId);
-        
+        Task<bool> IsFileValid(Guid transferStateItemId);
+
         /// <summary>
         /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
-        /// <param name="fileId"></param>
-        Task<CollectiveFilterResult> FinalizeTransfer(Guid fileId);
+        Task<FilterAction> FinalizeTransfer(Guid transferStateItemId);
 
 
         /// <summary>

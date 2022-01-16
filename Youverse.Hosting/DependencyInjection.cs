@@ -77,14 +77,17 @@ namespace Youverse.Hosting
             cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
-            cb.RegisterType<TransferBoxService>().As<ITransferBoxService>().SingleInstance();
+            cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
             cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>().SingleInstance();
             cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>().SingleInstance();
+            
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
+            cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
-            cb.RegisterType<TransitQuarantineService>().As<ITransitQuarantineService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
+            cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
+            
             cb.RegisterType<DemoDataGenerator>().SingleInstance();
 
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
