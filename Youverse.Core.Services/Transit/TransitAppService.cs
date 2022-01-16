@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
@@ -14,8 +16,6 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitAppService : ITransitAppService
     {
-        private readonly string _rsaKeyStoragePrefix = "tk";
-
         private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
         private readonly ISystemStorage _systemStorage;
@@ -32,45 +32,47 @@ namespace Youverse.Core.Services.Transit
             _transitBoxService = transitBoxService;
         }
 
-        public async Task WriteTransferKeyHeaderAsLongTerm(DriveFileId file, RsaEncryptedRecipientTransferKeyHeader header)
+        public async Task StoreLongTerm(DriveFileId file)
         {
+            var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+
             var appId = _context.AppContext.AppId;
             var appKey = _context.AppContext.GetAppKey();
 
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
-            var pk = RsaKeyListManagement.FindKey(keys, header.PublicKeyCrc);
+            var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
 
             if (pk == null)
             {
                 throw new YouverseSecurityException("Invalid public key");
             }
 
-            var decryptedBytes = pk.Decrypt(appKey, header.EncryptedAesKey).ToSensitiveByteArray(); // TODO
-            var keyHeader = KeyHeader.FromCombinedBytes(decryptedBytes.GetKey(), 16, 16);
-            decryptedBytes.Wipe();
+            var decryptedPrivateKey = pk.Decrypt(appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray(); // TODO
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedPrivateKey.GetKey(), 16, 16);
+            decryptedPrivateKey.Wipe();
 
-            await _driveService.StoreLongTerm(keyHeader, metadata,);
-            await _driveService.WriteKeyHeader(file, keyHeader);
+            //TODO: this deserialization would be better int he drive service under the name GetTempMetadata or something
+            var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var json = await new StreamReader(metadataStream).ReadToEndAsync();
+            metadataStream.Close();
+            var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
+
+            await _driveService.StoreLongTerm(keyHeader, metadata, MultipartHostTransferParts.Payload.ToString().ToString());
         }
 
         public async Task ProcessRecentTransfers()
         {
+            //TODO: perform these in parallel
             var items = await GetAcceptedItems(PageOptions.All);
             foreach (var item in items.Results)
             {
-                var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(item.TempFile, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
-
-                await WriteTransferKeyHeaderAsLongTerm(item.TempFile, rsaKeyHeader);
-                var keyHeader =
-
-                    //TODO: move payload and metadata to long term storage
-                    await _driveService.StoreLongTerm(keyHeader, metadata, PayloadExtension);
+                await StoreLongTerm(item.TempFile);
             }
         }
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            return await _transitBoxService.GetPendingItems(pageOptions)
+            return await _transitBoxService.GetPendingItems(pageOptions);
         }
 
         public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)

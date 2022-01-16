@@ -15,14 +15,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         private const string OutboxRootEndPoint = ClientRootEndpoint + "/outbox";
         private const string TransitRootEndpoint = "/api/apps/v1/transit";
         
-        [Multipart]
-        [Post(ClientRootEndpoint + "/sendpackage")]
-        Task<ApiResponse<UploadResult>> SendFile(
-            [AliasAs("tekh")] StreamPart transferEncryptedKeyHeader,
-            [AliasAs("recipients")] StreamPart recipientList,
-            [AliasAs("metaData")] StreamPart metaData,
-            [AliasAs("payload")] StreamPart payload);
-
         
         [Multipart]
         [Post(TransitRootEndpoint + "/upload")]

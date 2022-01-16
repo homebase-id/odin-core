@@ -1,16 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {

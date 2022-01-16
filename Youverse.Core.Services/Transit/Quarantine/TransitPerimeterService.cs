@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ILogger<ITransitPerimeterService> logger,
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
-            IAppRegistrationService appRegService, 
+            IAppRegistrationService appRegService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService) : base(auditWriter)
         {
             _context = context;
@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-            
+
             if (item.HasAcquiredRejectedPart())
             {
                 throw new HostToHostTransferException("Corresponding part has been rejected");
@@ -99,17 +99,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
             if (item.HasAcquiredQuarantinedPart())
             {
                 //TODO: how do i know which filter quarantined it??
+                await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return FilterAction.Quarantine;
             }
 
             if (item.HasAcquiredRejectedPart())
             {
+                await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return FilterAction.Reject;
             }
 
             if (item.IsCompleteAndValid())
             {
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
+                await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return FilterAction.Accept;
             }
 

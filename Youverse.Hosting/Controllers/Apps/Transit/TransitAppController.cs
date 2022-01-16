@@ -15,11 +15,17 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class TransitAppController : ControllerBase
     {
-        private readonly ITransitAppService _svc;
+        private readonly ITransitAppService _transitAppService;
 
-        public TransitAppController(ITransitAppService svc)
+        public TransitAppController(ITransitAppService transitAppService)
         {
-            _svc = svc;
+            _transitAppService = transitAppService;
+        }
+
+        [HttpPost("process")]
+        public async Task ProcessTransfers()
+        {
+            await _transitAppService.ProcessRecentTransfers();
         }
 
         [HttpGet]

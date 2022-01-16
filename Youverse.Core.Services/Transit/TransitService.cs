@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography.Crypto;
@@ -17,9 +16,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -94,7 +91,8 @@ namespace Youverse.Core.Services.Transit
                 Sender = this._context.Caller.DotYouId,
                 AppId = this._context.TransitContext.AppId, //Note: best to use the appId in from transit context since it's been verified
                 TempFile = file,
-                PublicKeyCrc = publicKeyCrc
+                PublicKeyCrc = publicKeyCrc,
+                Priority = 0 //TODO
             };
 
             //Note: the inbox service will send the notification
