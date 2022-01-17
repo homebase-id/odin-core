@@ -7,6 +7,11 @@ namespace Youverse.Core.Services.Transit.Incoming
 {
     public class IncomingTransferStateItem
     {
+        public IncomingTransferStateItem()
+        {
+            //for LiteDB
+        }
+
         public IncomingTransferStateItem(Guid id, DriveFileId tempFile)
         {
             Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
@@ -14,21 +19,25 @@ namespace Youverse.Core.Services.Transit.Incoming
 
             this.Id = id;
             this.TempFile = tempFile;
+
+            this.HeaderState = new();
+            this.MetadataState = new();
+            this.PayloadState = new();
         }
 
         public Guid Id { get; init; }
-        
+
         /// <summary>
         /// The CRC of the Transit public key used when receiving this transfer
         /// </summary>
         public uint PublicKeyCrc { get; set; }
-        
+
         public DriveFileId TempFile { get; set; }
 
         public PartState HeaderState { get; set; }
-        public PartState MetadataState{ get; set; }
-        public PartState PayloadState{ get; set; }
-        
+        public PartState MetadataState { get; set; }
+        public PartState PayloadState { get; set; }
+
         public void SetFilterState(MultipartHostTransferParts part, FilterAction state)
         {
             switch (part)
@@ -67,18 +76,18 @@ namespace Youverse.Core.Services.Transit.Incoming
         {
             return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
         }
-        
-        public struct PartState
+
+        public class PartState
         {
             /// <summary>
             /// Specifies the part has been provided to the perimeter service
             /// </summary>
-            public bool IsAcquired;
+            public bool IsAcquired { get; set; }
 
             /// <summary>
             /// Specifies the result of the filter applied to the part
             /// </summary>
-            public FilterAction FilterResult;
+            public FilterAction FilterResult { get; set; }
 
             public bool IsValid()
             {
@@ -94,7 +103,7 @@ namespace Youverse.Core.Services.Transit.Incoming
             {
                 return this.IsAcquired && this.FilterResult == FilterAction.Quarantine;
             }
-            
+
             public void SetFilterState(FilterAction state)
             {
                 this.FilterResult = state;

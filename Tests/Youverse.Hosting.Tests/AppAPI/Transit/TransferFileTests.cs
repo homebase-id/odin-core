@@ -176,7 +176,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
-                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
@@ -191,7 +191,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(singleItem);
                 Assert.IsTrue(singleItem.Id == items.Results.First().Id);
                 
-                await svc.ProcessIncoming();
+                await svc.ProcessTransfers();
 
                 // //
                 //

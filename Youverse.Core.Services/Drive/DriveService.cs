@@ -254,11 +254,11 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
         }
 
-        public async Task StoreLongTerm(KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
+        public async Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
             //TODO: this method is so hacky 🤢
 
-            var file = metadata.File;
+            metadata.File = file;
 
             await this.WriteKeyHeader(file, keyHeader);
             await this.WriteMetaData(file, metadata);

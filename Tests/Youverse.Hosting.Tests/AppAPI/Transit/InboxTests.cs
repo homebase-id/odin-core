@@ -35,17 +35,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         {
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
+            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
             
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
-                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
                 var items = itemsResponse.Content;
                 Assert.IsNotNull(items);
-                Assert.IsTrue(items.Results.Count > 0); //TODO: need to actually check for an accurate count
+                Assert.IsTrue(items.Results.Count > 0); //TODO: need to actually check for an exact count
             }
         }
 
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
-                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
@@ -84,7 +84,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
-                var svc = RestService.For<ITransitTestInboxHttpClient>(client);
+                var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);

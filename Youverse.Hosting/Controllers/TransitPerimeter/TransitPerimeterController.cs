@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             }
 
             var result = await _perimeterService.FinalizeTransfer(this._stateItemId);
-            if (result == FilterAction.Reject)
+            if (result.Code == TransitResponseCode.Rejected)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
                 throw new HostToHostTransferException("Transmission Aborted");

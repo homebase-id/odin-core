@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
-        Task<FilterAction> FinalizeTransfer(Guid transferStateItemId);
+        Task<HostTransferResponse> FinalizeTransfer(Guid transferStateItemId);
 
 
         /// <summary>

@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Drive
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>
-        Task StoreLongTerm(KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
+        Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
         
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
@@ -121,8 +121,7 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         Task DeleteLongTermFile(DriveFileId file);
-
-
+        
         Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
 
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);

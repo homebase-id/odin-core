@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Encryption;
+
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
@@ -18,23 +14,18 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// </summary>
         /// <param name="item"></param>
         Task Add(TransferBoxItem item);
-        
+
         /// <summary>
         /// Gets a list of all items
         /// </summary>
         /// <returns></returns>
-        Task<PagedResult<TransferBoxItem>> GetPendingItems(PageOptions pageOptions);
+        Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid appId, PageOptions pageOptions);
 
-        /// <summary>
-        /// Removes the Inbox item for the given recipient and file
-        /// </summary>
-        Task Remove(DotYouIdentity recipient, DriveFileId file);
-
-        Task<TransferBoxItem> GetItem(Guid id);
+        Task<TransferBoxItem> GetItem(Guid appId, Guid id);
 
         /// <summary>
         /// Removes an item from the Inbox.
         /// </summary>
-        Task RemoveItem(Guid id);
+        Task Remove(Guid appId, Guid id);
     }
 }

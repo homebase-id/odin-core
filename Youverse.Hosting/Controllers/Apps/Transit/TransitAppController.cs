@@ -1,12 +1,12 @@
 ﻿using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
@@ -23,9 +23,10 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
         }
 
         [HttpPost("process")]
-        public async Task ProcessTransfers()
+        public async Task<IActionResult> ProcessTransfers()
         {
             await _transitAppService.ProcessRecentTransfers();
+            return new JsonResult(true);
         }
 
         [HttpGet]

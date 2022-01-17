@@ -35,6 +35,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
             await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
+            item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
+
             this.Save(item);
 
             return id;

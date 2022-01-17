@@ -87,7 +87,9 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
-            
+
+            cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
+
             cb.RegisterType<DemoDataGenerator>().SingleInstance();
 
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();

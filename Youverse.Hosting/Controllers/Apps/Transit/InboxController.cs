@@ -10,35 +10,35 @@ using Youverse.Hosting.Authentication.App;
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
-    [Route(AppApiPathConstants.TransitV1 + "/transitbox")]
+    [Route(AppApiPathConstants.TransitV1 + "/inbox")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
-    public class TransitBoxController : ControllerBase
+    public class InboxController : ControllerBase
     {
-        private readonly ITransitBoxService _transitBox;
+        private readonly IInboxService _inboxService;
 
-        public TransitBoxController(ITransitService svc, ITransitBoxService transitBox)
+        public InboxController(IInboxService inboxService)
         {
-            _transitBox = transitBox;
+            _inboxService = inboxService;
         }
-        
+
         [HttpGet]
         public async Task<IActionResult> GetList(int pageNumber, int pageSize)
         {
-            var items = await _transitBox.GetPendingItems(new PageOptions(pageNumber, pageSize));
+            var items = await _inboxService.GetPendingItems(new PageOptions(pageNumber, pageSize));
             return new JsonResult(items);
         }
 
         [HttpGet("item")]
         public async Task<IActionResult> GetItem(Guid id)
         {
-            var items = await _transitBox.GetItem(id);
+            var items = await _inboxService.GetItem(id);
             return new JsonResult(items);
         }
 
         [HttpDelete("item")]
         public async Task<IActionResult> RemoveItem(Guid id)
         {
-            await _transitBox.RemoveItem(id);
+            await _inboxService.RemoveItem(id);
             return new JsonResult(true);
         }
     }

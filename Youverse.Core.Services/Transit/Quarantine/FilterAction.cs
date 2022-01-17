@@ -5,8 +5,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
     /// </summary>
     public enum FilterAction
     {
-        Accept = 0,
+        None = 0,
         Quarantine = 1,
         Reject = 2,
+        Accept = 5
     }
 }

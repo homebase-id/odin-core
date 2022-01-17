@@ -92,7 +92,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return item.IsCompleteAndValid();
         }
 
-        public async Task<FilterAction> FinalizeTransfer(Guid transferStateItemId)
+        public async Task<HostTransferResponse> FinalizeTransfer(Guid transferStateItemId)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -100,20 +100,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 //TODO: how do i know which filter quarantined it??
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return FilterAction.Quarantine;
+                return new HostTransferResponse() {Code = TransitResponseCode.QuarantinedPayload};
             }
 
             if (item.HasAcquiredRejectedPart())
             {
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return FilterAction.Reject;
+                return new HostTransferResponse() {Code = TransitResponseCode.Rejected};
             }
 
             if (item.IsCompleteAndValid())
             {
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return FilterAction.Accept;
+                return new HostTransferResponse() {Code = TransitResponseCode.Accepted};
             }
 
             throw new HostToHostTransferException("Unhandled error");

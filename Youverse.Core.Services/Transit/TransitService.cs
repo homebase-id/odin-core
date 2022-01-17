@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Transit
 
             //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
-            await _driveService.StoreLongTerm(keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+            await _driveService.StoreLongTerm(package.File, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
 
             var tx = new UploadResult()
             {
@@ -287,15 +287,38 @@ namespace Youverse.Core.Services.Transit
 
                 var transferKeyHeaderBytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(transferKeyHeader));
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+
+                
+                //TODO: need to pull out the extra details from file metadata (drive id and fileId, etc.)
                 var metaDataStream = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
+                
+                
+                
+                
                 var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
                 var client = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
-                var result = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
-                success = result.IsSuccessStatusCode;
+                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                success = response.IsSuccessStatusCode;
 
+                // var result = response.Content;
+                //
+                // switch (result.Code)
+                // {
+                //     case TransitResponseCode.Accepted:
+                //         break;
+                //     case TransitResponseCode.QuarantinedPayload:
+                //         break;
+                //     case TransitResponseCode.QuarantinedSenderNotConnected:
+                //         break;
+                //     case TransitResponseCode.Rejected:
+                //         break;
+                //     default:
+                //         throw new ArgumentOutOfRangeException();
+                // }
+                //
                 //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
                 if (!success)
                 {

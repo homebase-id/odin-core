@@ -426,12 +426,12 @@ namespace Youverse.Hosting.Tests
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
 
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (UploadTestUtilsContext) await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
@@ -450,7 +450,7 @@ namespace Youverse.Hosting.Tests
                 TransitOptions = null
             };
 
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (UploadTestUtilsContext) await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         /// <summary>
@@ -484,7 +484,7 @@ namespace Youverse.Hosting.Tests
                 {
                     CategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
@@ -493,13 +493,20 @@ namespace Youverse.Hosting.Tests
 
         public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
+            var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
+
+            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            {
+                throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+            }
+
             var testContext = await this.SetupTestSampleApp(identity);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity)r;
+                var recipient = (DotYouIdentity) r;
                 var ctx = await this.SetupTestSampleApp(testContext.AppId, recipient);
                 recipientContexts.Add(recipient, ctx);
             }
@@ -548,9 +555,25 @@ namespace Youverse.Hosting.Tests
                     }
                 }
 
-                if (options is { ProcessOutbox: true })
+                if (options is {ProcessOutbox: true})
                 {
                     await transitSvc.ProcessOutbox();
+                }
+
+
+                if (options is {ProcessTransitBox: true})
+                {
+                    //wait for process outbox to run
+                    Task.Delay(2000).Wait();
+
+                    foreach (var rCtx in recipientContexts)
+                    {
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
+                        {
+                            var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
+                            await transitAppSvc.ProcessTransfers();
+                        }
+                    }
                 }
             }
 

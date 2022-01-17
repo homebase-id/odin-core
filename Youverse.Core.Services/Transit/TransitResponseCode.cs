@@ -1,6 +1,6 @@
-namespace Youverse.Core.Services.Transit.Quarantine
+namespace Youverse.Core.Services.Transit
 {
-    public enum FinalFilterAction
+    public enum TransitResponseCode
     {
         Accepted = 2,
         QuarantinedPayload = 4,

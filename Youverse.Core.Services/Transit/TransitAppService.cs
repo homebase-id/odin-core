@@ -20,16 +20,18 @@ namespace Youverse.Core.Services.Transit
         private readonly IDriveService _driveService;
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
+        private readonly IInboxService _inboxService;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService)
+        public TransitAppService(IDriveService driveService, DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
         {
             _driveService = driveService;
             _context = context;
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
+            _inboxService = inboxService;
         }
 
         public async Task StoreLongTerm(DriveFileId file)
@@ -37,7 +39,8 @@ namespace Youverse.Core.Services.Transit
             var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
             var appId = _context.AppContext.AppId;
-            var appKey = _context.AppContext.GetAppKey();
+            //var appKey = _context.AppContext.GetAppKey(); //TODO: use appkey to encrypt
+            var appKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
 
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
@@ -57,7 +60,7 @@ namespace Youverse.Core.Services.Transit
             metadataStream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
 
-            await _driveService.StoreLongTerm(keyHeader, metadata, MultipartHostTransferParts.Payload.ToString().ToString());
+            await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString().ToString());
         }
 
         public async Task ProcessRecentTransfers()
@@ -67,12 +70,22 @@ namespace Youverse.Core.Services.Transit
             foreach (var item in items.Results)
             {
                 await StoreLongTerm(item.TempFile);
+                await _inboxService.Add(new InboxItem()
+                {
+                    Sender = item.Sender,
+                    AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                    AppId = item.AppId,
+                    File = item.TempFile,
+                    Priority = 0 //TODO
+                });
+                await _transitBoxService.Remove(item.AppId, item.Id);
             }
         }
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            return await _transitBoxService.GetPendingItems(pageOptions);
+            var appId = _context.AppContext.AppId;
+            return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }
 
         public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
