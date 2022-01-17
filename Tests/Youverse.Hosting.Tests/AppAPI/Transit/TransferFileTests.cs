@@ -38,14 +38,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanSendTransferAndSeeStatus()
         {
             var sender = TestIdentities.Frodo;
-            var recipients = new List<string>() { TestIdentities.Samwise };
+            var recipients = new List<string>() {TestIdentities.Samwise};
 
             var testContext = await _scaffold.SetupTestSampleApp(sender);
 
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
-                var recipient = (DotYouIdentity)r;
+                var recipient = (DotYouIdentity) r;
                 var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient);
                 recipientContexts.Add(recipient, ctx);
             }
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     {
                         CategoryId = Guid.Empty,
                         ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                        JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
                 },
             };
@@ -168,13 +168,26 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         // }
 
         [Test(Description = "")]
-        public async Task RecipientCanGetReceivedTransferFromDrive()
+        public async Task RecipientCanGetReceivedTransferFromDriveAndIsSearchable()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() { TestIdentities.Frodo };
-            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() { ProcessOutbox = true });
+            var recipients = new List<string>() {TestIdentities.Frodo};
+            var categoryId = Guid.NewGuid();
+            var message = "ping ping pong pong";
+            var jsonMessage = JsonConvert.SerializeObject(new {message = message});
+            var payloadText = "lets alllll prraayyy for this world";
 
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
+            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions()
+            {
+                ProcessOutbox = true,
+                ProcessTransitBox = true,
+                AppDataCategoryId = categoryId,
+                AppDataJsonContent = jsonMessage,
+                PayloadData = payloadText
+            });
+
+            var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -190,57 +203,69 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var singleItem = singleItemResponse.Content;
                 Assert.IsNotNull(singleItem);
                 Assert.IsTrue(singleItem.Id == items.Results.First().Id);
-                
-                await svc.ProcessTransfers();
 
-                // //
-                //
-                // var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
-                //
-                // var fileResponse = await driveSvc.GetFileHeader(singleItem.TempFile.FileId);
-                //
-                // Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
-                // Assert.That(fileResponse.Content, Is.Not.Null);
-                //
-                // var clientFileHeader = fileResponse.Content;
-                //
-                // Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
-                // Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
-                //
-                // Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                // Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.CategoryId));
-                // Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                // Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
-                //
-                // Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-                //
-                // var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
-                //
-                // Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                // var fileKey = decryptedKeyHeader.AesKey;
-                // Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-                //
-                // //get the payload and decrypt, then compare
-                // var payloadResponse = await driveSvc.GetPayload(fileId);
-                // Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
-                // Assert.That(payloadResponse.Content, Is.Not.Null);
-                //
-                // var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                // Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-                //
-                // var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
-                //     cipherText: payloadResponseCipher,
-                //     Key: decryptedKeyHeader.AesKey.GetKey(),
-                //     IV: decryptedKeyHeader.Iv);
-                //
-                // var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
-                // Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-                //
-                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+
+                var fileId = singleItem.File.FileId;
+
+                var fileHeaderResponse = await driveSvc.GetFileHeader(fileId);
+                Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(fileHeaderResponse.Content, Is.Not.Null);
+
+                var clientFileHeader = fileHeaderResponse.Content;
+
+                Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
+                Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
+
+                Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(utilsContext.FileMetadata.ContentType));
+                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(utilsContext.FileMetadata.AppData.CategoryId));
+                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(utilsContext.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(utilsContext.FileMetadata.AppData.ContentIsComplete));
+
+                Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+
+                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(recipientContext.AppSharedSecretKey);
+
+                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
+                var fileKey = decryptedKeyHeader.AesKey;
+                Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+
+                
+                //get the payload and decrypt, then compare
+                var payloadResponse = await driveSvc.GetPayload(fileId);
+                Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(payloadResponse.Content, Is.Not.Null);
+
+                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
+                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
+                    cipherText: payloadResponseCipher,
+                    Key: decryptedKeyHeader.AesKey.GetKey(),
+                    IV: decryptedKeyHeader.Iv);
+
+                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadText);
+                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+
+                //var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                
+                var driveQueryClient = RestService.For<IDriveQueryClient>(client);
+
+                var response = await driveQueryClient.GetItemsByCategory(categoryId, true, 1, 100);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var page = response.Content;
+                Assert.IsNotNull(page);
+
+                //TODO: what to test here?
+                Assert.IsTrue(page.Results.Any(item => item.CategoryId == categoryId));
+
+                Console.WriteLine($"Items with category: {categoryId}");
+                foreach (var item in page.Results)
+                {
+                    Console.WriteLine($"{item.CategoryId} {item.JsonContent}");
+                }
             }
         }
     }

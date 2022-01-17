@@ -20,5 +20,8 @@ namespace Youverse.Hosting.Tests.AppAPI
         /// The file meta data that was uploaded. 
         /// </summary>
         public UploadFileMetadata FileMetadata { get; set; }
+        
+        public string PayloadData { get; set; }
+
     }
 }

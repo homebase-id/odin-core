@@ -18,10 +18,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         Task<ApiResponse<bool>> ProcessTransfers();
 
         [Get(InboxRoot)]
-        Task<ApiResponse<PagedResult<TransferBoxItem>>> GetInboxItems(int pageNumber, int pageSize);
+        Task<ApiResponse<PagedResult<InboxItem>>> GetInboxItems(int pageNumber, int pageSize);
 
         [Get(InboxRoot + "/item")]
-        Task<ApiResponse<TransferBoxItem>> GetInboxItem(Guid id);
+        Task<ApiResponse<InboxItem>> GetInboxItem(Guid id);
 
         [Delete(InboxRoot + "/item")]
         Task<ApiResponse<bool>> RemoveInboxItem(Guid id);

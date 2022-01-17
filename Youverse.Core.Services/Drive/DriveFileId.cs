@@ -39,5 +39,17 @@ namespace Youverse.Core.Services.Drive
         {
             return this.DriveId.GetHashCode() + this.FileId.GetHashCode();
         }
+
+        public static DriveFileId Redacted()
+        {
+            //HACK
+            var g = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+            return new DriveFileId()
+            {
+                DriveId = g,
+                FileId = g
+            };
+        }
     }
 }

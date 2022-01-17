@@ -288,13 +288,14 @@ namespace Youverse.Core.Services.Transit
                 var transferKeyHeaderBytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(transferKeyHeader));
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                
-                //TODO: need to pull out the extra details from file metadata (drive id and fileId, etc.)
-                var metaDataStream = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Metadata), "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
-                
-                
-                
-                
+
+                //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
+                var metadata = await _driveService.GetMetadata(file);
+                metadata.File = DriveFileId.Redacted();
+                var json = JsonConvert.SerializeObject(metadata);
+                var stream = new MemoryStream(json.ToUtf8ByteArray());
+                var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
+
                 var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.

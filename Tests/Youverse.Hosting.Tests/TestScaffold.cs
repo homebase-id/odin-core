@@ -482,9 +482,9 @@ namespace Youverse.Hosting.Tests
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    CategoryId = Guid.Empty,
+                    CategoryId = options?.AppDataCategoryId ?? Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"}) 
                 }
             };
 
@@ -525,7 +525,7 @@ namespace Youverse.Hosting.Tests
 
             var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
 
-            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
             using (var client = this.CreateAppApiHttpClient(identity, testContext.AuthResult))
@@ -586,7 +586,8 @@ namespace Youverse.Hosting.Tests
                 AppSharedSecretKey = testContext.AppSharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
-                RecipientContexts = recipientContexts
+                RecipientContexts = recipientContexts,
+                PayloadData = payloadData
             };
         }
     }
