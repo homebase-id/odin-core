@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         {
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await _scaffold.TransferFile( sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
+            var utilsContext = await _scaffold.TransferFile( sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         {
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true});
+            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
             {
