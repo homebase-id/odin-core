@@ -387,6 +387,7 @@ namespace Youverse.Hosting.Tests
             var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
             {
+                Identity = identity,
                 AppId = appId,
                 AuthResult = authResult,
                 AppSharedSecretKey = sharedSecret

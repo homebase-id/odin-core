@@ -23,7 +23,8 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            return builder.AddCertificate(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
+            //return builder.AddCertificate(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
+            return builder.AddScheme<CertificateAuthenticationOptions, TransitCertificateAuthenticationHandler>(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
@@ -41,8 +42,8 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 //TODO: this certificate cache is not multi-tenant
                 .AddCertificateCache(options =>
                 {
-                    //TODO: revisit this to see if it will serve as our re-validation method to ensure
-                    // caller certs are still good 
+                    // TODO: revisit this to see if it will serve as our re-validation method to ensure
+                    //  caller certs are still good 
                     options.CacheSize = 2048;
                     options.CacheEntryExpiration = TimeSpan.FromMinutes(10);
                 });
@@ -67,12 +68,12 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
 
             Guard.Argument(appIdValue, nameof(appIdValue)).NotNull().NotEmpty();
             Guard.Argument(appIdValue, nameof(appIdValue)).Require(Guid.TryParse(appIdValue, out var appId));
-            
+
             var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
 
             //TODO: is this the best place to check this?  
-            if (null == appReg || appReg.IsRevoked) 
+            if (null == appReg || appReg.IsRevoked)
             {
                 throw new UnauthorizedAccessException($"Invalid AppId {appId} for recipient");
             }
@@ -85,7 +86,7 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.AppId, appId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                
+
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
                 //TODO: I don't think this is required any longer
                 new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)

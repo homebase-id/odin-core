@@ -1,4 +1,5 @@
-﻿using Refit;
+﻿using System;
+using Refit;
 using System.Linq;
 using NUnit.Framework;
 using System.Reflection;
@@ -36,8 +37,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
-            
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
+
+            var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -54,9 +57,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         {
             var sender = TestIdentities.Samwise;
             var recipients = new List<string>() {TestIdentities.Frodo};
-            var utilsContext = await _scaffold.TransferFile( sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
+            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
+            var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -82,7 +87,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() {TestIdentities.Frodo};
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, utilsContext.RecipientContexts[TestIdentities.Frodo].AuthResult))
+            var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
