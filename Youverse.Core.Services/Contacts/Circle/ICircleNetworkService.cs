@@ -75,10 +75,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <summary>
         /// Adds the specified dotYouId to your network
         /// </summary>
-        /// <param name="publicKeyCertificate">The public key certificate containing the domain name which will be connected</param>
+        /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
-        Task Connect(string publicKeyCertificate, NameAttribute name);
+        Task Connect(string dotYouId, NameAttribute name);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>

@@ -154,7 +154,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
+            // await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
+            await _cns.Connect(request.SenderDotYouId, request.Name);
 
             //Now send back an acknowledgement by establishing a connection
 

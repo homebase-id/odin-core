@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Controllers.Apps;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -13,18 +14,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     /// </summary>
     public interface IDriveStorageHttpClient
     {
-        private const string DriveRootEndpoint = "/api/apps/v1/drive";
-
-        [Get(DriveRootEndpoint + "/files/header")]
+        private const string RootEndpoint = AppApiPathConstants.DrivesV1;
+        
+        [Get(RootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId);
 
-        [Get(DriveRootEndpoint + "/files/payload")]
+        [Get(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId);
         
-        [Get(DriveRootEndpoint + "/temp/files/header")]
+        [Get(RootEndpoint + "/temp/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetTempFileHeader(Guid fileId);
 
-        [Get(DriveRootEndpoint + "/temp/files/payload")]
+        [Get(RootEndpoint + "/temp/files/payload")]
         Task<ApiResponse<HttpContent>> GetTempPayload(Guid fileId);
     }
 }

@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
         [HttpPost("process")]
         public async Task<IActionResult> ProcessTransfers()
         {
-            await _transitAppService.ProcessRecentTransfers();
+            await _transitAppService.ProcessTransfers();
             return new JsonResult(true);
         }
 

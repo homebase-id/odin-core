@@ -3,12 +3,13 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Hosting.Controllers.Apps;
 
-namespace Youverse.Hosting.Tests.ApiClient
+namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
     public interface ICircleNetworkConnectionsClient
     {
-        private const string root_path = "/api/circlenetwork/connections";
+        private const string root_path =  AppApiPathConstants.CirclesV1 + "/connections";
         
         [Get(root_path + "/unblock/{dotYouId}")]
         Task<ApiResponse<bool>> Unblock(string dotYouId);

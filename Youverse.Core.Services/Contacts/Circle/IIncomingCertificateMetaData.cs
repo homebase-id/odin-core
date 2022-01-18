@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <summary>
         /// Specifies the public key certificate of the <see cref="DotYouIdentity"/> who sent this message
         /// </summary>
-        string SenderPublicKeyCertificate { get; set; }
+        // string SenderPublicKeyCertificate { get; set; }
 
         /// <summary>
         /// The sender's <see cref="DotYouIdentity"/>.

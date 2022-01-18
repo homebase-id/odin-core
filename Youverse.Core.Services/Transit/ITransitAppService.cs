@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage
         /// </summary>
         /// <returns></returns>
-        Task ProcessRecentTransfers();
+        Task ProcessTransfers();
 
         /// <summary>
         /// Gets a list of the items received by the transit system having passed all filters

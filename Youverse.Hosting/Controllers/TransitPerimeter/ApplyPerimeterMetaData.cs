@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 foreach (var rc in instances)
                 {
                     var rsc = (IIncomingCertificateMetaData) rc;
-                    rsc.SenderPublicKeyCertificate = cert;
+                    //rsc.SenderPublicKeyCertificate = cert;
 
                     //No null check here because the identity must be set at authentication.
                     rsc.SenderDotYouId = (DotYouIdentity) context.HttpContext.User.Identity.Name;

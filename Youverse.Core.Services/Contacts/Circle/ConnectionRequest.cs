@@ -16,8 +16,6 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// </summary>
         public DotYouIdentity SenderDotYouId { get; set; }
         
-        public string SenderPublicKeyCertificate { get; set; }
-
         /// <summary>
         /// The name to be shown the recipient on the request
         /// </summary>
@@ -36,7 +34,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public virtual void Validate()
         {
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
-            Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
+            // Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
             Guard.Argument(Name, nameof(Name)).NotNull();
             Guard.Argument(this.Name.Personal, nameof(this.Name.Personal)).NotEmpty().NotNull();

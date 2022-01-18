@@ -17,7 +17,7 @@ using Youverse.Hosting.Authentication.App;
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
-    [Route("/api/apps/v1/drive")]
+    [Route(AppApiPathConstants.DrivesV1)]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class DriveStorageController : ControllerBase
     {

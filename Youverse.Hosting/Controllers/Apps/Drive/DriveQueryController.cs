@@ -10,7 +10,7 @@ using Youverse.Hosting.Authentication.App;
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
-    [Route("/api/owner/v1/drive/query")]
+    [Route(AppApiPathConstants.DrivesV1 + "/query")]
     [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class DriveQueryController : ControllerBase
     {

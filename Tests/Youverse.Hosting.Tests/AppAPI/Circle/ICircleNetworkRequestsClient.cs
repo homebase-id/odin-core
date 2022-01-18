@@ -2,12 +2,13 @@
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Hosting.Controllers.Apps;
 
-namespace Youverse.Hosting.Tests.ApiClient
+namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
     public interface ICircleNetworkRequestsClient
     {
-        private const string RootPath = "/api/circlenetwork/requests";
+        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 
@@ -22,7 +23,6 @@ namespace Youverse.Hosting.Tests.ApiClient
 
         [Get(SentPathRoot + "/{recipientDotYouId}")]
         Task<ApiResponse<ConnectionRequest>> GetSentRequest(string recipientDotYouId);
-        
         
         [Delete(SentPathRoot + "/{recipientDotYouId}")]
         Task<ApiResponse<NoResultResponse>> DeleteSentRequest(string recipientDotYouId);

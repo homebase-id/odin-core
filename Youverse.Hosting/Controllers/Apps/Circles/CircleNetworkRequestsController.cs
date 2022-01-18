@@ -6,13 +6,15 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Controllers.Apps;
 
 namespace Youverse.Hosting.Controllers.Owner.Circles
 {
     [ApiController]
-    [Route("api/circlenetwork/requests")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [Route(AppApiPathConstants.CirclesV1 + "/requests")]
+    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly ICircleNetworkRequestService _requestService;

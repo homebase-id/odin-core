@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -6,10 +7,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Hosting.Tests.ApiClient;
 
-namespace Youverse.Hosting.Tests.OwnerApi
+namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
     public class CircleNetworkServiceTests
     {
@@ -37,24 +39,41 @@ namespace Youverse.Hosting.Tests.OwnerApi
         }
 
         [Test]
-        [Ignore("Need to convert to transit protocol")]
         public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
-            await CreateConnectionRequestSamToFrodo();
+            var sender = await _scaffold.SetupTestSampleApp(TestIdentities.Frodo);
+            var recipient = await _scaffold.SetupTestSampleApp(sender.AppId, TestIdentities.Samwise);
 
-            //Check if Frodo received the request?
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-                var response = await svc.GetPendingRequest(TestIdentities.Samwise);
+
+                var id = Guid.NewGuid();
+                var requestHeader = new ConnectionRequestHeader()
+                {
+                    Id = id,
+                    Recipient = recipient.Identity,
+                    Message = "Please add me"
+                };
+
+                var response = await svc.SendConnectionRequest(requestHeader);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                Assert.IsTrue(response.Content.Success, "Failed sending the request");
+            }
+
+            using (var client = _scaffold.CreateAppApiHttpClient(recipient))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var response = await svc.GetPendingRequest(sender.Identity);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsNotNull(response.Content, $"No request found from {TestIdentities.Samwise}");
-                Assert.IsTrue(response.Content.SenderDotYouId == TestIdentities.Samwise);
+                Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
+                Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
             }
-            
-            await DisconnectSamAndFrodo();
+
+//            await DisconnectSamAndFrodo();
         }
 
         [Test]
@@ -73,7 +92,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 var getResponse = await svc.GetPendingRequest(TestIdentities.Samwise);
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {TestIdentities.Samwise} still exists");
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -95,7 +114,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == TestIdentities.Samwise), $"Could not find request from {TestIdentities.Samwise} in the results");
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -118,7 +137,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == TestIdentities.Frodo), $"Could not find request with recipient {TestIdentities.Frodo} in the results");
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -140,7 +159,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{TestIdentities.Frodo}]");
                 Assert.IsTrue(response.Content.Recipient == TestIdentities.Frodo);
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -188,12 +207,12 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsNotNull(response.Content, $"No status for {TestIdentities.Frodo} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
 
-        [Test]      
+        [Test]
         [Ignore("Need to convert to transit protocol")]
         public async Task CanBlock()
         {
@@ -215,7 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.Blocked);
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -271,7 +290,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
-            
+
             await DisconnectSamAndFrodo();
         }
 
@@ -296,11 +315,11 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 {
                     Id = id,
                     Recipient = TestIdentities.Frodo,
-                    Message = "Please add me" 
+                    Message = "Please add me"
                 };
 
                 var response = await svc.SendConnectionRequest(requestHeader);
-                
+
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
                 Assert.IsTrue(response.Content.Success, "Failed sending the request");
             }
@@ -315,7 +334,7 @@ namespace Youverse.Hosting.Tests.OwnerApi
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
-            
+
             using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Samwise))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsClient>(client);

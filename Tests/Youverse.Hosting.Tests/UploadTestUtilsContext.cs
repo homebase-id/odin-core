@@ -2,7 +2,7 @@
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.AppAPI
+namespace Youverse.Hosting.Tests
 {
     public class UploadTestUtilsContext
     {

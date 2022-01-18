@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             var info = await this.GetConnectionInfo(dotYouId);
-            if (info is { Status: ConnectionStatus.Connected })
+            if (info is {Status: ConnectionStatus.Connected})
             {
                 info.Status = ConnectionStatus.None;
                 _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
@@ -175,10 +175,11 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string publicKeyCertificate, NameAttribute name)
+        public async Task Connect(string dotYouIdentity, NameAttribute name)
         {
-            var cert = new DomainCertificateUtil(publicKeyCertificate);
-            var dotYouId = cert.DotYouId;
+            // var cert = new DomainCertificateUtil(publicKeyCertificate);
+            // var dotYouId = cert.DotYouId;
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
             await AssertConnectionIsNoneOrValid(dotYouId);
@@ -203,8 +204,8 @@ namespace Youverse.Core.Services.Contacts.Circle
             var contact = new DotYouProfile()
             {
                 Name = name,
-                DotYouId = cert.DotYouId,
-                SslPublicKeyCertificate = publicKeyCertificate, //using Sender here because it will be the original person to which I sent the request.
+                DotYouId = dotYouId,
+                SslPublicKeyCertificate = dotYouId, //using Sender here because it will be the original person to which I sent the request.
             };
 
             await _profileService.Save(contact);

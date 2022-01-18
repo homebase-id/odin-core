@@ -266,6 +266,11 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
+        
+        public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
+        {
+            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.AuthResult);
+        }
 
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
         {

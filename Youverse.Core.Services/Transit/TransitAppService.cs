@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Transit
             await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString().ToString());
         }
 
-        public async Task ProcessRecentTransfers()
+        public async Task ProcessTransfers()
         {
             //TODO: perform these in parallel
             var items = await GetAcceptedItems(PageOptions.All);
