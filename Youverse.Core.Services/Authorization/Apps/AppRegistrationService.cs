@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false)
         {
 
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
@@ -64,7 +64,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Name = name,
                 MasterKeyEncryptedAppKey = appKey,
                 DriveId = driveId,
-                DriveGrants = grants
+                DriveGrants = grants,
+                CanManageConnections = canManageConnections
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));

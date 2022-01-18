@@ -15,6 +15,7 @@ namespace Youverse.Hosting.Authentication.App
                 pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(AppAuthConstants.SchemeName);
             });
+            
         }
     }
 }

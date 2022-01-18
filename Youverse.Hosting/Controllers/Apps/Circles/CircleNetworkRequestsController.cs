@@ -4,13 +4,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Controllers.Apps;
 
-namespace Youverse.Hosting.Controllers.Owner.Circles
+namespace Youverse.Hosting.Controllers.Apps.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]

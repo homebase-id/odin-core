@@ -38,6 +38,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
@@ -47,12 +49,16 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
         }
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
@@ -89,6 +95,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             //note: this would occur during the operation verification process
             request.Validate();
             _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
@@ -101,18 +109,24 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
 
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
@@ -123,6 +137,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task EstablishConnection(AcknowledgedConnectionRequest request)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             //grab the request that was sent by the DI that sent me this acknowledgement
             var originalRequest = await this.GetSentRequest(request.SenderDotYouId);
 
@@ -144,6 +160,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             var request = await GetPendingRequest(sender);
             if (null == request)
             {
@@ -183,6 +201,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
+            _context.AppContext.AssertCanManageConnections();
+            
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)

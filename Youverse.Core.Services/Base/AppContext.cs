@@ -88,5 +88,13 @@ namespace Youverse.Core.Services.Base
             var appKey = this._encryptedAppKey.DecryptKey(this._clientHalfKek);
             return appKey;
         }
+
+        public void AssertCanManageConnections()
+        {
+            if (!_canManageConnections)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+        }
     }
 }

@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, createDrive: false, revoke: false);
+            await _scaffold.AddApp(identity, appId);
             var (authResult, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))

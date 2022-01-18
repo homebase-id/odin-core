@@ -41,8 +41,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         [Test]
         public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
-            var sender = await _scaffold.SetupTestSampleApp(TestIdentities.Frodo);
-            var recipient = await _scaffold.SetupTestSampleApp(sender.AppId, TestIdentities.Samwise);
+            Guid appId = Guid.NewGuid();
+            var sender = await _scaffold.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
+            var recipient = await _scaffold.SetupTestSampleApp(sender.AppId, TestIdentities.Samwise, canManageConnections: true);
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender))
             {
@@ -71,6 +72,39 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
+            }
+
+//            await DisconnectSamAndFrodo();
+        }
+
+        [Test]
+        public async Task FailsWhenCannotManageConnections()
+        {
+            Guid appId = Guid.NewGuid();
+            var sender = await _scaffold.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: false);
+            var recipient = await _scaffold.SetupTestSampleApp(sender.AppId, TestIdentities.Samwise, canManageConnections: false);
+
+            using (var client = _scaffold.CreateAppApiHttpClient(sender))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+
+                var id = Guid.NewGuid();
+                var requestHeader = new ConnectionRequestHeader()
+                {
+                    Id = id,
+                    Recipient = recipient.Identity,
+                    Message = "Please add me"
+                };
+
+                var response = await svc.SendConnectionRequest(requestHeader);
+                Assert.IsFalse(response.IsSuccessStatusCode, response.ReasonPhrase);
+            }
+
+            using (var client = _scaffold.CreateAppApiHttpClient(recipient))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var response = await svc.GetPendingRequest(sender.Identity);
+                Assert.IsFalse(response.IsSuccessStatusCode, response.ReasonPhrase);
             }
 
 //            await DisconnectSamAndFrodo();

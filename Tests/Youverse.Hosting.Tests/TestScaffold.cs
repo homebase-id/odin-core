@@ -266,7 +266,7 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
-        
+
         public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
         {
             return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.AuthResult);
@@ -295,7 +295,7 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool revoke = false)
+        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool canManageConnections = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -304,7 +304,8 @@ namespace Youverse.Hosting.Tests
                 {
                     Name = $"Test_{appId}",
                     ApplicationId = appId,
-                    CreateDrive = createDrive
+                    CreateDrive = createDrive,
+                    CanManageConnections = canManageConnections
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -317,11 +318,6 @@ namespace Youverse.Hosting.Tests
                 {
                     Assert.That(appReg.DriveId.HasValue, Is.True);
                     Assert.That(appReg.DriveId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
-                }
-
-                if (revoke)
-                {
-                    await svc.RevokeApp(appId);
                 }
 
                 var updatedAppResponse = await svc.GetRegisteredApp(appId);
@@ -385,9 +381,9 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity)
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false)
         {
-            this.AddApp(identity, appId, true).GetAwaiter().GetResult();
+            this.AddApp(identity, appId, true, canManageConnections).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
@@ -490,7 +486,7 @@ namespace Youverse.Hosting.Tests
                 {
                     CategoryId = options?.AppDataCategoryId ?? Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"}) 
+                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
