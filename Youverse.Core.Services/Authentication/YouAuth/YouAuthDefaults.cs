@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public const string ReturnUrl = "returnUrl";
         public const string Subject = "subject";
 
-        public const string BasePath = "/api/admin/youauth";
+        public const string BasePath = "/api/owner/v1/youauth";  //TODO: this is a duplicate of the OwnerAPIConstants and needs to be fixed
         public const string CreateTokenFlowPath = BasePath + "/create-token-flow";
         public const string ValidateAuthorizationCodeRequestPath = BasePath + "/validate-ac-req";
         public const string ValidateAuthorizationCodeResponsePath = BasePath + "/validate-ac-res";

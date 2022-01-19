@@ -3,13 +3,14 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Hosting.Controllers.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
     public interface IAppRegistrationClient
     {
-        private const string RootPath = "/api/admin/apps";
+        private const string RootPath = OwnerApiPathConstants.AppManagementV1;
 
         [Get(RootPath)]
         Task<ApiResponse<PagedResult<AppRegistrationResponse>>> GetRegisteredApps([Query]int pageNumber, [Query]int pageSize);

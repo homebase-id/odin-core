@@ -4,12 +4,13 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {
     public interface IOwnerAuthenticationClient
     {
-        private const string RootPath = "/owner/api/v1/authentication";
+        private const string RootPath = OwnerApiPathConstants.AuthV1;
 
         [Post(RootPath)]
         Task<ApiResponse<bool>> Authenticate([Body] IPasswordReply package);

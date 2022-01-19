@@ -9,7 +9,7 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Owner.AppManagement
 {
     [ApiController]
-    [Route("/api/admin/apps/clients")]
+    [Route(OwnerApiPathConstants.AppManagementV1 + "/clients")]
     [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class AppClientRegistrationController : Controller
     {
