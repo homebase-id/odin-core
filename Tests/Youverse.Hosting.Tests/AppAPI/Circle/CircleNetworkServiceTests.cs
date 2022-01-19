@@ -148,7 +148,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         }
 
         [Test]
-        [Ignore("Need to convert to transit protocol")]
         public async Task CanGetSentConnectionRequestList()
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
@@ -164,7 +163,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsNotNull(response.Content, "No result returned");
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == frodo.Identity), $"Could not find request with recipient {frodo.Identity} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
             }
 
             //await DisconnectSamAndFrodo();

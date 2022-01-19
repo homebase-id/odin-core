@@ -61,7 +61,7 @@ namespace Youverse.Hosting
             
             services.AddControllers(options =>
                 {
-                    //options.Filters.Add(new ApplyPerimeterMetaData());
+                    options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });

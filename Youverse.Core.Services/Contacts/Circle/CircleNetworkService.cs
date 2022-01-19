@@ -40,14 +40,14 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task DeleteConnection(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Delete(dotYouId));
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
             
             var info = await this.GetConnectionInfo(dotYouId);
             if (info is {Status: ConnectionStatus.Connected})
@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> Block(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Connected)
@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> Unblock(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Blocked)
@@ -92,7 +92,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
             
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetBlockedConnections(req);
@@ -134,7 +134,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetConnections(req);
@@ -156,7 +156,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
 
@@ -175,7 +175,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             return info.Status == ConnectionStatus.Connected;

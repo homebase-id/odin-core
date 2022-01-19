@@ -17,17 +17,17 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     [Authorize(Policy = TransitPerimeterPolicies.MustBeIdentifiedPolicyName, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
-        private readonly ICircleNetworkRequestService _circleNetwork;
+        private readonly ICircleNetworkRequestService _circleNetworkRequestService;
 
-        public InvitationsController(ICircleNetworkRequestService circleNetwork)
+        public InvitationsController(ICircleNetworkRequestService circleNetworkRequestService)
         {
-            _circleNetwork = circleNetwork;
+            _circleNetworkRequestService = circleNetworkRequestService;
         }
 
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
         {
-            await _circleNetwork.ReceiveConnectionRequest(request);
+            await _circleNetworkRequestService.ReceiveConnectionRequest(request);
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] AcknowledgedConnectionRequest request)
         {
-            await _circleNetwork.EstablishConnection(request);
+            await _circleNetworkRequestService.EstablishConnection(request);
             return new JsonResult(new NoResultResponse(true));
         }
     }

@@ -52,5 +52,16 @@ namespace Youverse.Core.Services.Base
         public AppContext AppContext { get; set; }
         
         public TransitContext TransitContext { get; set; }
+        
+        public void AssertCanManageConnections()
+        {
+            if (AppContext == null)
+            {
+                TransitContext.AssertCanManageConnections();
+                return;
+            }
+            
+            AppContext.AssertCanManageConnections();
+        }
     }
 }

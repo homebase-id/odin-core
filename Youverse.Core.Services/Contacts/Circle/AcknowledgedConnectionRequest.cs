@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         
         public string RecipientSurname { get; set; }
         
-        public string SenderPublicKeyCertificate { get; set; }
+        //public string SenderPublicKeyCertificate { get; set; }
         
         public DotYouIdentity SenderDotYouId { get; set; }
         
@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public void Validate()
         {
             //Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);
-            Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
+            //Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
             Guard.Argument(RecipientGivenName, nameof(RecipientGivenName)).NotEmpty().NotNull();
             Guard.Argument(RecipientSurname, nameof(RecipientSurname)).NotEmpty().NotNull();
