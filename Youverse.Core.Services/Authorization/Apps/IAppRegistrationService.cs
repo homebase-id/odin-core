@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
 
-        Task<RsaKeyListData> GetRsaKeyList(Guid appId);
+        Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
         /// <summary>
         /// Creates context information for the transit system

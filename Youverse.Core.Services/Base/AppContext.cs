@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Base
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
         private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
-        private readonly SensitiveByteArray _clientHalfKek;
+        private SensitiveByteArray _clientHalfKek; //TODO: can we make this readonly?
         private readonly bool _canManageConnections;
 
         public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
@@ -79,13 +79,13 @@ namespace Youverse.Core.Services.Base
             }
 
             var appKey = this.GetAppKey();
-            var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(appKey);
+            var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(ref appKey);
             return storageKey;
         }
 
         public SensitiveByteArray GetAppKey()
         {
-            var appKey = this._encryptedAppKey.DecryptKey(this._clientHalfKek);
+            var appKey = this._encryptedAppKey.DecryptKey(ref this._clientHalfKek);
             return appKey;
         }
 

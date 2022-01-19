@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Transit
                 throw new YouverseSecurityException("Invalid public key");
             }
 
-            var decryptedPrivateKey = pk.Decrypt(appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray(); // TODO
+            var decryptedPrivateKey = pk.Decrypt(ref appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray(); // TODO
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedPrivateKey.GetKey(), 16, 16);
             decryptedPrivateKey.Wipe();
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 
 //
@@ -42,7 +41,7 @@ namespace Youverse.Core.Cryptography
         /// <returns></returns>
         
         //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
-        public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(NonceData loadedNoncePackage, IPasswordReply reply, RsaKeyListData listRsa)
+        public static (SensitiveByteArray halfCookie, LoginTokenData token) CreateLoginToken(NonceData loadedNoncePackage, IPasswordReply reply, RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = LoginKeyManager.ParsePasswordRSAReply(reply, listRsa);
 
@@ -55,8 +54,8 @@ namespace Youverse.Core.Cryptography
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };
 
-            var kek = new SensitiveByteArray(Convert.FromBase64String(kek64));
-            token.EncryptedMasterKey = new SymmetricKeyEncryptedXor(kek, out var halfCookie);
+            var kek = new SensitiveByteArray(Convert.FromBase64String(kek64)); // TODO: using
+            token.EncryptedMasterKey = new SymmetricKeyEncryptedXor(ref kek, out var halfCookie);
             kek.Wipe();
 
             return (halfCookie, token);
@@ -65,21 +64,9 @@ namespace Youverse.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SensitiveByteArray GetMasterKey(byte[] halfServer, byte[] halfClient)
+        public static SensitiveByteArray GetMasterKey(LoginTokenData loginToken, ref SensitiveByteArray halfCookie)
         {
-            return new SensitiveByteArray(XorManagement.XorEncrypt(halfServer, halfClient));
+            return loginToken.EncryptedMasterKey.DecryptKey(ref halfCookie);
         }
-
-        // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
-        // the application KeK that will unlock the DeK.
-        public static SensitiveByteArray GetMasterKey(LoginTokenData loginToken, byte[] halfCookie)
-        {
-            return loginToken.EncryptedMasterKey.DecryptKey(halfCookie);
-            // return GetLoginKek(loginToken.HalfKey, halfCookie);
-        }
-
-        // XXX TODO Shouldn't there be a GetLoginDek here?
-        // Or at least make a comment to where it is
-        // And make the GetLoginKek and GetLoginDek use the KeyMaster class
     }
 }

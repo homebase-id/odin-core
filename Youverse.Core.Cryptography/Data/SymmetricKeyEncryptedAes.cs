@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Dawn;
+using System;
+using System.Diagnostics;
 using Youverse.Core.Cryptography.Crypto;
 
 namespace Youverse.Core.Cryptography.Data
@@ -9,84 +11,79 @@ namespace Youverse.Core.Cryptography.Data
     public class SymmetricKeyEncryptedAes
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
-        private SensitiveByteArray _copyKey;       // Copy of the key for validation purposes
 
         public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
-        public byte[] KeyIV { get; set; } // IV used for AES encryption of the key
-        public byte[] KeyHash { get; set; }  // Hash (SHA256 XORed to 128) of the unencrypted SymKey
+        public byte[] KeyIV { get; set; }        // IV used for AES encryption of the key
+        public byte[] KeyHash { get; set; }      // Hash (SHA256 XORed to 128) of the secret & iv needed to decrypt
 
 
         ~SymmetricKeyEncryptedAes()
         {
             //TODO: this is causing the master key to go null on other threads; need to figure out why
-            //if (_decryptedKey != null)
-            //    _decryptedKey.Wipe();
-
-            //if (_copyKey != null)
-            //    _copyKey.Wipe();
+            //_decryptedKey?.Wipe();
         }
 
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
             _decryptedKey = null;
-            _copyKey = null;
         }
 
-        public SymmetricKeyEncryptedAes(SensitiveByteArray secret)
+        /// <summary>
+        /// Create a new secret key and encrypt it AES using the the secret as the AES key.
+        /// </summary>
+        /// <param name="secret">The key with which to encrypt this newly generated key</param>
+        public SymmetricKeyEncryptedAes(ref SensitiveByteArray secret)
         {
             var newKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
-            
-            // _decryptedKey = new SecureKey(ByteArrayUtil.GetRndByteArray(16)); // Create the ApplicationDataEncryptionKey (AdeK)
-
-            (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(newKey.GetKey(), secret);
-            KeyHash = YouSHA.ReduceSHA256Hash(newKey.GetKey());
-            _decryptedKey = null; // It's null until someone decrypts the key.
-            _copyKey = null;
+            EncryptKey(ref secret, ref newKey);
             newKey.Wipe();
-            // Another option is to keep the _decryptedKey. For now, for testing primarily, I wipe it.
-        }
-
-        public SymmetricKeyEncryptedAes(SensitiveByteArray secret, ref SensitiveByteArray data)
-        {
-            (KeyIV, KeyEncrypted) = AesCbc.EncryptBytesToBytes_Aes(data.GetKey(), secret);
-            KeyHash = YouSHA.ReduceSHA256Hash(data.GetKey());
-            _decryptedKey = null; // It's null until someone decrypts the key.
-            _copyKey = null;
         }
 
 
         /// <summary>
-        /// Get the Application Dek by means of the LoginKek master key
+        /// Create an AES encrypted key of dataToEncrypt using secret as the AES key
         /// </summary>
-        /// <param name="keyData">The ApplicationTokenData</param>
-        /// <param name="secret">The master key LoginKek</param>
-        /// <returns>The decrypted Application DeK</returns>
-        [Obsolete("Use SenstiveByteArray overload instead")]
-        public SensitiveByteArray DecryptKey(byte[] secret)
+        /// <param name="secret">The key with which to encrypt the dataToEncrypt</param>
+        /// <param name="dataToEncrypt">The key to encrypt</param>
+        public SymmetricKeyEncryptedAes(ref SensitiveByteArray secret, ref SensitiveByteArray dataToEncrypt)
         {
-            if (_decryptedKey == null || _decryptedKey.IsEmpty())
-            {
-                var key = AesCbc.DecryptBytesFromBytes_Aes(KeyEncrypted, secret, KeyIV);
-
-                if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
-                    throw new Exception();
-
-                _decryptedKey = new SensitiveByteArray(key);
-                _copyKey = new SensitiveByteArray(YouSHA.ReduceSHA256Hash(secret));
-            }
-            else
-            {
-                if (!ByteArrayUtil.EquiByteArrayCompare(_copyKey.GetKey(), YouSHA.ReduceSHA256Hash(secret)))
-                    throw new Exception();    
-            }
-            
-            return _decryptedKey;
+            EncryptKey(ref secret, ref dataToEncrypt);
         }
 
-        public SensitiveByteArray DecryptKey(SensitiveByteArray secret)
+        private byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
-            return this.DecryptKey(secret.GetKey());
+            KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
+            KeyHash = ByteArrayUtil.EquiByteArrayXor(KeyHash, KeyIV);
+            return KeyHash;
+        }
+
+        private void EncryptKey(ref SensitiveByteArray secret, ref SensitiveByteArray keyToProtect)
+        {
+            Guard.Argument(KeyHash == null).True();
+            Guard.Argument(_decryptedKey == null).True();
+
+            (KeyIV, KeyEncrypted) = AesCbc.Encrypt(keyToProtect.GetKey(), ref secret);
+            KeyHash = CalcKeyHash(ref secret);
+        }
+
+        /// <summary>
+        /// Get the Application Dek by means of the LoginKek master key
+        /// </summary>
+        /// <param name="secret">The master key LoginKek</param>
+        /// <returns>The decrypted Application DeK</returns>
+        public ref SensitiveByteArray DecryptKey(ref SensitiveByteArray secret)
+        {
+            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref secret)))
+                throw new Exception();
+
+            if (_decryptedKey == null || _decryptedKey.IsEmpty())
+            {
+                var key = AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV);
+                _decryptedKey = new SensitiveByteArray(key);
+            }
+            
+            return ref _decryptedKey;
         }
     }
 }

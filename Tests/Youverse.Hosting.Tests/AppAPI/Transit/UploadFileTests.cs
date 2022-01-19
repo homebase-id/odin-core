@@ -51,9 +51,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
+            var sba = testContext.AppSharedSecretKey.ToSensitiveByteArray();
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sba),
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
@@ -66,7 +67,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 },
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
+            var key = testContext.AppSharedSecretKey.ToSensitiveByteArray();
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
@@ -118,7 +120,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
                 
-                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(testContext.AppSharedSecretKey);
+                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
                 var fileKey = decryptedKeyHeader.AesKey;
@@ -131,19 +133,23 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
                 Assert.That(((MemoryStream) payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-                
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.DecryptBytesFromBytes_Aes(
+
+                var aesKey = decryptedKeyHeader.AesKey;
+                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
-                    Key: decryptedKeyHeader.AesKey.GetKey(),
+                    Key: ref aesKey,
                     IV: decryptedKeyHeader.Iv);
 
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
                 var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                
+                decryptedKeyHeader.AesKey.Wipe();
             }
 
             keyHeader.AesKey.Wipe();
+            key.Wipe();
         }
     }
 }

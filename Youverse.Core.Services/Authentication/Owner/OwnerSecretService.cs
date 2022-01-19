@@ -31,10 +31,10 @@ namespace Youverse.Core.Services.Authentication.Owner
         public async Task<NonceData> GenerateNewSalts()
         {
             var rsaKeyList = await this.GetRsaKeyList();
-            var key = RsaKeyListManagement.GetCurrentKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), ref rsaKeyList, out var keyListWasUpdated); // TODO
+            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
-                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+                _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             }
 
             var nonce = NonceData.NewRandomNonce(key);
@@ -75,11 +75,11 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            var masterKey = serverToken.EncryptedMasterKey.DecryptKey(clientSecret.GetKey());
+            var masterKey = serverToken.EncryptedMasterKey.DecryptKey(ref clientSecret);
 
-            var dek = pk.EncryptedDek.DecryptKey(masterKey.GetKey());
+            var dek = pk.EncryptedDek.DecryptKey(ref masterKey);
 
-            masterKey.Wipe();
+            // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();
 
             return dek;
@@ -101,20 +101,20 @@ namespace Youverse.Core.Services.Authentication.Owner
             };
         }
 
-        public async Task<RsaKeyListData> GenerateRsaKeyList()
+        public async Task<RsaFullKeyListData> GenerateRsaKeyList()
         {
             const int MAX_KEYS = 2; //leave this size 
 
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(Guid.Empty.ToByteArray().ToSensitiveByteArray(), MAX_KEYS); // TODO
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS); // TODO
             rsaKeyList.Id = RSA_KEY_STORAGE_ID;
 
-            _systemStorage.WithTenantSystemStorage<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
+            _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(RSA_KEY_STORAGE, s => s.Save(rsaKeyList));
             return rsaKeyList;
         }
 
-        public async Task<RsaKeyListData> GetRsaKeyList()
+        public async Task<RsaFullKeyListData> GetRsaKeyList()
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(RSA_KEY_STORAGE, s => s.Get(RSA_KEY_STORAGE_ID));
 
             if (result == null || result.ListRSA == null)
             {

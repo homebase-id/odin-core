@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
@@ -330,7 +331,7 @@ namespace Youverse.Hosting.Tests
 
         public async Task<(DotYouAuthenticationResult authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
-            var rsa = new RsaFullKeyData(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1); // TODO
+            var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
             using (var client = this.CreateOwnerApiHttpClient(identity))
             {
@@ -347,8 +348,8 @@ namespace Youverse.Hosting.Tests
                 Assert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), reply.Data); // TODO
-
+                var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+            
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
@@ -519,13 +520,14 @@ namespace Youverse.Hosting.Tests
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
+            var appsharedSecretKey = testContext.AppSharedSecretKey.ToSensitiveByteArray();
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, testContext.AppSharedSecretKey),
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref appsharedSecretKey),
                 FileMetadata = fileMetadata
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, testContext.AppSharedSecretKey);
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref appsharedSecretKey);
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
@@ -585,7 +587,7 @@ namespace Youverse.Hosting.Tests
             {
                 AppId = testContext.AppId,
                 AuthResult = testContext.AuthResult,
-                AppSharedSecretKey = testContext.AppSharedSecretKey,
+                AppSharedSecretKey = appsharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
                 RecipientContexts = recipientContexts,

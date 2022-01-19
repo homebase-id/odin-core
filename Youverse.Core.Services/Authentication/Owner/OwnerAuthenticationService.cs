@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             var rsa = await _secretService.GetRsaKeyList();
 
-            var key = RsaKeyListManagement.GetCurrentKey(Guid.Empty.ToByteArray().ToSensitiveByteArray(), ref rsa, out var keyListWasUpdated); // TODO
+            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsa, out var keyListWasUpdated); // TODO
 
             if (keyListWasUpdated)
             {
@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return new DotYouAuthenticationResult()
             {
                 SessionToken = loginToken.Id,
-                ClientHalfKek = new SensitiveByteArray(halfCookie)
+                ClientHalfKek = new SensitiveByteArray(halfCookie.GetKey())
             };
         }
 

@@ -68,15 +68,16 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.That(storageDrive.EncryptedIdIv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
             var mk = _scaffold!.Context!.Caller.GetMasterKey();
-            var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(mk);
+            var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(ref mk);
 
-            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(storageDrive.EncryptedIdValue, storageKey.GetKey(), storageDrive.EncryptedIdIv);
+            var decryptedDriveId = AesCbc.Decrypt(storageDrive.EncryptedIdValue, ref storageKey, storageDrive.EncryptedIdIv);
             Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));
 
             var file = driveService.CreateFileId(storageDrive.Id);
 
             var keyHeader = KeyHeader.NewRandom16();
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, _ekh_Iv, _ekh_Key);
+            var sba = _ekh_Key.ToSensitiveByteArray();
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, _ekh_Iv, ref sba);
             await driveService.WriteEncryptedKeyHeader(file, ekh);
 
             var metadata = new FileMetadata(file)

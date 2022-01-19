@@ -21,11 +21,13 @@ namespace Youverse.Core.Cryptography.Crypto
                 var iv = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
                 var testData = new byte[] { 162, 146, 244, 255, 127, 128, 0, 42, 7, 0 };
 
-                var cipher = EncryptBytesToBytes_Aes(testData, key, iv);
+                var mysk = key.ToSensitiveByteArray();
+
+                var cipher = Encrypt(testData, ref mysk, iv);
 
                 var s = ByteArrayUtil.PrintByteArray(cipher);
                 Console.WriteLine("Cipher: " + s);
-                var roundtrip = DecryptBytesFromBytes_Aes(cipher, key, iv);
+                var roundtrip = Decrypt(cipher, ref mysk, iv);
 
                 if (ByteArrayUtil.EquiByteArrayCompare(roundtrip, testData))
                     return true;
@@ -60,11 +62,11 @@ namespace Youverse.Core.Cryptography.Crypto
         /// <param name="key"></param>
         /// <param name="iv"></param>
         /// <returns></returns>
-        public static byte[] EncryptBytesToBytes_Aes(byte[] data, byte[] key, byte[] iv)
+        public static byte[] Encrypt(byte[] data, ref SensitiveByteArray key, byte[] iv)
         {
             using (Aes aesAlg = Aes.Create())
             {
-                aesAlg.Key = key;
+                aesAlg.Key = key.GetKey();
 
                 aesAlg.IV = iv;
 
@@ -77,19 +79,19 @@ namespace Youverse.Core.Cryptography.Crypto
             }
         }
 
-        public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, SensitiveByteArray key)
+        /*public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, SensitiveByteArray key)
         {
-            return EncryptBytesToBytes_Aes(data, key.GetKey());
-        }
+            return Encrypt(data, key.GetKey());
+        }*/
 
-        [Obsolete("Use overload that accepts SensitiveByteArray")]
-        public static (byte[] IV, byte[] ciphertext) EncryptBytesToBytes_Aes(byte[] data, byte[] Key)
+        //public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, byte[] Key)
+        public static (byte[] IV, byte[] ciphertext) Encrypt(byte[] data, ref SensitiveByteArray Key)
         {
             byte[] IV;
 
             using (Aes aesAlg = Aes.Create())
             {
-                aesAlg.Key = Key;
+                aesAlg.Key = Key.GetKey();
 
                 aesAlg.GenerateIV();
                 IV = aesAlg.IV;
@@ -103,18 +105,18 @@ namespace Youverse.Core.Cryptography.Crypto
             }
         }
 
-        public static (byte[] IV, byte[] ciphertext) EncryptStringToBytes_Aes(string plainText, byte[] Key)
+        /*public static (byte[] IV, byte[] ciphertext) EncryptStringToBytes_Aes(string plainText, byte[] Key)
         {
-            return EncryptBytesToBytes_Aes(Encoding.UTF8.GetBytes(plainText), Key);
-        }
+            return Encrypt(Encoding.UTF8.GetBytes(plainText), Key);
+        }*/
 
-        public static byte[] DecryptBytesFromBytes_Aes(byte[] cipherText, byte[] Key, byte [] IV)
+        public static byte[] Decrypt(byte[] cipherText, ref SensitiveByteArray Key, byte [] IV)
         {
             // Create an Aes object 
             // with the specified key and IV. 
             using (Aes aesAlg = Aes.Create())
             {
-                aesAlg.Key = Key;
+                aesAlg.Key = Key.GetKey();
                 aesAlg.IV = IV;
                 aesAlg.Mode = CipherMode.CBC;
 
@@ -125,9 +127,9 @@ namespace Youverse.Core.Cryptography.Crypto
             }
         }
 
-        public static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)
+        /*public static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)
         {
-            return Encoding.UTF8.GetString(DecryptBytesFromBytes_Aes(cipherText, Key, IV));
-        }
+            return Encoding.UTF8.GetString(Decrypt(cipherText, Key, IV));
+        }*/
     }
 }

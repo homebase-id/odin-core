@@ -31,9 +31,9 @@ namespace Youverse.Core.Cryptography
         /// <param name="data">The data to make into cryptonite</param>
         /// <param name="KeyKey">The Key (byte[16]) to encrypt the CryptoniteKey with</param>
         /// <returns>A pair of CryptoniteKey and CryptoniteData</returns>
-        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(byte[] data, byte[] KeyKey)
+        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(byte[] data, ref SensitiveByteArray KeyKey)
         {
-            var key = ByteArrayUtil.GetRndByteArray(16);
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // TODO: using
 
             var ck = new CryptoniteKey
             {
@@ -43,21 +43,21 @@ namespace Youverse.Core.Cryptography
             var cd = new CryptoniteData
             {
                 creationtime = DateTimeExtensions.UnixTimeSeconds(),
-                payload =  AesCbc.EncryptBytesToBytes_Aes(data, key, ck.iv)
+                payload =  AesCbc.Encrypt(data, ref key, ck.iv)
             };
 
             cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.UInt64ToBytes(cd.creationtime));
             cd.crc = CRC32C.CalculateCRC32C(cd.crc, cd.payload);
 
-            ck.key = AesCbc.EncryptBytesToBytes_Aes(key, KeyKey, ck.iv);
-            ByteArrayUtil.WipeByteArray(key);
+            ck.key = AesCbc.Encrypt(key.GetKey(), ref KeyKey, ck.iv);
+            key.Wipe();
 
             return (ck, cd);
         }
 
-        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(string message, byte[] KeyKey)
+        public static (CryptoniteKey, CryptoniteData) CreateCryptonitePair(string message, ref SensitiveByteArray KeyKey)
         {
-            return CreateCryptonitePair(Encoding.UTF8.GetBytes(message), KeyKey);
+            return CreateCryptonitePair(Encoding.UTF8.GetBytes(message), ref KeyKey);
         }
     }
 }

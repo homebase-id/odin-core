@@ -18,9 +18,9 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKeyAes()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(secret);
+            var key = new SymmetricKeyEncryptedAes(ref secret);
 
-            var sk = key.DecryptKey(secret.GetKey());
+            var sk = key.DecryptKey(ref secret);
 
             Assert.Pass();
         }
@@ -30,12 +30,12 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKeyFailAes()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(secret);
+            var key = new SymmetricKeyEncryptedAes(ref secret);
             var garbage = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKey(garbage.GetKey());
+                key.DecryptKey(ref garbage);
                 Assert.Fail();
             }
             catch
@@ -50,15 +50,15 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKeyAes2()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedAes(secret);
+            var key = new SymmetricKeyEncryptedAes(ref secret);
 
-            var sk = key.DecryptKey(secret);
+            var sk = key.DecryptKey(ref secret);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKey(junk);
+                key.DecryptKey(ref junk);
                 Assert.Fail();
             }
             catch
@@ -74,8 +74,8 @@ namespace Youverse.Core.Cryptography.Tests
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
-            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
-            var decryptKey = key.DecryptKey(halfKey);
+            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
+            var decryptKey = key.DecryptKey(ref halfKey);
 
             if (ByteArrayUtil.EquiByteArrayCompare(decryptKey.GetKey(), secret.GetKey()))
                 Assert.Pass();
@@ -90,13 +90,13 @@ namespace Youverse.Core.Cryptography.Tests
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
-            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
 
-            var garbage = ByteArrayUtil.GetRndByteArray(16);
+            var garbage = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                var decryptKey = key.DecryptKey(garbage);
+                var decryptKey = key.DecryptKey(ref garbage);
                 Assert.Fail();
             }
             catch
@@ -111,15 +111,15 @@ namespace Youverse.Core.Cryptography.Tests
         public void TestSymKeyXor2()
         {
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var key = new SymmetricKeyEncryptedXor(secret, out var halfKey);
+            var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
 
-            var sk = key.DecryptKey(halfKey);
+            var sk = key.DecryptKey(ref halfKey);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKey(junk);
+                key.DecryptKey(ref junk);
                 Assert.Fail();
             }
             catch

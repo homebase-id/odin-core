@@ -25,7 +25,7 @@ namespace Youverse.Core.Cryptography.Tests
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(key, 1);
+            var rsa = new RsaFullKeyData(ref key, 1);
         }
 
         [Test]
@@ -33,11 +33,11 @@ namespace Youverse.Core.Cryptography.Tests
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(key, 1);
+            var rsa = new RsaFullKeyData(ref key, 1);
             byte[] data = {1, 2, 3, 4, 5};
 
             var cipher = rsa.Encrypt(data); // Encrypt with public key 
-            var decrypt = rsa.Decrypt(key, cipher); // Decrypt with private key
+            var decrypt = rsa.Decrypt(ref key, cipher); // Decrypt with private key
 
             if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
@@ -50,11 +50,11 @@ namespace Youverse.Core.Cryptography.Tests
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
-            var rsa = new RsaFullKeyData(key, 1);
+            var rsa = new RsaFullKeyData(ref key, 1);
             byte[] data = { 1, 2, 3, 4, 5 };
 
             var cipher = rsa.Encrypt(data); // Encrypt with public key 
-            var decrypt = rsa.Decrypt(key, cipher); // Decrypt with private key
+            var decrypt = rsa.Decrypt(ref key, cipher); // Decrypt with private key
 
             if (ByteArrayUtil.EquiByteArrayCompare(data, decrypt) == false)
                 Assert.Fail();
@@ -63,7 +63,7 @@ namespace Youverse.Core.Cryptography.Tests
             
             try
             {
-                decrypt = rsa.Decrypt(junk, cipher);
+                decrypt = rsa.Decrypt(ref junk, cipher);
                 Assert.Fail();
             }
             catch
@@ -78,7 +78,7 @@ namespace Youverse.Core.Cryptography.Tests
             try
             {
                 var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-                var rsa = new RsaFullKeyData(key, 0);
+                var rsa = new RsaFullKeyData(ref key, 0);
             }
             catch
             {
@@ -93,7 +93,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void RsaKeyCreateTimerTest()
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var rsa = new RsaFullKeyData(key, 0, seconds: 2);
+            var rsa = new RsaFullKeyData(ref key, 0, seconds: 2);
 
             if (!rsa.IsValid())
                 Assert.Fail();
@@ -137,7 +137,7 @@ namespace Youverse.Core.Cryptography.Tests
         public void RsaKeyLengthTest()
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var rsa = new RsaFullKeyData(key, 1);
+            var rsa = new RsaFullKeyData(ref key, 1);
 
             // 190 chars
             var myData = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
@@ -170,9 +170,9 @@ namespace Youverse.Core.Cryptography.Tests
         public void RsaKeyCrossJSTest()
         {
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
-            var rsa = new RsaFullKeyData(key, 1);
+            var rsa = new RsaFullKeyData(ref key, 1);
             var publicKey = rsa.publicDerBase64();
-            var privateKey = rsa.privateDerBase64(key);
+            var privateKey = rsa.privateDerBase64(ref key);
 
             // max chars
             var myData = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
@@ -252,10 +252,10 @@ namespace Youverse.Core.Cryptography.Tests
             var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             // var myRsa = new RSACng();
-            var myRsa = new RsaFullKeyData(key, Convert.FromBase64String(fullKey64));
+            var myRsa = new RsaFullKeyData(ref key, Convert.FromBase64String(fullKey64));
 
             var bin = Convert.FromBase64String(cipher64);
-            var orgData = myRsa.Decrypt(key, bin);
+            var orgData = myRsa.Decrypt(ref key, bin);
 
             var my256 = "01234567890123456789012345678901234567890123456789" + "01234567890123456789012345678901234567890123456789" +
                         "01234567890123456789012345678901234567890123456789"; // + "01234567890123456789012345678901234567890123456789";// +

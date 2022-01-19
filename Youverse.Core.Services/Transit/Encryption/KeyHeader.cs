@@ -16,9 +16,10 @@ namespace Youverse.Core.Services.Transit.Encryption
         
         public Stream GetEncryptedStreamAes(string data)
         {
-            var cipher = Core.Cryptography.Crypto.AesCbc.EncryptBytesToBytes_Aes(
+            var key = this.AesKey;
+            var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
-                key: this.AesKey.GetKey(),
+                key: ref key,
                 iv: this.Iv);
 
             return new MemoryStream(cipher);

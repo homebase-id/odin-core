@@ -43,16 +43,16 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guid? driveId = null;
 
             var masterKey = _context.Caller.GetMasterKey();
-            var appKey = new SymmetricKeyEncryptedAes(masterKey);
+            var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
 
             List<DriveGrant> grants = null;
 
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKey(masterKey);
+                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKey(ref masterKey);
 
-                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(appKey.DecryptKey(masterKey), ref storageKey);
+                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref appKey.DecryptKey(ref masterKey), ref storageKey);
 
                 grants = new List<DriveGrant>();
                 grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey});
@@ -142,9 +142,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             //Note: never store clientAppToken
 
             var masterKey = _context.Caller.GetMasterKey();
-            var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(masterKey);
+            var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(ref masterKey);
 
-            var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(appKey, out var clientKek);
+            var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(ref appKey, out var clientKek);
 
             //TODO: encrypt shared secret using the appkey
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
@@ -160,7 +160,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppClientRegistration>(AppClientRegistrationStorageName, s => s.Save(appClientReg));
 
-            using (var data = ByteArrayUtil.Combine(clientKek, sharedSecret).ToSensitiveByteArray())
+            using (var data = ByteArrayUtil.Combine(clientKek.GetKey(), sharedSecret).ToSensitiveByteArray())
             {
                 var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
                 var encryptedData = publicKey.Encrypt(data.GetKey());
@@ -196,12 +196,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         public async Task<TransitPublicKey> GetTransitPublicKey(Guid appId)
         {
             var rsaKeyList = await this.GetRsaKeyList(appId);
-            var appKey = Guid.Empty.ToByteArray(); 
-            var key = RsaKeyListManagement.GetCurrentKey(appKey.ToSensitiveByteArray(), ref rsaKeyList, out var keyListWasUpdated); // TODO
+            var appKey = RsaKeyListManagement.zeroSensitiveKey;
+            var key = RsaKeyListManagement.GetCurrentKey(ref appKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
 
             if (keyListWasUpdated)
             {
-                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
+                _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
             }
 
             return new TransitPublicKey
@@ -220,9 +220,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             return null != key;
         }
         
-        public async Task<RsaKeyListData> GetRsaKeyList(Guid appId)
+        public async Task<RsaFullKeyListData> GetRsaKeyList(Guid appId)
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaKeyListData>(AppRsaKeyList, s => s.Get(appId));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
 
             if (result == null)
             {
@@ -230,10 +230,10 @@ namespace Youverse.Core.Services.Authorization.Apps
 
                 //TODO: need the app key
                 var appKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(appKey, maxKeys); // TODO
+                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref appKey, maxKeys); // TODO
                 rsaKeyList.Id = appId;
 
-                _systemStorage.WithTenantSystemStorage<RsaKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
+                _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
 
                 result = rsaKeyList;
             }

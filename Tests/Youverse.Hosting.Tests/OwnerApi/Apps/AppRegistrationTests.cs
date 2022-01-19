@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
@@ -70,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             var identity = TestIdentities.Frodo;
             
-            var rsa = new RsaFullKeyData(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1);
+            var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
 
@@ -91,7 +92,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), reply.Data); // TODO
+                var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
             
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));

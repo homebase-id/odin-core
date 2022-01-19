@@ -33,8 +33,11 @@ namespace Youverse.Core.Cryptography
             // so that we base64 encode the RSA encrypted string, rather than passing
             // a nice readable string over and then encrypting it. 
             // This way, once we RSA decrypt it is a byte array and we can zap it.
+            
+            // TODO: Change to using ()
             var KekKey = new SensitiveByteArray(Convert.FromBase64String(KeK64));
-            passwordKey.EncryptedDek = new SymmetricKeyEncryptedAes(KekKey);
+            passwordKey.EncryptedDek = new SymmetricKeyEncryptedAes(ref KekKey);
+            KekKey.Wipe();
 
             return passwordKey;
         }
@@ -48,14 +51,14 @@ namespace Youverse.Core.Cryptography
             // ByteArrayUtil.WipeByteArray(DeK);
         }
 
-        public static SensitiveByteArray GetDek(LoginKeyData passwordKey, byte[] KeK)
+        public static SensitiveByteArray GetDek(LoginKeyData passwordKey, SensitiveByteArray KeK)
         {
             return GetDek(passwordKey.EncryptedDek, KeK);
         }
 
-        public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, byte[] KeK)
+        public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
         {
-            return EncryptedDek.DecryptKey(KeK);
+            return EncryptedDek.DecryptKey(ref KeK);
         }
 
         /// <summary>
@@ -68,7 +71,7 @@ namespace Youverse.Core.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaKeyListData listRsa)
+        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
@@ -84,7 +87,7 @@ namespace Youverse.Core.Cryptography
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
         public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(IPasswordReply reply,
-            RsaKeyListData listRsa)
+            RsaFullKeyListData listRsa)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
@@ -97,7 +100,7 @@ namespace Youverse.Core.Cryptography
 
             try
             {
-                decryptedRSA = key.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), Convert.FromBase64String(reply.RsaEncrypted));
+                decryptedRSA = key.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, Convert.FromBase64String(reply.RsaEncrypted));
             }
             catch
             {
@@ -137,7 +140,7 @@ namespace Youverse.Core.Cryptography
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
         public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
-            IPasswordReply reply, RsaKeyListData listRsa)
+            IPasswordReply reply, RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordRSAReply(reply, listRsa);
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));

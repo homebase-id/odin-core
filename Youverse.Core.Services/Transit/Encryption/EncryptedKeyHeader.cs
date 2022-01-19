@@ -19,11 +19,11 @@ namespace Youverse.Core.Services.Transit.Encryption
         /// </summary>
         public byte[] EncryptedAesKey { get; set; }
 
-        public KeyHeader DecryptAesToKeyHeader(byte[] key)
+        public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
             if (this.EncryptionVersion == 1)
             {
-                var bytes = AesCbc.DecryptBytesFromBytes_Aes(this.EncryptedAesKey, key, this.Iv);
+                var bytes = AesCbc.Decrypt(this.EncryptedAesKey, ref key, this.Iv);
                 var kh = KeyHeader.FromCombinedBytes(bytes, 16, 16);
                 return kh;
             }
@@ -31,10 +31,10 @@ namespace Youverse.Core.Services.Transit.Encryption
             throw new InvalidDataException("Unsupported encryption version");
         }
 
-        public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, byte[] key)
+        public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)
         {
             var secureKeyHeader = keyHeader.Combine();
-            var data = AesCbc.EncryptBytesToBytes_Aes(secureKeyHeader.GetKey(), key, iv);
+            var data = AesCbc.Encrypt(secureKeyHeader.GetKey(), ref key, iv);
             secureKeyHeader.Wipe();
 
             return new EncryptedKeyHeader()
@@ -45,7 +45,5 @@ namespace Youverse.Core.Services.Transit.Encryption
                 EncryptedAesKey = data
             };
         }
-
-    
     }
 }

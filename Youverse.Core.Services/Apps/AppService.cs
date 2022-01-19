@@ -23,8 +23,9 @@ namespace Youverse.Core.Services.Apps
             var ekh = await _driveService.GetEncryptedKeyHeader(file);
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
             
-            var keyHeader = ekh.DecryptAesToKeyHeader(storageKey.GetKey());
-            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, _context.AppContext.GetClientSharedSecret().GetKey());
+            var keyHeader = ekh.DecryptAesToKeyHeader(ref storageKey);
+            var clientSharedSecret = _context.AppContext.GetClientSharedSecret();
+            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, ref clientSharedSecret);
 
             var md = await _driveService.GetMetadata(file);
 

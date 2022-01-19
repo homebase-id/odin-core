@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
+using LiteDB;
 
 namespace Youverse.Core.Cryptography
 {
@@ -15,6 +16,7 @@ namespace Youverse.Core.Cryptography
     public sealed class SensitiveByteArray: IDisposable
     {
         // TODO Move this to secure memory
+        [BsonIgnore]
         [JsonIgnore] private byte[] _key;
         // TODO - test to make sure it doesnt get saved
 

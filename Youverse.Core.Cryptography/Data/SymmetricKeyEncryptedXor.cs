@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dawn;
+using System;
 using Youverse.Core.Cryptography.Crypto;
 
 namespace Youverse.Core.Cryptography.Data
@@ -9,7 +10,6 @@ namespace Youverse.Core.Cryptography.Data
     public class SymmetricKeyEncryptedXor
     {
         private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
-        private SensitiveByteArray _copyKey;
 
 
         public byte[] KeyEncrypted  { get; set; }
@@ -18,65 +18,56 @@ namespace Youverse.Core.Cryptography.Data
         ~SymmetricKeyEncryptedXor()
         {
             //TODO: this is causing the master key to go null on other threads; need to figure out why
-            //if (_decryptedKey != null)
-            //    _decryptedKey.Wipe();
-
-            //if (_copyKey != null)
-            //    _copyKey.Wipe();
+            //_decryptedKey?.Wipe();
         }
 
         public SymmetricKeyEncryptedXor()
         {
             //For LiteDB
             _decryptedKey = null;
-            _copyKey = null;
         }
 
-        public SymmetricKeyEncryptedXor(SensitiveByteArray secretKeyToSplit, out byte[] halfKey1)
+        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
         {
-            halfKey1 = ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length);
+            halfKey1 = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length));
 
-            KeyEncrypted = XorManagement.XorEncrypt(halfKey1, secretKeyToSplit.GetKey());
-            KeyHash = YouSHA.ReduceSHA256Hash(secretKeyToSplit.GetKey());
+            EncryptKey(ref halfKey1, ref secretKeyToSplit);
+            KeyHash = CalcKeyHash(ref halfKey1);
 
             _decryptedKey = null; // It's null until someone decrypts the key.
-            _copyKey = null;
 
             // Another option is to store in _decryptedKey immediately. For now, for testing primarily, I wipe it.
         }
 
-
-        public SensitiveByteArray DecryptKey(SensitiveByteArray halfKey)
+        private byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
+            KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
+            return KeyHash;
+        }
+
+        private void EncryptKey(ref SensitiveByteArray secret, ref SensitiveByteArray keyToProtect)
+        {
+            Guard.Argument(KeyHash == null).True();
+            Guard.Argument(_decryptedKey == null).True();
+
+            KeyEncrypted = XorManagement.XorEncrypt(secret.GetKey(), keyToProtect.GetKey());
+            KeyHash = CalcKeyHash(ref secret);
+        }
+
+
+        public ref SensitiveByteArray DecryptKey(ref SensitiveByteArray halfKey)
+        {
+            if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref halfKey)))
+                throw new Exception();
+
             if (_decryptedKey == null || _decryptedKey.IsEmpty())
             {
                 var key = XorManagement.XorEncrypt(KeyEncrypted, halfKey.GetKey());
 
-                if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, YouSHA.ReduceSHA256Hash(key)))
-                    throw new Exception();
-
                 _decryptedKey = new SensitiveByteArray(key);
-                _copyKey = new SensitiveByteArray(YouSHA.ReduceSHA256Hash(halfKey.GetKey()));
-            }
-            else
-            {
-                if (!ByteArrayUtil.EquiByteArrayCompare(_copyKey.GetKey(), YouSHA.ReduceSHA256Hash(halfKey.GetKey())))
-                    throw new Exception();
             }
 
-            return _decryptedKey;
-        }
-
-        /// <summary>
-        /// Get the Application Dek by means of the LoginKek master key
-        /// </summary>
-        /// <param name="keyData">The half of the key needed to decrypt</param>
-        /// <param name="halfKey">The master key LoginKek</param>
-        /// <returns>The decrypted Application DeK</returns>
-        [Obsolete("Use overload which accepts a SensitiveByteArray")]
-        public SensitiveByteArray DecryptKey(byte[] halfKey)
-        {
-            return this.DecryptKey(new SensitiveByteArray(halfKey));
+            return ref _decryptedKey;
         }
     }
 }

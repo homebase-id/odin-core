@@ -11,11 +11,16 @@ namespace Youverse.Core.Cryptography.Crypto
     // So I hacked this from a linked list to an array (for ease of storage)
     // So it might be a bit counter intuitive. I'll have to cycle back and clean it up
     // but it'll morph anyway when I consider how to support other key types.
+
+    
     public static class RsaKeyListManagement
     {
+        public static readonly byte[] zero16 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static SensitiveByteArray zeroSensitiveKey = new SensitiveByteArray(zero16);
+
         const int DefaultKeyHours = 24;
 
-        public static RsaKeyListData CreateRsaKeyList(SensitiveByteArray key, int max, int hours = DefaultKeyHours)
+        public static RsaFullKeyListData CreateRsaKeyList(ref SensitiveByteArray key, int max, int hours = DefaultKeyHours)
         {
             if (max < 1)
                 throw new Exception("Max cannot be less than 1");
@@ -23,16 +28,16 @@ namespace Youverse.Core.Cryptography.Crypto
             if (hours < 24)
                 throw new Exception("Hours cannot be less than 24");
 
-            var rkl = new RsaKeyListData();
+            var rkl = new RsaFullKeyListData();
             rkl.ListRSA = new List<RsaFullKeyData>();
             rkl.MaxKeys = max;
 
-            GenerateNewKey(key, rkl, hours);
+            GenerateNewKey(ref key, rkl, hours);
 
             return rkl;
         }
 
-        public static bool CanGenerateNewKey(RsaKeyListData listRsa)
+        public static bool CanGenerateNewKey(RsaFullKeyListData listRsa)
         {
             // Do a check here. If there are any queued packages with 
             // pair.previous then return false
@@ -48,7 +53,7 @@ namespace Youverse.Core.Cryptography.Crypto
         // The precise timing depends on how quickly we want keys to expire,
         // maybe the minimum is 24 hours. Generating a new key takes a significant
         // amount of CPU.
-        public static void GenerateNewKey(SensitiveByteArray key, RsaKeyListData listRsa, int hours)
+        public static void GenerateNewKey(ref SensitiveByteArray key, RsaFullKeyListData listRsa, int hours)
         {
             if (hours < 24)
                 throw new Exception("RSA key must live for at least 24 hours");
@@ -56,7 +61,7 @@ namespace Youverse.Core.Cryptography.Crypto
             if (CanGenerateNewKey(listRsa) == false)
                 throw new Exception("Cannot generate new RSA key because the previous is in use");
 
-            var rsa = new RsaFullKeyData(key, hours);
+            var rsa = new RsaFullKeyData(ref key, hours);
 
             listRsa.ListRSA.Insert(0, rsa);
             if (listRsa.ListRSA.Count > listRsa.MaxKeys)
@@ -64,7 +69,7 @@ namespace Youverse.Core.Cryptography.Crypto
         }
 
 
-        public static RsaFullKeyData GetCurrentKey(SensitiveByteArray key, ref RsaKeyListData listRsa, out bool wasUpdated)
+        public static RsaFullKeyData GetCurrentKey(ref SensitiveByteArray key, ref RsaFullKeyListData listRsa, out bool wasUpdated)
         {
             wasUpdated = false;
 
@@ -74,13 +79,13 @@ namespace Youverse.Core.Cryptography.Crypto
             if (listRsa.ListRSA[0].IsDead())
             {
                 listRsa.ListRSA.RemoveAt(0); // Remove First
-                GenerateNewKey(key, listRsa, DefaultKeyHours);
+                GenerateNewKey(ref key, listRsa, DefaultKeyHours);
                 wasUpdated = true;
             }
 
             if (listRsa.ListRSA.Count < 1)
             {
-                GenerateNewKey(key, listRsa, DefaultKeyHours);
+                GenerateNewKey(ref key, listRsa, DefaultKeyHours);
                 wasUpdated = true;
             }
 
@@ -93,7 +98,7 @@ namespace Youverse.Core.Cryptography.Crypto
         /// <param name="listRsa"></param>
         /// <param name="publicKeyCrc"></param>
         /// <returns></returns>
-        public static RsaFullKeyData FindKey(RsaKeyListData listRsa, UInt32 publicKeyCrc)
+        public static RsaFullKeyData FindKey(RsaFullKeyListData listRsa, UInt32 publicKeyCrc)
         {
             if (listRsa.ListRSA == null)
                 throw new Exception("List shouldn't be null");

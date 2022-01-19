@@ -49,12 +49,12 @@ namespace Youverse.Core.Services.Drive
 
             var mk = _context.Caller.GetMasterKey();
 
-            var driveKey = new SymmetricKeyEncryptedAes(mk);
-
+            var driveKey = new SymmetricKeyEncryptedAes(ref mk);
+            
             var id = Guid.NewGuid();
-            var secret = driveKey.DecryptKey(mk);
+            var secret = driveKey.DecryptKey(ref mk);
 
-            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.EncryptBytesToBytes_Aes(id.ToByteArray(), secret);
+            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
 
             var sdb = new StorageDriveBase()
             {
@@ -200,14 +200,14 @@ namespace Youverse.Core.Services.Drive
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
 
             //this.AssertKeyMatch(storageKey)
-            var decryptedDriveId = AesCbc.DecryptBytesFromBytes_Aes(drive.EncryptedIdValue, storageKey.GetKey(), drive.EncryptedIdIv);
+            var decryptedDriveId = AesCbc.Decrypt(drive.EncryptedIdValue, ref storageKey, drive.EncryptedIdIv);
             if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, drive.Id.ToByteArray()))
             {
                 throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
             }
-
-            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, storageKey.GetKey());
-
+            
+            var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
+            
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
             return encryptedKeyHeader;
         }

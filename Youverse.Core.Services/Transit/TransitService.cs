@@ -110,7 +110,9 @@ namespace Youverse.Core.Services.Transit
                 encryptedBytes = ms.ToArray();
             }
 
-            var json = AesCbc.DecryptStringFromBytes_Aes(encryptedBytes, this._context.AppContext.GetClientSharedSecret().GetKey(), package.InstructionSet.TransferIv);
+            var clientSharedSecret = _context.AppContext.GetClientSharedSecret();
+            var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref clientSharedSecret, package.InstructionSet.TransferIv);
+            var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
@@ -119,8 +121,8 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Invalid transfer key header");
             }
 
-            var sharedSecret = _context.AppContext.GetClientSharedSecret().GetKey();
-            var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(sharedSecret);
+            var sharedSecret = _context.AppContext.GetClientSharedSecret();
+            var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
             var metadata = new FileMetadata(package.File)
             {
@@ -164,7 +166,7 @@ namespace Youverse.Core.Services.Transit
             var results = new Dictionary<string, TransferStatus>();
             var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.File);
             var storageKey = this._context.AppContext.GetDriveStorageKey(package.File.DriveId);
-            var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(storageKey.GetKey());
+            var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 
             foreach (var r in package.InstructionSet.TransitOptions?.Recipients ?? new List<string>())

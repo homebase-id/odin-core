@@ -34,7 +34,8 @@ namespace Youverse.Core.Services.Tests.Drive
             var file = driveService.CreateFileId(driveId);
 
             var keyHeader = KeyHeader.NewRandom16();
-            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, InitializationVector, EncryptionKey);
+            var key = EncryptionKey.ToSensitiveByteArray();
+            var ekh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, InitializationVector, ref key);
             await driveService.WriteEncryptedKeyHeader(file, ekh);
 
             var metadata = new FileMetadata(file)

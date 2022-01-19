@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NUnit.Framework;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
@@ -85,14 +86,14 @@ namespace Youverse.Core.Services.Tests.AppReg
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
             
-            var rsa = new RsaFullKeyData(Guid.Empty.ToByteArray().ToSensitiveByteArray(), 1); // TODO
+            var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
            
             await AddSampleAppNoDrive(appId, name);
             var svc = CreateAppRegService();
 
             var reply = await svc.RegisterClient(appId, rsa.publicKey);
 
-            var decryptedData = rsa.Decrypt(Guid.Empty.ToByteArray().ToSensitiveByteArray(), reply.Data); // TODO
+            var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
             
             //only supporting version 1 for now
             Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
