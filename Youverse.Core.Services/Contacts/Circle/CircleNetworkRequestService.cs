@@ -93,9 +93,10 @@ namespace Youverse.Core.Services.Contacts.Circle
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
+        //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.TransitContext.AssertCanManageConnections();
             
             //note: this would occur during the operation verification process
             request.Validate();

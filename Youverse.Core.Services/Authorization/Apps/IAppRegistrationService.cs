@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Base;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -25,7 +26,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek);
-        
+
         /// <summary>
         /// Gets all registered apps
         /// </summary>
@@ -72,10 +73,16 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions);
 
         Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
-        
+
         Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
 
         Task<RsaKeyListData> GetRsaKeyList(Guid appId);
 
+        /// <summary>
+        /// Creates context information for the transit system
+        /// </summary>
+        /// <param name="appId"></param>
+        /// <returns></returns>
+        Task<TransitContext> GetTransitContext(Guid appId);
     }
 }

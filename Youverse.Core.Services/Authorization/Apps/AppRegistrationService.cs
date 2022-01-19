@@ -241,7 +241,16 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             return result;
         }
-        
+
+        public async Task<TransitContext> GetTransitContext(Guid appId)
+        {
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            return new TransitContext(
+                appId: appId,
+                driveId: appReg.DriveId.GetValueOrDefault(),
+                canManageConnections: appReg.CanManageConnections);
+        }
+
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
         {
             //NOTE: we're not sharing the encrypted app dek, this is crucial

@@ -120,8 +120,7 @@ namespace Youverse.Hosting.Middleware
             var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
 
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appReg = await appRegSvc.GetAppRegistration(appId);
-            
+
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
@@ -130,9 +129,7 @@ namespace Youverse.Hosting.Middleware
 
             dotYouContext.AppContext = null;
 
-            dotYouContext.TransitContext = new TransitContext(
-                appId: appId,
-                driveId: appReg.DriveId.GetValueOrDefault());
+            dotYouContext.TransitContext = await appRegSvc.GetTransitContext(appId);
         }
     }
 }
