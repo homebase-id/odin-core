@@ -8,6 +8,7 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Controllers.YouAuth;
 
 #nullable enable
 namespace Youverse.Hosting.Controllers.Owner.YouAuth
@@ -54,7 +55,7 @@ namespace Youverse.Hosting.Controllers.Owner.YouAuth
             });
 
             var redirectUrl = $"https://{initiator}".UrlAppend(
-                YouAuthDefaults.ValidateAuthorizationCodeRequestPath,
+                YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath,
                 queryString.ToUriComponent());
 
             return new JsonResult(new { redirectUrl });

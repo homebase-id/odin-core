@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Base
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();
 
-        [Get(YouAuthDefaults.ValidateAuthorizationCodeResponsePath)]
+        [Get(RootPath + "/youauth/validate-ac-res")]
         Task<ApiResponse<string>> ValidateAuthorizationCodeResponse(string initiator, string ac);
     }
 }

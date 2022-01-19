@@ -10,7 +10,5 @@
         
         public const string YouAuthV1 = BasePathV1 + "/youauth";
         
-        
-
     }
 }
