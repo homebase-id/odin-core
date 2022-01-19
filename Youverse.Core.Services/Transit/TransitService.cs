@@ -181,7 +181,7 @@ namespace Youverse.Core.Services.Transit
                         continue;
                     }
 
-                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey.PublicKey, keyHeader);
+                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey.PublicKeyData.publicKey, keyHeader);
 
                     var item = new RecipientTransferKeyHeaderItem()
                     {

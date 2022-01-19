@@ -10,6 +10,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -206,9 +207,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return new TransitPublicKey
             {
                 AppId = appId,
-                PublicKey = key.publicKey,
-                Expiration = key.expiration,
-                Crc = key.crc32c
+                PublicKeyData = key,
             };
         }
 
