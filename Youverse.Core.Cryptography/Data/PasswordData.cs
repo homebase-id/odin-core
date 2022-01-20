@@ -2,7 +2,7 @@
 
 namespace Youverse.Core.Cryptography.Data
 {
-    public class LoginKeyData
+    public class PasswordData
     {
         public static Guid Key => Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -31,6 +31,6 @@ namespace Youverse.Core.Cryptography.Data
         /// LoginTokenData when the client and server halves meet. The KeK is sent
         /// RSA encrypted from the client to the host.
         /// </summary>
-        public SymmetricKeyEncryptedAes EncryptedDek { get; set; }
+        public SymmetricKeyEncryptedAes KekEncryptedMasterKey { get; set; }
     }
 }

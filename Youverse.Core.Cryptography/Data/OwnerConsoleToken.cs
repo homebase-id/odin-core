@@ -2,9 +2,9 @@
 
 namespace Youverse.Core.Cryptography.Data
 {
-    public class LoginTokenData : IDisposable
+    public class OwnerConsoleToken : IDisposable
     {
-        ~LoginTokenData()
+        ~OwnerConsoleToken()
         {
             this.Dispose();
         }
@@ -20,7 +20,7 @@ namespace Youverse.Core.Cryptography.Data
         /// The Server's 1/2 of the KeK
         /// </summary>
         // public byte[] HalfKey { get; set; }
-        public SymmetricKeyEncryptedXor EncryptedMasterKey { get; set; }
+        public SymmetricKeyEncryptedXor TokenEncryptedKek { get; set; }
 
         /// <summary>
         /// The shared secret between the client and the host

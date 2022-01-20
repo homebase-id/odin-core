@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         
         /// <summary>
         /// Checks if the nonce-hashed password matches the stored
-        /// <see cref="LoginKeyData.HashPassword"/> (hashed with a <param name="nonce64">nonce</param>
+        /// <see cref="PasswordData.HashPassword"/> (hashed with a <param name="nonce64">nonce</param>
         /// </summary>
         /// <param name="nonceHashedPassword64"></param>
         /// <param name="nonce64"></param>
@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// the initial password
         /// </summary>
         /// <returns></returns>
-        Task<SensitiveByteArray> GetMasterKey(LoginTokenData loginToken, SensitiveByteArray key);
+        Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray key);
 
     }
 }

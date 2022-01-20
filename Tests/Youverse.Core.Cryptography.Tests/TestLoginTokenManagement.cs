@@ -37,12 +37,12 @@ namespace Youverse.Core.Cryptography.Tests
             var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
             var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
-            IPasswordReply rp = LoginKeyManager.CalculatePasswordReply(password, nonce);            
+            IPasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce);            
 
             // Server generates Login Authentication Token in DB and cookies for client.
-            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(nonce, rp, listRsa);
+            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listRsa);
 
-            var testKek = LoginTokenManager.GetMasterKey(loginToken, ref halfCookie);
+            var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, ref halfCookie);
 
             if (ByteArrayUtil.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {

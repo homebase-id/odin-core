@@ -141,7 +141,7 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientSalts.Nonce64
             };
-            var saltyReply = LoginKeyManager.CalculatePasswordReply(password, saltyNonce);
+            var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
@@ -170,7 +170,7 @@ namespace Youverse.Hosting.Tests
             {
                 Nonce64 = clientNonce.Nonce64
             };
-            var reply = LoginKeyManager.CalculatePasswordReply(password, nonce);
+            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");

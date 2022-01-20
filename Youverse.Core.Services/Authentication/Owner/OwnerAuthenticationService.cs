@@ -74,9 +74,9 @@ namespace Youverse.Core.Services.Authentication.Owner
             await _secretService.TryPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
 
             var keys = await this._secretService.GetRsaKeyList();
-            var (halfCookie, loginToken) = LoginTokenManager.CreateLoginToken(noncePackage, reply, keys);
+            var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
             
-            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(loginToken));
+            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Save(serverToken));
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -85,8 +85,8 @@ namespace Youverse.Core.Services.Authentication.Owner
          
             return new DotYouAuthenticationResult()
             {
-                SessionToken = loginToken.Id,
-                ClientHalfKek = new SensitiveByteArray(halfCookie.GetKey())
+                SessionToken = serverToken.Id,
+                ClientHalfKek = new SensitiveByteArray(clientToken.GetKey())
             };
         }
 
@@ -95,14 +95,14 @@ namespace Youverse.Core.Services.Authentication.Owner
             
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
             
-            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             return IsAuthTokenEntryValid(entry);
         }
         
         public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
             if (!IsAuthTokenEntryValid(loginToken))
             {
                 throw new Exception("Token is invalid");
@@ -117,22 +117,22 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
         }
 
         public void ExpireToken(Guid token)
         {
-            _systemStorage.WithTenantSystemStorage<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
+            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
         }
 
-        private async Task<LoginTokenData> GetValidatedEntry(Guid token)
+        private async Task<OwnerConsoleToken> GetValidatedEntry(Guid token)
         {
-            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginTokenData>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
             AssertTokenIsValid(entry);
             return entry;
         }
 
-        private bool IsAuthTokenEntryValid(LoginTokenData entry)
+        private bool IsAuthTokenEntryValid(OwnerConsoleToken entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var valid =
@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return valid;
         }
 
-        private void AssertTokenIsValid(LoginTokenData entry)
+        private void AssertTokenIsValid(OwnerConsoleToken entry)
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {

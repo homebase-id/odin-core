@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         public async Task SetNewPassword(PasswordReply reply)
         {
             
-            var existingPwd = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var existingPwd = await _systemStorage.WithTenantSystemStorageReturnSingle<PasswordData>(PWD_STORAGE, s => s.Get(PasswordData.Key));
             if (null != existingPwd)
             {
                 throw new YouverseSecurityException("Password already set");
@@ -60,34 +60,36 @@ namespace Youverse.Core.Services.Authentication.Owner
             //await this.GenerateRsaKeyList();
             var keys = await this.GetRsaKeyList();
             
-            var pk = LoginKeyManager.SetInitialPassword(originalNoncePackage, reply, keys);
-            _systemStorage.WithTenantSystemStorage<LoginKeyData>(PWD_STORAGE, s => s.Save(pk));
+            var pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys);
+            _systemStorage.WithTenantSystemStorage<PasswordData>(PWD_STORAGE, s => s.Save(pk));
 
             //delete the temporary salts
             _systemStorage.WithTenantSystemStorage<NonceData>(STORAGE, s => s.Delete(originalNoncePackageKey));
         }
 
-        public async Task<SensitiveByteArray> GetMasterKey(LoginTokenData serverToken, SensitiveByteArray clientSecret)
+        public async Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret)
         {
-            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<PasswordData>(PWD_STORAGE, s => s.Get(PasswordData.Key));
             if (null == pk)
             {
                 throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
-            var masterKey = serverToken.EncryptedMasterKey.DecryptKey(ref clientSecret);
+            //TODO: do we want to keep the extra layer of having a client and
+            //server halfs to form the kek. then use that kek to decrypt the master key?
+            var kek = serverToken.TokenEncryptedKek.DecryptKey(ref clientSecret);
 
-            var dek = pk.EncryptedDek.DecryptKey(ref masterKey);
+            var masterKey = pk.KekEncryptedMasterKey.DecryptKey(ref kek);
 
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();
 
-            return dek;
+            return masterKey;
         }
 
         public async Task<SaltsPackage> GetStoredSalts()
         {
-            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<PasswordData>(PWD_STORAGE, s => s.Get(PasswordData.Key));
 
             if (null == pk)
             {
@@ -128,11 +130,11 @@ namespace Youverse.Core.Services.Authentication.Owner
         // and with that info we can validate if the client calculated the right hash.
         public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
-            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<LoginKeyData>(PWD_STORAGE, s => s.Get(LoginKeyData.Key));
+            var pk = await _systemStorage.WithTenantSystemStorageReturnSingle<PasswordData>(PWD_STORAGE, s => s.Get(PasswordData.Key));
 
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 
-            LoginKeyManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            PasswordDataManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
     }
 }

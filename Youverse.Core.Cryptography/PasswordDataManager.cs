@@ -8,7 +8,7 @@ using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Cryptography
 {
-    public static class LoginKeyManager
+    public static class PasswordDataManager
     {
         /// <summary>
         /// Only call this on initializing an identity the first time 
@@ -18,10 +18,10 @@ namespace Youverse.Core.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static LoginKeyData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
+        private static PasswordData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
         {
 
-            var passwordKey = new LoginKeyData()
+            var passwordKey = new PasswordData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
                 SaltKek = Convert.FromBase64String(nonce.SaltKek64),
@@ -36,13 +36,13 @@ namespace Youverse.Core.Cryptography
             
             // TODO: Change to using ()
             var KekKey = new SensitiveByteArray(Convert.FromBase64String(KeK64));
-            passwordKey.EncryptedDek = new SymmetricKeyEncryptedAes(ref KekKey);
+            passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref KekKey);
             KekKey.Wipe();
 
             return passwordKey;
         }
 
-        public static void ChangePassword(LoginKeyData passwordKey, byte[] oldKeK, byte[] newKeK)
+        public static void ChangePassword(PasswordData passwordKey, byte[] oldKeK, byte[] newKeK)
         {
             throw new Exception();
 
@@ -51,9 +51,9 @@ namespace Youverse.Core.Cryptography
             // ByteArrayUtil.WipeByteArray(DeK);
         }
 
-        public static SensitiveByteArray GetDek(LoginKeyData passwordKey, SensitiveByteArray KeK)
+        public static SensitiveByteArray GetDek(PasswordData passwordKey, SensitiveByteArray KeK)
         {
-            return GetDek(passwordKey.EncryptedDek, KeK);
+            return GetDek(passwordKey.KekEncryptedMasterKey, KeK);
         }
 
         public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
@@ -71,13 +71,13 @@ namespace Youverse.Core.Cryptography
         /// <param name="loadedNoncePackage"></param>
         /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static LoginKeyData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa)
+        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
-            var passwordKey = LoginKeyManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+            var passwordKey = PasswordDataManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
 
             
             return passwordKey;
@@ -171,13 +171,13 @@ namespace Youverse.Core.Cryptography
         /// <param name="nonceHashedPassword64">The client calculated nonceHashedPassword64</param>
         /// <param name="nonce64">The nonce the client was given by the server</param>
         /// <returns></returns>
-        public static void TryPasswordKeyMatch(LoginKeyData pk, string nonceHashedPassword64, string nonce64)
+        public static void TryPasswordKeyMatch(PasswordData pk, string nonceHashedPassword64, string nonce64)
         {
             TryPasswordKeyMatch(Convert.ToBase64String(pk.HashPassword), nonceHashedPassword64, nonce64);
         }
 
 
-        public static LoginKeyData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage,
+        public static PasswordData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage,
             PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
