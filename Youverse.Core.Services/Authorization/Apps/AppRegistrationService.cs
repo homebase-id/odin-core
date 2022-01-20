@@ -59,6 +59,17 @@ namespace Youverse.Core.Services.Authorization.Apps
                 driveId = drive.Id;
             }
 
+            //
+
+            const int maxKeys = 4; //leave this size 
+            var apk = appKey.DecryptKey(ref masterKey);
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref apk, maxKeys);
+            //apk.Wipe();
+            rsaKeyList.Id = applicationId;
+            _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
+            
+            //
+
             var appReg = new AppRegistration()
             {
                 ApplicationId = applicationId,
@@ -71,7 +82,17 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
+            ///
+
             return this.ToAppRegistrationResponse(appReg);
+        }
+
+        public Task RefreshAppKeys()
+        {
+            //this.GetRsaKeyList()
+            //TODO: michael to build a function
+            //RsaKeyListManagement.GetCurrentKey(apk, rsaKeyList, out var wasUpdated);
+            return Task.CompletedTask;
         }
 
         public async Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId)
@@ -196,8 +217,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public async Task<TransitPublicKey> GetTransitPublicKey(Guid appId)
         {
             var rsaKeyList = await this.GetRsaKeyList(appId);
-            var appKey = RsaKeyListManagement.zeroSensitiveKey;
-            var key = RsaKeyListManagement.GetCurrentKey(ref appKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
+            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
 
             if (keyListWasUpdated)
             {
@@ -214,8 +234,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         public async Task<bool> IsValidPublicKey(Guid appId, uint crc)
         {
             var rsaKeyList = await this.GetRsaKeyList(appId);
-            var appKey = Guid.Empty.ToByteArray();
-            
             var key = RsaKeyListManagement.FindKey(rsaKeyList, crc);
             return null != key;
         }
@@ -224,19 +242,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
 
-            if (result == null)
-            {
-                const int maxKeys = 4; //leave this size 
-
-                //TODO: need the app key
-                var appKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref appKey, maxKeys); // TODO
-                rsaKeyList.Id = appId;
-
-                _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
-
-                result = rsaKeyList;
-            }
+            Guard.Argument(result, "App public private keys").NotNull();
 
             return result;
         }

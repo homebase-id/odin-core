@@ -68,6 +68,25 @@ namespace Youverse.Core.Cryptography.Crypto
                 listRsa.ListRSA.RemoveAt(listRsa.ListRSA.Count - 1); // Remove last
         }
 
+        public static RsaFullKeyData GetCurrentKey(ref RsaFullKeyListData listRsa, out bool wasUpdated)
+        {
+            
+            //TODO: need to extend the key if it is expired and update code where we generate a new key
+
+            wasUpdated = false;
+
+            if (listRsa.ListRSA == null)
+                throw new Exception("List shouldn't be null");
+
+            if (listRsa.ListRSA.Count < 1)
+                throw new Exception("Key list is empty");
+
+            if (!listRsa.ListRSA[0].IsValid())
+                throw new Exception("Key is probably expired");
+
+            return listRsa.ListRSA[0]; // First
+        }
+
 
         public static RsaFullKeyData GetCurrentKey(ref SensitiveByteArray key, ref RsaFullKeyListData listRsa, out bool wasUpdated)
         {

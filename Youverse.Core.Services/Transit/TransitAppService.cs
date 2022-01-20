@@ -39,9 +39,8 @@ namespace Youverse.Core.Services.Transit
             var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
             var appId = _context.AppContext.AppId;
-            //var appKey = _context.AppContext.GetAppKey(); //TODO: use appkey to encrypt
-            var appKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-
+            var appKey = _context.AppContext.GetAppKey();
+            
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
 
@@ -50,7 +49,7 @@ namespace Youverse.Core.Services.Transit
                 throw new YouverseSecurityException("Invalid public key");
             }
 
-            var decryptedPrivateKey = pk.Decrypt(ref appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray(); // TODO
+            var decryptedPrivateKey = pk.Decrypt(ref appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray();
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedPrivateKey.GetKey(), 16, 16);
             decryptedPrivateKey.Wipe();
 

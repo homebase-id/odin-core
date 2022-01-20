@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-revoke";
 
-            var newId = AddSampleAppNoDrive(appId, name);
+            var newId = await AddSampleAppNoDrive(appId, name);
 
             using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
             {
