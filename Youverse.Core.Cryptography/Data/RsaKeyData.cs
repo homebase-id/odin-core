@@ -72,6 +72,11 @@ namespace Youverse.Core.Cryptography.Data
             return cipherData;
         }
 
+        public void Extend(int hours = 1 )
+        {
+            expiration = DateTimeExtensions.UnixTimeSeconds() + (UInt64)hours * 60 * 60;
+        }
+
         public bool IsExpired()
         {
             UInt64 t = DateTimeExtensions.UnixTimeSeconds();
