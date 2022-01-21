@@ -30,7 +30,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             // Now create a mapping from a client device/app to the application token above
 
-            var applicationDek = appToken.DecryptKey(ref loginDek);
+            var applicationDek = appToken.DecryptKeyClone(ref loginDek);
 
             Assert.Pass();
         }

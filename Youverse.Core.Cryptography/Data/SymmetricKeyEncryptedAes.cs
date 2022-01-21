@@ -10,23 +10,14 @@ namespace Youverse.Core.Cryptography.Data
     /// </summary>
     public class SymmetricKeyEncryptedAes
     {
-        private SensitiveByteArray _decryptedKey;  // Cache value to only decrypt once
-
         public byte[] KeyEncrypted { get; set; } // The symmetric encryption key encrypted with AES using the IV below
         public byte[] KeyIV { get; set; }        // IV used for AES encryption of the key
         public byte[] KeyHash { get; set; }      // Hash (SHA256 XORed to 128) of the secret & iv needed to decrypt
 
 
-        ~SymmetricKeyEncryptedAes()
-        {
-            //TODO: this is causing the master key to go null on other threads; need to figure out why
-            //_decryptedKey?.Wipe();
-        }
-
         public SymmetricKeyEncryptedAes()
         {
             //For LiteDB
-            _decryptedKey = null;
         }
 
         /// <summary>
@@ -61,29 +52,24 @@ namespace Youverse.Core.Cryptography.Data
         private void EncryptKey(ref SensitiveByteArray secret, ref SensitiveByteArray keyToProtect)
         {
             Guard.Argument(KeyHash == null).True();
-            Guard.Argument(_decryptedKey == null).True();
 
             (KeyIV, KeyEncrypted) = AesCbc.Encrypt(keyToProtect.GetKey(), ref secret);
             KeyHash = CalcKeyHash(ref secret);
         }
 
         /// <summary>
-        /// Get the Application Dek by means of the LoginKek master key
+        /// Decrypt the encrypted key and return a clone of it
         /// </summary>
-        /// <param name="secret">The master key LoginKek</param>
-        /// <returns>The decrypted Application DeK</returns>
-        public ref SensitiveByteArray DecryptKey(ref SensitiveByteArray secret)
+        /// <param name="secret">The decryption key</param>
+        /// <returns>A clone of the decrypted key</returns>
+        public SensitiveByteArray DecryptKeyClone(ref SensitiveByteArray secret)
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref secret)))
                 throw new Exception();
 
-            if (_decryptedKey == null || _decryptedKey.IsEmpty())
-            {
-                var key = AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV);
-                _decryptedKey = new SensitiveByteArray(key);
-            }
-            
-            return ref _decryptedKey;
+            var key = new SensitiveByteArray(AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV));
+
+            return key;
         }
     }
 }

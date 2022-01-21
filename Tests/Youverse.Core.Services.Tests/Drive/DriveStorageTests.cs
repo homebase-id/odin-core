@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.That(storageDrive.EncryptedIdIv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
             var mk = _scaffold!.Context!.Caller.GetMasterKey();
-            var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKey(ref mk);
+            var storageKey = storageDrive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref mk);
 
             var decryptedDriveId = AesCbc.Decrypt(storageDrive.EncryptedIdValue, ref storageKey, storageDrive.EncryptedIdIv);
             Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));

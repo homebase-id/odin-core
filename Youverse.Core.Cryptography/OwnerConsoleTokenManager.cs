@@ -66,7 +66,7 @@ namespace Youverse.Core.Cryptography
         // the application KeK that will unlock the DeK.
         public static SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, ref SensitiveByteArray halfCookie)
         {
-            return loginToken.TokenEncryptedKek.DecryptKey(ref halfCookie);
+            return loginToken.TokenEncryptedKek.DecryptKeyClone(ref halfCookie);
         }
     }
 }

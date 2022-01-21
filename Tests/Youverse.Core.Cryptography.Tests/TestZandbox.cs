@@ -20,7 +20,7 @@ namespace Youverse.Core.Cryptography.Tests
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedAes(ref secret);
 
-            var sk = key.DecryptKey(ref secret);
+            var sk = key.DecryptKeyClone(ref secret);
 
             Assert.Pass();
         }
@@ -35,7 +35,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             try
             {
-                key.DecryptKey(ref garbage);
+                key.DecryptKeyClone(ref garbage);
                 Assert.Fail();
             }
             catch
@@ -52,13 +52,13 @@ namespace Youverse.Core.Cryptography.Tests
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedAes(ref secret);
 
-            var sk = key.DecryptKey(ref secret);
+            var sk = key.DecryptKeyClone(ref secret);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKey(ref junk);
+                key.DecryptKeyClone(ref junk);
                 Assert.Fail();
             }
             catch
@@ -75,7 +75,7 @@ namespace Youverse.Core.Cryptography.Tests
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             // byte[] halfKey;
             var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
-            var decryptKey = key.DecryptKey(ref halfKey);
+            var decryptKey = key.DecryptKeyClone(ref halfKey);
 
             if (ByteArrayUtil.EquiByteArrayCompare(decryptKey.GetKey(), secret.GetKey()))
                 Assert.Pass();
@@ -96,7 +96,7 @@ namespace Youverse.Core.Cryptography.Tests
 
             try
             {
-                var decryptKey = key.DecryptKey(ref garbage);
+                var decryptKey = key.DecryptKeyClone(ref garbage);
                 Assert.Fail();
             }
             catch
@@ -113,13 +113,13 @@ namespace Youverse.Core.Cryptography.Tests
             var secret = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
             var key = new SymmetricKeyEncryptedXor(ref secret, out var halfKey);
 
-            var sk = key.DecryptKey(ref halfKey);
+            var sk = key.DecryptKeyClone(ref halfKey);
 
             var junk = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
 
             try
             {
-                key.DecryptKey(ref junk);
+                key.DecryptKeyClone(ref junk);
                 Assert.Fail();
             }
             catch

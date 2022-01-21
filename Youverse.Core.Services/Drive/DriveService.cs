@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Drive
             var driveKey = new SymmetricKeyEncryptedAes(ref mk);
             
             var id = Guid.NewGuid();
-            var secret = driveKey.DecryptKey(ref mk);
+            var secret = driveKey.DecryptKeyClone(ref mk);
 
             (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
 

@@ -58,7 +58,7 @@ namespace Youverse.Core.Cryptography
 
         public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
         {
-            return EncryptedDek.DecryptKey(ref KeK);
+            return EncryptedDek.DecryptKeyClone(ref KeK);
         }
 
         /// <summary>

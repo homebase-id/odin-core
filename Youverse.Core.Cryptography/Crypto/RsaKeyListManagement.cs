@@ -70,9 +70,6 @@ namespace Youverse.Core.Cryptography.Crypto
 
         public static RsaFullKeyData GetCurrentKey(ref RsaFullKeyListData listRsa, out bool wasUpdated)
         {
-            
-            //TODO: need to extend the key if it is expired and update code where we generate a new key
-
             wasUpdated = false;
 
             if (listRsa.ListRSA == null)
@@ -82,7 +79,11 @@ namespace Youverse.Core.Cryptography.Crypto
                 throw new Exception("Key list is empty");
 
             if (!listRsa.ListRSA[0].IsValid())
-                throw new Exception("Key is probably expired");
+            {
+                // Key expired. We'll extend it for 23 hours
+                listRsa.ListRSA[0].Extend(24);
+                wasUpdated = true;
+            }
 
             return listRsa.ListRSA[0]; // First
         }
