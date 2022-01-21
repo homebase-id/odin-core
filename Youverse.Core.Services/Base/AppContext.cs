@@ -79,13 +79,13 @@ namespace Youverse.Core.Services.Base
             }
 
             var appKey = this.GetAppKey();
-            var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKey(ref appKey);
+            var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKeyClone(ref appKey);
             return storageKey;
         }
 
         public SensitiveByteArray GetAppKey()
         {
-            var appKey = this._encryptedAppKey.DecryptKey(ref this._clientHalfKek);
+            var appKey = this._encryptedAppKey.DecryptKeyClone(ref this._clientHalfKek);
             return appKey;
         }
 

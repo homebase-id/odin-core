@@ -77,9 +77,9 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             //TODO: do we want to keep the extra layer of having a client and
             //server halfs to form the kek. then use that kek to decrypt the master key?
-            var kek = serverToken.TokenEncryptedKek.DecryptKey(ref clientSecret);
+            var kek = serverToken.TokenEncryptedKek.DecryptKeyClone(ref clientSecret);
 
-            var masterKey = pk.KekEncryptedMasterKey.DecryptKey(ref kek);
+            var masterKey = pk.KekEncryptedMasterKey.DecryptKeyClone(ref kek);
 
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();

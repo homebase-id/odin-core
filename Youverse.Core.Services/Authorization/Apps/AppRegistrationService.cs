@@ -44,27 +44,25 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var masterKey = _context.Caller.GetMasterKey();
             var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
+            var apk = appKey.DecryptKeyClone(ref masterKey);
 
             List<DriveGrant> grants = null;
 
             if (createDrive)
             {
                 var drive = await _driveService.CreateDrive($"{name}-drive");
-                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKey(ref masterKey);
+                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref appKey.DecryptKey(ref masterKey), ref storageKey);
+                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
 
                 grants = new List<DriveGrant>();
                 grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey});
                 driveId = drive.Id;
             }
 
-            //
-
             const int maxKeys = 4; //leave this size 
-            var apk = appKey.DecryptKey(ref masterKey);
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref apk, maxKeys);
-            //apk.Wipe();
+            apk.Wipe();
             rsaKeyList.Id = applicationId;
             _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
             
@@ -163,7 +161,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //Note: never store clientAppToken
 
             var masterKey = _context.Caller.GetMasterKey();
-            var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKey(ref masterKey);
+            var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
 
             var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(ref appKey, out var clientKek);
 
