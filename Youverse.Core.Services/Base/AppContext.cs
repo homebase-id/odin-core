@@ -20,8 +20,8 @@ namespace Youverse.Core.Services.Base
         private readonly Guid _appClientId;
         private readonly List<DriveGrant> _driveGrants;
         private readonly Guid? _driveId;
-        private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
-        private SensitiveByteArray _clientHalfKek; //TODO: can we make this readonly?
+        private readonly SymmetricKeyEncryptedXor _hostHalfAppKey;
+        private SensitiveByteArray _clientHalfAppKey; //TODO: can we make this readonly?
         private readonly bool _canManageConnections;
 
         public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
@@ -32,8 +32,8 @@ namespace Youverse.Core.Services.Base
             this._appId = appId;
             this._clientSharedSecret = clientSharedSecret;
             this._driveId = driveId;
-            this._encryptedAppKey = encryptedAppKey;
-            this._clientHalfKek = clientHalfKek;
+            this._hostHalfAppKey = encryptedAppKey;
+            this._clientHalfAppKey = clientHalfKek;
             this._driveGrants = driveGrants;
             _canManageConnections = canManageConnections;
             this._appClientId = appClientId;
@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Base
 
         public SensitiveByteArray GetAppKey()
         {
-            var appKey = this._encryptedAppKey.DecryptKeyClone(ref this._clientHalfKek);
+            var appKey = this._hostHalfAppKey.DecryptKeyClone(ref this._clientHalfAppKey);
             return appKey;
         }
 
