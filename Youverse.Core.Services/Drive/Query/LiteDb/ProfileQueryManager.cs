@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
             // var page = await _systemStorage.WithTenantSystemStorageReturnList<IndexedItem>(_currentIndex.QueryIndexName, s => s.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions));
             using var indexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, _currentIndex.GetQueryIndexPath(), _currentIndex.QueryIndexName);
-            var page = await indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
+            var page = await indexStorage.Find(item => item.PrimaryCategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
 
             if (!includeContent)
             {

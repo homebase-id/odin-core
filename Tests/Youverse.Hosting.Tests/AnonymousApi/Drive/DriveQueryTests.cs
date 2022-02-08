@@ -1,22 +1,14 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Tests.AppAPI.Drive;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive
+namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 {
     public class DriveQueryTests
     {

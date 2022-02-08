@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
 
-            var page = await _indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
+            var page = await _indexStorage.Find(item => item.PrimaryCategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
 
             if (!includeContent)
             {
@@ -193,12 +193,14 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 FileId = metadata.File.FileId,
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
-                CategoryId = metadata.AppData.CategoryId,
+                PrimaryCategoryId = metadata.AppData.PrimaryCategoryId,
+                SecondaryCategoryId = metadata.AppData.SecondaryCategoryId,
+                DistinguishedName = metadata.AppData.DistinguishedName,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent
             };
         }
-        
+
         private void AssertValidIndexLoaded()
         {
             if (_indexReadyState == IndexReadyState.Ready)

@@ -130,7 +130,7 @@ namespace Youverse.Core.Services.Transit
 
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = uploadDescriptor.FileMetadata.AppData.CategoryId,
+                    PrimaryCategoryId = uploadDescriptor.FileMetadata.AppData.PrimaryCategoryId,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
                 }

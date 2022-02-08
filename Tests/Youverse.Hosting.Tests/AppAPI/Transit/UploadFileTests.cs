@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        CategoryId = Guid.Empty,
+                        PrimaryCategoryId = Guid.Empty,
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
@@ -110,7 +110,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.CategoryId));
+                Assert.That(clientFileHeader.FileMetadata.AppData.PrimaryCategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.PrimaryCategoryId));
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 

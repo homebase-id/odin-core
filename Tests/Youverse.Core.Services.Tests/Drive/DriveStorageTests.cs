@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Tests.Drive
                 ContentType = "application/json",
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = Guid.Empty,
+                    PrimaryCategoryId = Guid.Empty,
                     ContentIsComplete = true,
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach" })
                 }
@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Tests.Drive
             
             Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
             Assert.IsNotNull(storedMetadata.AppData);
-            Assert.IsTrue(metadata.AppData.CategoryId == storedMetadata.AppData.CategoryId);
+            Assert.IsTrue(metadata.AppData.PrimaryCategoryId == storedMetadata.AppData.PrimaryCategoryId);
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 

@@ -427,7 +427,7 @@ namespace Youverse.Hosting.Tests
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    CategoryId = Guid.Empty,
+                    PrimaryCategoryId = Guid.Empty,
                     ContentIsComplete = true,
                     JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
@@ -485,7 +485,7 @@ namespace Youverse.Hosting.Tests
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    CategoryId = options?.AppDataCategoryId ?? Guid.Empty,
+                    PrimaryCategoryId = options?.AppDataCategoryId ?? Guid.Empty,
                     ContentIsComplete = true,
                     JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }

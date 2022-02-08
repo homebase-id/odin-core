@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        CategoryId = Guid.Empty,
+                        PrimaryCategoryId = Guid.Empty,
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
@@ -220,7 +220,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(utilsContext.FileMetadata.ContentType));
-                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(utilsContext.FileMetadata.AppData.CategoryId));
+                Assert.That(clientFileHeader.FileMetadata.AppData.PrimaryCategoryId, Is.EqualTo(utilsContext.FileMetadata.AppData.PrimaryCategoryId));
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(utilsContext.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(utilsContext.FileMetadata.AppData.ContentIsComplete));
 
@@ -263,12 +263,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(page);
 
                 //TODO: what to test here?
-                Assert.IsTrue(page.Results.Any(item => item.CategoryId == categoryId));
+                Assert.IsTrue(page.Results.Any(item => item.PrimaryCategoryId == categoryId));
 
                 Console.WriteLine($"Items with category: {categoryId}");
                 foreach (var item in page.Results)
                 {
-                    Console.WriteLine($"{item.CategoryId} {item.JsonContent}");
+                    Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
                 }
             }
         }
