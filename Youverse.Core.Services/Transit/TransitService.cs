@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 Sender = this._context.Caller.DotYouId,
-                AppId = this._context.TransitContext.AppId, //Note: only use the appId in from transit context since it's been verified
+                AppId = this._context.AppContext.AppId,
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
                 Priority = 0 //TODO

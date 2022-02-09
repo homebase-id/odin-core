@@ -34,7 +34,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false)
         {
-
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
@@ -56,7 +55,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
 
                 grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All });
+                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
                 driveId = drive.Id;
             }
 
@@ -65,7 +64,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             apk.Wipe();
             rsaKeyList.Id = applicationId;
             _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
-            
+
             //
 
             var appReg = new AppRegistration()
@@ -211,7 +210,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var redactedList = apps.Results.Select(ToAppRegistrationResponse).ToList();
             return new PagedResult<AppRegistrationResponse>(pageOptions, apps.TotalPages, redactedList);
         }
-        
+
         public async Task<TransitPublicKey> GetTransitPublicKey(Guid appId)
         {
             var rsaKeyList = await this.GetRsaKeyList(appId);
@@ -235,7 +234,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var key = RsaKeyListManagement.FindKey(rsaKeyList, crc);
             return null != key;
         }
-        
+
         public async Task<RsaFullKeyListData> GetRsaKeyList(Guid appId)
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
@@ -245,13 +244,10 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<TransitContext> GetTransitContext(Guid appId)
+        public async Task<AppContext> GetTransitAppContext(Guid appId)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
-            return new TransitContext(
-                appId: appId,
-                driveId: appReg.DriveId.GetValueOrDefault(),
-                canManageConnections: appReg.CanManageConnections);
+            return new AppContext(appId, Guid.Empty, null, appReg.DriveId.GetValueOrDefault(), null, null, appReg.DriveGrants, appReg.CanManageConnections);
         }
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)

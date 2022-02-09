@@ -11,6 +11,7 @@ using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -110,8 +111,6 @@ namespace Youverse.Hosting.Middleware
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
 
             dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
-
-            dotYouContext.TransitContext = null;
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -127,9 +126,7 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
             );
 
-            dotYouContext.AppContext = null;
-
-            dotYouContext.TransitContext = await appRegSvc.GetTransitContext(appId);
+            dotYouContext.AppContext = await appRegSvc.GetTransitAppContext(appId);
         }
     }
 }

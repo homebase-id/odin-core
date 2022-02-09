@@ -102,5 +102,27 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException("Unauthorized Action");
             }
         }
+        
+        /// <summary>
+        /// Determines if the current request can write to the specified drive
+        /// </summary>
+        public void AssertCanWriteToDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermissions.ReadWrite))
+            {
+                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+            }
+        }
+        
+        /// <summary>
+        /// Determines if the current request can write to the specified drive
+        /// </summary>
+        public void AssertCanReadDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
+            {
+                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+            }
+        }
     }
 }

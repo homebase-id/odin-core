@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guard.Argument(rsaKeyHeader!.PublicKeyCrc, nameof(rsaKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
             Guard.Argument(rsaKeyHeader.EncryptedAesKey.Length, nameof(rsaKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
 
-            if (!await _appRegService.IsValidPublicKey(_context.TransitContext.AppId, rsaKeyHeader.PublicKeyCrc))
+            if (!await _appRegService.IsValidPublicKey(_context.AppContext.AppId, rsaKeyHeader.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");
             }
@@ -121,7 +121,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<TransitPublicKey> GetTransitPublicKey()
         {
-            var tpk = await _appRegService.GetTransitPublicKey(_context.TransitContext.AppId);
+            var tpk = await _appRegService.GetTransitPublicKey(_context.AppContext.AppId);
             return tpk;
         }
 

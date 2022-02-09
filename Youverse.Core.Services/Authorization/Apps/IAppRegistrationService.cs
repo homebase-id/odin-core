@@ -86,10 +86,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
         /// <summary>
-        /// Creates context information for the transit system
+        /// Creates app context specifically for the transit system
         /// </summary>
-        /// <param name="appId"></param>
         /// <returns></returns>
-        Task<TransitContext> GetTransitContext(Guid appId);
+        Task<AppContext> GetTransitAppContext(Guid appId);
     }
 }
