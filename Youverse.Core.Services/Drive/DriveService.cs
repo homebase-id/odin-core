@@ -17,6 +17,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
+using AppContext = System.AppContext;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -101,6 +102,8 @@ namespace Youverse.Core.Services.Drive
 
         public DriveFileId CreateFileId(Guid driveId)
         {
+            _context.AppContext.AssertCanWriteToDrive(driveId);
+            
             var df = new DriveFileId()
             {
                 FileId = GetLongTermStorageManager(driveId).CreateFileId(),
@@ -163,6 +166,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
         {
+            _context.AppContext.AssertCanReadDrive(file.DriveId);
+            
             if (disposition == StorageDisposition.LongTerm)
             {
                 throw new NotImplementedException("Not supported for long term storage");
@@ -204,7 +209,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
-            _context.AssertCanReadDrive(driveId);
+            _context.AppContext.AssertCanReadDrive(driveId);
 
             return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
@@ -232,6 +237,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file)
         {
+            _context.AppContext.AssertCanReadDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId);
         }
 

@@ -51,16 +51,6 @@ namespace Youverse.Core.Services.Base
         public CallerContext Caller { get; set; }
 
         public AppContext AppContext { get; set; }
-        
-        /// <summary>
-        /// Determines if the current request can write to the specified drive
-        /// </summary>
-        public void AssertCanReadDrive(Guid driveId)
-        {
-            if (AppContext == null || !AppContext.HasDrivePermission(driveId, DrivePermissions.Read))
-            {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
-            }
-        }
+       
     }
 }
