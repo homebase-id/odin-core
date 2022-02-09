@@ -17,7 +17,6 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
-using AppContext = System.AppContext;
 
 namespace Youverse.Core.Services.Drive
 {

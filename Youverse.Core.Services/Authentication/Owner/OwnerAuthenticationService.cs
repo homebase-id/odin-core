@@ -99,17 +99,38 @@ namespace Youverse.Core.Services.Authentication.Owner
             return IsAuthTokenEntryValid(entry);
         }
         
-        public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
+        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+
             if (!IsAuthTokenEntryValid(loginToken))
             {
                 throw new Exception("Token is invalid");
             }
 
-            return await _secretService.GetMasterKey(loginToken, clientSecret);
+            var mk = await _secretService.GetMasterKey(loginToken, clientSecret);
+
+            //HACK: need to clone this here because the owner console token is getting wipe by the owner console token finalizer
+            var len = loginToken.SharedSecret.Length;
+            var clone = new byte[len];
+            Buffer.BlockCopy(loginToken.SharedSecret, 0, clone, 0, len);
+
+            loginToken.Dispose();
+            return (mk, clone.ToSensitiveByteArray());
         }
+        
+        // public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
+        // {
+        //     //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
+        //     var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+        //     if (!IsAuthTokenEntryValid(loginToken))
+        //     {
+        //         throw new Exception("Token is invalid");
+        //     }
+        //
+        //     return await _secretService.GetMasterKey(loginToken, clientSecret);
+        // }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
         {

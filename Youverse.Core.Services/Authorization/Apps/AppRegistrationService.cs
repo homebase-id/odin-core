@@ -115,6 +115,25 @@ namespace Youverse.Core.Services.Authorization.Apps
             );
         }
 
+        public async Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false)
+        {
+            var appReg = await this.GetAppRegistrationInternal(appId);
+
+            if (appReg.IsRevoked)
+            {
+                throw new YouverseSecurityException("App is revoked");
+            }
+
+            return new AppContextBase(
+                appId: appId,
+                appClientId: Guid.Empty,
+                clientSharedSecret: null,
+                driveId: appReg.DriveId.GetValueOrDefault(),
+                driveGrants: appReg.DriveGrants,
+                canManageConnections: appReg.CanManageConnections,
+                masterKeyEncryptedAppKey: includeMasterKey ? appReg.MasterKeyEncryptedAppKey : null);
+        }
+
         public async Task RevokeApp(Guid applicationId)
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
@@ -242,12 +261,6 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(result, "App public private keys").NotNull();
 
             return result;
-        }
-
-        public async Task<AppContext> GetTransitAppContext(Guid appId)
-        {
-            var appReg = await this.GetAppRegistrationInternal(appId);
-            return new AppContext(appId, Guid.Empty, null, appReg.DriveId.GetValueOrDefault(), null, null, appReg.DriveGrants, appReg.CanManageConnections);
         }
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)

@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Apps;
@@ -82,7 +84,8 @@ namespace Youverse.Hosting.Middleware
 
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
-            var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
+            //var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
+            var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
@@ -90,7 +93,24 @@ namespace Youverse.Hosting.Middleware
                 masterKey: masterKey
             );
 
-            dotYouContext.AppContext = null;
+            var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
+            if (!string.IsNullOrEmpty(appIdValue))
+            {
+                Guard.Argument(appIdValue, DotYouHeaderNames.AppId).Require(Guid.TryParse(appIdValue, out var appId), v => "If appId specified, it must be a valid Guid");
+                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+
+                var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+
+                dotYouContext.AppContext = new OwnerAppContext(
+                    appId: appId,
+                    appClientId: authResult.SessionToken,
+                    clientSharedSecret: clientSharedSecret,
+                    driveId: ctxBase.DriveId.GetValueOrDefault(),
+                    masterKeyEncryptedAppKey: ctxBase.MasterKeyEncryptedAppKey,
+                    driveGrants: ctxBase.DriveGrants,
+                    canManageConnections: ctxBase.CanManageConnections,
+                    masterKey: masterKey);
+            }
         }
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -126,7 +146,7 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
             );
 
-            dotYouContext.AppContext = await appRegSvc.GetTransitAppContext(appId);
+            dotYouContext.AppContext = await appRegSvc.GetAppContextBase(appId);
         }
     }
 }

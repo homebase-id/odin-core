@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.Transit
                 encryptedBytes = ms.ToArray();
             }
 
-            var clientSharedSecret = _context.AppContext.GetClientSharedSecret();
+            var clientSharedSecret = _context.AppContext.ClientSharedSecret;
             var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
@@ -121,7 +121,7 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Invalid transfer key header");
             }
 
-            var sharedSecret = _context.AppContext.GetClientSharedSecret();
+            var sharedSecret = _context.AppContext.ClientSharedSecret;
             var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
             var metadata = new FileMetadata(package.File)

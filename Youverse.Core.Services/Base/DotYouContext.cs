@@ -1,7 +1,5 @@
 ﻿using System;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base
@@ -50,7 +48,7 @@ namespace Youverse.Core.Services.Base
 
         public CallerContext Caller { get; set; }
 
-        public AppContext AppContext { get; set; }
+        public IAppContext AppContext { get; set; }
        
     }
 }

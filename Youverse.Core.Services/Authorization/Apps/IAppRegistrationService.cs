@@ -89,6 +89,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Creates app context specifically for the transit system
         /// </summary>
         /// <returns></returns>
-        Task<AppContext> GetTransitAppContext(Guid appId);
+        Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false);
     }
 }
