@@ -16,6 +16,11 @@ namespace Youverse.Core.Services.Drive.Query
         /// The created timestamp of the <see cref="FileId"/> in UnixTime milliseconds
         /// </summary>
         public UInt64 CreatedTimestamp { get; set; }
+        
+        /// <summary>
+        /// The DotYouId of the sender of this file.
+        /// </summary>
+        public string SenderDotYouId { get; set; }
 
         /// <summary>
         /// The last updated timestamp of the <see cref="FileId"/> in UnixTime milliseconds

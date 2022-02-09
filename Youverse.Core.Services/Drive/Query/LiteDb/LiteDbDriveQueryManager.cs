@@ -191,6 +191,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return new IndexedItem()
             {
                 FileId = metadata.File.FileId,
+                SenderDotYouId = metadata.SenderDotYouId,
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
                 PrimaryCategoryId = metadata.AppData.PrimaryCategoryId,

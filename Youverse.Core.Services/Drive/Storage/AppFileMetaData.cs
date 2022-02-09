@@ -14,6 +14,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Guid? SecondaryCategoryId { get; set; }
 
         public bool ContentIsComplete { get; set; }
+        
         public bool PayloadIsEncrypted { get; set; }
         public string DistinguishedName { get; set; }
 

@@ -29,7 +29,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guid id = Guid.NewGuid();
 
             var file = _driveService.CreateFileId(_context.TransitContext.DriveId);
-
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
@@ -50,7 +49,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 throw new TransitException("Invalid perimeter state item");
             }
-            
+
             return item;
         }
 

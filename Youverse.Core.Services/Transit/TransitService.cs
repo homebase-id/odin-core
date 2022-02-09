@@ -128,11 +128,16 @@ namespace Youverse.Core.Services.Transit
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
 
+                //TODO: need an automapper *sigh
                 AppData = new AppFileMetaData()
                 {
                     PrimaryCategoryId = uploadDescriptor.FileMetadata.AppData.PrimaryCategoryId,
+                    SecondaryCategoryId = uploadDescriptor.FileMetadata.AppData.SecondaryCategoryId,
+                    DistinguishedName = uploadDescriptor.FileMetadata.AppData.DistinguishedName,
+                    FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
+                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
                 }
             };
 
