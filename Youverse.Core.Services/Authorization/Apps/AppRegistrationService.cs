@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
 
                 grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey});
+                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All });
                 driveId = drive.Id;
             }
 
@@ -80,7 +80,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
 
-            ///
+            //
 
             return this.ToAppRegistrationResponse(appReg);
         }

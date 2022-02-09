@@ -3,7 +3,7 @@ using System;
 namespace Youverse.Core.Services.Drive
 {
     [Flags]
-    public enum DriveAccess
+    public enum DrivePermissions
     {
         Read = 0,
         ReadWrite = 1,

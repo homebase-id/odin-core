@@ -96,9 +96,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
              *      DriveQueryService.GetFilesBy
              *  get all attributes
              */
-            var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-            var page = await _driveQueryService.(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
-            return new JsonResult(page);
+            // var driveId = _context.AppContext.DriveId.GetValueOrDefault();
+            // var page = await _driveQueryService.(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
+            // return new JsonResult(page);
+
+            return new JsonResult("");
         }
     }
 }

@@ -115,6 +115,8 @@ namespace Youverse.Core.Services.Drive
             Guard.Argument(metadata, nameof(metadata)).NotNull();
             Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
 
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             //TODO: need to encrypt the metadata parts
             metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embedded
 
@@ -138,6 +140,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task WritePayload(DriveFileId file, Stream stream)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             await GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream);
 
             //update the metadata file - updated date
@@ -151,6 +155,8 @@ namespace Youverse.Core.Services.Drive
 
         public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             var task = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream);
             return task;
         }
@@ -170,31 +176,43 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteTempStream(DriveFileId file, string extension, Stream stream)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
         public Task<Stream> GetTempStream(DriveFileId file, string extension)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+
             return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
         }
 
         public Task DeleteTempFile(DriveFileId file, string extension)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
         }
 
         public Task DeleteTempFiles(DriveFileId file)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             return GetTempStorageManager(file.DriveId).Delete(file.FileId);
         }
 
         public Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
+            _context.AssertCanReadDrive(driveId);
+
             return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
 
         public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             var manager = GetLongTermStorageManager(file.DriveId);
             var drive = manager.Drive;
             var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
@@ -214,28 +232,38 @@ namespace Youverse.Core.Services.Drive
 
         public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+
             return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId);
         }
 
         public async Task<FileMetadata> GetMetadata(DriveFileId file)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+
             var metadata = await GetLongTermStorageManager(file.DriveId).GetMetadata(file.FileId);
             return metadata;
         }
 
         public async Task<Stream> GetPayloadStream(DriveFileId file)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+            
             var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
             return stream;
         }
 
         public Task<long> GetFileSize(DriveFileId file)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+
             return GetLongTermStorageManager(file.DriveId).GetFileSize(file.FileId);
         }
 
         public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart)
         {
+            _context.AssertCanReadDrive(file.DriveId);
+
             return GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, filePart);
         }
 
@@ -246,16 +274,26 @@ namespace Youverse.Core.Services.Drive
 
         public bool FileExists(DriveFileId file)
         {
+            _context.AssertCanReadDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
         public Task DeleteLongTermFile(DriveFileId file)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             return GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
         }
 
         public async Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+            
+            //to enforce security here - 
+            // the caller must have access to file.DriveId = how is this controlled?
+            // 
+            // 
+            
             //TODO: this method is so hacky 🤢
 
             metadata.File = file;
@@ -271,6 +309,8 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader)
         {
+            _context.AssertCanWriteToDrive(file.DriveId);
+
             return GetLongTermStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
         }
 

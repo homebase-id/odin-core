@@ -12,9 +12,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
         }
 
-        [BsonId]
-        public Guid ApplicationId { get; set; }
-        
+        [BsonId] public Guid ApplicationId { get; set; }
+
         public string Name { get; set; }
 
         /// <summary>
@@ -23,26 +22,20 @@ namespace Youverse.Core.Services.Authorization.Apps
         public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; set; }
 
         public bool IsRevoked { get; set; }
-        
+
         /// <summary>
         /// The drive associated with this app.
         /// </summary>
         public Guid? DriveId { get; set; }
-        
+
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
         public List<DriveGrant> DriveGrants { get; set; }
-        
+
         /// <summary>
         /// Indicates this app is allowed to manage connections, including sending, accepting, and removing requests and existing connections
         /// </summary>
         public bool CanManageConnections { get; set; }
-    }
-
-    public class DriveGrant
-    {
-        public Guid DriveId { get; set; }
-        public SymmetricKeyEncryptedAes AppKeyEncryptedStorageKey { get; set; }
     }
 }

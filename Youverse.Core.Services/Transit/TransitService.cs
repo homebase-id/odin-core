@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 Sender = this._context.Caller.DotYouId,
-                AppId = this._context.TransitContext.AppId, //Note: best to use the appId in from transit context since it's been verified
+                AppId = this._context.TransitContext.AppId, //Note: only use the appId in from transit context since it's been verified
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
                 Priority = 0 //TODO
@@ -127,7 +127,6 @@ namespace Youverse.Core.Services.Transit
             var metadata = new FileMetadata(package.File)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
-
                 //TODO: need an automapper *sigh
                 AppData = new AppFileMetaData()
                 {
@@ -138,7 +137,8 @@ namespace Youverse.Core.Services.Transit
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                     PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
-                }
+                },
+                SenderDotYouId = ""
             };
 
             return (keyHeader, metadata);
@@ -302,7 +302,6 @@ namespace Youverse.Core.Services.Transit
                 //react information
                 metadata.File = DriveFileId.Redacted();
                 metadata.SenderDotYouId = string.Empty;
-
                 metadata.AccessControlList = null;
                 
                 var json = JsonConvert.SerializeObject(metadata);

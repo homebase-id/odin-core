@@ -87,6 +87,8 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <returns></returns>
         Task<FileMetadata> GetMetadata(DriveFileId file);
+        
+        
 
         Task<Stream> GetPayloadStream(DriveFileId file);
 

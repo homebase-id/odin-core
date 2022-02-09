@@ -7,6 +7,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
 {
@@ -52,7 +53,7 @@ namespace Youverse.Core.Services.Base
         /// Indicates this app can manage connections and requests.
         /// </summary>
         public bool CanManageConnections => _canManageConnections;
-        
+
         /// <summary>
         /// Returns the shared secret between the client app and
         /// the server.  Do not use for permanent storage.  
@@ -72,7 +73,6 @@ namespace Youverse.Core.Services.Base
         {
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
 
-            //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
                 throw new YouverseSecurityException($"App {this._appId} does not have access to drive {driveId}");
@@ -81,6 +81,12 @@ namespace Youverse.Core.Services.Base
             var appKey = this.GetAppKey();
             var storageKey = grant.AppKeyEncryptedStorageKey.DecryptKeyClone(ref appKey);
             return storageKey;
+        }
+
+        public bool HasDrivePermission(Guid driveId, DrivePermissions permission)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+            return grant != null && grant.Permissions.HasFlag(permission);
         }
 
         public SensitiveByteArray GetAppKey()
