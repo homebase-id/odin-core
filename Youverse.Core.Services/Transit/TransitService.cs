@@ -298,7 +298,13 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var metadata = await _driveService.GetMetadata(file);
+                
+                //react information
                 metadata.File = DriveFileId.Redacted();
+                metadata.SenderDotYouId = string.Empty;
+
+                metadata.AccessControlList = null;
+                
                 var json = JsonConvert.SerializeObject(metadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
