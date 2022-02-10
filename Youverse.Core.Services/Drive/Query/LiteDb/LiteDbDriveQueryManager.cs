@@ -43,10 +43,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
             var page = await _indexStorage.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp);
-
-            //apply permissions from the permissions index to reduce the set.
-            //
-
+            
             if (!includeContent)
             {
                 StripContent(ref page);
@@ -198,7 +195,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 SecondaryCategoryId = metadata.AppData.SecondaryCategoryId,
                 DistinguishedName = metadata.AppData.DistinguishedName,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
-                JsonContent = metadata.AppData.JsonContent
+                JsonContent = metadata.AppData.JsonContent,
+                AccessControlList = metadata.AccessControlList
             };
         }
 

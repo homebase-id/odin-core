@@ -10,13 +10,15 @@ namespace Youverse.Core.Services.Authorization.Acl
     {
         Task AssertCallerHasPermission(AccessControlList acl);
 
-        Task AssertCallerIsConnected();
+        Task<bool> CallerHasPermission(AccessControlList acl);
 
-        Task AssertCallerIsInYouverseNetwork();
+        Task<bool> CallerIsConnected();
 
-        Task AssertCallerIsInList(List<string> dotYouIdList);
+        Task<bool> CallerIsInYouverseNetwork();
 
-        Task AssertCallerIsInCircle(Guid circleId);
+        Task<bool> CallerIsInList(List<string> dotYouIdList);
+
+        Task<bool> CallerIsInCircle(Guid circleId);
     }
 
     public class AuthorizationService : IAuthorizationService
@@ -30,71 +32,70 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task AssertCallerHasPermission(AccessControlList acl)
         {
+            ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
+
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> CallerHasPermission(AccessControlList acl)
+        {
             var caller = _context.Caller;
             if (caller.IsOwner)
             {
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             }
 
+            if (acl == null)
+            {
+                return Task.FromResult(false);
+            }
+            
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
-                    return Task.CompletedTask;
+                    return Task.FromResult(true);
 
                 case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
-                    ThrowIfFalse(caller.IsInYouverseNetwork);
-                    break;
+                    return Task.FromResult(caller.IsInYouverseNetwork);
 
                 case SecurityGroupType.Connected:
-                    AssertCallerIsConnected();
-                    break;
+                    return CallerIsConnected();
 
                 case SecurityGroupType.CircleConnected:
-                    AssertCallerIsConnected();
-                    AssertCallerIsInCircle(acl.CircleId);
-                    break;
+                    return Task.FromResult(CallerIsConnected().GetAwaiter().GetResult() &&
+                                           CallerIsInCircle(acl.CircleId).GetAwaiter().GetResult());
 
                 case SecurityGroupType.CustomList:
-                    AssertCallerIsInYouverseNetwork();
-                    AssertCallerIsInList(acl.DotYouIdentityList);
-                    break;
-
-                default:
-                    ThrowIfFalse(false);
-                    break;
+                    return Task.FromResult(CallerIsInYouverseNetwork().GetAwaiter().GetResult() &&
+                                           CallerIsInList(acl.DotYouIdentityList).GetAwaiter().GetResult());
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(false);
         }
 
-        public Task AssertCallerIsConnected()
+        public Task<bool> CallerIsConnected()
         {
             //TODO: look up list of connections and cache
             var isConnected = false;
-            ThrowIfFalse(isConnected);
-
-            return Task.CompletedTask;
+            return Task.FromResult(isConnected);
         }
 
-        public Task AssertCallerIsInYouverseNetwork()
+        public Task<bool> CallerIsInYouverseNetwork()
         {
-            var isConnected = false;
-            ThrowIfFalse(isConnected);
-
-            return Task.CompletedTask;
+            return Task.FromResult(_context.Caller.IsInYouverseNetwork);
         }
 
-        public Task AssertCallerIsInList(List<string> dotYouIdList)
+        public Task<bool> CallerIsInList(List<string> dotYouIdList)
         {
             throw new NotImplementedException();
         }
 
-        public Task AssertCallerIsInCircle(Guid circleId)
+        public Task<bool> CallerIsInCircle(Guid circleId)
         {
             throw new NotImplementedException();
         }
 
-        private void ThrowIfFalse(bool eval)
+        private void ThrowWhenFalse(bool eval)
         {
             if (eval == false)
             {

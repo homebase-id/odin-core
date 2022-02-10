@@ -119,7 +119,6 @@ namespace Youverse.Core.Services.Drive
         {
             Guard.Argument(metadata, nameof(metadata)).NotNull();
             Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
-
             
             _context.AppContext.AssertCanWriteToDrive(file.DriveId);
 

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Security;
@@ -16,14 +18,14 @@ namespace Youverse.Core.Services.Drive
     {
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
-        private readonly IGranteeResolver _granteeResolver;
+        private readonly IAuthorizationService _authorizationService;
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveQueryService(IDriveService driveService, IGranteeResolver granteeResolver, ILoggerFactory loggerFactory)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IAuthorizationService authorizationService)
         {
             _driveService = driveService;
-            _granteeResolver = granteeResolver;
             _loggerFactory = loggerFactory;
+            _authorizationService = authorizationService;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
             
             InitializeQueryManagers();
@@ -62,22 +64,30 @@ namespace Youverse.Core.Services.Drive
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                return await queryManager.GetRecentlyCreatedItems(includeContent, pageOptions);
+                var page =  await queryManager.GetRecentlyCreatedItems(includeContent, pageOptions);
+                return ApplySecurityFiltering(page);
             }
 
             throw new NoValidIndexException(driveId);
         }
-
+        
         public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                return await queryManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
+                var page =  await queryManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
+                return ApplySecurityFiltering(page);
             }
 
             throw new NoValidIndexException(driveId);
         }
 
+        private PagedResult<IndexedItem> ApplySecurityFiltering(PagedResult<IndexedItem> fullResults)
+        {
+            var filtered = fullResults.Results.Where(item => _authorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult()).ToList();
+            return new PagedResult<IndexedItem>(fullResults.Request, fullResults.TotalPages, filtered);
+        }
+        
         private async void InitializeQueryManagers()
         {
             var allDrives = await _driveService.GetDrives(new PageOptions(1, Int32.MaxValue));

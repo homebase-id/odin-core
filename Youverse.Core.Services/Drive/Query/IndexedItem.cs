@@ -1,5 +1,6 @@
 using System;
 using LiteDB;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
@@ -45,6 +46,6 @@ namespace Youverse.Core.Services.Drive.Query
         
         public bool PayloadIsEncrypted { get; set; }
         public string DistinguishedName { get; set; }
-
+        public AccessControlList AccessControlList { get; set; }
     }
 }
