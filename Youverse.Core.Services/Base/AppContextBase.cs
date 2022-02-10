@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public void AssertCanWriteToDrive(Guid driveId)
         {
-            if (!this.HasDrivePermission(driveId, DrivePermissions.ReadWrite))
+            if (!this.HasDrivePermission(driveId, DrivePermissions.Write))
             {
                 throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
             }

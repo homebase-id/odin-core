@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Apps;
@@ -13,15 +11,12 @@ using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 using Youverse.Hosting.Authentication.YouAuth;
-using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Hosting.Middleware
 {

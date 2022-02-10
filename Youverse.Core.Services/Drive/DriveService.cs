@@ -13,6 +13,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
@@ -22,6 +23,7 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveService : IDriveService
     {
+        private readonly IAuthorizationService _authorizationService;
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContext _context;
@@ -31,12 +33,13 @@ namespace Youverse.Core.Services.Drive
 
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContext context, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator)
+        public DriveService(DotYouContext context, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator, IAuthorizationService authorizationService)
         {
             _context = context;
             _systemStorage = systemStorage;
             _loggerFactory = loggerFactory;
             _mediator = mediator;
+            _authorizationService = authorizationService;
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
@@ -50,7 +53,7 @@ namespace Youverse.Core.Services.Drive
             var mk = _context.Caller.GetMasterKey();
 
             var driveKey = new SymmetricKeyEncryptedAes(ref mk);
-            
+
             var id = Guid.NewGuid();
             var secret = driveKey.DecryptKeyClone(ref mk);
 
@@ -102,7 +105,7 @@ namespace Youverse.Core.Services.Drive
         public DriveFileId CreateFileId(Guid driveId)
         {
             _context.AppContext.AssertCanWriteToDrive(driveId);
-            
+
             var df = new DriveFileId()
             {
                 FileId = GetLongTermStorageManager(driveId).CreateFileId(),
@@ -117,6 +120,7 @@ namespace Youverse.Core.Services.Drive
             Guard.Argument(metadata, nameof(metadata)).NotNull();
             Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
 
+            
             _context.AppContext.AssertCanWriteToDrive(file.DriveId);
 
             //TODO: need to encrypt the metadata parts
@@ -166,7 +170,7 @@ namespace Youverse.Core.Services.Drive
         public async Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
         {
             _context.AppContext.AssertCanReadDrive(file.DriveId);
-            
+
             if (disposition == StorageDisposition.LongTerm)
             {
                 throw new NotImplementedException("Not supported for long term storage");
@@ -227,9 +231,9 @@ namespace Youverse.Core.Services.Drive
             {
                 throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
             }
-            
+
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
-            
+
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
             return encryptedKeyHeader;
         }
@@ -245,13 +249,21 @@ namespace Youverse.Core.Services.Drive
             _context.AppContext.AssertCanReadDrive(file.DriveId);
 
             var metadata = await GetLongTermStorageManager(file.DriveId).GetMetadata(file.FileId);
+
+            // var acl = await GetAcl(file);
+            await _authorizationService.AssertCallerHasPermission(metadata.AccessControlList);
+
             return metadata;
         }
+
+        // public Task<AccessControlList> GetAcl(DriveFileId)
+        // {
+        // }
 
         public async Task<Stream> GetPayloadStream(DriveFileId file)
         {
             _context.AppContext.AssertCanReadDrive(file.DriveId);
-            
+
             var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
             return stream;
         }
@@ -291,12 +303,12 @@ namespace Youverse.Core.Services.Drive
         public async Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
             _context.AppContext.AssertCanWriteToDrive(file.DriveId);
-            
+
             //to enforce security here - 
             // the caller must have access to file.DriveId = how is this controlled?
             // 
             // 
-            
+
             //TODO: this method is so hacky 🤢
 
             metadata.File = file;

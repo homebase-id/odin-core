@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Authorization.Acl
 {
     public enum SecurityGroupType
     {

@@ -31,6 +31,7 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
             _scaffold.CreateMediator();
+            _scaffold.CreateAuthorizationService();
         }
 
         [TearDown]
@@ -43,7 +44,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Ignore("Cannot test until we find a solution for mocking IMediator")]
         public async Task CanSearchRecentFiles()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator,_scaffold.AuthorizationService);
             var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
 
             const string driveName = "Test-Drive";
@@ -92,7 +93,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Ignore("Cannot test until we find a solution for mocking IMediator")]
         public async Task CanRebuildIndex()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator,_scaffold.AuthorizationService);
             var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
 
             const string driveName = "Test-Drive";
