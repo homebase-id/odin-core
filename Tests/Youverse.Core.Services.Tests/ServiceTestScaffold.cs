@@ -11,6 +11,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 
@@ -51,7 +52,6 @@ namespace Youverse.Core.Services.Tests
             Context = Substitute.For<DotYouContext>();
             Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
             Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
-
         }
 
         public void CreateSystemStorage()
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateAuthorizationService()
         {
-            AuthorizationService = new AuthorizationService(this.Context);
+            AuthorizationService = new AuthorizationService(this.Context, null);
         }
 
         public void LogDataPath()

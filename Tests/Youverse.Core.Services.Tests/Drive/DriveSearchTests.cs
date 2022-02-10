@@ -44,8 +44,8 @@ namespace Youverse.Core.Services.Tests.Drive
         [Ignore("Cannot test until we find a solution for mocking IMediator")]
         public async Task CanSearchRecentFiles()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator,_scaffold.AuthorizationService);
-            var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
+            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
@@ -88,13 +88,13 @@ namespace Youverse.Core.Services.Tests.Drive
             var recentItems = await queryService.GetRecentlyCreatedItems(driveId, true, PageOptions.All);
             Assert.That(recentItems.Results.Count, Is.EqualTo(3));
         }
-        
+
         [Test]
         [Ignore("Cannot test until we find a solution for mocking IMediator")]
         public async Task CanRebuildIndex()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator,_scaffold.AuthorizationService);
-            var queryService = new DriveQueryService(driveService, null, _scaffold.LoggerFactory);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
+            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);

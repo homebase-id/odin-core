@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {
@@ -24,10 +26,12 @@ namespace Youverse.Core.Services.Authorization.Acl
     public class AuthorizationService : IAuthorizationService
     {
         private readonly DotYouContext _context;
+        private readonly ICircleNetworkService _circleNetwork;
 
-        public AuthorizationService(DotYouContext context)
+        public AuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork)
         {
             _context = context;
+            _circleNetwork = circleNetwork;
         }
 
         public Task AssertCallerHasPermission(AccessControlList acl)
@@ -49,7 +53,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             {
                 return Task.FromResult(false);
             }
-            
+
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
@@ -73,11 +77,11 @@ namespace Youverse.Core.Services.Authorization.Acl
             return Task.FromResult(false);
         }
 
-        public Task<bool> CallerIsConnected()
+        public async Task<bool> CallerIsConnected()
         {
-            //TODO: look up list of connections and cache
-            var isConnected = false;
-            return Task.FromResult(isConnected);
+            //TODO: cache result - 
+            var isConnected = await _circleNetwork.IsConnected(_context.Caller.DotYouId);
+            return isConnected;
         }
 
         public Task<bool> CallerIsInYouverseNetwork()
@@ -87,7 +91,8 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerIsInList(List<string> dotYouIdList)
         {
-            throw new NotImplementedException();
+            var inList = dotYouIdList.Any(s => s.Equals(_context.Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
+            return Task.FromResult(inList);
         }
 
         public Task<bool> CallerIsInCircle(Guid circleId)

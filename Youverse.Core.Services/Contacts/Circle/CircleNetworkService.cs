@@ -173,6 +173,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
+            //TODO: this needs to be changed to - can view connections
             _context.AppContext.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
