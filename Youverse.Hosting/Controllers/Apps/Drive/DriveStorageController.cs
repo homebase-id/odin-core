@@ -12,12 +12,14 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Controllers.Owner;
 
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
+    [Route(OwnerApiPathConstants.DrivesV1)]
     [AuthorizeOwnerConsoleOrApp]
     public class DriveStorageController : ControllerBase
     {
