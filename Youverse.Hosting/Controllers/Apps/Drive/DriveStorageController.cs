@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
     public class DriveStorageController : ControllerBase
     {
         private readonly IAppService _appService;

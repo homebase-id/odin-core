@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Controllers.Owner.YouAuth
      * process.
      */
     [ApiController]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsole]
     [Route(OwnerApiPathConstants.YouAuthV1)]
     public class YouAuthController : Controller
     {

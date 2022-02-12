@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Controllers.Owner.Circles
 {
     [ApiController]
     [Route("api/profiles")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsole]
     public class HumanConnectionProfileController : ControllerBase
     {
         IProfileService _profile;

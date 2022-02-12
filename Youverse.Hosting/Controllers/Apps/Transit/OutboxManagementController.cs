@@ -16,7 +16,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     /// </summary>
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/outbox")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
     public class OutboxManagementController : ControllerBase
     {
         private readonly ILogger<OutboxManagementController> _logger;

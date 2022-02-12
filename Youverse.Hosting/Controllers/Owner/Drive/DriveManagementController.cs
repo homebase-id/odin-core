@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
 {
     [ApiController]
     [Route("/api/owner/v1/drive/index")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsole]
     public class DriveManagementController : ControllerBase
     {
         private readonly IDriveQueryService _queryService;

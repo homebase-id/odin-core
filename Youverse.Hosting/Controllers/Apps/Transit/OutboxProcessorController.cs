@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     /// </summary>
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/outbox/processor")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
 
     //TODO: !!! need to add a certificate for the system to make calls into itself
     //[Authorize(Policy = OwnerPolicies.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]
