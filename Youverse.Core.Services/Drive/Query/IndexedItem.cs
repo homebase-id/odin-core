@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using LiteDB;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
@@ -28,10 +29,9 @@ namespace Youverse.Core.Services.Drive.Query
         /// </summary>
         public UInt64 LastUpdatedTimestamp { get; set; }
 
+        public List<Guid> Tags { get; set; }
+        
         public int FileType { get; set; }
-        public Guid? PrimaryCategoryId { get; set; }
-
-        public Guid? SecondaryCategoryId { get; set; }
 
         /// <summary>
         /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)
@@ -45,7 +45,6 @@ namespace Youverse.Core.Services.Drive.Query
         public string JsonContent { get; set; }
         
         public bool PayloadIsEncrypted { get; set; }
-        public string DistinguishedName { get; set; }
         public AccessControlList AccessControlList { get; set; }
     }
 }

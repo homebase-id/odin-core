@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -8,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
-using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 
@@ -65,28 +63,24 @@ namespace Youverse.Core.Services.Drive
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var page =  await queryManager.GetRecentlyCreatedItems(includeContent, pageOptions);
-                return ApplySecurityFiltering(page);
+                return page;
             }
 
             throw new NoValidIndexException(driveId);
         }
         
-        public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var page =  await queryManager.GetItemsByCategory(categoryId, includeContent, pageOptions);
-                return ApplySecurityFiltering(page);
+                var page =  await queryManager.GetByTag(categoryId, includeContent, pageOptions);
+                return page;
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-        private PagedResult<IndexedItem> ApplySecurityFiltering(PagedResult<IndexedItem> fullResults)
-        {
-            var filtered = fullResults.Results.Where(item => _authorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult()).ToList();
-            return new PagedResult<IndexedItem>(fullResults.Request, fullResults.TotalPages, filtered);
-        }
+      
         
         private async void InitializeQueryManagers()
         {
@@ -143,7 +137,7 @@ namespace Youverse.Core.Services.Drive
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
-            manager = new LiteDbDriveQueryManager(drive, logger);
+            manager = new LiteDbDriveQueryManager(drive, logger, _authorizationService);
 
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index

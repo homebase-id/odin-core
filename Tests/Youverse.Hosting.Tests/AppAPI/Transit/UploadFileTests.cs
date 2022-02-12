@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        PrimaryCategoryId = Guid.Empty,
+                        Tags = new List<Guid>() {Guid.NewGuid(), Guid.NewGuid()},
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
@@ -110,7 +110,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                Assert.That(clientFileHeader.FileMetadata.AppData.PrimaryCategoryId, Is.EqualTo(descriptor.FileMetadata.AppData.PrimaryCategoryId));
+                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
@@ -119,18 +119,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-                
+
                 var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
                 var fileKey = decryptedKeyHeader.AesKey;
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-                
+
                 //get the payload and decrypt, then compare
                 var payloadResponse = await driveSvc.GetPayload(fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
-                
+
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
                 Assert.That(((MemoryStream) payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
@@ -144,7 +144,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
                 var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-                
+
                 decryptedKeyHeader.AesKey.Wipe();
             }
 

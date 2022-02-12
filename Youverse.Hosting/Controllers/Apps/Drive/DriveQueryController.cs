@@ -23,11 +23,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             _context = context;
         }
 
-        [HttpGet("category")]
-        public async Task<IActionResult> GetItemsByCategory(Guid categoryId, bool includeContent, int pageNumber, int pageSize)
+        [HttpGet("tag")]
+        public async Task<IActionResult> GetByTag(Guid tag, bool includeContent, int pageNumber, int pageSize)
         {
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-            var page = await _driveQueryService.GetItemsByCategory(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetByTag(driveId, tag, includeContent, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 

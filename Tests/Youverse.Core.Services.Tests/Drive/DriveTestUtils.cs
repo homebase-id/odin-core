@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -17,8 +18,8 @@ namespace Youverse.Core.Services.Tests.Drive
 
         static DriveTestUtils()
         {
-            Array.Fill(InitializationVector, (byte)1);
-            Array.Fill(EncryptionKey, (byte)1);
+            Array.Fill(InitializationVector, (byte) 1);
+            Array.Fill(EncryptionKey, (byte) 1);
         }
 
         public static byte[] StreamToBytes(Stream stream)
@@ -44,7 +45,7 @@ namespace Youverse.Core.Services.Tests.Drive
                 ContentType = testFileProps.PayloadContentType,
                 AppData = new AppFileMetaData()
                 {
-                    PrimaryCategoryId = testFileProps.CategoryId,
+                    Tags = new List<Guid>() {testFileProps.CategoryId.GetValueOrDefault()},
                     ContentIsComplete = testFileProps.ContentIsComplete,
                     JsonContent = JsonConvert.SerializeObject(testFileProps.MetadataJsonContent)
                 }
@@ -69,7 +70,7 @@ namespace Youverse.Core.Services.Tests.Drive
 
             Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
             Assert.IsNotNull(storedMetadata.AppData);
-            Assert.IsTrue(metadata.AppData.PrimaryCategoryId == storedMetadata.AppData.PrimaryCategoryId);
+            CollectionAssert.AreEquivalent(metadata.AppData.Tags, storedMetadata.AppData.Tags);
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 

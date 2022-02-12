@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -54,9 +55,9 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    PrimaryCategoryId = Guid.Empty,
+                    Tags = new List<Guid>() {Guid.NewGuid()},
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
@@ -80,7 +81,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         public async Task CanQueryDriveRecentItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
-            
+
             var uploadContext = await _scaffold.Upload(identity);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))

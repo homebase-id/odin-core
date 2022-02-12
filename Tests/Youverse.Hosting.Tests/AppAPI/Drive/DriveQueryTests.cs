@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -53,6 +54,40 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         // }
 
         [Test]
+        public async Task CanQueryByOneTag()
+        {
+            var identity = TestIdentities.Samwise;
+
+            Guid tag = Guid.NewGuid();
+            List<Guid> tags = new List<Guid>() {tag};
+
+            var metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AppData = new()
+                {
+                    Tags = tags,
+                }
+            };
+
+            var uploadContext = await _scaffold.Upload(identity, metadata);
+
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
+            {
+                var svc = RestService.For<IDriveQueryClient>(client);
+
+                var response = await svc.GetByTag(tag, false, 1, 100);
+
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var page = response.Content;
+                Assert.IsNotNull(page);
+
+                Assert.IsTrue(page.Results.Count > 0);
+                Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
+            }
+        }
+
+        [Test]
         public async Task CanQueryDriveRecentItems()
         {
             var identity = TestIdentities.Samwise;
@@ -62,9 +97,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    PrimaryCategoryId = Guid.Empty,
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
             };
 
@@ -88,7 +122,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         public async Task CanQueryDriveRecentItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
-            
+
             var uploadContext = await _scaffold.Upload(identity);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))

@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task AssertCallerHasPermission(AccessControlList acl)
         {
-            ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
+            //ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
 
             return Task.CompletedTask;
         }

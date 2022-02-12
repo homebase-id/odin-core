@@ -11,10 +11,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     {
         private const string RootPath = AppApiPathConstants.DrivesV1 + "/query";
 
-        [Get(RootPath + "/category")]
-        Task<ApiResponse<PagedResult<IndexedItem>>> GetItemsByCategory(Guid categoryId, bool includeContent, int pageNumber, int pageSize);
+        [Get(RootPath + "/tag")]
+        Task<ApiResponse<PagedResult<IndexedItem>>> GetByTag(Guid tag, bool includeContent, int pageNumber, int pageSize);
 
         [Get(RootPath + "/recent")]
         Task<ApiResponse<PagedResult<IndexedItem>>> GetRecentlyCreatedItems(bool includeContent, int pageNumber, int pageSize);
+        
     }
 }

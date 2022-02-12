@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Drive
     {
         Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions);
 
-        Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions);
+        Task<PagedResult<IndexedItem>> GetByTag(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions);
 
         Task RebuildBackupIndex(Guid driveId);
         

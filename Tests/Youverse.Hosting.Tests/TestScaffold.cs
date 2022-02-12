@@ -349,7 +349,7 @@ namespace Youverse.Hosting.Tests
 
                 var reply = regResponse.Content;
                 var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
-            
+
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
@@ -427,7 +427,6 @@ namespace Youverse.Hosting.Tests
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    PrimaryCategoryId = Guid.Empty,
                     ContentIsComplete = true,
                     JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }
@@ -480,12 +479,18 @@ namespace Youverse.Hosting.Tests
                 }
             };
 
+            List<Guid> tags = null;
+            if (options?.AppDataCategoryId != null)
+            {
+                tags = new List<Guid>() {options.AppDataCategoryId};
+            }
+
             var fileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
                 AppData = new()
                 {
-                    PrimaryCategoryId = options?.AppDataCategoryId ?? Guid.Empty,
+                    Tags = tags,
                     ContentIsComplete = true,
                     JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                 }

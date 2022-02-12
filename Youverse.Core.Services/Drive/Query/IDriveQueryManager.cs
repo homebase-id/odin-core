@@ -33,11 +33,11 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
         /// </summary>
-        /// <param name="categoryId">The category to match</param>
+        /// <param name="tag">The category to match</param>
         /// <param name="includeContent">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions);
+        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeContent, PageOptions pageOptions);
 
 
         /// <summary>

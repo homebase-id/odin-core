@@ -130,9 +130,7 @@ namespace Youverse.Core.Services.Transit
                 //TODO: need an automapper *sigh
                 AppData = new AppFileMetaData()
                 {
-                    PrimaryCategoryId = uploadDescriptor.FileMetadata.AppData.PrimaryCategoryId,
-                    SecondaryCategoryId = uploadDescriptor.FileMetadata.AppData.SecondaryCategoryId,
-                    DistinguishedName = uploadDescriptor.FileMetadata.AppData.DistinguishedName,
+                    Tags = uploadDescriptor.FileMetadata.AppData.Tags,
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,

@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Tests.Drive
             });
 
             //test the indexing
-            var itemsByCategory = await queryService.GetItemsByCategory(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategory.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
@@ -130,7 +130,7 @@ namespace Youverse.Core.Services.Tests.Drive
             });
 
             //test the indexing
-            var itemsByCategory = await queryService.GetItemsByCategory(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategory.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
@@ -139,7 +139,7 @@ namespace Youverse.Core.Services.Tests.Drive
 
             await queryService.RebuildBackupIndex(driveId);
 
-            var itemsByCategoryRebuilt = await queryService.GetItemsByCategory(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategoryRebuilt = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategoryRebuilt.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
