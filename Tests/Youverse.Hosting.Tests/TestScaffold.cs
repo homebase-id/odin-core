@@ -16,6 +16,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -206,15 +207,15 @@ namespace Youverse.Hosting.Tests
             _ownerLoginTokens.Add(identity, result);
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, Guid? appId = null)
         {
             var token = GetOwnerAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token);
+            var client = CreateOwnerApiHttpClient(identity, token, appId);
 
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token, Guid? appId = null)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -225,6 +226,11 @@ namespace Youverse.Hosting.Tests
 
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
+
+            if (appId != null)
+            {
+                client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId.ToString());
+            }
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
@@ -599,5 +605,109 @@ namespace Youverse.Hosting.Tests
                 PayloadData = payloadData
             };
         }
+
+        // private async Task<TransitTestUtilsContext> TransferFileAsOwner(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        // {
+        //     var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
+        //
+        //     if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+        //     {
+        //         throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+        //     }
+        //
+        //     var testAppContext = await this.SetupTestSampleApp(identity);
+        //
+        //     //Setup the app on all recipient DIs
+        //     var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+        //     foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
+        //     {
+        //         var recipient = (DotYouIdentity) r;
+        //         var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient);
+        //         recipientContexts.Add(recipient, ctx);
+        //     }
+        //
+        //     var payloadData = "{payload:true, image:'b64 data'}";
+        //
+        //     using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, testAppContext.AppId))
+        //     {
+        //         var keyHeader = KeyHeader.NewRandom16();
+        //         var transferIv = instructionSet.TransferIv;
+        //
+        //         var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+        //         var instructionStream = new MemoryStream(bytes);
+        //
+        //         var descriptor = new UploadFileDescriptor()
+        //         {
+        //             EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+        //             FileMetadata = fileMetadata
+        //         };
+        //
+        //         var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+        //
+        //         payloadData = options?.PayloadData ?? payloadData;
+        //         var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+        //
+        //         var transitSvc = RestService.For<ITransitOwnerTestHttpClient>(client);
+        //         var response = await transitSvc.Upload(
+        //             new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+        //             new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+        //             new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+        //
+        //         Assert.That(response.IsSuccessStatusCode, Is.True);
+        //         Assert.That(response.Content, Is.Not.Null);
+        //         var transferResult = response.Content;
+        //
+        //         Assert.That(transferResult.File, Is.Not.Null);
+        //         Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+        //         Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+        //
+        //         if (instructionSet.TransitOptions?.Recipients != null)
+        //         {
+        //             Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+        //
+        //             foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+        //             {
+        //                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+        //                 Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+        //             }
+        //         }
+        //
+        //         if (options is {ProcessOutbox: true})
+        //         {
+        //             var resp = await transitSvc.ProcessOutbox();
+        //             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+        //         }
+        //
+        //
+        //         if (options is {ProcessTransitBox: true})
+        //         {
+        //             //wait for process outbox to run
+        //             Task.Delay(2000).Wait();
+        //
+        //             foreach (var rCtx in recipientContexts)
+        //             {
+        //                 using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
+        //                 {
+        //                     var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
+        //                     var resp = await transitAppSvc.ProcessTransfers();
+        //                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+        //                 }
+        //             }
+        //         }
+        //
+        //         keyHeader.AesKey.Wipe();
+        //     }
+        //
+        //     return new TransitTestUtilsContext()
+        //     {
+        //         AppId = testAppContext.AppId,
+        //         AuthResult = testAppContext.AuthResult,
+        //         AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
+        //         InstructionSet = instructionSet,
+        //         FileMetadata = fileMetadata,
+        //         RecipientContexts = recipientContexts,
+        //         PayloadData = payloadData
+        //     };
+        // }
     }
 }

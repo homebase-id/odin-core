@@ -86,9 +86,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
             }
 
-            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            var appId = uploadContext.AppId;
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity, appId))
             {
-                
                 var svc = RestService.For<IDriveQueryClient>(ownerClient);
 
                 var response = await svc.GetByTag(tag, false, 1, 100);
@@ -99,7 +99,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 Assert.IsTrue(page.Results.Count > 0);
                 Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
-                
             }
         }
 
