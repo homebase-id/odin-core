@@ -39,15 +39,29 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public override bool IsReadonly
+        {
+            get => _inner.IsReadonly;
+            set { }
+        }
+
         public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey
         {
             get => _inner.MasterKeyEncryptedStorageKey;
             set { }
         }
 
-        public override byte[] EncryptedIdIv { get => _inner.EncryptedIdIv; set { } }
-        
-        public override byte[] EncryptedIdValue { get => _inner.EncryptedIdValue; set { } }
+        public override byte[] EncryptedIdIv
+        {
+            get => _inner.EncryptedIdIv;
+            set { }
+        }
+
+        public override byte[] EncryptedIdValue
+        {
+            get => _inner.EncryptedIdValue;
+            set { }
+        }
 
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
@@ -75,10 +89,15 @@ namespace Youverse.Core.Services.Drive
         public virtual string Name { get; set; }
 
         /// <summary>
+        /// Specifies the drive can only be written to by the owner while in the OwnerAuth context
+        /// </summary>
+        public virtual bool IsReadonly { get; set; }
+
+        /// <summary>
         /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
         /// </summary>
         public virtual SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
-        
+
         public virtual byte[] EncryptedIdIv { get; set; }
 
         public virtual byte[] EncryptedIdValue { get; set; }

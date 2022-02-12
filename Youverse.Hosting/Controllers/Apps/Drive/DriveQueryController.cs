@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1 + "/query")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [Route(OwnerApiPathConstants.DrivesV1 + "/query")]
+    [OwnerAppAuthorize]
     public class DriveQueryController : ControllerBase
     {
         private readonly DotYouContext _context;
@@ -45,7 +46,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             await _driveQueryService.RebuildBackupIndex(driveId);
             return true;
         }
-        
+
         [AllowAnonymous]
         [HttpGet("unencrypted")]
         public async Task<IActionResult> GetUnencryptedItems(Guid categoryId, bool includeContent, int pageNumber, int pageSize)
@@ -83,7 +84,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
              *  Get all unencrypted profile attributes
              *      var files = DriveQueryService.GetFilesByType(type=attribute) //Note: since the user has no token, it will only send back files marked unencrypted
              */
-            
+
             /*
              * Encrypted queries needed
              *  get recent chats

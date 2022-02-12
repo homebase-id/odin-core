@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Controllers.Owner.Provisioning
 {
     [ApiController]
     [Route("/owner/api/v1/provisioning")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class ProvisioningController : Controller
     {
         private readonly IIdentityProvisioner _identityProvisioner;

@@ -85,6 +85,22 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(page.Results.Count > 0);
                 Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
             }
+
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity))
+            {
+                
+                var svc = RestService.For<IDriveQueryClient>(ownerClient);
+
+                var response = await svc.GetByTag(tag, false, 1, 100);
+
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var page = response.Content;
+                Assert.IsNotNull(page);
+
+                Assert.IsTrue(page.Results.Count > 0);
+                Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
+                
+            }
         }
 
         [Test]

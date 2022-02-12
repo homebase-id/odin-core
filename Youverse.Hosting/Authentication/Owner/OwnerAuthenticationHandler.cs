@@ -53,8 +53,14 @@ namespace Youverse.Hosting.Authentication.Owner
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                        
+                        //TODO: re-evaluate what it means to be 'identified' at this point in the app
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        
+                        //Note: the app policy of IsAuthorizedApp checks these both.  it's a bit illogical to do so since i set them both here and in the app-auth-handler
+                        // will not resolve now, however
                         new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
 
                         new Claim(DotYouClaimTypes.AuthResult, authResult.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid64, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),

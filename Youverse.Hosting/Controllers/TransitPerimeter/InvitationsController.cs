@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("api/perimeter/invitations")]
-    [Authorize(Policy = TransitPerimeterPolicies.MustBeIdentifiedPolicyName, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkRequestService _circleNetworkRequestService;

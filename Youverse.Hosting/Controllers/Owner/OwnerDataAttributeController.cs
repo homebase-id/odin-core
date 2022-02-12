@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.Owner
 {
     [ApiController]
     [Route("/api/admin/identity")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwner, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
     public class OwnerDataAttributeController : Controller
     {
         private readonly IProfileAttributeManagementService _identManagementService;

@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Authentication.App
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            Context.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
             return Task.CompletedTask;
         }
 
@@ -50,11 +50,15 @@ namespace Youverse.Hosting.Authentication.App
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        
-                        new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
 
-                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                        //TODO: re-evaluate what it means to be 'identified' at this point in the app
+                        new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+
+                        //Note: the app policy of IsAuthorizedApp checks these both.  it's a bit illogical to do so since i set them both here and in the owner-auth-handler
+                        // will not resolve now, however
+                        new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                        new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+
                     };
 
                     var identity = new ClaimsIdentity(claims, AppAuthConstants.SchemeName);
