@@ -8,5 +8,12 @@ namespace Youverse.Core.Cryptography
         {
             return new SensitiveByteArray(array);
         }
+
+        
+        public static string ToBase64(this byte[] array)
+        {
+            //I know, I know, this extension method does not do much but it looks better when used :)
+            return Convert.ToBase64String(array);
+        }
     }
 }

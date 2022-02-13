@@ -119,7 +119,7 @@ namespace Youverse.Core.Services.Drive
         {
             Guard.Argument(metadata, nameof(metadata)).NotNull();
             Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
-            
+
             _context.AppContext.AssertCanWriteToDrive(file.DriveId);
 
             //TODO: need to encrypt the metadata parts
@@ -267,11 +267,25 @@ namespace Youverse.Core.Services.Drive
             return stream;
         }
 
-        public Task<long> GetFileSize(DriveFileId file)
+        public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(DriveFileId file)
+        {
+            const int MAX_PAYLOAD_MEMORY_SIZE = 4 * 1000; //TODO: put in config
+
+            var size = await this.GetPayloadSize(file);
+            if (size > MAX_PAYLOAD_MEMORY_SIZE)
+            {
+                return (true, size, new byte[] { });
+            }
+
+            var stream = await this.GetPayloadStream(file);
+            return (false, size, stream.ToByteArray());
+        }
+
+        public Task<long> GetPayloadSize(DriveFileId file)
         {
             _context.AppContext.AssertCanReadDrive(file.DriveId);
 
-            return GetLongTermStorageManager(file.DriveId).GetFileSize(file.FileId);
+            return GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
         }
 
         public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart)

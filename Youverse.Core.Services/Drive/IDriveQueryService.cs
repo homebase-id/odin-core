@@ -1,7 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -10,13 +8,12 @@ namespace Youverse.Core.Services.Drive
     /// </summary>
     public interface IDriveQueryService
     {
-        Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions);
+        Task<PagedResult<DriveSearchResult>> GetRecentlyCreatedItems(Guid driveId, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions);
 
-        Task<PagedResult<IndexedItem>> GetByTag(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions);
+        Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions);
 
         Task RebuildBackupIndex(Guid driveId);
-        
-        Task RebuildAllIndices();
 
+        Task RebuildAllIndices();
     }
 }

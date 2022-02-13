@@ -81,11 +81,11 @@ namespace Youverse.Core.Services.Tests.Drive
             });
 
             //test the indexing
-            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, false, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategory.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
-            var recentItems = await queryService.GetRecentlyCreatedItems(driveId, true, PageOptions.All);
+            var recentItems = await queryService.GetRecentlyCreatedItems(driveId, true, false, PageOptions.All);
             Assert.That(recentItems.Results.Count, Is.EqualTo(3));
         }
 
@@ -130,20 +130,20 @@ namespace Youverse.Core.Services.Tests.Drive
             });
 
             //test the indexing
-            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategory = await queryService.GetByTag(driveId, categoryId, true, false, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategory.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
-            var recentItems = await queryService.GetRecentlyCreatedItems(driveId, true, PageOptions.All);
+            var recentItems = await queryService.GetRecentlyCreatedItems(driveId, true, false, PageOptions.All);
             Assert.That(recentItems.Results.Count, Is.EqualTo(3));
 
             await queryService.RebuildBackupIndex(driveId);
 
-            var itemsByCategoryRebuilt = await queryService.GetByTag(driveId, categoryId, true, PageOptions.All);
+            var itemsByCategoryRebuilt = await queryService.GetByTag(driveId, categoryId, true, false, PageOptions.All);
             Assert.That(itemsByCategory.Results.Count, Is.EqualTo(2));
             Assert.IsNotNull(itemsByCategoryRebuilt.Results.SingleOrDefault(item => item.JsonContent == JsonConvert.SerializeObject(file2MetadataContent)));
 
-            var recentItemsRebuilt = await queryService.GetRecentlyCreatedItems(driveId, true, PageOptions.All);
+            var recentItemsRebuilt = await queryService.GetRecentlyCreatedItems(driveId, true, false, PageOptions.All);
             Assert.That(recentItemsRebuilt.Results.Count, Is.EqualTo(3));
 
             _scaffold.LogDataPath();

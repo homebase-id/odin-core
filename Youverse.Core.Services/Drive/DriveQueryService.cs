@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
@@ -25,10 +30,10 @@ namespace Youverse.Core.Services.Drive
             _loggerFactory = loggerFactory;
             _authorizationService = authorizationService;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
-            
+
             InitializeQueryManagers();
         }
-        
+
         public Task RebuildAllIndices()
         {
             //TODO: optimize by making this parallel processed or something
@@ -40,7 +45,7 @@ namespace Youverse.Core.Services.Drive
 
             return Task.CompletedTask;
         }
-        
+
         public async Task RebuildBackupIndex(Guid driveId)
         {
             //TODO: add looping for paging so we work in chunks instead of all files at once.
@@ -58,30 +63,79 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(Guid driveId, bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<DriveSearchResult>> GetRecentlyCreatedItems(Guid driveId, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var page =  await queryManager.GetRecentlyCreatedItems(includeContent, pageOptions);
-                return page;
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-        
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid driveId, Guid categoryId, bool includeContent, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
-            {
-                var page =  await queryManager.GetByTag(categoryId, includeContent, pageOptions);
-                return page;
+                var page = await queryManager.GetRecentlyCreatedItems(includeMetadataHeader, pageOptions);
+                return await CreateSearchResult(driveId, page, includePayload);
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-      
-        
+        public async Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
+        {
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
+            {
+                var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions);
+                var pageResult = await CreateSearchResult(driveId, page, includePayload);
+                return pageResult;
+            }
+
+            throw new NoValidIndexException(driveId);
+        }
+
+        private async Task<PagedResult<DriveSearchResult>> CreateSearchResult(Guid driveId, PagedResult<IndexedItem> page, bool includePayload)
+        {
+            var results = new List<DriveSearchResult>();
+
+            foreach (var item in page.Results)
+            {
+                var dsr = FromIndexedItem(item);
+                if (includePayload)
+                {
+                    var file = new DriveFileId()
+                    {
+                        DriveId = driveId,
+                        FileId = dsr.FileId
+                    };
+
+                    var (tooLarge, size, bytes) = await _driveService.GetPayloadBytes(file);
+                    dsr.PayloadTooLarge = tooLarge;
+                    dsr.PayloadSize = size;
+
+                    if (!tooLarge)
+                    {
+                        dsr.PayloadContent = bytes.ToBase64();
+                    }
+                }
+
+                results.Add(dsr);
+            }
+
+            var newResult = new PagedResult<DriveSearchResult>()
+            {
+                Request = page.Request,
+                TotalPages = page.TotalPages,
+                Results = results
+            };
+
+            return newResult;
+        }
+
+        private DriveSearchResult FromIndexedItem(IndexedItem item)
+        {
+            return new DriveSearchResult()
+            {
+                ContentIsComplete = item.ContentIsComplete,
+                PayloadIsEncrypted = item.PayloadIsEncrypted,
+                FileType = item.FileType,
+                JsonContent = item.JsonContent,
+                Tags = item.Tags
+            };
+        }
+
         private async void InitializeQueryManagers()
         {
             var allDrives = await _driveService.GetDrives(new PageOptions(1, Int32.MaxValue));
@@ -155,7 +209,7 @@ namespace Youverse.Core.Services.Drive
         public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
-            return manager.UpdateCurrentIndex(notification.FileMetadata);           
+            return manager.UpdateCurrentIndex(notification.FileMetadata);
         }
     }
 }

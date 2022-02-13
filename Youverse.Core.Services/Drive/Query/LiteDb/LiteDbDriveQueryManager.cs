@@ -44,14 +44,14 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public StorageDrive Drive { get; init; }
 
-        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            
+
             //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
             var unfiltered = await _indexStorage.GetList(PageOptions.All, ListSortDirection.Descending, item => item.CreatedTimestamp);
             var filtered = ApplySecurity(unfiltered, pageOptions);
-            if (!includeContent)
+            if (!includeMetadataHeader)
             {
                 StripContent(ref filtered);
             }
@@ -59,19 +59,19 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return filtered;
         }
 
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
 
             //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
             var unfiltered = await _indexStorage.Find(item => item.Tags.Contains(tag), ListSortDirection.Descending, item => item.CreatedTimestamp, PageOptions.All);
             var filtered = ApplySecurity(unfiltered, pageOptions);
-            
-            if (!includeContent)
+
+            if (!includeMetadataHeader)
             {
                 StripContent(ref filtered);
             }
-
+            
             return filtered;
         }
 

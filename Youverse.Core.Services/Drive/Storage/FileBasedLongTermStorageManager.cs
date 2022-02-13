@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
-        public Task<long> GetFileSize(Guid id)
+        public Task<long> GetPayloadFileSize(Guid id)
         {
             //TODO: make more efficient by reading metadata or something else?
             var path = GetFilenameAndPath(id, FilePart.Payload);
