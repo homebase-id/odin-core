@@ -317,11 +317,6 @@ namespace Youverse.Core.Services.Drive
         {
             _context.AppContext.AssertCanWriteToDrive(file.DriveId);
 
-            //to enforce security here - 
-            // the caller must have access to file.DriveId = how is this controlled?
-            // 
-            // 
-
             //TODO: this method is so hacky 🤢
 
             metadata.File = file;

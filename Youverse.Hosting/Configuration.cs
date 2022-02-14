@@ -31,11 +31,21 @@ namespace Youverse.Hosting
 
             public HostSection(IConfiguration config)
             {
+                string prefix = "";
+
+                var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+                var home = Environment.GetEnvironmentVariable("HOME") ?? "";
+
                 RegistryServerUri = config.Required<string>("Host:RegistryServerUri");
-                TenantDataRootPath = config.Required<string>("Host:TenantDataRootPath");
-                TempTenantDataRootPath = config.Required<string>("Host:TempTenantDataRootPath");
+
+                var p = config.Required<string>("Host:TenantDataRootPath");
+                TenantDataRootPath = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+
+                var tp = config.Required<string>("Host:TempTenantDataRootPath");
+                TempTenantDataRootPath = isDev ? PathUtil.Combine(home, tp.Substring(1)) : tp;
+
                 UseLocalCertificateRegistry = config.Required<bool>("Host:UseLocalCertificateRegistry");
-                
+
                 if (UseLocalCertificateRegistry == false)
                 {
                     Guard.Argument(Uri.IsWellFormedUriString(RegistryServerUri, UriKind.Absolute), nameof(RegistryServerUri)).True();

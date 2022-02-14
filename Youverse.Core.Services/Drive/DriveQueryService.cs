@@ -76,11 +76,17 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
         {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
             {
-                var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions);
-                var pageResult = await CreateSearchResult(driveId, page, includePayload);
-                return pageResult;
+                //HACK; need to figure out what it means for an index to be valid or not
+                if (queryManager.IndexReadyState == IndexReadyState.Ready)
+                {
+                    var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions);
+                    var pageResult = await CreateSearchResult(driveId, page, includePayload);
+                    return pageResult;
+                }
+
+                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
             }
 
             throw new NoValidIndexException(driveId);
@@ -128,11 +134,15 @@ namespace Youverse.Core.Services.Drive
         {
             return new DriveSearchResult()
             {
+                FileId = item.FileId,
                 ContentIsComplete = item.ContentIsComplete,
                 PayloadIsEncrypted = item.PayloadIsEncrypted,
                 FileType = item.FileType,
                 JsonContent = item.JsonContent,
-                Tags = item.Tags
+                Tags = item.Tags,
+                CreatedTimestamp = item.CreatedTimestamp,
+                LastUpdatedTimestamp = item.LastUpdatedTimestamp,
+                SenderDotYouId = item.SenderDotYouId,
             };
         }
 

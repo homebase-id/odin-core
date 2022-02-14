@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -102,16 +103,9 @@ namespace Youverse.Core.Services.Transit
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
         {
             var metadataStream = await _driveService.GetTempStream(package.File, MultipartUploadParts.Metadata.ToString());
-
-            byte[] encryptedBytes;
-            await using (var ms = new MemoryStream())
-            {
-                await metadataStream.CopyToAsync(ms);
-                encryptedBytes = ms.ToArray();
-            }
-
+            
             var clientSharedSecret = _context.AppContext.ClientSharedSecret;
-            var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref clientSharedSecret, package.InstructionSet.TransferIv);
+            var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
