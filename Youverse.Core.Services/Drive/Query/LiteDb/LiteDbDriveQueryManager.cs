@@ -152,18 +152,21 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 var sf = new FileInfo(_secondaryIndex.IndexRootPath);
                 SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             if (primaryIsValid)
             {
                 SetCurrentIndex(_primaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             if (secondaryIsValid)
             {
                 SetCurrentIndex(_secondaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             //neither index is valid; so let us default
@@ -191,8 +194,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             //TODO: this needs more rigor than just checking the number of files
             var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
-            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
-            return qFileCount > 0 && pFileCount > 0;
+
+            return qFileCount > 0;
         }
 
         private void StripContent(ref PagedResult<IndexedItem> page)

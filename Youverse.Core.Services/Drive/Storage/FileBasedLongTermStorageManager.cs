@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task MoveToLongTerm(Guid fileId, string filePath, FilePart part)
         {
             var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
-            File.Move(filePath, dest);
+            File.Move(filePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
         }
