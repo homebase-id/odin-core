@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Drive
     public class DriveService : IDriveService
     {
         const int MaxPayloadMemorySize = 4 * 1000; //TODO: put in config
-        
+
         private readonly IAuthorizationService _authorizationService;
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
@@ -238,7 +238,7 @@ namespace Youverse.Core.Services.Drive
             await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
             return encryptedKeyHeader;
         }
-
+        
         public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file)
         {
             _context.AppContext.AssertCanReadDrive(file.DriveId);
@@ -253,6 +253,11 @@ namespace Youverse.Core.Services.Drive
 
             // var acl = await GetAcl(file);
             await _authorizationService.AssertCallerHasPermission(metadata.AccessControlList);
+
+            if (!_context.Caller.IsOwner)
+            {
+                metadata.AccessControlList = null;
+            }
 
             return metadata;
         }
@@ -288,13 +293,6 @@ namespace Youverse.Core.Services.Drive
             _context.AppContext.AssertCanReadDrive(file.DriveId);
 
             return GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
-        }
-
-        public Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart)
-        {
-            _context.AppContext.AssertCanReadDrive(file.DriveId);
-
-            return GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, filePart);
         }
 
         public void AssertFileIsValid(DriveFileId file)

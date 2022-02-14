@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Tests.Drive
         public async Task CanSearchRecentFiles()
         {
             var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
-            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService);
+            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService, _scaffold.Context);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
@@ -94,7 +94,7 @@ namespace Youverse.Core.Services.Tests.Drive
         public async Task CanRebuildIndex()
         {
             var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
-            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService);
+            var queryService = new DriveQueryService(driveService, _scaffold.LoggerFactory, _scaffold.AuthorizationService, _scaffold.Context);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.Drive
@@ -27,5 +28,6 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         public bool PayloadTooLarge { get; set; }
         public string PayloadContent { get; set; }
+        public AccessControlList AccessControlList { get; set; }
     }
 }

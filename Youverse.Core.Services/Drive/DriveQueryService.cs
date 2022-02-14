@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
@@ -19,16 +17,18 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>
     {
+        private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
         private readonly IAuthorizationService _authorizationService;
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IAuthorizationService authorizationService)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IAuthorizationService authorizationService, DotYouContext context)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
             _authorizationService = authorizationService;
+            _context = context;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -143,6 +143,7 @@ namespace Youverse.Core.Services.Drive
                 CreatedTimestamp = item.CreatedTimestamp,
                 LastUpdatedTimestamp = item.LastUpdatedTimestamp,
                 SenderDotYouId = item.SenderDotYouId,
+                AccessControlList = _context.Caller.IsOwner ? item.AccessControlList : null
             };
         }
 

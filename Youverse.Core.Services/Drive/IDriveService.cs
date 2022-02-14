@@ -91,13 +91,7 @@ namespace Youverse.Core.Services.Drive
         Task<Stream> GetPayloadStream(DriveFileId file);
 
         Task<long> GetPayloadSize(DriveFileId file);
-
-        /// <summary>
-        /// Gets a read stream for the given <see cref="FilePart"/>
-        /// </summary>
-        /// <returns></returns>
-        Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart);
-
+        
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
