@@ -32,10 +32,10 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         // }
 
         [HttpGet("tag")]
-        public async Task<IActionResult> GetByTag(Guid tag, bool includeContent, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetByTag(Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-            var page = await _driveQueryService.GetByTag(driveId, tag, includeContent, includePayload, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetByTag(driveId, tag, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 

@@ -127,6 +127,7 @@ namespace Youverse.Core.Services.Transit
             var metadata = new FileMetadata(package.File)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
+
                 //TODO: need an automapper *sigh
                 AppData = new AppFileMetaData()
                 {
@@ -136,7 +137,9 @@ namespace Youverse.Core.Services.Transit
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                     PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
                 },
-                SenderDotYouId = ""
+                
+                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
+                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
 
             return (keyHeader, metadata);
@@ -297,12 +300,24 @@ namespace Youverse.Core.Services.Transit
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var metadata = await _driveService.GetMetadata(file);
                 
-                //react information
+                //redact information
                 metadata.File = DriveFileId.Redacted();
                 metadata.SenderDotYouId = string.Empty;
                 metadata.AccessControlList = null;
+
+                //redact the info by explicitly stating what we will keep
+                //therefore, if a new attribute is added, it must be considered 
+                //if it should be sent to the recipient
+                var redactedMetadata = new FileMetadata()
+                {
+                    File = DriveFileId.Redacted(),
+                    Created = metadata.Created,
+                    Updated = metadata.Updated,
+                    AppData = metadata.AppData,
+                    ContentType = metadata.ContentType,
+                };
                 
-                var json = JsonConvert.SerializeObject(metadata);
+                var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 

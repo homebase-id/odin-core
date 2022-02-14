@@ -12,8 +12,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
         }
 
-        [BsonId] public Guid ApplicationId { get; set; }
-
+        [BsonId]
+        public Guid ApplicationId { get; set; }
+        
         public string Name { get; set; }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return nonce;
         }
 
-        public async Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply)
+        public async Task<(DotYouAuthenticationResult, SensitiveByteArray)> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
@@ -82,12 +82,14 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             // TODO: audit login some where, or in helper class below
 
-         
-            return new DotYouAuthenticationResult()
+
+            var auth = new DotYouAuthenticationResult()
             {
                 SessionToken = serverToken.Id,
                 ClientHalfKek = new SensitiveByteArray(clientToken.GetKey())
             };
+
+            return (auth, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
         public async Task<bool> IsValidToken(Guid sessionToken)

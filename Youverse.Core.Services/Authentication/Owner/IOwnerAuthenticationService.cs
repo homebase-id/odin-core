@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <param name="reply"></param>
         /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply);
+        Task<(DotYouAuthenticationResult, SensitiveByteArray)> Authenticate(IPasswordReply reply);
 
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  

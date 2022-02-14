@@ -23,6 +23,8 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveService : IDriveService
     {
+        const int MaxPayloadMemorySize = 4 * 1000; //TODO: put in config
+        
         private readonly IAuthorizationService _authorizationService;
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
@@ -269,10 +271,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(DriveFileId file)
         {
-            const int MAX_PAYLOAD_MEMORY_SIZE = 4 * 1000; //TODO: put in config
-
             var size = await this.GetPayloadSize(file);
-            if (size > MAX_PAYLOAD_MEMORY_SIZE)
+            if (size > MaxPayloadMemorySize)
             {
                 return (true, size, new byte[] { });
             }

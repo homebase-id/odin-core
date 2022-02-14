@@ -119,9 +119,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
 
-            if (appReg.IsRevoked)
+            if (appReg == null || appReg.IsRevoked)
             {
-                throw new YouverseSecurityException("App is revoked");
+                throw new YouverseSecurityException("App is not registered or revoked");
             }
 
             return new AppContextBase(
@@ -265,6 +265,11 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
         {
+            if (appReg == null)
+            {
+                return null;
+            }
+            
             //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new AppRegistrationResponse()
             {

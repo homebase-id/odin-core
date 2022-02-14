@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
         public async Task EnsureSystemApps()
         {
             await SetupProfile();
-            await SetupLandingPage();
+            await SetupWebHomeApp();
             await SetupChat();
         }
 
@@ -45,12 +45,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             }
         }
 
-        private async Task SetupLandingPage()
+        private async Task SetupWebHomeApp()
         {
-            Guid landingPageAppId = Guid.Parse("99999789-6666-6666-6666-000000001111");
-            string landingPageAppName = "Landing Page";
+            Guid webHomeAppId = Guid.Parse("99999789-6666-6666-6666-000000001111");
+            string webHomeAppName = "Home Page";
 
-            await _appRegService.RegisterApp(landingPageAppId, landingPageAppName, true);
+            await _appRegService.RegisterApp(webHomeAppId, webHomeAppName, true);
         }
     }
 }
