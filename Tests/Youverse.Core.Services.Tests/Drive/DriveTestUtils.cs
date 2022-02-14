@@ -74,9 +74,12 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 
-            await using var storedPayload = await driveService.GetPayloadStream(file);
-            var storedPayloadBytes = StreamToBytes(storedPayload);
-            var payloadCipherBytes = StreamToBytes(payloadCipherStream);
+            await using var storedPayloadStream = await driveService.GetPayloadStream(file);
+            var storedPayloadBytes = storedPayloadStream.ToByteArray();;
+            storedPayloadStream.Close();
+            
+            var payloadCipherBytes = payloadCipherStream.ToByteArray();;
+            payloadCipherStream.Close();
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
 
             return file;

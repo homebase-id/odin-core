@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             string path = GetFilenameAndPath(fileId, filePart);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read);
             return Task.FromResult((Stream)fileStream);
         }
 

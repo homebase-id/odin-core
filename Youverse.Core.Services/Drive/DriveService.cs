@@ -278,7 +278,9 @@ namespace Youverse.Core.Services.Drive
             }
 
             var stream = await this.GetPayloadStream(file);
-            return (false, size, stream.ToByteArray());
+            var bytes = stream.ToByteArray();
+            stream.Close();
+            return (false, size, bytes);
         }
 
         public Task<long> GetPayloadSize(DriveFileId file)

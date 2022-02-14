@@ -127,19 +127,13 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 
-            await using var storedPayload = await driveService.GetPayloadStream(file);
-            var storedPayloadBytes = StreamToBytes(storedPayload);
+            await using var storedPayloadStream = await driveService.GetPayloadStream(file);
+            var storedPayloadBytes = storedPayloadStream.ToByteArray();
+            storedPayloadStream.Close();
 
-            var payloadCipherBytes = StreamToBytes(payloadCipherStream);
+            var payloadCipherBytes = payloadCipherStream.ToByteArray();
+            payloadCipherStream.Close();
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
-        }
-
-        private byte[] StreamToBytes(Stream stream)
-        {
-            MemoryStream ms = new();
-            stream.Position = 0; //reset due to other readers
-            stream.CopyToAsync(ms).GetAwaiter().GetResult();
-            return ms.ToArray();
         }
     }
 }
