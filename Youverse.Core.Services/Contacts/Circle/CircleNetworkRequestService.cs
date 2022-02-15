@@ -4,10 +4,14 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
+using Youverse.Core.Services.Authorization.Apps;
+using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -22,8 +26,11 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly IProfileAttributeManagementService _mgts;
         private readonly ISystemStorage _systemStorage;
+        private readonly XTokenService _xTokenService;
+        private readonly IAppRegistrationService _appReg;
 
-        public CircleNetworkRequestService(DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
+      
+        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
         {
             _context = context;
             _cns = cns;
@@ -32,6 +39,9 @@ namespace Youverse.Core.Services.Contacts.Circle
             _mgts = mgts;
             _systemStorage = systemStorage;
             _context = context;
+            _xTokenService = xTokenService;
+            _appReg = appReg;
+
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
             _systemStorage.WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
         }
@@ -63,13 +73,27 @@ namespace Youverse.Core.Services.Contacts.Circle
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
+            var remoteRsaKey = new byte[0]; //TODO
+
+            //TODO: fix in merge
+            var profileAppId = Guid.Parse("99999789-5555-5555-5555-000000001111");
+            var profileApp = await _appReg.GetAppRegistration(profileAppId);
+
+            Guard.Argument(profileApp, nameof(profileApp)).NotNull("Invalid App");
+            Guard.Argument(profileApp.DriveId, nameof(profileApp.DriveId)).Require(x => x.HasValue);
+
+            //TODO: add all drives based on what what access was granted to the recipient
+            var drives = new List<Guid> { profileApp.DriveId.GetValueOrDefault() };
+            var (token, remoteToken) = await _xTokenService.CreateXToken(remoteRsaKey, drives);
+
             var request = new ConnectionRequest
             {
                 Id = header.Id,
                 Recipient = header.Recipient,
                 Message = header.Message,
                 SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
-                ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() //this should not be required since it's set on the receiving end
+                ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
+                RSAEncryptedXToken = remoteToken
             };
 
             var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -90,6 +114,10 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception("Failed to establish connection request");
             }
 
+            //Note: the pending Xtoken attached only AFTER we send the request
+            request.RSAEncryptedXToken = "";
+            request.PendingXToken = token;
+
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
@@ -97,7 +125,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
             _context.AssertCanManageConnections();
-            
+
             //note: this would occur during the operation verification process
             request.Validate();
             _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
@@ -137,12 +165,12 @@ namespace Youverse.Core.Services.Contacts.Circle
             return Task.CompletedTask;
         }
 
-        public async Task EstablishConnection(AcknowledgedConnectionRequest request)
+        public async Task EstablishConnection(AcknowledgedConnectionRequest handshakeResponse)
         {
             _context.AssertCanManageConnections();
             
             //grab the request that was sent by the DI that sent me this acknowledgement
-            var originalRequest = await this.GetSentRequest(request.SenderDotYouId);
+            var originalRequest = await this.GetSentRequest(handshakeResponse.SenderDotYouId);
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
@@ -150,7 +178,11 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            await _cns.Connect(request.SenderDotYouId, request.Name);
+            var half = handshakeResponse.HalfKey.ToSensitiveByteArray();
+            var _ = originalRequest.PendingXToken.DriveKeyHalfKey.DecryptKeyClone(ref half); //method asserts key is valid
+            half.Wipe();
+
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken);
 
             await this.DeleteSentRequest(originalRequest.Recipient);
 
@@ -165,6 +197,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             _context.AssertCanManageConnections();
             
             var request = await GetPendingRequest(sender);
+
             if (null == request)
             {
                 throw new InvalidOperationException($"No pending request was found from sender [{sender}]");
@@ -174,17 +207,18 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            // await _cns.Connect(request.SenderPublicKeyCertificate, request.Name);
-            await _cns.Connect(request.SenderDotYouId, request.Name);
 
-            //Now send back an acknowledgement by establishing a connection
+            var (xtoken, sendersHalfKey) = await _cns.CreateXToken(request.RSAEncryptedXToken);
 
+            //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
+
 
             AcknowledgedConnectionRequest acceptedReq = new()
             {
                 Name = p.Name,
-                ProfilePic = p.Photo
+                ProfilePic = p.Photo,
+                HalfKey = sendersHalfKey.GetKey()
             };
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
@@ -194,6 +228,9 @@ namespace Youverse.Core.Services.Contacts.Circle
                 //TODO: add more info and clarify
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
+
+            //
+            await _cns.Connect(request.SenderDotYouId, request.Name, xtoken);
 
             await this.DeletePendingRequest(request.SenderDotYouId);
 

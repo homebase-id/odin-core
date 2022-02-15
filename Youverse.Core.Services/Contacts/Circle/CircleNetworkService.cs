@@ -5,8 +5,10 @@ using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
 
@@ -30,6 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly IProfileService _profileService;
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
+        private readonly XTokenService _xTokenService;
 
         public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger,  ISystemStorage systemStorage)
         {
@@ -195,8 +198,19 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name)
+        public async Task<(XToken, SensitiveByteArray)> CreateXToken(string rsaEncryptedXtoken)
         {
+            //TODO: get driveID from the profile app
+            var driveIdList = new List<Guid>();
+            var (xtoken, sendersHalfKey) = await _xTokenService.CreateXTokenFromBits(driveIdList, rsaEncryptedXtoken);
+
+            return (xtoken, sendersHalfKey);
+        }
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        {
+
+            //TODO: assert xtoken is valid
+
             // var cert = new DomainCertificateUtil(publicKeyCertificate);
             // var dotYouId = cert.DotYouId;
             var dotYouId = (DotYouIdentity) dotYouIdentity;
@@ -209,12 +223,14 @@ namespace Youverse.Core.Services.Contacts.Circle
                 return;
             }
 
+       
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()
             {
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
-                LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                XToken = xtoken
             };
 
             _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));

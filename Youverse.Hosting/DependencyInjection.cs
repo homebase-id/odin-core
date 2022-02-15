@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
@@ -95,6 +96,9 @@ namespace Youverse.Hosting
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
             
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
+
+            //TODO breakout interface
+            cb.RegisterType<XTokenService>().AsSelf().SingleInstance();
 
         }
 

@@ -109,7 +109,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appClientId: appClient.Id,
                 clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
                 driveId: appReg.DriveId,
-                encryptedAppKey: appClient.EncryptedAppKey,
+                encryptedAppKey: appClient.ServerHalfAppKey,
                 clientHalfKek: clientHalfKek,
                 driveGrants: appReg.DriveGrants,
                 canManageConnections: appReg.CanManageConnections
@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Id = Guid.NewGuid(),
                 ApplicationId = applicationId,
                 SharedSecretKey = sharedSecret,
-                EncryptedAppKey = clientEncryptedAppKey,
+                ServerHalfAppKey = clientEncryptedAppKey,
                 IsRevoked = false
             };
 
