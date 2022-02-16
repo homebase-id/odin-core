@@ -48,31 +48,49 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             AssertValidIndexLoaded();
 
-            //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-            var unfiltered = await _indexStorage.GetList(PageOptions.All, ListSortDirection.Descending, item => item.CreatedTimestamp);
-            var filtered = ApplySecurity(unfiltered, pageOptions);
-            if (!includeMetadataHeader)
+            lock (_indexStorage)
             {
-                StripContent(ref filtered);
-            }
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                var unfiltered = _indexStorage.GetList(PageOptions.All, 
+                    ListSortDirection.Descending, 
+                    item => item.CreatedTimestamp)
+                    .GetAwaiter().GetResult();
+                
+                var filtered = ApplySecurity(unfiltered, pageOptions);
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
 
-            return filtered;
+                return filtered;
+            }
         }
+
+        private readonly object _searchLock = new object();
 
         public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
 
-            //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-            var unfiltered = await _indexStorage.Find(item => item.Tags.Contains(tag), ListSortDirection.Descending, item => item.CreatedTimestamp, PageOptions.All);
-            var filtered = ApplySecurity(unfiltered, pageOptions);
-
-            if (!includeMetadataHeader)
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
             {
-                StripContent(ref filtered);
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                var unfiltered = _indexStorage.Find(item => item.Tags.Contains(tag),
+                        ListSortDirection.Descending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter().GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
             }
-            
-            return filtered;
         }
 
         private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions)
