@@ -132,8 +132,9 @@ namespace Youverse.Core.Services.Tests.Drive
             storedPayloadStream.Close();
 
             var payloadCipherBytes = payloadCipherStream.ToByteArray();
-            payloadCipherStream.Close();
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
+            payloadCipherStream.Close();
+
         }
     }
 }
