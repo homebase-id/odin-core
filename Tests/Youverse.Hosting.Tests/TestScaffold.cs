@@ -29,16 +29,23 @@ using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
+using Youverse.Hosting.Tests.OwnerApi.Transit;
 
 namespace Youverse.Hosting.Tests
 {
+    public class OwnerAuthTokenContext
+    {
+        public DotYouAuthenticationResult AuthResult { get; set; }
+        public SensitiveByteArray SharedSecret { get; set; }
+    }
+
     //Note: this class is wayyy to big, need to decompose :)
     public class TestScaffold
     {
         private readonly string _folder;
         private readonly string _password = "EnSøienØ";
         private IHost _webserver;
-        private readonly Dictionary<string, DotYouAuthenticationResult> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
+        private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
         DevelopmentIdentityContextRegistry _registry;
 
         public TestScaffold(string folder)
@@ -46,13 +53,42 @@ namespace Youverse.Hosting.Tests
             this._folder = folder;
         }
 
-        public string TestDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
-        public string TempDataPath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
-        public string LogFilePath => PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
+        public string TestDataPath
+        {
+            get
+            {
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
+                string x= isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                return x;
+            }
+        }
+
+        private bool isDev => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+        private string home => Environment.GetEnvironmentVariable("HOME") ?? "";
+
+        public string TempDataPath
+        {
+            get
+            {
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
+                return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+            }
+        }
+
+        public string LogFilePath
+        {
+            get
+            {
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
+                return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+            }
+        }
 
         [OneTimeSetUp]
         public void RunBeforeAnyTests(bool startWebserver = true)
         {
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+
             this.DeleteData();
             this.DeleteLogs();
 
@@ -61,7 +97,6 @@ namespace Youverse.Hosting.Tests
 
             if (startWebserver)
             {
-                Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
                 Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");
                 Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
                 Environment.SetEnvironmentVariable("Host__TempTenantDataRootPath", TempDataPath);
@@ -148,7 +183,7 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
-        public async Task<DotYouAuthenticationResult> LoginToOwnerConsole(string identity, string password)
+        public async Task<(DotYouAuthenticationResult, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -175,7 +210,10 @@ namespace Youverse.Hosting.Tests
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
-            Assert.IsTrue(response.Content, $"Failed to authenticate {identity}");
+            Assert.That(response.Content, Is.Not.Null);
+
+            //HACK: getting shared secret at login until we sort out provisioning of an owner client
+            var sharedSecret = response.Content;
 
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
@@ -185,14 +223,14 @@ namespace Youverse.Hosting.Tests
             var newToken = result.SessionToken;
             Assert.IsTrue(newToken != Guid.Empty);
             Assert.IsTrue(result.ClientHalfKek.IsSet());
-            return result;
+            return (result, sharedSecret.ToSensitiveByteArray());
         }
 
-        private async Task<DotYouAuthenticationResult> GetOwnerAuthToken(DotYouIdentity identity)
+        private async Task<OwnerAuthTokenContext> GetOwnerAuthContext(DotYouIdentity identity)
         {
-            if (_ownerLoginTokens.TryGetValue(identity, out var authResult))
+            if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {
-                return authResult;
+                return context;
             }
 
             throw new Exception($"No token found for {identity}");
@@ -203,15 +241,22 @@ namespace Youverse.Hosting.Tests
             const string password = "EnSøienØ";
             await this.ForceNewPassword(identity, password);
 
-            var result = await this.LoginToOwnerConsole(identity, this._password);
-            _ownerLoginTokens.Add(identity, result);
+            var (result, sharedSecret) = await this.LoginToOwnerConsole(identity, this._password);
+
+            var context = new OwnerAuthTokenContext()
+            {
+                AuthResult = result,
+                SharedSecret = sharedSecret
+            };
+
+            _ownerLoginTokens.Add(identity, context);
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, Guid? appId = null)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, Guid? appId = null)
         {
-            var token = GetOwnerAuthToken(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token, appId);
-
+            var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var client = CreateOwnerApiHttpClient(identity, token.AuthResult, appId);
+            sharedSecret = token.SharedSecret;
             return client;
         }
 
@@ -304,7 +349,7 @@ namespace Youverse.Hosting.Tests
 
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool canManageConnections = false)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity))
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
@@ -339,7 +384,7 @@ namespace Youverse.Hosting.Tests
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
-            using (var client = this.CreateOwnerApiHttpClient(identity))
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
@@ -381,7 +426,7 @@ namespace Youverse.Hosting.Tests
 
         public async Task RevokeSampleApp(DotYouIdentity identity, Guid appId)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity))
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 await svc.RevokeApp(appId);
@@ -505,7 +550,18 @@ namespace Youverse.Hosting.Tests
             return await TransferFile(sender, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        {
+            //TODO: so f'kin hacky.
+            if (options.UseOwnerContext)
+            {
+                return await TransferFileAsOwner(identity, instructionSet, fileMetadata, options);
+            }
+
+            return await TransferFileAsApp(identity, instructionSet, fileMetadata, options);
+        }
+
+        private async Task<TransitTestUtilsContext> TransferFileAsApp(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -606,108 +662,108 @@ namespace Youverse.Hosting.Tests
             };
         }
 
-        // private async Task<TransitTestUtilsContext> TransferFileAsOwner(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
-        // {
-        //     var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
-        //
-        //     if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
-        //     {
-        //         throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
-        //     }
-        //
-        //     var testAppContext = await this.SetupTestSampleApp(identity);
-        //
-        //     //Setup the app on all recipient DIs
-        //     var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
-        //     foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
-        //     {
-        //         var recipient = (DotYouIdentity) r;
-        //         var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient);
-        //         recipientContexts.Add(recipient, ctx);
-        //     }
-        //
-        //     var payloadData = "{payload:true, image:'b64 data'}";
-        //
-        //     using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, testAppContext.AppId))
-        //     {
-        //         var keyHeader = KeyHeader.NewRandom16();
-        //         var transferIv = instructionSet.TransferIv;
-        //
-        //         var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
-        //         var instructionStream = new MemoryStream(bytes);
-        //
-        //         var descriptor = new UploadFileDescriptor()
-        //         {
-        //             EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
-        //             FileMetadata = fileMetadata
-        //         };
-        //
-        //         var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
-        //
-        //         payloadData = options?.PayloadData ?? payloadData;
-        //         var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
-        //
-        //         var transitSvc = RestService.For<ITransitOwnerTestHttpClient>(client);
-        //         var response = await transitSvc.Upload(
-        //             new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-        //             new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-        //             new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-        //
-        //         Assert.That(response.IsSuccessStatusCode, Is.True);
-        //         Assert.That(response.Content, Is.Not.Null);
-        //         var transferResult = response.Content;
-        //
-        //         Assert.That(transferResult.File, Is.Not.Null);
-        //         Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-        //         Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
-        //
-        //         if (instructionSet.TransitOptions?.Recipients != null)
-        //         {
-        //             Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
-        //
-        //             foreach (var recipient in instructionSet.TransitOptions?.Recipients)
-        //             {
-        //                 Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-        //                 Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
-        //             }
-        //         }
-        //
-        //         if (options is {ProcessOutbox: true})
-        //         {
-        //             var resp = await transitSvc.ProcessOutbox();
-        //             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        //         }
-        //
-        //
-        //         if (options is {ProcessTransitBox: true})
-        //         {
-        //             //wait for process outbox to run
-        //             Task.Delay(2000).Wait();
-        //
-        //             foreach (var rCtx in recipientContexts)
-        //             {
-        //                 using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
-        //                 {
-        //                     var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-        //                     var resp = await transitAppSvc.ProcessTransfers();
-        //                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        //                 }
-        //             }
-        //         }
-        //
-        //         keyHeader.AesKey.Wipe();
-        //     }
-        //
-        //     return new TransitTestUtilsContext()
-        //     {
-        //         AppId = testAppContext.AppId,
-        //         AuthResult = testAppContext.AuthResult,
-        //         AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
-        //         InstructionSet = instructionSet,
-        //         FileMetadata = fileMetadata,
-        //         RecipientContexts = recipientContexts,
-        //         PayloadData = payloadData
-        //     };
-        // }
+        private async Task<TransitTestUtilsContext> TransferFileAsOwner(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        {
+            var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
+
+            if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
+            {
+                throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+            }
+
+            var testAppContext = await this.SetupTestSampleApp(identity);
+
+            //Setup the app on all recipient DIs
+            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+            foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
+            {
+                var recipient = (DotYouIdentity) r;
+                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient);
+                recipientContexts.Add(recipient, ctx);
+            }
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, testAppContext.AppId))
+            {
+                var keyHeader = KeyHeader.NewRandom16();
+                var transferIv = instructionSet.TransferIv;
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
+
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+                    FileMetadata = fileMetadata
+                };
+
+                var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+
+                payloadData = options?.PayloadData ?? payloadData;
+                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+
+                var transitSvc = RestService.For<ITransitOwnerTestHttpClient>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+
+                if (instructionSet.TransitOptions?.Recipients != null)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+
+                    foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+                    {
+                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                    }
+                }
+
+                if (options is {ProcessOutbox: true})
+                {
+                    var resp = await transitSvc.ProcessOutbox();
+                    Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                }
+
+
+                if (options is {ProcessTransitBox: true})
+                {
+                    //wait for process outbox to run
+                    Task.Delay(2000).Wait();
+
+                    foreach (var rCtx in recipientContexts)
+                    {
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
+                        {
+                            var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
+                            var resp = await transitAppSvc.ProcessTransfers();
+                            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                        }
+                    }
+                }
+
+                keyHeader.AesKey.Wipe();
+            }
+
+            return new TransitTestUtilsContext()
+            {
+                AppId = testAppContext.AppId,
+                AuthResult = testAppContext.AuthResult,
+                AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
+                InstructionSet = instructionSet,
+                FileMetadata = fileMetadata,
+                RecipientContexts = recipientContexts,
+                PayloadData = payloadData
+            };
+        }
     }
 }

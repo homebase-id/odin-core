@@ -9,6 +9,11 @@ namespace Youverse.Hosting.Tests
             ProcessOutbox = false,
             ProcessTransitBox = false
         };
+        
+        /// <summary>
+        /// Indicates the file upload and/or transfer should be done in using the owner endpoints instead of the normal app endpoints.
+        /// </summary>
+        public bool UseOwnerContext { get; set; }
 
         /// <summary>
         /// Indicates if the process outbox endpoint should be called after sending a transfer

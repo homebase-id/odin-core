@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         private const string RootPath = OwnerApiPathConstants.AuthV1;
 
         [Post(RootPath)]
-        Task<ApiResponse<bool>> Authenticate([Body] IPasswordReply package);
+        Task<ApiResponse<byte[]>> Authenticate([Body] IPasswordReply package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);

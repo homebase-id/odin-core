@@ -87,7 +87,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             }
 
             var appId = uploadContext.AppId;
-            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity, appId))
+            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity, out var _, appId))
             {
                 var svc = RestService.For<IDriveQueryClient>(ownerClient);
 

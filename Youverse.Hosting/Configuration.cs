@@ -39,10 +39,10 @@ namespace Youverse.Hosting
                 RegistryServerUri = config.Required<string>("Host:RegistryServerUri");
 
                 var p = config.Required<string>("Host:TenantDataRootPath");
-                TenantDataRootPath = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
 
                 var tp = config.Required<string>("Host:TempTenantDataRootPath");
-                TempTenantDataRootPath = isDev ? PathUtil.Combine(home, tp.Substring(1)) : tp;
+                TempTenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, tp.Substring(1)) : tp;
 
                 UseLocalCertificateRegistry = config.Required<bool>("Host:UseLocalCertificateRegistry");
 
