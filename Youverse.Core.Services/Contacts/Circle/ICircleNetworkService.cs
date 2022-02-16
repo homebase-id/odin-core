@@ -103,6 +103,5 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <returns></returns>
         Task DeleteConnection(DotYouIdentity dotYouId);
 
-        Task<(XToken, SensitiveByteArray)> CreateXToken(string rsaEncryptedXtoken);
     }
 }

@@ -1,7 +1,6 @@
-﻿using System;
-using System.Threading.Tasks;
-using Youverse.Core.Identity;
+﻿using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Registry.Provisioning
 {
@@ -20,37 +19,37 @@ namespace Youverse.Core.Services.Registry.Provisioning
             await SetupWebHomeApp();
             await SetupChat();
         }
-
+        
         private async Task SetupProfile()
         {
-            Guid profileAppId = Guid.Parse("99999789-4444-4444-4444-000000004444");
             string profileAppName = "Profile Data";
 
-            var existingApp = await _appRegService.GetAppRegistration(profileAppId);
+            var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
-                await _appRegService.RegisterApp(profileAppId, profileAppName, createDrive: true, canManageConnections: false);
+                await _appRegService.RegisterApp(SystemAppConstants.ProfileAppId, profileAppName, createDrive: true, canManageConnections: false);
             }
         }
 
         private async Task SetupChat()
         {
-            Guid chatAppId = Guid.Parse("99999789-5555-5555-5555-000000002222");
             string chatAppName = "Chat App";
 
-            var existingApp = await _appRegService.GetAppRegistration(chatAppId);
+            var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
             if (null == existingApp)
             {
-                await _appRegService.RegisterApp(chatAppId, chatAppName, createDrive: true, canManageConnections: true);
+                await _appRegService.RegisterApp(SystemAppConstants.ChatAppId, chatAppName, createDrive: true, canManageConnections: true);
             }
         }
 
         private async Task SetupWebHomeApp()
         {
-            Guid webHomeAppId = Guid.Parse("99999789-6666-6666-6666-000000001111");
             string webHomeAppName = "Home Page";
-
-            await _appRegService.RegisterApp(webHomeAppId, webHomeAppName, true);
+            var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
+            if(null == existingApp)
+            {
+                await _appRegService.RegisterApp(SystemAppConstants.WebHomeAppId, webHomeAppName, true);
+            }
         }
     }
 }

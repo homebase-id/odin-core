@@ -54,15 +54,7 @@ namespace Youverse.Core.Services.Base
             var grant = DriveGrants?.SingleOrDefault(g => g.DriveId == driveId);
             return grant != null && grant.Permissions.HasFlag(permission);
         }
-
-        public void AssertCanManageConnections()
-        {
-            if (!CanManageConnections)
-            {
-                throw new YouverseSecurityException("Unauthorized Action");
-            }
-        }
-
+        
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>

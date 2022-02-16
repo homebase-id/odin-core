@@ -1,4 +1,5 @@
 ﻿using System;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 
@@ -49,6 +50,22 @@ namespace Youverse.Core.Services.Base
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }
+        
+        public void AssertCanManageConnections()
+        {
+            if (this.Caller.IsOwner && this.Caller.HasMasterKey)
+            {
+                return;
+            }
+            
+            if (AppContext != null && AppContext.CanManageConnections)
+            {
+                return;
+            }
+            
+            throw new YouverseSecurityException("Unauthorized Action");
+        }
+
        
     }
 }

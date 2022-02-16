@@ -29,16 +29,11 @@ using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
+using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 using Youverse.Hosting.Tests.OwnerApi.Transit;
 
 namespace Youverse.Hosting.Tests
 {
-    public class OwnerAuthTokenContext
-    {
-        public DotYouAuthenticationResult AuthResult { get; set; }
-        public SensitiveByteArray SharedSecret { get; set; }
-    }
-
     //Note: this class is wayyy to big, need to decompose :)
     public class TestScaffold
     {
@@ -58,7 +53,7 @@ namespace Youverse.Hosting.Tests
             get
             {
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
-                string x= isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return x;
             }
         }
@@ -211,7 +206,7 @@ namespace Youverse.Hosting.Tests
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
             Assert.That(response.Content, Is.Not.Null);
-            
+
             var ownerAuthenticationResult = response.Content;
 
             var cookies = jar.GetCookies(authClient.BaseAddress);
@@ -249,8 +244,21 @@ namespace Youverse.Hosting.Tests
             };
 
             _ownerLoginTokens.Add(identity, context);
+
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
+            {
+                var svc = RestService.For<IProvisioningClient>(client);
+                await svc.EnsureSystemApps();
+            }
         }
 
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
+        {
+            var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var client = CreateOwnerApiHttpClient(identity, token.AuthResult, null);
+            return client;
+        }
+        
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, Guid? appId = null)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();

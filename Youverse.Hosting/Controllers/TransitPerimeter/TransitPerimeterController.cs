@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;

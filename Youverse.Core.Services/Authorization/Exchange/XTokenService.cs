@@ -98,7 +98,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             var hostHalfKeySBA = hostHalfKey.ToSensitiveByteArray();
             var remoteHalfKeySBA = remoteHalfKey.ToSensitiveByteArray();
 
-            var newHostHalfKey = SymmetricKeyEncryptedXor.CombineHalfs(hostHalfKey.ToSensitiveByteArray(), remoteHalfKeySBA);
+            var newHostHalfKey = SymmetricKeyEncryptedXor.CombineHalfs(hostHalfKeySBA, remoteHalfKeySBA);
             var clone = newHostHalfKey.DecryptKeyClone(ref hostHalfKeySBA);
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();

@@ -193,7 +193,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sam))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -218,7 +218,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            using (var client = _scaffold.CreateAppApiHttpClient(frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 //
                 // Frodo should be in sam's contacts network
@@ -231,7 +231,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            await DisconnectIdentities(frodo, sam);
+            // await DisconnectIdentities(frodo, sam);
         }
 
 
@@ -330,7 +330,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             var recipient = await _scaffold.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
             //have frodo send it
-            using (var client = _scaffold.CreateAppApiHttpClient(sender))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(sender.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
 
@@ -349,7 +349,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             }
 
             //check that sam got it
-            using (var client = _scaffold.CreateAppApiHttpClient(recipient))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var response = await svc.GetPendingRequest(sender.Identity);
