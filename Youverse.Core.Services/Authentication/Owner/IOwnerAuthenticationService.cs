@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <param name="reply"></param>
         /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<DotYouAuthenticationResult> Authenticate(IPasswordReply reply);
+        Task<(DotYouAuthenticationResult, SensitiveByteArray)> Authenticate(IPasswordReply reply);
 
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  
@@ -50,7 +50,12 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
         /// <returns></returns>
+        //Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
         
-        Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
+        /// <summary>
+        /// Returns the LoginKek used to access the primary and application data encryption keys
+        /// </summary>
+        /// <returns></returns>
+        Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
     }
 }

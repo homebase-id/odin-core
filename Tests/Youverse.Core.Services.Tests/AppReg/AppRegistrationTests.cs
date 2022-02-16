@@ -16,7 +16,6 @@ namespace Youverse.Core.Services.Tests.AppReg
     public class AppRegistrationTests
     {
         private ServiceTestScaffold _scaffold;
-        private byte[] _deviceSharedSecret = new byte[16];
 
         [SetUp]
         public void Setup()
@@ -26,6 +25,7 @@ namespace Youverse.Core.Services.Tests.AppReg
             _scaffold.CreateContext();
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
+            _scaffold.CreateAuthorizationService();
         }
 
         [TearDown]
@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Tests.AppReg
         public async Task RegisterAppWithDrive()
         {
             var logger = Substitute.For<ILogger<AppRegistrationService>>();
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
             var appRegSvc = new AppRegistrationService(_scaffold.Context, logger, _scaffold.SystemStorage, driveService);
 
             Guid appId = Guid.NewGuid();
@@ -85,16 +85,16 @@ namespace Youverse.Core.Services.Tests.AppReg
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
-            
+
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
-           
+
             await AddSampleAppNoDrive(appId, name);
             var svc = CreateAppRegService();
 
             var reply = await svc.RegisterClient(appId, rsa.publicKey);
 
             var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
-            
+
             //only supporting version 1 for now
             Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
             Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
@@ -114,7 +114,6 @@ namespace Youverse.Core.Services.Tests.AppReg
             Assert.IsTrue(savedClient.ApplicationId == appId);
             Assert.IsFalse(savedClient.IsRevoked);
             Assert.IsFalse(savedClient.Id == Guid.Empty);
-            
         }
 
         private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
@@ -145,7 +144,7 @@ namespace Youverse.Core.Services.Tests.AppReg
         private AppRegistrationService CreateAppRegService()
         {
             var logger = Substitute.For<ILogger<AppRegistrationService>>();
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
             var appRegSvc = new AppRegistrationService(_scaffold.Context, logger, _scaffold.SystemStorage, driveService);
             return appRegSvc;
         }

@@ -1,23 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
+using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
-    public class UploadAppFileMetaData
+    public class UploadAppFileMetaData: IAppFileMetaData
     {
-        /// <summary>
-        /// A CategoryId specific to an app.  This is indexed and can be used to query data.
-        /// </summary>
-        public Guid? CategoryId { get; set; }
-
-        /// <summary>
-        /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)
-        /// </summary>
+        public List<Guid> Tags { get; set; }
+        
+        public int FileType { get; set; }
+        
         public bool ContentIsComplete { get; set; }
         
-        /// <summary>
-        /// The JsonPayload to be included in the index.  This is not searchable but rather available to be returned
-        /// when querying the index so you do not have to retrieve the whole payload
-        /// </summary>
+        public bool PayloadIsEncrypted { get; set; }
+        
         public string JsonContent { get; set; }
         
     }

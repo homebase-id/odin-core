@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/app")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
     public class TransitAppController : ControllerBase
     {
         private readonly ITransitAppService _transitAppService;

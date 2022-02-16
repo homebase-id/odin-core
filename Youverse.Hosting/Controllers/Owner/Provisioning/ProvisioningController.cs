@@ -9,8 +9,8 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Owner.Provisioning
 {
     [ApiController]
-    [Route("/owner/api/v1/provisioning")]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [Route(OwnerApiPathConstants.ProvisioningV1)]
+    [AuthorizeOwnerConsole]
     public class ProvisioningController : Controller
     {
         private readonly IIdentityProvisioner _identityProvisioner;
@@ -21,10 +21,10 @@ namespace Youverse.Hosting.Controllers.Owner.Provisioning
         }
 
         //TODO: will need to send a callbackId or increase the timeout
-        [HttpPost("defaults")]
-        public async Task ConfigureDefaults()
+        [HttpPost("systemapps")]
+        public async Task EnsureSystemApps()
         {
-            await _identityProvisioner.ConfigureIdentityDefaults();
+            await _identityProvisioner.EnsureSystemApps();
         }
     }
 }

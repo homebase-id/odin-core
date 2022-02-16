@@ -9,8 +9,8 @@ namespace Youverse.Core.Services.Registry.Provisioning
     public interface IIdentityProvisioner
     {
         /// <summary>
-        /// Setups the default items for a new identity (apps, drives, etc.)
+        /// Ensures all system apps are created, including new ones introduced to existing tenants (i.e. call this once at startup for each tenant)
         /// </summary>
-        Task ConfigureIdentityDefaults();
+        Task EnsureSystemApps();
     }
 }

@@ -40,7 +40,6 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <param name="file"></param>
         /// <param name="stream"></param>
-        /// <param name="storageDisposition"></param>
         /// <returns></returns>
         Task WritePayload(DriveFileId file, Stream stream);
 
@@ -53,7 +52,7 @@ namespace Youverse.Core.Services.Drive
         /// Writes a stream to the drive's temporary storage
         /// </summary>
         Task WriteTempStream(DriveFileId file, string extension, Stream stream);
-        
+
         Task<Stream> GetTempStream(DriveFileId file, string extension);
 
         /// <summary>
@@ -61,13 +60,13 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm);
-        
+
         /// <summary>
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>
         Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
-        
+
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
         /// </summary>
@@ -80,7 +79,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <returns></returns>
         Task DeleteTempFiles(DriveFileId file);
-        
+
         /// <summary>
         /// Gets the <see cref="FileMetadata"/>
         /// </summary>
@@ -88,16 +87,11 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<FileMetadata> GetMetadata(DriveFileId file);
 
+
         Task<Stream> GetPayloadStream(DriveFileId file);
 
-        Task<long> GetFileSize(DriveFileId file);
-
-        /// <summary>
-        /// Gets a read stream for the given <see cref="FilePart"/>
-        /// </summary>
-        /// <returns></returns>
-        Task<Stream> GetFilePartStream(DriveFileId file, FilePart filePart);
-
+        Task<long> GetPayloadSize(DriveFileId file);
+        
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
@@ -121,7 +115,7 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         Task DeleteLongTermFile(DriveFileId file);
-        
+
         Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
 
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
@@ -130,5 +124,12 @@ namespace Youverse.Core.Services.Drive
         /// Encrypts and writes a KeyHeader
         /// </summary>
         Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader);
+
+        /// <summary>
+        /// Returns the payload bytes.  If the payload is larger than the max size we will
+        /// load into memory, the tooLarge result will be true.
+        /// </summary>
+        /// <returns></returns>
+        Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(DriveFileId file);
     }
 }

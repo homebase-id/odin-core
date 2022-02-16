@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        CategoryId = Guid.Empty,
+                        Tags = new List<Guid>() {Guid.NewGuid()},
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }
@@ -189,9 +189,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             });
 
             var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.AuthResult))
+            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.AuthResult))
             {
-                var svc = RestService.For<ITransitTestAppHttpClient>(client);
+                var svc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
 
                 Assert.IsTrue(itemsResponse.IsSuccessStatusCode);
@@ -206,7 +206,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(singleItem);
                 Assert.IsTrue(singleItem.Id == items.Results.First().Id);
 
-                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+                var driveSvc = RestService.For<IDriveStorageHttpClient>(recipientClient);
 
                 var fileId = singleItem.File.FileId;
 
@@ -220,7 +220,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(utilsContext.FileMetadata.ContentType));
-                Assert.That(clientFileHeader.FileMetadata.AppData.CategoryId, Is.EqualTo(utilsContext.FileMetadata.AppData.CategoryId));
+                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, utilsContext.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(utilsContext.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(utilsContext.FileMetadata.AppData.ContentIsComplete));
 
@@ -237,7 +237,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var fileKey = decryptedKeyHeader.AesKey;
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
-                
                 //get the payload and decrypt, then compare
                 var payloadResponse = await driveSvc.GetPayload(fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -254,22 +253,23 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
                 //var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-                
-                var driveQueryClient = RestService.For<IDriveQueryClient>(client);
 
-                var response = await driveQueryClient.GetItemsByCategory(categoryId, true, 1, 100);
+                var driveQueryClient = RestService.For<IDriveQueryClient>(recipientClient);
+
+                var response = await driveQueryClient.GetByTag(categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
 
-                //TODO: what to test here?
-                Assert.IsTrue(page.Results.Any(item => item.CategoryId == categoryId));
+                Assert.IsTrue(page.Results.Count() == 1);
+                CollectionAssert.AreEquivalent(utilsContext.FileMetadata.AppData.Tags, page.Results[0].Tags);
 
-                Console.WriteLine($"Items with category: {categoryId}");
-                foreach (var item in page.Results)
-                {
-                    Console.WriteLine($"{item.CategoryId} {item.JsonContent}");
-                }
+
+                // Console.WriteLine($"Items with category: {categoryId}");
+                // foreach (var item in page.Results)
+                // {
+                //     Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
+                // }
             }
         }
     }

@@ -10,6 +10,8 @@ using NuGet.Frameworks;
 using NUnit.Framework;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -38,9 +40,10 @@ namespace Youverse.Core.Services.Tests.Drive
             _scaffold.CreateSystemStorage();
             _scaffold.CreateLoggerFactory();
             _scaffold.CreateMediator();
+            _scaffold.CreateAuthorizationService();
 
-            Array.Fill(_ekh_Iv, (byte)1);
-            Array.Fill(_ekh_Key, (byte)1);
+            Array.Fill(_ekh_Iv, (byte) 1);
+            Array.Fill(_ekh_Key, (byte) 1);
         }
 
         [TearDown]
@@ -52,7 +55,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CanStoreLongTermFile()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory,_scaffold.Mediator);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
@@ -73,6 +76,10 @@ namespace Youverse.Core.Services.Tests.Drive
             var decryptedDriveId = AesCbc.Decrypt(storageDrive.EncryptedIdValue, ref storageKey, storageDrive.EncryptedIdIv);
             Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));
 
+            //HACK: having to overwrite appcontext here smells badly
+            var driveGrants = new List<DriveGrant>() {new() {DriveId = storageDrive.Id, AppKeyEncryptedStorageKey = null, Permissions = DrivePermissions.All}};
+            _scaffold.Context.AppContext = new AppContextBase(Guid.Empty, Guid.Empty, null, storageDrive.Id, driveGrants, false, null);
+            
             var file = driveService.CreateFileId(storageDrive.Id);
 
             var keyHeader = KeyHeader.NewRandom16();
@@ -86,9 +93,13 @@ namespace Youverse.Core.Services.Tests.Drive
                 ContentType = "application/json",
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = Guid.Empty,
+                    Tags = new List<Guid>()
+                    {
+                        Guid.NewGuid(), 
+                        Guid.NewGuid()
+                    },
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach" })
+                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach"})
                 }
             };
 
@@ -97,7 +108,7 @@ namespace Youverse.Core.Services.Tests.Drive
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipherStream = keyHeader.GetEncryptedStreamAes(payloadData);
             await driveService.WritePayload(file, payloadCipherStream);
-
+            
             var storedEkh = await driveService.GetEncryptedKeyHeader(file);
 
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.EncryptedAesKey, storedEkh.EncryptedAesKey));
@@ -109,26 +120,22 @@ namespace Youverse.Core.Services.Tests.Drive
 
             Assert.IsTrue(metadata.Created == storedMetadata.Created);
             Assert.IsTrue(metadata.ContentType == storedMetadata.ContentType);
-            
+
             Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
             Assert.IsNotNull(storedMetadata.AppData);
-            Assert.IsTrue(metadata.AppData.CategoryId == storedMetadata.AppData.CategoryId);
+            CollectionAssert.AreEquivalent(metadata.AppData.Tags, storedMetadata.AppData.Tags);
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 
-            await using var storedPayload = await driveService.GetPayloadStream(file);
-            var storedPayloadBytes = StreamToBytes(storedPayload);
-            
-            var payloadCipherBytes = StreamToBytes(payloadCipherStream);
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
-        }
+            await using var storedPayloadStream = await driveService.GetPayloadStream(file);
+            var storedPayloadBytes = storedPayloadStream.ToByteArray();
+            storedPayloadStream.Close();
 
-        private byte[] StreamToBytes(Stream stream)
-        {
-            MemoryStream ms = new ();
-            stream.Position = 0; //reset due to other readers
-            stream.CopyToAsync(ms).GetAwaiter().GetResult();
-            return ms.ToArray();
+            payloadCipherStream.Seek(0, SeekOrigin.Begin);
+            var payloadCipherBytes = payloadCipherStream.ToByteArray();
+            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
+            payloadCipherStream.Close();
+
         }
     }
 }

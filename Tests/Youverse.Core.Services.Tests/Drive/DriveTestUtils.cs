@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -17,8 +18,8 @@ namespace Youverse.Core.Services.Tests.Drive
 
         static DriveTestUtils()
         {
-            Array.Fill(InitializationVector, (byte)1);
-            Array.Fill(EncryptionKey, (byte)1);
+            Array.Fill(InitializationVector, (byte) 1);
+            Array.Fill(EncryptionKey, (byte) 1);
         }
 
         public static byte[] StreamToBytes(Stream stream)
@@ -44,7 +45,7 @@ namespace Youverse.Core.Services.Tests.Drive
                 ContentType = testFileProps.PayloadContentType,
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = testFileProps.CategoryId,
+                    Tags = new List<Guid>() {testFileProps.CategoryId.GetValueOrDefault()},
                     ContentIsComplete = testFileProps.ContentIsComplete,
                     JsonContent = JsonConvert.SerializeObject(testFileProps.MetadataJsonContent)
                 }
@@ -69,13 +70,16 @@ namespace Youverse.Core.Services.Tests.Drive
 
             Assert.IsTrue(metadata.Updated < storedMetadata.Updated); //write payload updates metadata
             Assert.IsNotNull(storedMetadata.AppData);
-            Assert.IsTrue(metadata.AppData.CategoryId == storedMetadata.AppData.CategoryId);
+            CollectionAssert.AreEquivalent(metadata.AppData.Tags, storedMetadata.AppData.Tags);
             Assert.IsTrue(metadata.AppData.ContentIsComplete == storedMetadata.AppData.ContentIsComplete);
             Assert.IsTrue(metadata.AppData.JsonContent == storedMetadata.AppData.JsonContent);
 
-            await using var storedPayload = await driveService.GetPayloadStream(file);
-            var storedPayloadBytes = StreamToBytes(storedPayload);
-            var payloadCipherBytes = StreamToBytes(payloadCipherStream);
+            await using var storedPayloadStream = await driveService.GetPayloadStream(file);
+            var storedPayloadBytes = storedPayloadStream.ToByteArray();;
+            storedPayloadStream.Close();
+            
+            var payloadCipherBytes = payloadCipherStream.ToByteArray();;
+            payloadCipherStream.Close();
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
 
             return file;

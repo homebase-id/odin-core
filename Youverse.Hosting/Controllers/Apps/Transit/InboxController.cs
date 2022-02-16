@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/inbox")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
     public class InboxController : ControllerBase
     {
         private readonly IInboxService _inboxService;

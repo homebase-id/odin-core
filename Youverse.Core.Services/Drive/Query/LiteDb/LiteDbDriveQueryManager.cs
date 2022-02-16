@@ -2,8 +2,10 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
@@ -11,6 +13,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
+        private readonly IAuthorizationService _authorizationService;
+
         private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
         private LiteDBSingleCollectionStorage<IndexedItem> _backupIndexStorage;
         private StorageDriveIndex _currentIndex;
@@ -22,9 +26,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private readonly string IndexCollectionName = "index";
 
-        public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger)
+        public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger, IAuthorizationService authorizationService)
         {
             _logger = logger;
+            _authorizationService = authorizationService;
             this.Drive = drive;
 
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, drive.GetIndexPath());
@@ -39,34 +44,48 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public StorageDrive Drive { get; init; }
 
-        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
-            var page = await _indexStorage.GetList(pageOptions, ListSortDirection.Descending, item => item.CreatedTimestamp);
 
-            //apply permissions from the permissions index to reduce the set.
-            //
-
-            if (!includeContent)
+            //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+            var unfiltered = await _indexStorage.GetList(PageOptions.All, ListSortDirection.Descending, item => item.CreatedTimestamp);
+            var filtered = ApplySecurity(unfiltered, pageOptions);
+            if (!includeMetadataHeader)
             {
-                StripContent(ref page);
+                StripContent(ref filtered);
             }
 
-            return page;
+            return filtered;
         }
 
-        public async Task<PagedResult<IndexedItem>> GetItemsByCategory(Guid categoryId, bool includeContent, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
 
-            var page = await _indexStorage.Find(item => item.CategoryId == categoryId, ListSortDirection.Descending, item => item.CreatedTimestamp, pageOptions);
+            //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+            var unfiltered = await _indexStorage.Find(item => item.Tags.Contains(tag), ListSortDirection.Descending, item => item.CreatedTimestamp, PageOptions.All);
+            var filtered = ApplySecurity(unfiltered, pageOptions);
 
-            if (!includeContent)
+            if (!includeMetadataHeader)
             {
-                StripContent(ref page);
+                StripContent(ref filtered);
             }
+            
+            return filtered;
+        }
 
-            return page;
+        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions)
+        {
+            Func<IndexedItem, bool> callerHasPermission = (item) => _authorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
+            var filtered = unfiltered.Results.Where(callerHasPermission);
+
+            //possible memory spike
+            var indexedItems = filtered as IndexedItem[] ?? filtered.ToArray();
+            var page = indexedItems!.Skip(pageOptions.GetSkipCount()).Take(pageOptions.PageSize).ToList();
+            var results = new PagedResult<IndexedItem>(pageOptions, indexedItems.Count(), page);
+
+            return results;
         }
 
         public Task SwitchIndex()
@@ -133,18 +152,21 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 var sf = new FileInfo(_secondaryIndex.IndexRootPath);
                 SetCurrentIndex(pf.CreationTimeUtc >= sf.CreationTimeUtc ? _primaryIndex : _secondaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             if (primaryIsValid)
             {
                 SetCurrentIndex(_primaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             if (secondaryIsValid)
             {
                 SetCurrentIndex(_secondaryIndex);
                 _indexReadyState = IndexReadyState.Ready;
+                return Task.CompletedTask;
             }
 
             //neither index is valid; so let us default
@@ -172,8 +194,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             //TODO: this needs more rigor than just checking the number of files
             var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
-            var pFileCount = Directory.Exists(index.GetPermissionIndexPath()) ? Directory.GetFiles(index.GetPermissionIndexPath()).Count() : 0;
-            return qFileCount > 0 && pFileCount > 0;
+
+            return qFileCount > 0;
         }
 
         private void StripContent(ref PagedResult<IndexedItem> page)
@@ -191,14 +213,16 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return new IndexedItem()
             {
                 FileId = metadata.File.FileId,
+                SenderDotYouId = metadata.SenderDotYouId,
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
-                CategoryId = metadata.AppData.CategoryId,
+                Tags = metadata.AppData.Tags,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
-                JsonContent = metadata.AppData.JsonContent
+                JsonContent = metadata.AppData.JsonContent,
+                AccessControlList = metadata.AccessControlList
             };
         }
-        
+
         private void AssertValidIndexLoaded()
         {
             if (_indexReadyState == IndexReadyState.Ready)

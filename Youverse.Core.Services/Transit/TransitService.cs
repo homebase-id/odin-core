@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -89,7 +90,7 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 Sender = this._context.Caller.DotYouId,
-                AppId = this._context.TransitContext.AppId, //Note: best to use the appId in from transit context since it's been verified
+                AppId = this._context.AppContext.AppId,
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
                 Priority = 0 //TODO
@@ -102,16 +103,9 @@ namespace Youverse.Core.Services.Transit
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
         {
             var metadataStream = await _driveService.GetTempStream(package.File, MultipartUploadParts.Metadata.ToString());
-
-            byte[] encryptedBytes;
-            await using (var ms = new MemoryStream())
-            {
-                await metadataStream.CopyToAsync(ms);
-                encryptedBytes = ms.ToArray();
-            }
-
-            var clientSharedSecret = _context.AppContext.GetClientSharedSecret();
-            var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref clientSharedSecret, package.InstructionSet.TransferIv);
+            
+            var clientSharedSecret = _context.AppContext.ClientSharedSecret;
+            var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
@@ -121,19 +115,25 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Invalid transfer key header");
             }
 
-            var sharedSecret = _context.AppContext.GetClientSharedSecret();
+            var sharedSecret = _context.AppContext.ClientSharedSecret;
             var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
             var metadata = new FileMetadata(package.File)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
 
+                //TODO: need an automapper *sigh
                 AppData = new AppFileMetaData()
                 {
-                    CategoryId = uploadDescriptor.FileMetadata.AppData.CategoryId,
+                    Tags = uploadDescriptor.FileMetadata.AppData.Tags,
+                    FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
-                }
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
+                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
+                },
+                
+                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
+                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
 
             return (keyHeader, metadata);
@@ -293,12 +293,30 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var metadata = await _driveService.GetMetadata(file);
+                
+                //redact information
                 metadata.File = DriveFileId.Redacted();
-                var json = JsonConvert.SerializeObject(metadata);
+                metadata.SenderDotYouId = string.Empty;
+                metadata.AccessControlList = null;
+
+                //redact the info by explicitly stating what we will keep
+                //therefore, if a new attribute is added, it must be considered 
+                //if it should be sent to the recipient
+                var redactedMetadata = new FileMetadata()
+                {
+                    File = DriveFileId.Redacted(),
+                    Created = metadata.Created,
+                    Updated = metadata.Updated,
+                    AppData = metadata.AppData,
+                    ContentType = metadata.ContentType,
+                };
+                
+                var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                var payload = new StreamPart(await _driveService.GetFilePartStream(file, FilePart.Payload), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                
+                var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 

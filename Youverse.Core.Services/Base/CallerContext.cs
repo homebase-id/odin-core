@@ -11,11 +11,12 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, bool isInYouverseNetwork = false)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
             this._masterKey = masterKey;
+            this.IsInYouverseNetwork = isInYouverseNetwork;
         }
 
         /// <summary>
@@ -32,6 +33,8 @@ namespace Youverse.Core.Services.Base
         {
             get => this._masterKey != null && !this._masterKey.IsEmpty();
         }
+
+        public bool IsInYouverseNetwork { get; }
 
         public void AssertHasMasterKey()
         {

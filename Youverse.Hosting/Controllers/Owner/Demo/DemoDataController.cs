@@ -5,7 +5,7 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
 {
     [ApiController]
     [Route("api/demodata")]
-    //[Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.DotIdentityOwnerScheme)]
+    [AuthorizeOwnerConsole]
     public class DemoDataController : ControllerBase
     {
         private DemoDataGenerator _demoDataGenerator;

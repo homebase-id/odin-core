@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Upload
         private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
-        
+
         public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService)
         {
             _context = context;
@@ -38,6 +38,11 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
             }
 
+            if (instructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
+            {
+                throw new UploadException("Cannot transfer to yourself; what's the point?");
+            }
+
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
 
             //Use the drive requested, if set
@@ -51,29 +56,39 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Missing or invalid driveId");
             }
 
-            if (instructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
+            DriveFileId file;
+            if (instructionSet.StorageOptions?.OverwriteFileId.HasValue ?? false)
             {
-                throw new UploadException("Cannot transfer to yourself; what's the point?");
+                //file to overwrite
+                file = new DriveFileId()
+                {
+                    DriveId = driveId,
+                    FileId = instructionSet.StorageOptions.OverwriteFileId.GetValueOrDefault()
+                };
+            }
+            else
+            {
+                //get a new fileid
+                file = _driveService.CreateFileId(driveId);
             }
 
             var pkgId = Guid.NewGuid();
-            var file = instructionSet.StorageOptions?.GetFile() ?? _driveService.CreateFileId(driveId);
             var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
 
             return pkgId;
         }
-        
+
         public async Task AddMetadata(Guid packageId, Stream data)
         {
             if (!_packages.TryGetValue(packageId, out var pkg))
             {
                 throw new UploadException("Invalid package Id");
             }
-            
+
             await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Metadata.ToString(), data);
         }
-        
+
         public async Task AddPayload(Guid packageId, Stream data)
         {
             if (!_packages.TryGetValue(packageId, out var pkg))
@@ -83,7 +98,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
             await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Payload.ToString(), data);
         }
-        
+
         public async Task<UploadPackage> GetPackage(Guid packageId)
         {
             if (_packages.TryGetValue(packageId, out var package))

@@ -52,7 +52,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var sharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var revokeResponse = await svc.RevokeApp(appId);
@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
@@ -121,7 +121,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
@@ -147,7 +147,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistrationResponse> GetSampleApp(Guid applicationId)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo))
+            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var appResponse = await svc.GetRegisteredApp(applicationId);

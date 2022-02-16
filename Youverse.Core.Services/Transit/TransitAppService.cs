@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Transit
 
             var appId = _context.AppContext.AppId;
             var appKey = _context.AppContext.GetAppKey();
-            
+
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
 
@@ -53,13 +53,14 @@ namespace Youverse.Core.Services.Transit
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedPrivateKey.GetKey(), 16, 16);
             decryptedPrivateKey.Wipe();
 
-            //TODO: this deserialization would be better int he drive service under the name GetTempMetadata or something
+            //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
             var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
+            metadata.SenderDotYouId = _context.Caller.DotYouId;
 
-            await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString().ToString());
+            await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
         }
 
         public async Task ProcessTransfers()

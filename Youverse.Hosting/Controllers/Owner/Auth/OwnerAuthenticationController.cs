@@ -41,22 +41,24 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
         {
             try
             {
-                var result = await _authService.Authenticate(package);
+                var (result, sharedSecret) = await _authService.Authenticate(package);
                 var options = new CookieOptions()
                 {
-                    HttpOnly = true, 
-                    IsEssential = true, 
+                    HttpOnly = true,
+                    IsEssential = true,
                     Secure = true,
                     //Path = "/owner",
                     SameSite = SameSiteMode.Strict
                 };
 
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
-                return new JsonResult(true);
+
+                //TODO: need to encrypt shared secret using client public key
+                return new JsonResult(new OwnerAuthenticationResult() {SharedSecret = sharedSecret.GetKey()});
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
             {
-                return new JsonResult(false);
+                return new JsonResult(new byte[] { });
             }
         }
 
@@ -113,7 +115,5 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
             var salts = await _ss.GenerateNewSalts();
             return new JsonResult(salts);
         }
-        
-        
     }
 }

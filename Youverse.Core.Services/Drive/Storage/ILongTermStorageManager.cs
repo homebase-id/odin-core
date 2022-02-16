@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         Task WritePartStream(Guid fileId, FilePart part, Stream stream);
 
-        Task<long> GetFileSize(Guid fileId);
+        Task<long> GetPayloadFileSize(Guid fileId);
         
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>

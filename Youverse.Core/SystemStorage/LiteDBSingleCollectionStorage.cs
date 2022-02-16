@@ -131,9 +131,12 @@ namespace Youverse.Core.SystemStorage
             var skip = req.GetSkipCount();
             var limit = req.PageSize;
             var totalCount = col.Count(predicate);
+            
+            var query = sortDirection == ListSortDirection.Ascending ? 
+                col.Query().Where(predicate).OrderBy(sortKeySelector) : 
+                col.Query().Where(predicate).OrderByDescending(sortKeySelector);
 
-            var query = sortDirection == ListSortDirection.Ascending ? col.Query().Where(predicate).OrderBy(sortKeySelector) : col.Query().Where(predicate).OrderByDescending(sortKeySelector);
-
+            
             var resultData = query.Skip(skip).Limit(limit).ToEnumerable();
             var data = resultData.ToList();
             var result = new PagedResult<T>(req, req.GetTotalPages(totalCount), data);

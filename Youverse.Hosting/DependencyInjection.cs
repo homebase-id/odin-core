@@ -11,6 +11,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
@@ -64,6 +65,8 @@ namespace Youverse.Hosting
 
             cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
 
+            cb.RegisterType<AuthorizationService>().As<IAuthorizationService>().SingleInstance();
+            
             cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
             cb.RegisterType<DriveQueryService>()

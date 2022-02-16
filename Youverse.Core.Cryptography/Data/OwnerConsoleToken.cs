@@ -33,7 +33,7 @@ namespace Youverse.Core.Cryptography.Data
         {
             // TODO: How to delete ServerHalfOwnerConsoleKey ?
             // ByteArrayUtil.WipeByteArray(this.HalfKey);
-            ByteArrayUtil.WipeByteArray(this.SharedSecret);
+            //ByteArrayUtil.WipeByteArray(this.SharedSecret);
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using MediatR;
@@ -7,8 +8,11 @@ using NSubstitute;
 using NSubstitute.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Tests
@@ -21,8 +25,10 @@ namespace Youverse.Core.Services.Tests
         public ISystemStorage? SystemStorage { get; private set; }
         public DotYouContext? Context { get; private set; }
         public ILoggerFactory LoggerFactory { get; private set; }
-        
-        public IMediator Mediator {get; private set;}
+
+        public IMediator Mediator { get; private set; }
+
+        public IAuthorizationService AuthorizationService { get; private set; }
 
         public string? DataStoragePath => _dataStoragePath;
 
@@ -64,6 +70,11 @@ namespace Youverse.Core.Services.Tests
             Mediator = Substitute.For<IMediator>();
         }
 
+        public void CreateAuthorizationService()
+        {
+            AuthorizationService = new AuthorizationService(this.Context, null);
+        }
+
         public void LogDataPath()
         {
             if (!Directory.Exists(DataStoragePath))
@@ -72,14 +83,14 @@ namespace Youverse.Core.Services.Tests
             }
 
             var files = Directory.EnumerateFiles(DataStoragePath, "", SearchOption.AllDirectories);
-            
+
             Console.WriteLine($"Directories and files in :{DataStoragePath}\n\n");
             Console.ForegroundColor = ConsoleColor.Blue;
             foreach (var f in files)
             {
                 Console.WriteLine(f);
             }
-            
+
             Console.ResetColor();
         }
 

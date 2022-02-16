@@ -11,9 +11,8 @@ namespace Youverse.Core.Services.Base
     {
         public DotYouContext()
         {
-            
         }
-        
+
         public DotYouContext(DotYouIdentity hostDotYouId, TenantStorageConfig storageConfig, CallerContext caller, AppContext app)
         {
             this.HostDotYouId = hostDotYouId;
@@ -21,12 +20,12 @@ namespace Youverse.Core.Services.Base
             this.Caller = caller;
             this.AppContext = app;
         }
-        
+
         /// <summary>
         /// Specifies the identifier for this account
         /// </summary>
         public Guid DotYouRegistryId { get; set; }
-        
+
         /// <summary>
         /// Specifies the DotYouId of the host
         /// </summary>
@@ -36,32 +35,20 @@ namespace Youverse.Core.Services.Base
         /// The root path for data
         /// </summary>
         public string DataRoot { get; set; }
-        
+
         /// <summary>
         /// The root path for temp data
         /// </summary>
         public string TempDataRoot { get; set; }
-        
+
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.
         /// </summary>
         public TenantStorageConfig StorageConfig { get; set; }
 
         public CallerContext Caller { get; set; }
-        
-        public AppContext AppContext { get; set; }
-        
-        public TransitContext TransitContext { get; set; }
-        
-        public void AssertCanManageConnections()
-        {
-            if (AppContext == null)
-            {
-                TransitContext.AssertCanManageConnections();
-                return;
-            }
-            
-            AppContext.AssertCanManageConnections();
-        }
+
+        public IAppContext AppContext { get; set; }
+       
     }
 }

@@ -1,21 +1,20 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Transit
 {
     [ApiController]
     [Route(AppApiPathConstants.TransitV1)]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [Route(OwnerApiPathConstants.TransitV1)]
+    [AuthorizeOwnerConsoleOrApp]
     public class UploadController : ControllerBase
     {
         private readonly ITransitService _transitService;

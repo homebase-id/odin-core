@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Controllers.Apps.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsoleOrApp]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly ICircleNetworkRequestService _requestService;

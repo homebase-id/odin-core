@@ -9,11 +9,11 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
     public static class TransitPerimeterPolicies
     {
 
-        public const string MustBeIdentifiedPolicyName = "MustBeIdentified";
+        public const string IsInYouverseNetwork = "MustBeIdentified";
 
         public static void AddPolicies(AuthorizationOptions policy)
         {
-            policy.AddPolicy(MustBeIdentifiedPolicyName, pb =>
+            policy.AddPolicy(IsInYouverseNetwork, pb =>
             {
                 pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(TransitPerimeterAuthConstants.TransitAuthScheme);

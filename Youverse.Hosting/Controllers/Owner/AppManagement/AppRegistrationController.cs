@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AppManagementV1)]
-    [Authorize(Policy = OwnerPolicies.IsDigitalIdentityOwnerPolicyName, AuthenticationSchemes = OwnerAuthConstants.SchemeName)]
+    [AuthorizeOwnerConsole]
     public class AppRegistrationController : Controller
     {
         private readonly IAppRegistrationService _appRegistration;

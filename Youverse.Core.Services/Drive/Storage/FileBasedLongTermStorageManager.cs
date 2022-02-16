@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             string path = GetFilenameAndPath(fileId, filePart);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read);
             return Task.FromResult((Stream)fileStream);
         }
 
@@ -173,12 +173,12 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task MoveToLongTerm(Guid fileId, string filePath, FilePart part)
         {
             var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
-            File.Move(filePath, dest);
+            File.Move(filePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
         }
 
-        public Task<long> GetFileSize(Guid id)
+        public Task<long> GetPayloadFileSize(Guid id)
         {
             //TODO: make more efficient by reading metadata or something else?
             var path = GetFilenameAndPath(id, FilePart.Payload);

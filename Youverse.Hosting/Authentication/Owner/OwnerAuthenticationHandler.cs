@@ -48,17 +48,29 @@ namespace Youverse.Hosting.Authentication.Owner
                     //TODO: this needs to be pulled from context rather than the domain
                     //TODO: need to centralize where these claims are set.  there is duplicate code in the certificate handler in Startup.cs
                     string domain = this.Context.Request.Host.Host;
-                    
+
                     var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+
+                        //TODO: re-evaluate what it means to be 'identified' at this point in the app
                         new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+
+                        //Note: the app policy of IsAuthorizedApp checks these both.  it's a bit illogical to do so since i set them both here and in the app-auth-handler
+                        // will not resolve now, however
                         new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
 
                         new Claim(DotYouClaimTypes.AuthResult, authResult.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.DeviceUid64, deviceUid, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                     };
+
+                    if (!string.IsNullOrEmpty(Context.Request.Headers[DotYouHeaderNames.AppId]))
+                    {
+                        //TODO: the app is checked in the dotyoucontextmiddleware.  we should add checking here maybe or rename to IsApp instead of IsAuthorizedApp
+                        var c = new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer);
+                        claims.Add(c);
+                    }
 
                     var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);
@@ -78,12 +90,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
             return AuthenticateResult.Fail("Invalid or missing token");
         }
-
-        protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
-        {
-            return base.HandleForbiddenAsync(properties);
-        }
-
+        
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (GetToken(out var result))

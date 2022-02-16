@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1 + "/query")]
-    [Authorize(Policy = AppPolicies.IsAuthorizedApp, AuthenticationSchemes = AppAuthConstants.SchemeName)]
+    [Route(OwnerApiPathConstants.DrivesV1 + "/query")]
+    [AuthorizeOwnerConsoleOrApp]
     public class DriveQueryController : ControllerBase
     {
         private readonly DotYouContext _context;
@@ -23,19 +23,27 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             _context = context;
         }
 
-        [HttpGet("category")]
-        public async Task<IActionResult> GetItemsByCategory(Guid categoryId, bool includeContent, int pageNumber, int pageSize)
+        // [HttpGet("filetype")]
+        // public async Task<IActionResult> GetByFileType(int fileType, bool includeContent, int pageNumber, int pageSize)
+        // {
+        //     var driveId = _context.AppContext.DriveId.GetValueOrDefault();
+        //     var page = await _driveQueryService.GetByFiletype(driveId, fileType, includeContent, new PageOptions(pageNumber, pageSize));
+        //     return new JsonResult(page);
+        // }
+
+        [HttpGet("tag")]
+        public async Task<IActionResult> GetByTag(Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-            var page = await _driveQueryService.GetItemsByCategory(driveId, categoryId, includeContent, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetByTag(driveId, tag, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
         [HttpGet("recent")]
-        public async Task<IActionResult> GetRecentlyCreatedItems(bool includeContent, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetRecentlyCreatedItems(bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
             var driveId = _context.AppContext.DriveId.GetValueOrDefault();
-            var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeContent, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
