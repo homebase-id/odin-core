@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
 
                 //TODO: need to encrypt shared secret using client public key
-                return new JsonResult(new {sharedSecret = sharedSecret.GetKey()});
+                return new JsonResult(new OwnerAuthenticationResult() {SharedSecret = sharedSecret.GetKey()});
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
             {
@@ -115,7 +115,5 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
             var salts = await _ss.GenerateNewSalts();
             return new JsonResult(salts);
         }
-        
-        
     }
 }

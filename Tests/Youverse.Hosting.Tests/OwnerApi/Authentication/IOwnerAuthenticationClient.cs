@@ -5,6 +5,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.Owner.Auth;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {
@@ -13,7 +14,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
         private const string RootPath = OwnerApiPathConstants.AuthV1;
 
         [Post(RootPath)]
-        Task<ApiResponse<byte[]>> Authenticate([Body] IPasswordReply package);
+        Task<ApiResponse<OwnerAuthenticationResult>> Authenticate([Body] IPasswordReply package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);

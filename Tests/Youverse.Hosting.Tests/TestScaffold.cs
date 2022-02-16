@@ -211,9 +211,8 @@ namespace Youverse.Hosting.Tests
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
             Assert.That(response.Content, Is.Not.Null);
-
-            //HACK: getting shared secret at login until we sort out provisioning of an owner client
-            var sharedSecret = response.Content;
+            
+            var ownerAuthenticationResult = response.Content;
 
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
@@ -223,7 +222,7 @@ namespace Youverse.Hosting.Tests
             var newToken = result.SessionToken;
             Assert.IsTrue(newToken != Guid.Empty);
             Assert.IsTrue(result.ClientHalfKek.IsSet());
-            return (result, sharedSecret.ToSensitiveByteArray());
+            return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
         private async Task<OwnerAuthTokenContext> GetOwnerAuthContext(DotYouIdentity identity)
