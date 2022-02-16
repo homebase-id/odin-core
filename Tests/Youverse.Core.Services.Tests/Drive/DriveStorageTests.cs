@@ -109,6 +109,8 @@ namespace Youverse.Core.Services.Tests.Drive
             var payloadCipherStream = keyHeader.GetEncryptedStreamAes(payloadData);
             await driveService.WritePayload(file, payloadCipherStream);
 
+            payloadCipherStream.Seek(0, SeekOrigin.Begin);
+            
             var storedEkh = await driveService.GetEncryptedKeyHeader(file);
 
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(ekh.EncryptedAesKey, storedEkh.EncryptedAesKey));
