@@ -1,6 +1,8 @@
 ﻿using System.Threading.Tasks;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authorization.Exchange;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -78,7 +80,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
-        Task Connect(string dotYouId, NameAttribute name);
+        Task Connect(string dotYouId, NameAttribute name, XToken xtoken);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
@@ -100,5 +102,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task DeleteConnection(DotYouIdentity dotYouId);
+
+        Task<(XToken, SensitiveByteArray)> CreateXToken(string rsaEncryptedXtoken);
     }
 }

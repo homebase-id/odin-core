@@ -17,6 +17,17 @@ namespace Youverse.Core.Cryptography.Data
             //For LiteDB
         }
 
+        public static SymmetricKeyEncryptedXor CombineHalfs(SensitiveByteArray halfKey1, SensitiveByteArray halfKey2)
+        {
+            var x = new SymmetricKeyEncryptedXor();
+
+            x.KeyEncrypted = XorManagement.XorEncrypt(halfKey1.GetKey(), halfKey2.GetKey());
+            x.KeyHash = x.CalcKeyHash(ref halfKey2);
+            return x;
+
+        }
+
+     
         public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
         {
             halfKey1 = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length));
@@ -25,7 +36,7 @@ namespace Youverse.Core.Cryptography.Data
             KeyHash = CalcKeyHash(ref halfKey1);
         }
 
-        private byte[] CalcKeyHash(ref SensitiveByteArray key)
+        public byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
             KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
             return KeyHash;

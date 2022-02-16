@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public Guid ApplicationId { get; set; }
         
-        public SymmetricKeyEncryptedXor EncryptedAppKey { get; set; }
+        public SymmetricKeyEncryptedXor ServerHalfAppKey { get; set; }
         
         public byte[] SharedSecretKey { get; set; }
         

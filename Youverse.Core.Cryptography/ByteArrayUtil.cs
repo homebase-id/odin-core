@@ -45,6 +45,19 @@ namespace Youverse.Core.Cryptography
             return ret;
         }
 
+        public static (byte[] part1, byte[] part2, byte[] part3) Split(byte[] data, int len1, int len2, int len3)
+        {
+            var part1 = new byte[len1];
+            var part2 = new byte[len2];
+            var part3 = new byte[len3];
+
+            Buffer.BlockCopy(data, 0, part1, 0, len1);
+            Buffer.BlockCopy(data, len1, part2, 0, len2);
+            Buffer.BlockCopy(data, len1 + len2, part3, 0, len3);
+
+            return (part1, part2, part3);
+        }
+
         public static string PrintByteArray(byte[] bytes)
         {
             var sb = new StringBuilder("new byte[] { ");

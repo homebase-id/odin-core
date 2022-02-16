@@ -1,4 +1,5 @@
 ﻿using Dawn;
+using System;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
@@ -24,7 +25,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <summary>
         /// The profile
         /// </summary>
+        [Obsolete]
         public ProfilePicAttribute ProfilePic { get; set; }
+
+        public byte[] HalfKey { get; set; }
         
         public string RecipientGivenName { get; set; }
         

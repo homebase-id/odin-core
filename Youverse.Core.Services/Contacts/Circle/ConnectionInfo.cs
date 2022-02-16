@@ -1,5 +1,7 @@
 using System;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Exchange;
+
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -16,6 +18,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 this.LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
         }
+
+        public XToken XToken { get; set; }
 
         public long LastUpdated { get; set; }
     }
