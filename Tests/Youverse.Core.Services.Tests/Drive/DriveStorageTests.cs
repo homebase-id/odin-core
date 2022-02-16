@@ -108,8 +108,6 @@ namespace Youverse.Core.Services.Tests.Drive
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipherStream = keyHeader.GetEncryptedStreamAes(payloadData);
             await driveService.WritePayload(file, payloadCipherStream);
-
-            payloadCipherStream.Seek(0, SeekOrigin.Begin);
             
             var storedEkh = await driveService.GetEncryptedKeyHeader(file);
 
@@ -133,6 +131,7 @@ namespace Youverse.Core.Services.Tests.Drive
             var storedPayloadBytes = storedPayloadStream.ToByteArray();
             storedPayloadStream.Close();
 
+            payloadCipherStream.Seek(0, SeekOrigin.Begin);
             var payloadCipherBytes = payloadCipherStream.ToByteArray();
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadCipherBytes, storedPayloadBytes));
             payloadCipherStream.Close();
