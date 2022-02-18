@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
             var driveKeys = new List<DriveKey>();
 
-            foreach(var id in driveIdlist)
+            foreach (var id in driveIdlist)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
@@ -73,11 +73,10 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 DriveKeys = driveKeys
             };
 
-         
             //TODO: RSA Encrypt
             var combinedBytes = ByteArrayUtil.Combine(hostHalfKey.KeyEncrypted, remoteHalfKey.GetKey(), sharedSecret);
             var request = Convert.ToBase64String(combinedBytes);
-            
+
             combinedBytes.ToSensitiveByteArray().Wipe();
             keyStoreKey.Wipe();
 
@@ -102,7 +101,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             var clone = newHostHalfKey.DecryptKeyClone(ref remoteHalfKeySBA);
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();
-            
+
             var masterKey = _context.Caller.GetMasterKey();
             var driveKeys = new List<DriveKey>();
 
@@ -138,11 +137,50 @@ namespace Youverse.Core.Services.Authorization.Exchange
             return (xtoken, remoteHalfKeySBA);
         }
 
-        //public async Task<XToken> Clone(XToken existingToken, SensitiveByteArray halfKey)
-        //{
-            //create a new xtoken based on an existing xtoken
+        /// <summary>
+        /// Creates a new XToken from an existing Xtoken by copying and re-encrypting the drives
+        /// </summary>
+        /// <returns></returns>
+        public async Task<(XToken, byte[])> CloneXToken(XToken existingToken, SensitiveByteArray halfKey)
+        {
+            SensitiveByteArray driveKey = null;
+            SensitiveByteArray keyStoreKey = null;
+            try
+            {
+                driveKey = existingToken.DriveKeyHalfKey.DecryptKeyClone(ref halfKey);
+                keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+                var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
 
-            //c'////////
-        //}
+                var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
+
+                //clone and re-encrypt the drive keys
+                var newDriveKeys = existingToken.DriveKeys.Select(dk =>
+                {
+                    var storageKey = dk.XTokenEncryptedStorageKey.DecryptKeyClone(ref driveKey);
+                    var ndk = new DriveKey()
+                    {
+                        DriveId = dk.DriveId,
+                        XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
+                    };
+                    return ndk;
+                }).ToList();
+                var token = new XToken()
+                {
+                    Id = Guid.NewGuid(),
+                    Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                    DriveKeyHalfKey = hostHalfKey,
+                    MasterKeyEncryptedDriveKey = existingToken.MasterKeyEncryptedDriveKey,
+                    SharedSecretKey = sharedSecret,
+                    IsRevoked = false,
+                    DriveKeys = newDriveKeys
+                };
+                return (token, remoteHalfKey.GetKey());
+            }
+            finally
+            {
+                driveKey?.Wipe();
+                keyStoreKey?.Wipe();
+            }
+        }
     }
 }
