@@ -18,7 +18,7 @@ namespace Youverse.Core.Cryptography.Data
         }
 
         //HACK: the _ is a hack so I can use the same signature
-        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, SensitiveByteArray halfKey1, bool _= false)
+        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, SensitiveByteArray halfKey1, bool _)
         {
             EncryptKey(ref halfKey1, ref secretKeyToSplit);
             KeyHash = CalcKeyHash(ref halfKey1);

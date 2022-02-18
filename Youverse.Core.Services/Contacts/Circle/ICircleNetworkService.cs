@@ -80,7 +80,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
-        Task Connect(string dotYouId, NameAttribute name, XToken xtoken);
+        Task Connect(string dotYouId, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey);
+
+
+        Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>

@@ -156,14 +156,18 @@ namespace Youverse.Core.Services.Contacts.Circle
         {
             _context.AssertCanManageConnections();
 
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
-            return result;
+            return await this.GetSentRequestInternal(recipient);
         }
+
 
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
             _context.AssertCanManageConnections();
+            return DeleteSentRequestInternal(recipient);
+        }
 
+        private Task DeleteSentRequestInternal(DotYouIdentity recipient)
+        {
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
@@ -174,10 +178,9 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task EstablishConnection(AcknowledgedConnectionRequest handshakeResponse)
         {
-            _context.AssertCanManageConnections();
+            //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
 
-            //grab the request that was sent by the DI that sent me this acknowledgement
-            var originalRequest = await this.GetSentRequest(handshakeResponse.SenderDotYouId);
+            var originalRequest = await this.GetSentRequestInternal(handshakeResponse.SenderDotYouId);
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
@@ -186,20 +189,16 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
 
             var half = handshakeResponse.HalfKey.ToSensitiveByteArray();
-            var _ = originalRequest.PendingXToken.DriveKeyHalfKey.DecryptKeyClone(ref half); //method asserts key is valid
-            half.Wipe();
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, half);
 
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken);
-
-            await this.DeleteSentRequest(originalRequest.Recipient);
+            await this.DeleteSentRequestInternal(originalRequest.Recipient);
 
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            await this.DeletePendingRequest(originalRequest.Recipient);
+            await this.DeletePendingRequestInternal(originalRequest.Recipient);
 
             // this.Notify.ConnectionRequestAccepted(request).Wait();
         }
         
-
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
             _context.AssertCanManageConnections();
@@ -248,6 +247,11 @@ namespace Youverse.Core.Services.Contacts.Circle
         {
             _context.AssertCanManageConnections();
 
+            return DeletePendingRequestInternal(sender);
+        }
+
+        private Task DeletePendingRequestInternal(DotYouIdentity sender)
+        {
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
 
             //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
@@ -255,7 +259,14 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             return Task.CompletedTask;
         }
-        
+
+        private async Task<ConnectionRequest> GetSentRequestInternal(DotYouIdentity recipient)
+        {
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
+            return result;
+        }
+
+
         private async Task<(XToken, SensitiveByteArray)> DeserializeXToken(string rsaEncryptedXToken)
         {
             //TODO: get driveID from the profile app

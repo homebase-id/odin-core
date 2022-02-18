@@ -157,6 +157,11 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
         {
             _context.AssertCanManageConnections();
+            return await GetConnectionInfo2(dotYouId);
+        }
+
+        private async Task<ConnectionInfo> GetConnectionInfo2(DotYouIdentity dotYouId)
+        {
 
             var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
 
@@ -196,13 +201,28 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey)
+        {
+            var _ = xtoken.DriveKeyHalfKey.DecryptKeyClone(ref halfKey); //method asserts key is valid
+
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
+
+            //1. validate current connection state
+            var info = await this.GetConnectionInfo2(dotYouId);
+            this.AssertConnectionIsNoneOrValid(info);
+
+            if (info.Status == ConnectionStatus.Connected)
+            {
+                return;
+            }
+
+            await this.StoreConnection(dotYouId, name, xtoken);
+        }
+
         public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken)
         {
-            //TODO: assert xtoken is valid
 
-            // var cert = new DomainCertificateUtil(publicKeyCertificate);
-            // var dotYouId = cert.DotYouId;
-            var dotYouId = (DotYouIdentity) dotYouIdentity;
+            var dotYouId = (DotYouIdentity)dotYouIdentity;
 
             //1. validate current connection state
             await AssertConnectionIsNoneOrValid(dotYouId);
@@ -212,6 +232,13 @@ namespace Youverse.Core.Services.Contacts.Circle
                 return;
             }
 
+            await this.StoreConnection(dotYouId, name, xtoken);
+        }
+
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        {
+
+            var dotYouId = (DotYouIdentity)dotYouIdentity;
 
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()
