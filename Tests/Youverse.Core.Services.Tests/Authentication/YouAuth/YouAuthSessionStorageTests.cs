@@ -1,10 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Base;
 using NSubstitute;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Registry;
 
 #nullable enable
@@ -54,7 +59,23 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
 
             var sessionlifetime = TimeSpan.FromDays(1);
             var sessionId = Guid.NewGuid();
-            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime);
+
+            var mk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
+            
+            var xtoken = new XToken()
+            {
+                Id = Guid.NewGuid(),
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                DriveKeyHalfKey = hhk,
+                MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref mk, ref ksk),
+                SharedSecretKey = ByteArrayUtil.GetRndByteArray(16),
+                IsRevoked = false,
+                DriveKeys = new List<DriveKey>()
+            };
+            
+            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
 
             youAuthSessionStorage.Save(session);
             var copy = youAuthSessionStorage.LoadFromId(session.Id);
@@ -63,6 +84,14 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Assert.That(session.CreatedAt, Is.EqualTo(copy!.CreatedAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.That(session.ExpiresAt, Is.EqualTo(copy!.ExpiresAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.AreEqual(session.Subject, copy!.Subject);
+            
+            
+            Assert.That(session.XToken.DriveKeyHalfKey.KeyEncrypted, Is.EqualTo(copy.XToken.DriveKeyHalfKey.KeyEncrypted));
+            Assert.That(session.XToken.SharedSecretKey, Is.EqualTo(copy.XToken.SharedSecretKey));
+            Assert.That(session.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted, Is.EqualTo(copy.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted));
+            Assert.That(session.XToken.Created, Is.EqualTo(copy.XToken.Created));
+            Assert.That(session.XToken.Id, Is.EqualTo(copy.XToken.Id));
+            CollectionAssert.AreEquivalent(session.XToken.DriveKeys, copy.XToken.DriveKeys);
         }
 
     }

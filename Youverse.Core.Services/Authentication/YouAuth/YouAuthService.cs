@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Net;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 
@@ -18,6 +20,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
         private readonly ICircleNetworkService _circleNetwork;
+
+        private readonly XTokenService _xTokenService;
         //
 
         public YouAuthService(
@@ -25,13 +29,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IYouAuthSessionManager youSessionManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork)
+            ICircleNetworkService circleNetwork, XTokenService xTokenService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
+            _xTokenService = xTokenService;
         }
 
         //
@@ -66,32 +71,32 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             if (response.IsSuccessStatusCode)
             {
-                if(null != response.Content && response.Content.Length>0)
+                if (null != response.Content && response.Content.Length > 0)
                 {
                     return (true, response.Content);
                 }
 
-                return (true, null);
+                return (true, null)!;
             }
 
-            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int)response.StatusCode);
-            return (false, null);
+            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int) response.StatusCode);
+            return (false, null)!;
         }
 
         //
 
         public async ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode)
         {
-            var isValid = await  _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
+            var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
 
             byte[] halfKey = Array.Empty<byte>();
-            if(isValid)
+            if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity)dotYouId);
-                if (info.Status == ConnectionStatus.Connected)
+                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId);
+                if (info.IsConnected())
                 {
-                    //TODO RSA Encrypt
+                    //TODO: RSA Encrypt
                     halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
                 }
             }
@@ -101,16 +106,21 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject, SensitiveByteArray xTokenHalfKey)
+        public async ValueTask<YouAuthSession> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
         {
-            var session = _youSessionManager.CreateSession(subject);
-
-            if (xTokenHalfKey!=null)
+            XToken token = null;
+            byte[] halfKey = null;
+            if (xTokenHalfKey != null)
             {
-                //TODO: unlock connection xtoken
-
+                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject);
+                if (connection.IsConnected())
+                {
+                    var xToken = connection.XToken;
+                    (token, halfKey) = _xTokenService.CloneXToken(xToken, xTokenHalfKey).GetAwaiter().GetResult();
+                }
             }
 
+            var session = await _youSessionManager.CreateSession(subject, token);
             return session;
         }
 
@@ -122,10 +132,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         }
 
         //
-
     }
 
     //
-
-
 }

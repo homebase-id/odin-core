@@ -24,14 +24,17 @@ namespace Youverse.Hosting.Controllers.YouAuth
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
         }
-        
+
         //
 
         [HttpGet(YouAuthApiPathConstants.ValidateAuthorizationCodeRequestMethodName)]
         public async Task<ActionResult> ValidateAuthorizationCodeRequest(
-            [FromQuery(Name = YouAuthDefaults.Subject)]string subject,
-            [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]string authorizationCode,
-            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
+            [FromQuery(Name = YouAuthDefaults.Subject)]
+            string subject,
+            [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]
+            string authorizationCode,
+            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
+            string returnUrl)
         {
             var (success, halfKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
@@ -60,11 +63,15 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 SameSite = SameSiteMode.Strict
             };
 
-            Response.Cookies.Append(YouAuthDefaults.CookieName, session.Id.ToString(), options);
-
+            Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
+            if(null != halfKey)
+            {
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(halfKey), options);
+            }
+            
             return Redirect(returnUrl);
         }
-        
+
 
         //
 
@@ -87,11 +94,11 @@ namespace Youverse.Hosting.Controllers.YouAuth
             {
                 await _youAuthService.DeleteSession(User.Identity.Name);
             }
-            Response.Cookies.Delete(YouAuthDefaults.CookieName);
+
+            Response.Cookies.Delete(YouAuthDefaults.SessionCookieName);
             return Ok();
         }
 
         //
-        
     }
 }

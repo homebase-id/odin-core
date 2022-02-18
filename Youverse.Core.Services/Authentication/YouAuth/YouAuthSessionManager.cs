@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Authorization.Exchange;
 
 #nullable enable
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -21,7 +22,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject)
+        public ValueTask<YouAuthSession> CreateSession(string subject, XToken token)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
@@ -43,7 +44,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 }
 
                 var sessionId = Guid.NewGuid();
-                session = new YouAuthSession(sessionId, subject, _sessionlifetime);
+                session = new YouAuthSession(sessionId, subject, _sessionlifetime, token);
                 _youAuthSessionStorage.Save(session);
 
                 return new ValueTask<YouAuthSession>(session);

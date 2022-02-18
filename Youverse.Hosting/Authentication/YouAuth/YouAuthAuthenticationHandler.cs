@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Authentication.YouAuth
 
         private bool TryGetSessionIdFromCookie(out Guid sessionId)
         {
-            var value = Context.Request.Cookies[YouAuthDefaults.CookieName] ?? "";
+            var value = Context.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "";
             if (!string.IsNullOrWhiteSpace(value))
             {
                 if (Guid.TryParse(value, out sessionId))

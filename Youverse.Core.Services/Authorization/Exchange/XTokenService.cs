@@ -32,9 +32,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// Creates a new XToken and RSA Encrypted XToken Request
         /// </summary>
         /// <param name="publicKey"></param>
-        /// <param name="driveIdlist">The drives which are granted access</param>
+        /// <param name="driveIdList">The drives which are granted access</param>
         /// <returns></returns>
-        public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdlist)
+        public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdList)
         {
             _context.Caller.AssertHasMasterKey();
 
@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
             var driveKeys = new List<DriveKey>();
 
-            foreach (var id in driveIdlist)
+            foreach (var id in driveIdList)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
@@ -141,8 +141,10 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// Creates a new XToken from an existing Xtoken by copying and re-encrypting the drives
         /// </summary>
         /// <returns></returns>
-        public async Task<(XToken, byte[])> CloneXToken(XToken existingToken, SensitiveByteArray halfKey)
+        public Task<(XToken, byte[])> CloneXToken(XToken existingToken, SensitiveByteArray halfKey)
         {
+            Guard.Argument(existingToken, nameof(existingToken)).NotNull("Missing XToken for connection").Require(!existingToken.IsRevoked, x => "XToken is Revoked");
+
             SensitiveByteArray driveKey = null;
             SensitiveByteArray keyStoreKey = null;
             try
@@ -174,7 +176,8 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     IsRevoked = false,
                     DriveKeys = newDriveKeys
                 };
-                return (token, remoteHalfKey.GetKey());
+                
+                return Task.FromResult((token, remoteHalfKey.GetKey()));
             }
             finally
             {
