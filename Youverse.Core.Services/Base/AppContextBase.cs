@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
             {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 

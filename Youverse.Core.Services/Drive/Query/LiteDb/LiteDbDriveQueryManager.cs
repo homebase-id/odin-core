@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
                 var unfiltered = _indexStorage.GetList(PageOptions.All, 
-                    ListSortDirection.Descending, 
+                    ListSortDirection.Ascending, 
                     item => item.CreatedTimestamp)
                     .GetAwaiter().GetResult();
                 
@@ -66,8 +66,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private readonly object _searchLock = new object();
-
         public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions)
         {
             AssertValidIndexLoaded();
@@ -77,7 +75,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
                 var unfiltered = _indexStorage.Find(item => item.Tags.Contains(tag),
-                        ListSortDirection.Descending,
+                        ListSortDirection.Ascending,
                         item => item.CreatedTimestamp,
                         PageOptions.All)
                     .GetAwaiter().GetResult();

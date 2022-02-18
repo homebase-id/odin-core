@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
         private async Task SetupWebHomeApp()
         {
             string webHomeAppName = "Home Page";
-            var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
+            var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
             if(null == existingApp)
             {
                 await _appRegService.RegisterApp(SystemAppConstants.WebHomeAppId, webHomeAppName, true);

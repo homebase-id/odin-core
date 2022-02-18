@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         Task<bool> CallerIsInList(List<string> dotYouIdList);
 
-        Task<bool> CallerIsInCircle(Guid circleId);
+        Task<bool> CallerIsInCircle(Guid? circleId);
     }
 
     public class AuthorizationService : IAuthorizationService
@@ -95,7 +95,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             return Task.FromResult(inList);
         }
 
-        public Task<bool> CallerIsInCircle(Guid circleId)
+        public Task<bool> CallerIsInCircle(Guid? circleId)
         {
             throw new NotImplementedException();
         }
