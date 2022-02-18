@@ -2,8 +2,10 @@
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 
 #nullable enable
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -15,18 +17,21 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly IYouAuthSessionManager _youSessionManager;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
+        private readonly ICircleNetworkService _circleNetwork;
         //
 
         public YouAuthService(
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IYouAuthSessionManager youSessionManager,
-            IDotYouHttpClientFactory dotYouHttpClientFactory)
+            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            ICircleNetworkService circleNetwork)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _circleNetwork = circleNetwork;
         }
 
         //
@@ -38,7 +43,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<bool> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
+        public async ValueTask<(bool, byte[])> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
         {
             // var queryString = QueryString.Create(new Dictionary<string, string>()
             // {
@@ -61,25 +66,52 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             if (response.IsSuccessStatusCode)
             {
-                return true;
+                if(null != response.Content && response.Content.Length>0)
+                {
+                    return (true, response.Content);
+                }
+
+                return (true, null);
             }
 
             _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int)response.StatusCode);
-            return false;
+            return (false, null);
         }
 
         //
 
-        public ValueTask<bool> ValidateAuthorizationCode(string initiator, string authorizationCode)
+        public async ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode)
         {
-            return _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
+            var isValid = await  _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
+
+            byte[] halfKey = Array.Empty<byte>();
+            if(isValid)
+            {
+                string dotYouId = initiator;
+                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity)dotYouId);
+                if (info.Status == ConnectionStatus.Connected)
+                {
+                    //TODO RSA Encrypt
+                    halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
+                }
+            }
+
+            return (isValid, halfKey);
         }
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject)
+        public ValueTask<YouAuthSession> CreateSession(string subject, SensitiveByteArray xTokenHalfKey)
         {
-            return _youSessionManager.CreateSession(subject);
+            var session = _youSessionManager.CreateSession(subject);
+
+            if (xTokenHalfKey!=null)
+            {
+                //TODO: unlock connection xtoken
+
+            }
+
+            return session;
         }
 
         //

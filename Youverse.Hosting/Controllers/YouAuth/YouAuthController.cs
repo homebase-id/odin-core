@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
@@ -32,7 +33,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]string authorizationCode,
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
         {
-            var success = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, halfKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -49,7 +50,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var session = await _youAuthService.CreateSession(subject);
+            var session = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {

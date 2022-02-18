@@ -138,5 +138,11 @@ namespace Youverse.Core.Services.Authorization.Exchange
             return (xtoken, remoteHalfKeySBA);
         }
 
+        //public async Task<XToken> Clone(XToken existingToken, SensitiveByteArray halfKey)
+        //{
+            //create a new xtoken based on an existing xtoken
+
+            //c'////////
+        //}
     }
 }

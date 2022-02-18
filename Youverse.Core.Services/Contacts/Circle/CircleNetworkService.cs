@@ -157,10 +157,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
         {
             _context.AssertCanManageConnections();
-            return await GetConnectionInfo2(dotYouId);
+            return await GetConnectionInfoInternal(dotYouId);
         }
 
-        private async Task<ConnectionInfo> GetConnectionInfo2(DotYouIdentity dotYouId)
+        private async Task<ConnectionInfo> GetConnectionInfoInternal(DotYouIdentity dotYouId)
         {
 
             var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
@@ -208,7 +208,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
-            var info = await this.GetConnectionInfo2(dotYouId);
+            var info = await this.GetConnectionInfoInternal(dotYouId);
             this.AssertConnectionIsNoneOrValid(info);
 
             if (info.Status == ConnectionStatus.Connected)
