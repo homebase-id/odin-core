@@ -17,17 +17,14 @@ namespace Youverse.Core.Cryptography.Data
             //For LiteDB
         }
 
-        public static SymmetricKeyEncryptedXor CombineHalfs(SensitiveByteArray halfKey1, SensitiveByteArray halfKey2)
+        //HACK: the _ is a hack so I can use the same signature
+        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, SensitiveByteArray halfKey1, bool _= false)
         {
-            var x = new SymmetricKeyEncryptedXor();
-
-            x.KeyEncrypted = XorManagement.XorEncrypt(halfKey1.GetKey(), halfKey2.GetKey());
-            x.KeyHash = x.CalcKeyHash(ref halfKey2);
-            return x;
-
+            EncryptKey(ref halfKey1, ref secretKeyToSplit);
+            KeyHash = CalcKeyHash(ref halfKey1);
         }
 
-     
+
         public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
         {
             halfKey1 = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length));

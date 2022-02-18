@@ -92,17 +92,18 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
             var (hostHalfKey, remoteHalfKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
 
-            var masterKey = _context.Caller.GetMasterKey();
             var keyStoreKey = XorManagement.XorDecrypt(hostHalfKey, remoteHalfKey).ToSensitiveByteArray();
 
-            var hostHalfKeySBA = hostHalfKey.ToSensitiveByteArray();
+            //var hostHalfKeySBA = hostHalfKey.ToSensitiveByteArray();
             var remoteHalfKeySBA = remoteHalfKey.ToSensitiveByteArray();
 
-            var newHostHalfKey = SymmetricKeyEncryptedXor.CombineHalfs(hostHalfKeySBA, remoteHalfKeySBA);
-            var clone = newHostHalfKey.DecryptKeyClone(ref hostHalfKeySBA);
+            var newHostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, remoteHalfKeySBA, false);
+
+            var clone = newHostHalfKey.DecryptKeyClone(ref remoteHalfKeySBA);
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();
-
+            
+            var masterKey = _context.Caller.GetMasterKey();
             var driveKeys = new List<DriveKey>();
 
             foreach (var id in driveIdlist)
