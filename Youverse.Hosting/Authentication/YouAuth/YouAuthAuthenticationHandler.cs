@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Authentication.YouAuth
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (!TryGetSessionIdFromCookie(out Guid sessionId))
+            if (!TryGetSessionIdFromCookie(out Guid sessionId, out byte[] xTokenHalfKey))
             {
                 return AuthenticateResult.Fail("No sessionId cookie");
             }
@@ -42,13 +42,19 @@ namespace Youverse.Hosting.Authentication.YouAuth
             {
                 return AuthenticateResult.Fail("No session matching session id");
             }
-
+            
             var claims = new[]
             {
                 new Claim(YouAuthDefaults.IdentityClaim, session.Subject),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
+            
+            //TODO: 
+            if (xTokenHalfKey.Length > 0)
+            {
+                //use the session xtoken to load more access
+            }
 
             var claimsIdentity = new ClaimsIdentity(claims, nameof(YouAuthAuthenticationHandler));
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
@@ -75,16 +81,24 @@ namespace Youverse.Hosting.Authentication.YouAuth
 
         //
 
-        private bool TryGetSessionIdFromCookie(out Guid sessionId)
+        private bool TryGetSessionIdFromCookie(out Guid sessionId, out byte[] xTokenHalfKey)
         {
             var value = Context.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "";
+            xTokenHalfKey = default;
             if (!string.IsNullOrWhiteSpace(value))
             {
                 if (Guid.TryParse(value, out sessionId))
                 {
+                    var xtokenValue = Context.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+                    if (!string.IsNullOrWhiteSpace(xtokenValue))
+                    {
+                        xTokenHalfKey = Convert.FromBase64String(xtokenValue);
+                    }
+
                     return true;
                 }
             }
+
             sessionId = default;
             return false;
         }

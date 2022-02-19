@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Net;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
@@ -106,22 +104,23 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<YouAuthSession> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
+        public async ValueTask<(YouAuthSession, byte[]?)> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
         {
             XToken token = null;
             byte[] halfKey = null;
+            
             if (xTokenHalfKey != null)
             {
-                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject);
+                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, xTokenHalfKey);
                 if (connection.IsConnected())
                 {
                     var xToken = connection.XToken;
-                    (token, halfKey) = _xTokenService.CloneXToken(xToken, xTokenHalfKey).GetAwaiter().GetResult();
+                    (token, halfKey) = await _xTokenService.CloneXToken(xToken, xTokenHalfKey);
                 }
             }
 
             var session = await _youSessionManager.CreateSession(subject, token);
-            return session;
+            return (session, halfKey);
         }
 
         //

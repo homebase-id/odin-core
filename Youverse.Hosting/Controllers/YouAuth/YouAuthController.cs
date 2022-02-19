@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -52,8 +51,8 @@ namespace Youverse.Hosting.Controllers.YouAuth
                     StatusCode = problemDetails.Status,
                 };
             }
-
-            var session = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
+            
+            var (session, sessionHalfKey) = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -64,11 +63,12 @@ namespace Youverse.Hosting.Controllers.YouAuth
             };
 
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if(null != halfKey)
+            if(null != sessionHalfKey)
             {
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(halfKey), options);
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionHalfKey), options);
             }
             
+            //TODO: need to send shared secret and place in local storage
             return Redirect(returnUrl);
         }
 
@@ -96,6 +96,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             }
 
             Response.Cookies.Delete(YouAuthDefaults.SessionCookieName);
+            Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
             return Ok();
         }
 

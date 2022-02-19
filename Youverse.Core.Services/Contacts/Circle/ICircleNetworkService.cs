@@ -54,6 +54,14 @@ namespace Youverse.Core.Services.Contacts.Circle
         Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId);
 
         /// <summary>
+        /// Gets the connection info if the specified <param name="xTokenHalfKey">xtoken half key</param> is valid
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <param name="xTokenHalfKey"></param>
+        /// <returns></returns>
+        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey);
+
+        /// <summary>
         /// Determines if the specified dotYouId is connected 
         /// </summary>
         /// <param name="dotYouId"></param>

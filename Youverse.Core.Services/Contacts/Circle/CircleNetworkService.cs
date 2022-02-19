@@ -6,6 +6,7 @@ using System.Security;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Exchange;
@@ -160,9 +161,22 @@ namespace Youverse.Core.Services.Contacts.Circle
             return await GetConnectionInfoInternal(dotYouId);
         }
 
+        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey)
+        {
+            var connection = await GetConnectionInfoInternal(dotYouId);
+            
+            if (connection?.XToken == null)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+            
+            connection.XToken.AssertValidHalfKey(xTokenHalfKey);
+
+            return connection;
+        }
+
         private async Task<ConnectionInfo> GetConnectionInfoInternal(DotYouIdentity dotYouId)
         {
-
             var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
 
             if (null == info)
@@ -203,7 +217,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey)
         {
-            var _ = xtoken.DriveKeyHalfKey.DecryptKeyClone(ref halfKey); //method asserts key is valid
+            xtoken.AssertValidHalfKey(halfKey);
 
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -221,8 +235,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken)
         {
-
-            var dotYouId = (DotYouIdentity)dotYouIdentity;
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
             await AssertConnectionIsNoneOrValid(dotYouId);
@@ -237,8 +250,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken)
         {
-
-            var dotYouId = (DotYouIdentity)dotYouIdentity;
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()

@@ -21,6 +21,11 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public List<DriveKey> DriveKeys { get; set; }
 
+        public void AssertValidHalfKey(SensitiveByteArray halfKey)
+        {
+            
+        }
+
     }
 
     public class DriveKey

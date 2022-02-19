@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<string> CreateAuthorizationCode(string initiator, string subject);
         ValueTask<(bool, byte[])> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode);
         ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode);
-        ValueTask<YouAuthSession> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey);
+        ValueTask<(YouAuthSession, byte[]?)> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey);
         ValueTask DeleteSession(string subject);
     }
 

@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public YouAuthSession()
         {
-            
+            //for litedb
         }
 
         public YouAuthSession(Guid id, string subject, TimeSpan lifetime, XToken xToken)
