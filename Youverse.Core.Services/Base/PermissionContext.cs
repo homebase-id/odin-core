@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -20,7 +21,8 @@ namespace Youverse.Core.Services.Base
 
         public bool HasDrivePermission(Guid driveId, DrivePermissions permission)
         {
-            return false;
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+            return grant != null && grant.Permissions.HasFlag(permission);
         }
 
         public bool HasPermission(PermissionType pmt, int permission)
@@ -50,5 +52,28 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException("Does not have permission");
             }
         }
+        
+        /// <summary>
+        /// Determines if the current request can write to the specified drive
+        /// </summary>
+        public void AssertCanWriteToDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermissions.Write))
+            {
+                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+            }
+        }
+
+        /// <summary>
+        /// Determines if the current request can write to the specified drive
+        /// </summary>
+        public void AssertCanReadDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
+            {
+                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
+            }
+        }
+
     }
 }
