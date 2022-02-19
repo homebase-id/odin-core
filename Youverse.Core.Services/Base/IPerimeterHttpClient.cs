@@ -13,9 +13,6 @@ namespace Youverse.Core.Services.Base
     /// <summary>
     /// Sends outgoing invitations, email messages, and chat messages to other Digital Identities
     /// </summary>
-    
-    //TODO: need to evaluate if we want other apps to use these methods.
-    [Obsolete("Need to replace all calls with Transit subsystem")]
     public interface IPerimeterHttpClient
     {
         private const string RootPath = "/api/perimeter";
@@ -30,6 +27,6 @@ namespace Youverse.Core.Services.Base
         Task<ApiResponse<DotYouProfile>> GetProfile();
 
         [Get(RootPath + "/youauth/validate-ac-res")]
-        Task<ApiResponse<string>> ValidateAuthorizationCodeResponse(string initiator, string ac);
+        Task<ApiResponse<byte[]>> ValidateAuthorizationCodeResponse(string initiator, string ac);
     }
 }

@@ -8,6 +8,11 @@ namespace Youverse.Core.Services.Authorization.Acl
         Anonymous = 11,
         
         /// <summary>
+        /// TODO: Requests where the caller is not on the youverse network yet holds an xtoken for accessing data
+        /// </summary>
+        //YouAuthExchange = 17,
+        
+        /// <summary>
         /// Requests where a caller a YouAuth authenticated or Certificate (via transit) 
         /// </summary>
         YouAuthOrTransitCertificateIdentified = 22,

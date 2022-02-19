@@ -15,6 +15,8 @@
         public const string TransitV1 = BasePathV1 + "/transit";
 
         public const string ProvisioningV1 = BasePathV1 + "/provisioning";
+        
+        public const string CirclesV1 = BasePathV1 + "/circles";
 
     }
 }

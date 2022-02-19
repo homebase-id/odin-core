@@ -22,9 +22,10 @@ namespace Youverse.Hosting.Controllers.Owner.Provisioning
 
         //TODO: will need to send a callbackId or increase the timeout
         [HttpPost("systemapps")]
-        public async Task EnsureSystemApps()
+        public async Task<IActionResult> EnsureSystemApps()
         {
             await _identityProvisioner.EnsureSystemApps();
+            return new JsonResult(new NoResultResponse(true));
         }
     }
 }

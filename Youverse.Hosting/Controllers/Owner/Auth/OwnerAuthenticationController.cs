@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
                     HttpOnly = true,
                     IsEssential = true,
                     Secure = true,
-                    //Path = "/owner",
+                    //Path = "/owner", //TODO: cannot use this until we adjust api paths
                     SameSite = SameSiteMode.Strict
                 };
 

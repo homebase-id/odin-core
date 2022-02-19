@@ -1,10 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.YouAuth;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
 
@@ -23,16 +24,19 @@ namespace Youverse.Hosting.Controllers.YouAuth
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
         }
-        
+
         //
 
         [HttpGet(YouAuthApiPathConstants.ValidateAuthorizationCodeRequestMethodName)]
         public async Task<ActionResult> ValidateAuthorizationCodeRequest(
-            [FromQuery(Name = YouAuthDefaults.Subject)]string subject,
-            [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]string authorizationCode,
-            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
+            [FromQuery(Name = YouAuthDefaults.Subject)]
+            string subject,
+            [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]
+            string authorizationCode,
+            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
+            string returnUrl)
         {
-            var success = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, halfKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -48,8 +52,8 @@ namespace Youverse.Hosting.Controllers.YouAuth
                     StatusCode = problemDetails.Status,
                 };
             }
-
-            var session = await _youAuthService.CreateSession(subject);
+            
+            var (session, sessionHalfKey) = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -59,11 +63,17 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 SameSite = SameSiteMode.Strict
             };
 
-            Response.Cookies.Append(YouAuthDefaults.CookieName, session.Id.ToString(), options);
-
+            Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
+            if(null != sessionHalfKey)
+            {
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionHalfKey), options);
+            }
+            
+            //session.XToken.SharedSecretKey
+            //TODO: need to send shared secret and place in local storage
             return Redirect(returnUrl);
         }
-        
+
 
         //
 
@@ -86,11 +96,12 @@ namespace Youverse.Hosting.Controllers.YouAuth
             {
                 await _youAuthService.DeleteSession(User.Identity.Name);
             }
-            Response.Cookies.Delete(YouAuthDefaults.CookieName);
+
+            Response.Cookies.Delete(YouAuthDefaults.SessionCookieName);
+            Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
             return Ok();
         }
 
         //
-        
     }
 }

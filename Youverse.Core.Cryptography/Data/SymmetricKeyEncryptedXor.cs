@@ -17,6 +17,14 @@ namespace Youverse.Core.Cryptography.Data
             //For LiteDB
         }
 
+        //HACK: the _ is a hack so I can use the same signature
+        public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, SensitiveByteArray halfKey1, bool _)
+        {
+            EncryptKey(ref halfKey1, ref secretKeyToSplit);
+            KeyHash = CalcKeyHash(ref halfKey1);
+        }
+
+
         public SymmetricKeyEncryptedXor(ref SensitiveByteArray secretKeyToSplit, out SensitiveByteArray halfKey1)
         {
             halfKey1 = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(secretKeyToSplit.GetKey().Length));
@@ -25,7 +33,7 @@ namespace Youverse.Core.Cryptography.Data
             KeyHash = CalcKeyHash(ref halfKey1);
         }
 
-        private byte[] CalcKeyHash(ref SensitiveByteArray key)
+        public byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
             KeyHash = YouSHA.ReduceSHA256Hash(key.GetKey());
             return KeyHash;

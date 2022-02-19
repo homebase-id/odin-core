@@ -5,8 +5,11 @@ using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
 
@@ -31,7 +34,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContext _context;
 
-        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger,  ISystemStorage systemStorage)
+        public CircleNetworkService(DotYouContext context, IProfileService profileService, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage)
         {
             _context = context;
             _profileService = profileService;
@@ -45,8 +48,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
-            
+            _context.AssertCanManageConnections();
+
             var info = await this.GetConnectionInfo(dotYouId);
             if (info is {Status: ConnectionStatus.Connected})
             {
@@ -60,7 +63,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> Block(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Connected)
@@ -75,7 +78,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<bool> Unblock(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Blocked)
@@ -90,8 +93,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
-            
+            _context.AssertCanManageConnections();
+
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
             PagedResult<ConnectionInfo> results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
@@ -100,7 +103,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
@@ -110,7 +113,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetBlockedConnections(req);
@@ -132,7 +135,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
             var connections = await GetConnections(req);
@@ -154,8 +157,26 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
         {
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
+            return await GetConnectionInfoInternal(dotYouId);
+        }
 
+        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey)
+        {
+            var connection = await GetConnectionInfoInternal(dotYouId);
+            
+            if (connection?.XToken == null)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+            
+            connection.XToken.AssertValidHalfKey(xTokenHalfKey);
+
+            return connection;
+        }
+
+        private async Task<ConnectionInfo> GetConnectionInfoInternal(DotYouIdentity dotYouId)
+        {
             var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
 
             if (null == info)
@@ -174,7 +195,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
             //TODO: this needs to be changed to - can view connections
-            _context.AppContext.AssertCanManageConnections();
+            _context.AssertCanManageConnections();
 
             var info = await this.GetConnectionInfo(dotYouId);
             return info.Status == ConnectionStatus.Connected;
@@ -194,10 +215,26 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name)
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey)
         {
-            // var cert = new DomainCertificateUtil(publicKeyCertificate);
-            // var dotYouId = cert.DotYouId;
+            xtoken.AssertValidHalfKey(halfKey);
+
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
+
+            //1. validate current connection state
+            var info = await this.GetConnectionInfoInternal(dotYouId);
+            this.AssertConnectionIsNoneOrValid(info);
+
+            if (info.Status == ConnectionStatus.Connected)
+            {
+                return;
+            }
+
+            await this.StoreConnection(dotYouId, name, xtoken);
+        }
+
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
@@ -208,12 +245,20 @@ namespace Youverse.Core.Services.Contacts.Circle
                 return;
             }
 
+            await this.StoreConnection(dotYouId, name, xtoken);
+        }
+
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        {
+            var dotYouId = (DotYouIdentity) dotYouIdentity;
+
             //2. add the record to the list of connections
             var newConnection = new ConnectionInfo()
             {
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
-                LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                XToken = xtoken
             };
 
             _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));

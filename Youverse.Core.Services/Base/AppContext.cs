@@ -11,18 +11,17 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext : AppContextBase
     {
-        private readonly SymmetricKeyEncryptedXor _encryptedAppKey;
-        private SensitiveByteArray _clientHalfKek; //TODO: can we make this readonly?
+        private readonly SymmetricKeyEncryptedXor _hostHalfAppKey;
+        private SensitiveByteArray _clientHalfAppKey; //TODO: can we make this readonly?
 
-        public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor encryptedAppKey, SensitiveByteArray clientHalfKek, List<DriveGrant> driveGrants, bool canManageConnections)
+        public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor hostHalfAppKey, SensitiveByteArray clientHalfAppKey, List<DriveGrant> driveGrants, bool canManageConnections)
             : base(appId, appClientId, clientSharedSecret, driveId, driveGrants, canManageConnections, null)
         {
             this.ClientSharedSecret = clientSharedSecret;
-            this._encryptedAppKey = encryptedAppKey;
-            this._clientHalfKek = clientHalfKek;
+            this._hostHalfAppKey = hostHalfAppKey;
+            this._clientHalfAppKey = clientHalfAppKey;
         }
-
-
+        
         /// <summary>
         /// Returns the encryption key specific to this app.  This is only available
         /// when the owner is making an HttpRequest.
@@ -30,7 +29,7 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public override SensitiveByteArray GetAppKey()
         {
-            var appKey = this._encryptedAppKey.DecryptKeyClone(ref this._clientHalfKek);
+            var appKey = this._hostHalfAppKey.DecryptKeyClone(ref this._clientHalfAppKey);
             return appKey;
         }
     }

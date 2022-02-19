@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Dawn;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -63,35 +65,40 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
-            //TODO: this needs to be moved to a central location so certificate auth can use it too
-            string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
-
-            Guard.Argument(appIdValue, nameof(appIdValue)).NotNull().NotEmpty();
-            Guard.Argument(appIdValue, nameof(appIdValue)).Require(Guid.TryParse(appIdValue, out var appId));
-
-            var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
-
-            //TODO: is this the best place to check this?  
-            if (null == appReg || appReg.IsRevoked)
-            {
-                throw new UnauthorizedAccessException($"Invalid AppId {appId} for recipient");
-            }
-
-            var claims = new[]
+            var claims = new List<Claim>()
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.AppId, appId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
 
                 //HACK: I don't know if this is a good idea to put this whole thing in the claims
                 //TODO: I don't think this is required any longer
                 new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
             };
+            
+            string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
+            if (!string.IsNullOrEmpty(appIdValue))
+            {
+                Guard.Argument(appIdValue, nameof(appIdValue)).Require(Guid.TryParse(appIdValue, out var appId));
 
+                var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+                var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
+
+                var isValidApp = appReg is {IsRevoked: false};
+                if (!isValidApp)
+                {
+                    throw new YouverseSecurityException($"Invalid AppId {appId}");
+                }
+
+                var c1 = new Claim(DotYouClaimTypes.IsAuthorizedApp, isValidApp.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer);
+                var c2 = new Claim(DotYouClaimTypes.AppId, appId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer);
+                claims.Add(c1);
+                claims.Add(c2);
+            }
+            
+            
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
             context.Success();
             return Task.CompletedTask;

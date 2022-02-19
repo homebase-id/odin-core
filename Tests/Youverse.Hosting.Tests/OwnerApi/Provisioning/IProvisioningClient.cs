@@ -1,13 +1,15 @@
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Provisioning
 {
     public interface IProvisioningClient
     {
-        private const string RootPath = "/owner/api/v1/provisioning";
+        private const string RootPath = OwnerApiPathConstants.ProvisioningV1;
 
-        [Post(RootPath)]
-        Task<ApiResponse<bool>> ConfigureDefaults();
+        [Post(RootPath + "/systemapps")]
+        Task<ApiResponse<NoResultResponse>> EnsureSystemApps();
     }
 }

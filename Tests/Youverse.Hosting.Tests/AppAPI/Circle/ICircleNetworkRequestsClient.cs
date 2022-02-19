@@ -3,12 +3,14 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Hosting.Controllers.Apps;
+using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
     public interface ICircleNetworkRequestsClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        // private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 

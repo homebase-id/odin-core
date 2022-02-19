@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Base
         {
             return this.CreateClient<IPerimeterHttpClient>(dotYouId);
         }
-        
+
         public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null)
         {
             //HACK: this appIdOverride is strange but required so the background sender
@@ -42,8 +42,8 @@ namespace Youverse.Core.Services.Base
             handler.ClientCertificates.Add(cert);
             handler.AllowAutoRedirect = false;
             //handler.ServerCertificateCustomValidationCallback
-            handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
-            
+            handler.SslProtocols = SslProtocols.None; // | SslProtocols.Tls13;
+
             var client = new HttpClient(handler)
             {
                 BaseAddress = new UriBuilder()
@@ -52,8 +52,9 @@ namespace Youverse.Core.Services.Base
                     Host = dotYouId
                 }.Uri
             };
-            
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appIdOverride.HasValue ? appIdOverride.ToString() : _context.AppContext.AppId.ToString());
+
+            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _context.AppContext?.AppId.ToString() ?? "";
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
 
             var ogClient = RestService.For<T>(client);
 

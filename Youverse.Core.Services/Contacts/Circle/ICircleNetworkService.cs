@@ -1,6 +1,8 @@
 ﻿using System.Threading.Tasks;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authorization.Exchange;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -52,6 +54,14 @@ namespace Youverse.Core.Services.Contacts.Circle
         Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId);
 
         /// <summary>
+        /// Gets the connection info if the specified <param name="xTokenHalfKey">xtoken half key</param> is valid
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <param name="xTokenHalfKey"></param>
+        /// <returns></returns>
+        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey);
+
+        /// <summary>
         /// Determines if the specified dotYouId is connected 
         /// </summary>
         /// <param name="dotYouId"></param>
@@ -78,7 +88,10 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="name">The initial name information used at the time the request was accepted</param>
         /// <returns></returns>
-        Task Connect(string dotYouId, NameAttribute name);
+        Task Connect(string dotYouId, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey);
+
+
+        Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
@@ -100,5 +113,6 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task DeleteConnection(DotYouIdentity dotYouId);
+
     }
 }

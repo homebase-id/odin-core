@@ -14,6 +14,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("api/perimeter/invitations")]
+    
+    //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
+    //how do you know it is the owner console tho?
     [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {

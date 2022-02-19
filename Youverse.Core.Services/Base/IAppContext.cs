@@ -38,8 +38,6 @@ namespace Youverse.Core.Services.Base
         
         SensitiveByteArray GetAppKey();
         
-        void AssertCanManageConnections();
-
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>

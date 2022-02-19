@@ -131,17 +131,20 @@ namespace Youverse.Hosting.Middleware
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
-            var appId = Guid.Parse(user.FindFirstValue(DotYouClaimTypes.AppId));
-
-            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-
+            
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
             );
-
-            dotYouContext.AppContext = await appRegSvc.GetAppContextBase(appId);
+            
+            //Note: transit context may or may not have an app.  The need for an app is enforced by auth policy on the endpoint
+            //as well as the calling code
+            if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
+            {
+                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+                dotYouContext.AppContext = await appRegSvc.GetAppContextBase(appId);
+            }
         }
     }
 }

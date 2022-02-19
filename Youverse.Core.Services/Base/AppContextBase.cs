@@ -55,14 +55,6 @@ namespace Youverse.Core.Services.Base
             return grant != null && grant.Permissions.HasFlag(permission);
         }
 
-        public void AssertCanManageConnections()
-        {
-            if (!CanManageConnections)
-            {
-                throw new YouverseSecurityException("Unauthorized Action");
-            }
-        }
-
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -81,7 +73,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
             {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 
