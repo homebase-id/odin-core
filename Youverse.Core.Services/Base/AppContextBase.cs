@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Base
             var grant = DriveGrants?.SingleOrDefault(g => g.DriveId == driveId);
             return grant != null && grant.Permissions.HasFlag(permission);
         }
-        
+
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>

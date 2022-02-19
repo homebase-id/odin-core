@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.YouAuth;
+using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
 
@@ -68,6 +69,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionHalfKey), options);
             }
             
+            //session.XToken.SharedSecretKey
             //TODO: need to send shared secret and place in local storage
             return Redirect(returnUrl);
         }
