@@ -19,6 +19,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
@@ -48,6 +49,7 @@ namespace Youverse.Hosting
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<NewInboxItemNotification>>()
+                .As<INotificationHandler<ConnectionRequestReceived>>()
                 .AsSelf()
                 .SingleInstance();
 

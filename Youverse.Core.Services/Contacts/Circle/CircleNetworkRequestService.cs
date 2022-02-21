@@ -12,6 +12,9 @@ using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Authorization.Apps;
 using System.Collections.Generic;
+using MediatR;
+using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -28,9 +31,9 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ISystemStorage _systemStorage;
         private readonly XTokenService _xTokenService;
         private readonly IAppRegistrationService _appReg;
-
-
-        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
+        private readonly IMediator _mediator;
+        
+        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator)
         {
             _context = context;
             _cns = cns;
@@ -38,6 +41,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _mgts = mgts;
             _systemStorage = systemStorage;
+            _mediator = mediator;
             _context = context;
             _xTokenService = xTokenService;
             _appReg = appReg;
@@ -139,8 +143,11 @@ namespace Youverse.Core.Services.Contacts.Circle
             _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
 
-            //this.Notify.ConnectionRequestReceived(request).Wait();
-
+            _mediator.Publish(new ConnectionRequestReceived()
+            {
+                Sender = request.SenderDotYouId
+            });
+                
             return Task.CompletedTask;
         }
 
@@ -158,8 +165,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             return await this.GetSentRequestInternal(recipient);
         }
-
-
+        
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
             _context.AssertCanManageConnections();
@@ -196,7 +202,10 @@ namespace Youverse.Core.Services.Contacts.Circle
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequestInternal(originalRequest.Recipient);
 
-            // this.Notify.ConnectionRequestAccepted(request).Wait();
+            _mediator.Publish(new ConnectionRequestAccepted()
+            {
+                Sender = originalRequest.Recipient
+            });
         }
         
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
@@ -265,8 +274,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
-
-
+        
         private async Task<(XToken, SensitiveByteArray)> DeserializeXToken(string rsaEncryptedXToken)
         {
             //TODO: get driveID from the profile app

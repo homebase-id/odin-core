@@ -4,14 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
-    [Route(OwnerApiPathConstants.CirclesV1 + "/requests")]
+    [Route(OwnerApiPathConstants.CirclesV1 + "/connections")]
 
     //v.01 owner console only can send requests due to xtoken
     // [AuthorizeOwnerConsoleOrApp]

@@ -5,6 +5,7 @@ using Autofac;
 using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -58,7 +59,7 @@ namespace Youverse.Hosting
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-            
+
             services.AddControllers(options =>
                 {
                     options.Filters.Add(new ApplyPerimeterMetaData());
@@ -71,64 +72,64 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-            
+
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddAppAuthentication()
                 .AddTransitPerimeterAuthentication();
-            
+
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
                 TransitPerimeterPolicies.AddPolicies(policy);
             });
-            
+
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            
+
             // In production, the React files will be served from this directory
             //services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
         }
-        
+
         // ConfigureContainer is where you can register things directly
         // with Autofac. This runs after ConfigureServices so the things
         // here will override registrations made in ConfigureServices.
         // Don't build the container; that gets done for you. If you
         // need a reference to the container, you need to use the
         // "Without ConfigureContainer" mechanism shown later.
-         public void ConfigureContainer(ContainerBuilder builder)
-         {
-             /*
-             AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
-             ASP.NET Core container             -> Autofac
-             ----------------------                -------
-             // the 3 big ones
-             services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
-             services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
-             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
-             // default
-             services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
-             // multiple
-             services.AddX<IFoo1, Foo>();
-             services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
-             // without interface
-             services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
-             */ 
+        public void ConfigureContainer(ContainerBuilder builder)
+        {
+            /*
+            AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
+            ASP.NET Core container             -> Autofac
+            ----------------------                -------
+            // the 3 big ones
+            services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
+            services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
+            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
+            // default
+            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
+            // multiple
+            services.AddX<IFoo1, Foo>();
+            services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
+            // without interface
+            services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
+            */
 
-             // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
-             //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
-             builder.RegisterModule(new LoggingAutofacModule());
-             builder.RegisterModule(new MultiTenantAutofacModule());
+            // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
+            //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
+            builder.RegisterModule(new LoggingAutofacModule());
+            builder.RegisterModule(new MultiTenantAutofacModule());
         }
-        
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-            
+
             this.ConfigureLiteDBSerialization();
 
             if (env.IsDevelopment())
@@ -147,7 +148,7 @@ namespace Youverse.Hosting
             app.UseMiddleware<DotYouContextMiddleware>();
 
             app.UseWebSockets();
-            app.Map("/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+            app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 
             app.UseEndpoints(endpoints =>
             {
@@ -155,28 +156,33 @@ namespace Youverse.Hosting
                 endpoints.MapControllers();
             });
 
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"), adminApp =>
-            {
-                adminApp.UseSpa(spa =>
-                {
-                    if (env.IsDevelopment())
-                    {
-                         spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/owner");
-                    }
-                    else
-                    {
-                        //TODO: setup to read from config in production (CDN Or otherwise)
-                        spa.Options.SourcePath = @"Client/owner-console";
-                        spa.Options.DefaultPage = "/index.html";
-                        spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-                        {
-                            RequestPath = "/owner",
-                            FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
-                        };
 
-                    }
+            string hack = "";
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner")
+                , adminApp =>
+                {
+                    adminApp.UseSpa(spa =>
+                    {
+                        if (env.IsDevelopment())
+                        {
+                            // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/owner");
+                            spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/");
+                            //spa.UseProxyToSpaDevelopmentServer($"https://dominion.id.me:3001/owner");
+                        }
+                        else
+                        {
+                            //TODO: setup to read from config in production (CDN Or otherwise)
+                            spa.Options.SourcePath = @"Client/owner-console";
+                            spa.Options.DefaultPage = "/index.html";
+                            spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
+                            {
+                                RequestPath = "/owner",
+                                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
+                            };
+                        }
+                    });
                 });
-            });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"), landingPageApp =>
             {
@@ -184,7 +190,8 @@ namespace Youverse.Hosting
                 {
                     if (env.IsDevelopment())
                     {
-                        spa.UseProxyToSpaDevelopmentServer("http://localhost:3000/home");
+                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000/home");
+                        spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/");
                     }
                     else
                     {
@@ -197,11 +204,10 @@ namespace Youverse.Hosting
                             FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
                         };
                     }
-
                 });
             });
         }
-        
+
         private void ConfigureLiteDBSerialization()
         {
             var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
@@ -218,7 +224,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };

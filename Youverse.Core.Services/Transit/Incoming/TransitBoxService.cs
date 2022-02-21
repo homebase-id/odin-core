@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {

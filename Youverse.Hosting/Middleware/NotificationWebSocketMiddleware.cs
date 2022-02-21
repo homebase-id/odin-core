@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Notifications;
 
@@ -29,17 +30,19 @@ namespace Youverse.Hosting.Middleware
 
             await Receive(socket, async (result, buffer) =>
             {
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    await appNotificationHandler.ReceiveAsync(socket, result, buffer);
-                    return;
-                }
+                // if (result.MessageType == WebSocketMessageType.Text)
+                // {
+                //     await appNotificationHandler.ReceiveAsync(socket, result, buffer);
+                //     return;
+                // }
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await appNotificationHandler.OnDisconnected(socket);
                     return;
                 }
+
+                throw new YouverseSecurityException("Incoming messages not allowed");
             });
         }
 

@@ -1,15 +1,15 @@
 ﻿using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Newtonsoft.Json;
-using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Notifications
 {
-    public class AppNotificationHandler : WebSocketHandlerBase, INotificationHandler<NewInboxItemNotification>
+    public class AppNotificationHandler : WebSocketHandlerBase, 
+        INotificationHandler<NewInboxItemNotification>, 
+        INotificationHandler<ConnectionRequestReceived>
     {
         public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
         {
@@ -20,25 +20,34 @@ namespace Youverse.Core.Services.Notifications
             await base.OnConnected(socket);
 
             var socketId = WebSocketConnectionManager.GetId(socket);
-            await SendMessageToAllAsync($"{socketId} is now connected");
+            await this.SerializeSendToAll(new ClientConnected() {SocketId = socketId});
         }
 
-        public override async Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
+        public override async Task OnDisconnected(WebSocket socket)
         {
+            await base.OnDisconnected(socket);
+            
             var socketId = WebSocketConnectionManager.GetId(socket);
-            var message = $"{socketId} said: {Encoding.UTF8.GetString(buffer, 0, result.Count)}";
+            await this.SerializeSendToAll(new ClientDisconnected() {SocketId = socketId});
+        }
 
-            await SendMessageToAllAsync(message);
-        }
-        
-        public override Task OnDisconnected(WebSocket socket)
+        public override Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
         {
-            return base.OnDisconnected(socket);
+            throw new System.NotImplementedException();
         }
-        
+
         public async Task Handle(NewInboxItemNotification notification, CancellationToken cancellationToken)
         {
-            //TODO: add some standard fields to this notification
+            await this.SerializeSendToAll(notification);
+        }
+
+        public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+        {
+            await this.SerializeSendToAll(notification);
+        }
+
+        private async Task SerializeSendToAll(object notification)
+        {
             var json = JsonConvert.SerializeObject(notification);
             await SendMessageToAllAsync(json);
         }

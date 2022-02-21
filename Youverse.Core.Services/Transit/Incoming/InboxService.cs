@@ -7,6 +7,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
