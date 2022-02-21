@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly XTokenService _xTokenService;
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
-        
+
         public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator)
         {
             _context = context;
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
             _context.AssertCanManageConnections();
-            
+
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
@@ -128,14 +128,13 @@ namespace Youverse.Core.Services.Contacts.Circle
         //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            
             //in transit context on the recipient's server, i need to receive a request
             // - there is no app
             // - the caller is not an owner and does not have a master key
-            
+
             //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the youverse network
             //_context.AssertCanManageConnections();
-            
+
             //TODO: check robot detection code
 
             //note: this would occur during the operation verification process
@@ -147,7 +146,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             {
                 Sender = request.SenderDotYouId
             });
-                
+
             return Task.CompletedTask;
         }
 
@@ -165,7 +164,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             return await this.GetSentRequestInternal(recipient);
         }
-        
+
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
             _context.AssertCanManageConnections();
@@ -202,12 +201,12 @@ namespace Youverse.Core.Services.Contacts.Circle
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequestInternal(originalRequest.Recipient);
 
-            _mediator.Publish(new ConnectionRequestAccepted()
+            await _mediator.Publish(new ConnectionRequestAccepted()
             {
-                Sender = originalRequest.Recipient
+                Sender = originalRequest.SenderDotYouId
             });
         }
-        
+
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
             _context.AssertCanManageConnections();
@@ -227,7 +226,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
-            
+
             AcknowledgedConnectionRequest acceptedReq = new()
             {
                 Name = p.Name,
@@ -274,7 +273,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
-        
+
         private async Task<(XToken, SensitiveByteArray)> DeserializeXToken(string rsaEncryptedXToken)
         {
             //TODO: get driveID from the profile app

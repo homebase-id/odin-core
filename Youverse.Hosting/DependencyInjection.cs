@@ -50,6 +50,7 @@ namespace Youverse.Hosting
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<NewInboxItemNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
+                .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
 

@@ -7,9 +7,9 @@ using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Notifications
 {
-    public class AppNotificationHandler : WebSocketHandlerBase, 
-        INotificationHandler<NewInboxItemNotification>, 
-        INotificationHandler<ConnectionRequestReceived>
+    public class AppNotificationHandler : WebSocketHandlerBase,
+        INotificationHandler<NewInboxItemNotification>,
+        INotificationHandler<IOwnerConsoleNotification>
     {
         public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
         {
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Notifications
         public override async Task OnDisconnected(WebSocket socket)
         {
             await base.OnDisconnected(socket);
-            
+
             var socketId = WebSocketConnectionManager.GetId(socket);
             await this.SerializeSendToAll(new ClientDisconnected() {SocketId = socketId});
         }
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Notifications
             await this.SerializeSendToAll(notification);
         }
 
-        public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+        public async Task Handle(IOwnerConsoleNotification notification, CancellationToken cancellationToken)
         {
             await this.SerializeSendToAll(notification);
         }
