@@ -32,17 +32,19 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly XTokenService _xTokenService;
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
+        private readonly TenantContext _tenantContext;
 
-        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator)
+        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _cns = cns;
             _logger = logger;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _mgts = mgts;
             _systemStorage = systemStorage;
             _mediator = mediator;
-            _context = context;
+            _tenantContext = tenantContext;
+            _context = context.GetCurrent();
             _xTokenService = xTokenService;
             _appReg = appReg;
 
@@ -52,7 +54,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
@@ -63,7 +65,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
@@ -71,7 +73,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
@@ -94,7 +96,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Id = header.Id,
                 Recipient = header.Recipient,
                 Message = header.Message,
-                SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
+                SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
                 RSAEncryptedXToken = remoteToken
             };
@@ -132,7 +134,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             // - the caller is not an owner and does not have a master key
 
             //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the youverse network
-            //_context.AssertCanManageConnections();
+            //_context.GetCurrent()/AssertCanManageConnections();
 
             //TODO: check robot detection code
 
@@ -151,22 +153,23 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
-
+            //_context.GetCurrent().AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
+            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             return await this.GetSentRequestInternal(recipient);
         }
 
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
             return DeleteSentRequestInternal(recipient);
         }
 
@@ -208,7 +211,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             var request = await GetPendingRequest(sender);
 
@@ -253,7 +256,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
+            _context.GetCurrent().AssertCanManageConnections();
 
             return DeletePendingRequestInternal(sender);
         }

@@ -1,39 +1,12 @@
-﻿using System;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base
 {
-    public class TenantContext
-    {
-        public Guid DotYouRegistryId { get; set; }
-
-        /// <summary>
-        /// Specifies the DotYouId of the host
-        /// </summary>
-        public DotYouIdentity HostDotYouId { get; set; }
-
-        /// <summary>
-        /// The root path for data
-        /// </summary>
-        public string DataRoot { get; set; }
-
-        /// <summary>
-        /// The root path for temp data
-        /// </summary>
-        public string TempDataRoot { get; set; }
-
-        /// <summary>
-        /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.
-        /// </summary>
-        public TenantStorageConfig StorageConfig { get; set; }
-    }
-    
     /// <summary>
     /// Contains all information required to execute commands in the Youverse.Core.Services services.
     /// </summary>
@@ -56,20 +29,9 @@ namespace Youverse.Core.Services.Base
         //     this.Caller = caller;
         //     this.AppContext = app;
         // }
-
-        /// <summary>
-        /// Specifies the identifier for this account
-        /// </summary>
-        public Guid DotYouRegistryId => this._tenantContext.DotYouRegistryId;
-
+        
         public DotYouIdentity HostDotYouId => this._tenantContext.HostDotYouId;
-
-        public string DataRoot => this._tenantContext.DataRoot;
-
-        public string TempDataRoot => this._tenantContext.TempDataRoot;
-
-        public TenantStorageConfig StorageConfig => this._tenantContext.StorageConfig;
-
+        
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }
@@ -83,6 +45,7 @@ namespace Youverse.Core.Services.Base
         {
             return _accessor.HttpContext.RequestServices.GetRequiredService<DotYouContext>();
         }
+        
         public void SetPermissionContext(PermissionContext pc)
         {
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware

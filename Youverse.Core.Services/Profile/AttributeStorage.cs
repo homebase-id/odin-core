@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Profile
 
         public AttributeStorage(DotYouContext context, ISystemStorage systemStorage)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
         }
 
@@ -116,7 +116,7 @@ namespace Youverse.Core.Services.Profile
 
         private void AssertCallerIsOwner()
         {
-            if (this._context.Caller.IsOwner == false)
+            if (this._context.GetCurrent().Caller.IsOwner == false)
             {
                 throw new SecurityException("Caller must be owner");
             }

@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public XTokenService(DotYouContext context, ILogger<XTokenService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
             _driveService = driveService;
         }
@@ -36,9 +36,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// <returns></returns>
         public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdList)
         {
-            _context.Caller.AssertHasMasterKey();
+            _context.GetCurrent().Caller.AssertHasMasterKey();
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
 
@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public async Task<(XToken, SensitiveByteArray)> CreateXTokenFromBits(List<Guid> driveIdlist, string rsaEncryptedXTokenBits)
         {
-            _context.Caller.AssertHasMasterKey();
+            _context.GetCurrent().Caller.AssertHasMasterKey();
 
             var combinedBytes = Convert.FromBase64String(rsaEncryptedXTokenBits);
 
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
             var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdlist)

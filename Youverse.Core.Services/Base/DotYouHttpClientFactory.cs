@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Base
 
         public DotYouHttpClientFactory(DotYouContext context, ICertificateResolver certificateResolver)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _certificateResolver = certificateResolver;
         }
 
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
 
-            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _context.AppContext?.AppId.ToString() ?? "";
+            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _context.GetCurrent().AppContext?.AppId.ToString() ?? "";
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
 
             var ogClient = RestService.For<T>(client);

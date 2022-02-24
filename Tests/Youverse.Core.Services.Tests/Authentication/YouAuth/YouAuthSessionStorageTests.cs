@@ -33,10 +33,10 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Directory.CreateDirectory(_tempStoragePath);
 
             var logger = Substitute.For<ILogger<LiteDbSystemStorage>>();
-            var context = Substitute.For<DotYouContext>();
-            context.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
+            var tenantContext = new TenantContext();
+            tenantContext.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
 
-            _systemStorage = new LiteDbSystemStorage(logger, context);
+            _systemStorage = new LiteDbSystemStorage(logger, tenantContext);
         }
 
         [TearDown]

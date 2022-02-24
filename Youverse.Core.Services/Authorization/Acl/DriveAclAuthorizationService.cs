@@ -17,8 +17,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public DriveAclAuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
         {
-            //_context = context;
-            _context = httpContext.HttpContext.RequestServices.GetService<DotYouContext>();
+            _context = context.GetCurrent();
             _circleNetwork = circleNetwork;
         }
 
@@ -31,7 +30,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
-            var caller = _context.Caller;
+            var caller = _context.GetCurrent().Caller;
             if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
@@ -68,18 +67,18 @@ namespace Youverse.Core.Services.Authorization.Acl
         public async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            var isConnected = await _circleNetwork.IsConnected(_context.Caller.DotYouId);
+            var isConnected = await _circleNetwork.IsConnected(_context.GetCurrent().Caller.DotYouId);
             return isConnected;
         }
 
         public Task<bool> CallerIsInYouverseNetwork()
         {
-            return Task.FromResult(_context.Caller.IsInYouverseNetwork);
+            return Task.FromResult(_context.GetCurrent().Caller.IsInYouverseNetwork);
         }
 
         public Task<bool> CallerIsInList(List<string> dotYouIdList)
         {
-            var inList = dotYouIdList.Any(s => s.Equals(_context.Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
+            var inList = dotYouIdList.Any(s => s.Equals(_context.GetCurrent().Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

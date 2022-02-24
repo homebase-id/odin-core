@@ -11,17 +11,17 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
 {
     public class DemoDataGenerator
     {
-        private readonly DotYouContext _context;
+        private readonly TenantContext _tenantContext;
         private readonly IProfileService _profileService;
         private readonly IProfileAttributeManagementService _attributeManagementService;
         private readonly ICircleNetworkRequestService _circleNetworkService;
 
-        public DemoDataGenerator(DotYouContext context, ILogger<DemoDataGenerator> logger, IProfileService profileService, IProfileAttributeManagementService attributeManagementService, ICircleNetworkRequestService circleNetworkService)
+        public DemoDataGenerator(ILogger<DemoDataGenerator> logger, IProfileService profileService, IProfileAttributeManagementService attributeManagementService, ICircleNetworkRequestService circleNetworkService, TenantContext tenantContext)
         {
-            _context = context;
             _profileService = profileService;
             _attributeManagementService = attributeManagementService;
             _circleNetworkService = circleNetworkService;
+            _tenantContext = tenantContext;
         }
 
         public async Task<bool> AddDigitalIdentities()
@@ -268,9 +268,9 @@ namespace Youverse.Hosting.Controllers.Owner.Demo
         }
 
 
-        private bool IsFrodo => this._context.HostDotYouId == "frodobaggins.me";
-        private bool IsSam => this._context.HostDotYouId == "samwisegamgee.me";
-        private bool IsGandalf => this._context.HostDotYouId == "gandalf.middleearth.life";
-        private bool IsOdin => this._context.HostDotYouId == "odin.valhalla.com";
+        private bool IsFrodo => this._tenantContext.HostDotYouId == "frodobaggins.me";
+        private bool IsSam => this._tenantContext.HostDotYouId == "samwisegamgee.me";
+        private bool IsGandalf => this._tenantContext.HostDotYouId == "gandalf.middleearth.life";
+        private bool IsOdin => this._tenantContext.HostDotYouId == "odin.valhalla.com";
     }
 }

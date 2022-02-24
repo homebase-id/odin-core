@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
             _driveService = driveService;
         }
@@ -37,11 +37,11 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            _context.Caller.AssertHasMasterKey();
+            _context.GetCurrent().Caller.AssertHasMasterKey();
 
             Guid? driveId = null;
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
             var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
             var apk = appKey.DecryptKeyClone(ref masterKey);
 
@@ -167,7 +167,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey)
         {
-            _context.Caller.AssertHasMasterKey();
+            _context.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(applicationId);
 
@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //Note: never store clientAppToken
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
 
             var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(ref appKey, out var clientKek);

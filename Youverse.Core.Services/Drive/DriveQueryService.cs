@@ -32,10 +32,7 @@ namespace Youverse.Core.Services.Drive
             _loggerFactory = loggerFactory;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _accessor = accessor;
-            //_context = context;
-
-            _context = accessor.HttpContext.RequestServices.GetRequiredService<DotYouContext>();
-
+            _context = context.GetCurrent();
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -150,7 +147,7 @@ namespace Youverse.Core.Services.Drive
                 CreatedTimestamp = item.CreatedTimestamp,
                 LastUpdatedTimestamp = item.LastUpdatedTimestamp,
                 SenderDotYouId = item.SenderDotYouId,
-                AccessControlList = _context.Caller.IsOwner ? item.AccessControlList : null
+                AccessControlList = _context.GetCurrent().Caller.IsOwner ? item.AccessControlList : null
             };
         }
 

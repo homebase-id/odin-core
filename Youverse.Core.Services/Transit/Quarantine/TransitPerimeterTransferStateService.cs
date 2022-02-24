@@ -21,14 +21,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             _systemStorage = systemStorage;
             _driveService = driveService;
-            _context = context;
+            _context = context.GetCurrent();
         }
 
         public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
         {
             Guid id = Guid.NewGuid();
 
-            var file = _driveService.CreateFileId(_context.AppContext.DriveId.GetValueOrDefault());
+            var file = _driveService.CreateFileId(_context.GetCurrent().AppContext.DriveId.GetValueOrDefault());
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());

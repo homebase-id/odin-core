@@ -11,18 +11,18 @@ namespace Youverse.Core.Services.Registry
 {
     public class CertificateResolver : ICertificateResolver
     {
-        private readonly DotYouContext _context;
+        private readonly TenantContext _tenantContext;
 
-        public CertificateResolver(DotYouContext context)
+        public CertificateResolver(TenantContext tenantContext)
         {
-            _context = context;
+            _tenantContext = tenantContext;
         }
-        
+
         public X509Certificate2 GetSslCertificate()
         {
-            Guid domainId = CalculateDomainId(_context.HostDotYouId);
-            string certificatePath = Path.Combine(_context.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
-            string privateKeyPath  = Path.Combine(_context.DataRoot, "ssl", domainId.ToString(), "private.key");
+            Guid domainId = CalculateDomainId(_tenantContext.HostDotYouId);
+            string certificatePath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
+            string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
@@ -41,8 +41,8 @@ namespace Youverse.Core.Services.Registry
         public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
         {
             Guid domainId = CalculateDomainId(dotYouId);
-            string certificatePath = Path.Combine(rootPath, registryId.ToString(),"ssl", domainId.ToString(), "certificate.crt");
-            string privateKeyPath  = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
+            string certificatePath = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
+            string privateKeyPath = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Registry
                 }
             }
         }
-        
+
         public static Guid CalculateDomainId(DotYouIdentity input)
         {
             var adjustedInput = input.ToString().ToLower();
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Registry
             var half = bytes.Length / 2;
             var (part1, part2) = ByteArrayUtil.Split(bytes, half, half);
             var reducedBytes = ByteArrayUtil.EquiByteArrayXor(part1, part2);
-                
+
             return new Guid(reducedBytes);
         }
     }

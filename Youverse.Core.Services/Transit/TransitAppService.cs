@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit
         public TransitAppService(IDriveService driveService, DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
         {
             _driveService = driveService;
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
@@ -38,8 +38,8 @@ namespace Youverse.Core.Services.Transit
         {
             var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
-            var appId = _context.AppContext.AppId;
-            var appKey = _context.AppContext.GetAppKey();
+            var appId = _context.GetCurrent().AppContext.AppId;
+            var appKey = _context.GetCurrent().AppContext.GetAppKey();
 
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Transit
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
-            metadata.SenderDotYouId = _context.Caller.DotYouId;
+            metadata.SenderDotYouId = _context.GetCurrent().Caller.DotYouId;
 
             await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
         }
@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            var appId = _context.AppContext.AppId;
+            var appId = _context.GetCurrent().AppContext.AppId;
             return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }
 

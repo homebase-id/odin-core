@@ -48,17 +48,13 @@ namespace Youverse.Core.Services.Tests
 
             Directory.CreateDirectory(DataStoragePath);
             Directory.CreateDirectory(_tempStoragePath);
-
-            Context = Substitute.For<DotYouContext>();
-            Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
+            
+            var tcontext = new TenantContext();
+            tcontext.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
+            Context = Substitute.For<DotYouContext>(tcontext, null);
             Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
         }
 
-        public void CreateSystemStorage()
-        {
-            var logger = Substitute.For<ILogger<LiteDbSystemStorage>>();
-            SystemStorage = new LiteDbSystemStorage(logger, Context);
-        }
 
         public void CreateLoggerFactory()
         {

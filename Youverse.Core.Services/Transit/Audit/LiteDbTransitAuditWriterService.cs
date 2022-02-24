@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit.Audit
 
         public LiteDbTransitAuditWriterService(DotYouContext context, ILogger<ITransitAuditWriterService> logger, ISystemStorage systemStorage)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
         }
 
@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Transit.Audit
         {
             //TODO: determine if i want to create a primary collection mapping a sender to their trackers or just rely on the long list written by WriteEvent
             var id = Guid.NewGuid();
-            //var sender = this._context.Caller.DotYouId;
+            //var sender = this._context.GetCurrent().Caller.DotYouId;
             return Task.FromResult(id);
         }
 
@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this._context.Caller.DotYouId,
+                Sender = this._context.GetCurrent().Caller.DotYouId,
                 EventId = (int) auditEvent,
             };
 
@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this._context.Caller.DotYouId,
+                Sender = this._context.GetCurrent().Caller.DotYouId,
                 EventId = (int) auditEvent,
                 FilterId = filterId,
                 FilterRecommendation = recommendation,

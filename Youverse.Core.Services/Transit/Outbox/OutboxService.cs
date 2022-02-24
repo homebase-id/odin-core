@@ -20,17 +20,18 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         private readonly IPendingTransfersService _pendingTransfers;
         private readonly ISystemStorage _systemStorage;
-        private readonly DotYouContext _context;
-        
+        private readonly DotYouContext _contextAccessor;
+        private readonly TenantContext _tenantContext;
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
+        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage, TenantContext tenantContext)
         {
-            _context = context;
+            _contextAccessor = context;
             _pendingTransfers = pendingTransfers;
             _systemStorage = systemStorage;
+            _tenantContext = tenantContext;
         }
-
+        
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
@@ -39,7 +40,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         {
             item.IsCheckedOut = false;
             _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
-            _pendingTransfers.EnsureSenderIsPending(this._context.HostDotYouId);
+            _pendingTransfers.EnsureSenderIsPending(_tenantContext.HostDotYouId);
             return Task.CompletedTask;
         }
 

@@ -110,14 +110,23 @@ namespace Youverse.Hosting.Middleware
             );
 
             var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
-            if (!string.IsNullOrEmpty(appIdValue))
+            if (string.IsNullOrEmpty(appIdValue))
+            {
+                //TODO: Need to sort out owner permissions?  is this just everything?
+                var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
+                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                
+                dotYouContext.SetPermissionContext(new PermissionContext(null, permissionGrants, null));
+            }
+            else
             {
                 Guard.Argument(appIdValue, DotYouHeaderNames.AppId).Require(Guid.TryParse(appIdValue, out var appId), v => "If appId specified, it must be a valid Guid");
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
 
                 var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
 
-                dotYouContext.AppContext = new OwnerAppContext(
+                var appCtx = new OwnerAppContext(
                     appId: appId,
                     appClientId: authResult.SessionToken,
                     clientSharedSecret: clientSharedSecret,
@@ -126,17 +135,17 @@ namespace Youverse.Hosting.Middleware
                     driveGrants: ctxBase.DriveGrants,
                     canManageConnections: true,
                     masterKey: masterKey);
+                
+                dotYouContext.AppContext = appCtx;
 
-                //TODO: Need to set these and consider that this the owner
                 var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-
-                var driveGrants = ctxBase.DriveGrants.Select(dg => new PermissionDriveGrant()
+                if (appCtx.CanManageConnections)
                 {
-                    DriveId = dg.DriveId,
-                    EncryptedStorageKey = dg.AppKeyEncryptedStorageKey,
-                    Permissions = dg.Permissions
-                }).ToList();
-
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                }
+                
+                var driveGrants = MapAppDriveGrants(appCtx.DriveGrants);
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, dotYouContext.AppContext.GetAppKey()));
             }
         }
@@ -158,14 +167,13 @@ namespace Youverse.Hosting.Middleware
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
             var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
             dotYouContext.AppContext = appCtx;
-
-            //TODO: Need to set these
+            
             var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
 
             if (appCtx.CanManageConnections)
             {
                 permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkRequestPermissions.Manage);
+                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
             }
 
             dotYouContext.SetPermissionContext(new PermissionContext(MapAppDriveGrants(appCtx.DriveGrants), permissionGrants, dotYouContext.AppContext.GetAppKey()));

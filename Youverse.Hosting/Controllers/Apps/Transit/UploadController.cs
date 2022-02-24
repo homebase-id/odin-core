@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
         {
             _packageStorageWriter = packageStorageWriter;
             _transitService = transitService;
-            _context = context;
+            _context = context.GetCurrent();
         }
 
         // [AliasAs("instructions")] StreamPart instructionSet,

@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
-            _context = context;
+            _context = context.GetCurrent();
         }
 
 
@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         private string GetAppCollectionName()
         {
-            return $"ibx_{_context.AppContext.AppId:N}";
+            return $"ibx_{_context.GetCurrent().AppContext.AppId:N}";
         }
     }
 }

@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Base
         
         public virtual SensitiveByteArray GetAppKey()
         {
-            throw new NotImplementedException();
+            return null;
         }
 
     }

@@ -19,11 +19,13 @@ namespace Youverse.Core.Services.Transit.Upload
         private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
         private readonly Dictionary<Guid, UploadPackage> _packages;
+        private readonly TenantContext _tenantContext;
 
-        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService)
+        public MultipartPackageStorageWriter(DotYouContext context, ILogger<IMultipartPackageStorageWriter> logger, IDriveService driveService, TenantContext tenantContext)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _driveService = driveService;
+            _tenantContext = tenantContext;
             _packages = new Dictionary<Guid, UploadPackage>();
         }
 
@@ -38,12 +40,12 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
             }
 
-            if (instructionSet.TransitOptions?.Recipients?.Contains(_context.HostDotYouId) ?? false)
+            if (instructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
             {
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
 
-            var driveId = _context.AppContext.DriveId.GetValueOrDefault();
+            var driveId = _context.GetCurrent().AppContext.DriveId.GetValueOrDefault();
 
             //Use the drive requested, if set
             if (instructionSet.StorageOptions?.DriveId.HasValue ?? false)

@@ -99,7 +99,6 @@ namespace Youverse.Core.Services.Base
 
             var appKey = this._driveDecryptionKey;
             var storageKey = grant.EncryptedStorageKey.DecryptKeyClone(ref appKey);
-            appKey.Wipe();
             return storageKey;
         }
     }

@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             IAppRegistrationService appRegService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService) : base(auditWriter)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _transitService = transitService;
             _appRegService = appRegService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guard.Argument(rsaKeyHeader!.PublicKeyCrc, nameof(rsaKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
             Guard.Argument(rsaKeyHeader.EncryptedAesKey.Length, nameof(rsaKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
 
-            if (!await _appRegService.IsValidPublicKey(_context.AppContext.AppId, rsaKeyHeader.PublicKeyCrc))
+            if (!await _appRegService.IsValidPublicKey(_context.GetCurrent().AppContext.AppId, rsaKeyHeader.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");
             }
@@ -121,7 +121,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<TransitPublicKey> GetTransitPublicKey()
         {
-            var tpk = await _appRegService.GetTransitPublicKey(_context.AppContext.AppId);
+            var tpk = await _appRegService.GetTransitPublicKey(_context.GetCurrent().AppContext.AppId);
             return tpk;
         }
 
@@ -140,7 +140,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             var context = new FilterContext()
             {
-                Sender = this._context.Caller.DotYouId,
+                Sender = this._context.GetCurrent().Caller.DotYouId,
                 AppId = ""
             };
 

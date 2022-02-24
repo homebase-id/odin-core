@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Profile
 
         public ProfileAttributeManagementService(DotYouContext context, ILogger<IProfileAttributeManagementService> logger, ISystemStorage systemStorage)
         {
-            _context = context;
+            _context = context.GetCurrent();
             _systemStorage = systemStorage;
             _das = new AttributeStorage(context, systemStorage);
         }
@@ -166,7 +166,7 @@ namespace Youverse.Core.Services.Profile
         private void AssertCallerIsOwner()
         {
             //HACK: refactoring profiles
-            // if (this._context.Caller.IsOwner == false)
+            // if (this._context.GetCurrent().Caller.IsOwner == false)
             // {
             //     throw new SecurityException("Caller must be owner");
             // }
