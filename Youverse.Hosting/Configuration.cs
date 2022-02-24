@@ -31,8 +31,6 @@ namespace Youverse.Hosting
 
             public HostSection(IConfiguration config)
             {
-                string prefix = "";
-
                 var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
                 var home = Environment.GetEnvironmentVariable("HOME") ?? "";
 

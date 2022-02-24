@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -52,19 +51,6 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-
-            // var registry = httpContext.RequestServices.GetService<IIdentityContextRegistry>();
-            // var config = httpContext.RequestServices.GetService<Configuration>();
-            // var ctx = httpContext.RequestServices.GetService<DotYouContext>();
-            //
-            // var id = registry.ResolveId(tenant.Name);
-            // ctx.DotYouRegistryId = id;
-            // ctx.HostDotYouId = (DotYouIdentity)tenant.Name;
-            //
-            // ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
-            // ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
-            // ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
-            //
             
             if (authType == OwnerAuthConstants.SchemeName)
             {
@@ -148,8 +134,7 @@ namespace Youverse.Hosting.Middleware
                 var driveGrants = MapAppDriveGrants(appCtx.DriveGrants);
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, dotYouContext.AppContext.GetAppKey()));
             }
-        }
-
+        }   
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();

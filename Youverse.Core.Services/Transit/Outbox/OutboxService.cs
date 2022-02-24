@@ -20,13 +20,13 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         private readonly IPendingTransfersService _pendingTransfers;
         private readonly ISystemStorage _systemStorage;
-        private readonly DotYouContext _contextAccessor;
+        private readonly DotYouContextAccessor _contextAccessorAccessor;
         private readonly TenantContext _tenantContext;
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContext context, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage, TenantContext tenantContext)
+        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage, TenantContext tenantContext)
         {
-            _contextAccessor = context;
+            _contextAccessorAccessor = contextAccessor;
             _pendingTransfers = pendingTransfers;
             _systemStorage = systemStorage;
             _tenantContext = tenantContext;

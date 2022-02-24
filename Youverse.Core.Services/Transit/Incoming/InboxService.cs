@@ -18,13 +18,13 @@ namespace Youverse.Core.Services.Transit.Incoming
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public InboxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContext context)
+        public InboxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor)
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
         }
 
 
@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         private string GetAppCollectionName()
         {
-            return $"ibx_{_context.GetCurrent().AppContext.AppId:N}";
+            return $"ibx_{_contextAccessor.GetCurrent().AppContext.AppId:N}";
         }
     }
 }

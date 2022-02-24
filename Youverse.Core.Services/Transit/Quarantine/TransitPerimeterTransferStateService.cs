@@ -14,21 +14,21 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private const string IncomingTransferStateItemCollection = "transit_incoming";
 
         private readonly ISystemStorage _systemStorage;
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
 
-        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService, DotYouContext context)
+        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
         {
             _systemStorage = systemStorage;
             _driveService = driveService;
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
         }
 
         public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
         {
             Guid id = Guid.NewGuid();
 
-            var file = _driveService.CreateFileId(_context.GetCurrent().AppContext.DriveId.GetValueOrDefault());
+            var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault());
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());

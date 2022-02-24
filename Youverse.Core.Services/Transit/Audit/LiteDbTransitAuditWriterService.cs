@@ -9,13 +9,13 @@ namespace Youverse.Core.Services.Transit.Audit
 {
     public class LiteDbTransitAuditWriterService : ITransitAuditWriterService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
 
 
-        public LiteDbTransitAuditWriterService(DotYouContext context, ILogger<ITransitAuditWriterService> logger, ISystemStorage systemStorage)
+        public LiteDbTransitAuditWriterService(DotYouContextAccessor contextAccessor, ILogger<ITransitAuditWriterService> logger, ISystemStorage systemStorage)
         {
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
         }
 
@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this._context.GetCurrent().Caller.DotYouId,
+                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 EventId = (int) auditEvent,
             };
 
@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Transit.Audit
             {
                 Id = trackerId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Sender = this._context.GetCurrent().Caller.DotYouId,
+                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 EventId = (int) auditEvent,
                 FilterId = filterId,
                 FilterRecommendation = recommendation,

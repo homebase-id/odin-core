@@ -19,13 +19,13 @@ namespace Youverse.Hosting.Controllers.Apps.Transit
     {
         private readonly ITransitService _transitService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContext context)
+        public UploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContextAccessor contextAccessor)
         {
             _packageStorageWriter = packageStorageWriter;
             _transitService = transitService;
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
         }
 
         // [AliasAs("instructions")] StreamPart instructionSet,

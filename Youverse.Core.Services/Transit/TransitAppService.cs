@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitAppService : ITransitAppService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
@@ -24,10 +24,10 @@ namespace Youverse.Core.Services.Transit
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContext context, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
+        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
         {
             _driveService = driveService;
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
@@ -38,8 +38,8 @@ namespace Youverse.Core.Services.Transit
         {
             var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
-            var appId = _context.GetCurrent().AppContext.AppId;
-            var appKey = _context.GetCurrent().AppContext.GetAppKey();
+            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
+            var appKey = _contextAccessor.GetCurrent().AppContext.GetAppKey();
 
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Transit
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
-            metadata.SenderDotYouId = _context.GetCurrent().Caller.DotYouId;
+            metadata.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
 
             await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
         }
@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            var appId = _context.GetCurrent().AppContext.AppId;
+            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
             return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }
 

@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         private readonly IOwnerSecretService _secretService;
         private const string AUTH_TOKEN_COLLECTION = "tko";
 
-        public OwnerAuthenticationService(DotYouContext context, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
+        public OwnerAuthenticationService(DotYouContextAccessor contextAccessor, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {
             _secretService = secretService;
             _systemStorage = systemStorage;

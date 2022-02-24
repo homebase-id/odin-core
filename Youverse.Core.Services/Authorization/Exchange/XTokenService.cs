@@ -17,13 +17,13 @@ namespace Youverse.Core.Services.Authorization.Exchange
 {
     public class XTokenService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
 
-        public XTokenService(DotYouContext context, ILogger<XTokenService> logger, ISystemStorage systemStorage, IDriveService driveService)
+        public XTokenService(DotYouContextAccessor contextAccessor, ILogger<XTokenService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _driveService = driveService;
         }
@@ -36,9 +36,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// <returns></returns>
         public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdList)
         {
-            _context.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
 
@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public async Task<(XToken, SensitiveByteArray)> CreateXTokenFromBits(List<Guid> driveIdlist, string rsaEncryptedXTokenBits)
         {
-            _context.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var combinedBytes = Convert.FromBase64String(rsaEncryptedXTokenBits);
 
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();
 
-            var masterKey = _context.GetCurrent().Caller.GetMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdlist)

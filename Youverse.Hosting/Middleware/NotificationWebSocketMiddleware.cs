@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Middleware
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context, AppNotificationHandler appNotificationHandler, DotYouContext dotYouContext)
+        public async Task Invoke(HttpContext context, AppNotificationHandler appNotificationHandler, DotYouContextAccessor dotYouContextAccessor)
         {
             if (!context.WebSockets.IsWebSocketRequest)
             {

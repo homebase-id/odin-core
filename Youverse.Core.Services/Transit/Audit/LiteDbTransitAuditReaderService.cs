@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Transit.Audit
     {
         private readonly ISystemStorage _systemStorage;
 
-        public LiteDbTransitAuditReaderService(DotYouContext context, ILogger<ITransitAuditReaderService> logger, ISystemStorage systemStorage)
+        public LiteDbTransitAuditReaderService(DotYouContextAccessor contextAccessor, ILogger<ITransitAuditReaderService> logger, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
         }

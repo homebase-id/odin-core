@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Tests
         private string? _dataStoragePath;
         private string? _tempStoragePath;
         public ISystemStorage? SystemStorage { get; private set; }
-        public DotYouContext? Context { get; private set; }
+        public DotYouContextAccessor? Context { get; private set; }
         public ILoggerFactory LoggerFactory { get; private set; }
 
         public IMediator Mediator { get; private set; }
@@ -51,8 +51,8 @@ namespace Youverse.Core.Services.Tests
             
             var tcontext = new TenantContext();
             tcontext.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
-            Context = Substitute.For<DotYouContext>(tcontext, null);
-            Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
+            Context = Substitute.For<DotYouContextAccessor>(tcontext, null);
+            // Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
         }
 
 

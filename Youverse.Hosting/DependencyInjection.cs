@@ -55,6 +55,7 @@ namespace Youverse.Hosting
                 .SingleInstance();
 
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+            cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
 
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();

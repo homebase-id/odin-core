@@ -12,12 +12,12 @@ namespace Youverse.Core.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _circleNetwork;
 
-        public DriveAclAuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
+        public DriveAclAuthorizationService(DotYouContextAccessor contextAccessor, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
         {
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
             _circleNetwork = circleNetwork;
         }
 
@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
-            var caller = _context.GetCurrent().Caller;
+            var caller = _contextAccessor.GetCurrent().Caller;
             if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
@@ -67,18 +67,18 @@ namespace Youverse.Core.Services.Authorization.Acl
         public async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            var isConnected = await _circleNetwork.IsConnected(_context.GetCurrent().Caller.DotYouId);
+            var isConnected = await _circleNetwork.IsConnected(_contextAccessor.GetCurrent().Caller.DotYouId);
             return isConnected;
         }
 
         public Task<bool> CallerIsInYouverseNetwork()
         {
-            return Task.FromResult(_context.GetCurrent().Caller.IsInYouverseNetwork);
+            return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInYouverseNetwork);
         }
 
         public Task<bool> CallerIsInList(List<string> dotYouIdList)
         {
-            var inList = dotYouIdList.Any(s => s.Equals(_context.GetCurrent().Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
+            var inList = dotYouIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

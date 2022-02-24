@@ -19,20 +19,20 @@ namespace Youverse.Core.Services.Drive
 {
     public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ILoggerFactory _loggerFactory;
         private readonly IHttpContextAccessor _accessor;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContext context, IHttpContextAccessor accessor=null)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContextAccessor contextAccessor, IHttpContextAccessor accessor=null)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _accessor = accessor;
-            _context = context.GetCurrent();
+            _contextAccessor = contextAccessor;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -147,7 +147,7 @@ namespace Youverse.Core.Services.Drive
                 CreatedTimestamp = item.CreatedTimestamp,
                 LastUpdatedTimestamp = item.LastUpdatedTimestamp,
                 SenderDotYouId = item.SenderDotYouId,
-                AccessControlList = _context.GetCurrent().Caller.IsOwner ? item.AccessControlList : null
+                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? item.AccessControlList : null
             };
         }
 
@@ -206,7 +206,7 @@ namespace Youverse.Core.Services.Drive
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
-            var x = _context;
+            var x = _contextAccessor;
             
             manager = new LiteDbDriveQueryManager(drive, logger,_accessor);
 
