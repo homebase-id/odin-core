@@ -1,7 +1,6 @@
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Autofac;
 using MediatR;
 using MediatR.Pipeline;
@@ -57,7 +56,7 @@ namespace Youverse.Hosting
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
-
+            
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 

@@ -83,8 +83,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                         PageOptions.All)
                     .GetAwaiter().GetResult();
 
-                var ctx = _accessor.HttpContext.RequestServices.GetRequiredService<DotYouContextAccessor>();
-                
                 var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
 
                 if (!includeMetadataHeader)
