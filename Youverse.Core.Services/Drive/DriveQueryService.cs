@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
@@ -20,15 +22,20 @@ namespace Youverse.Core.Services.Drive
         private readonly DotYouContext _context;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly IHttpContextAccessor _accessor;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IAuthorizationService authorizationService, DotYouContext context)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContext context, IHttpContextAccessor accessor=null)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
-            _authorizationService = authorizationService;
-            _context = context;
+            _driveAclAuthorizationService = driveAclAuthorizationService;
+            _accessor = accessor;
+            //_context = context;
+
+            _context = accessor.HttpContext.RequestServices.GetRequiredService<DotYouContext>();
+
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -67,7 +74,7 @@ namespace Youverse.Core.Services.Drive
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var page = await queryManager.GetRecentlyCreatedItems(includeMetadataHeader, pageOptions);
+                var page = await queryManager.GetRecentlyCreatedItems(includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
                 return await CreateSearchResult(driveId, page, includePayload);
             }
 
@@ -81,7 +88,7 @@ namespace Youverse.Core.Services.Drive
                 //HACK; need to figure out what it means for an index to be valid or not
                 if (queryManager.IndexReadyState == IndexReadyState.Ready)
                 {
-                    var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions);
+                    var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
                     var pageResult = await CreateSearchResult(driveId, page, includePayload);
                     return pageResult;
                 }
@@ -202,7 +209,9 @@ namespace Youverse.Core.Services.Drive
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
-            manager = new LiteDbDriveQueryManager(drive, logger, _authorizationService);
+            var x = _context;
+            
+            manager = new LiteDbDriveQueryManager(drive, logger,_accessor);
 
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index

@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
             var apk = appKey.DecryptKeyClone(ref masterKey);
 
-            List<DriveGrant> grants = null;
+            List<AppDriveGrant> grants = null;
 
             if (createDrive)
             {
@@ -54,8 +54,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
                 var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
 
-                grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
+                grants = new List<AppDriveGrant>();
+                grants.Add(new AppDriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
                 driveId = drive.Id;
             }
 

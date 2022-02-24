@@ -1,6 +1,6 @@
 namespace Youverse.Core.Services.Authorization.Permissions
 {
-    public enum PermissionType
+    public enum SystemApiPermissionType
     {
         Contact = 1,
 

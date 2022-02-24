@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Apps
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(DriveFileId file)
         {
             var ekh = await _driveService.GetEncryptedKeyHeader(file);
-            var storageKey = _context.AppContext.GetDriveStorageKey(file.DriveId);
+            var storageKey = _context.Permissions.GetDriveStorageKey(file.DriveId);
             
             var keyHeader = ekh.DecryptAesToKeyHeader(ref storageKey);
             var clientSharedSecret = _context.AppContext.ClientSharedSecret;

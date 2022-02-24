@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Tests.AppReg
         public async Task RegisterAppWithDrive()
         {
             var logger = Substitute.For<ILogger<AppRegistrationService>>();
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.DriveAclAuthorizationService);
             var appRegSvc = new AppRegistrationService(_scaffold.Context, logger, _scaffold.SystemStorage, driveService);
 
             Guid appId = Guid.NewGuid();
@@ -144,7 +144,7 @@ namespace Youverse.Core.Services.Tests.AppReg
         private AppRegistrationService CreateAppRegService()
         {
             var logger = Substitute.For<ILogger<AppRegistrationService>>();
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.DriveAclAuthorizationService);
             var appRegSvc = new AppRegistrationService(_scaffold.Context, logger, _scaffold.SystemStorage, driveService);
             return appRegSvc;
         }

@@ -23,6 +23,8 @@ namespace Youverse.Core.Services.Authorization
         /// </summary>
         public static string IsIdentified = "https://schemas.youfoundation.id/2021/3/identity/IsIdentified";
 
+        public static string SessionId = "https://schemas.youfoundation.id/2021/3/identity/SessionId";
+
         /// <summary>
         /// Specifies the identity performing actions on a given identity
         /// </summary>

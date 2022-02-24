@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Tests.Drive
         [Test]
         public async Task CanStoreLongTermFile()
         {
-            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.AuthorizationService);
+            var driveService = new DriveService(_scaffold.Context, _scaffold.SystemStorage, _scaffold.LoggerFactory, _scaffold.Mediator, _scaffold.DriveAclAuthorizationService);
 
             const string driveName = "Test-Drive";
             var storageDrive = await driveService.CreateDrive(driveName);
@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Tests.Drive
             Assert.That(decryptedDriveId, Is.EqualTo(storageDrive.Id.ToByteArray()));
 
             //HACK: having to overwrite appcontext here smells badly
-            var driveGrants = new List<DriveGrant>() {new() {DriveId = storageDrive.Id, AppKeyEncryptedStorageKey = null, Permissions = DrivePermissions.All}};
+            var driveGrants = new List<AppDriveGrant>() {new() {DriveId = storageDrive.Id, AppKeyEncryptedStorageKey = null, Permissions = DrivePermissions.All}};
             _scaffold.Context.AppContext = new AppContextBase(Guid.Empty, Guid.Empty, null, storageDrive.Id, driveGrants, false, null);
             
             var file = driveService.CreateFileId(storageDrive.Id);

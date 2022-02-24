@@ -79,7 +79,6 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             var remoteRsaKey = new byte[0]; //TODO
 
-            //TODO: fix in merge
             var profileAppId = SystemAppConstants.ProfileAppId;
             var profileApp = await _appReg.GetAppRegistration(profileAppId);
 
@@ -193,8 +192,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            var half = handshakeResponse.HalfKey.ToSensitiveByteArray();
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, half);
+            var remoteHalf = handshakeResponse.HalfKey.ToSensitiveByteArray();
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, remoteHalf);
 
             await this.DeleteSentRequestInternal(originalRequest.Recipient);
 
@@ -227,6 +226,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
+            //TODO: consider - do we send back an xtoiken with drive and keys?
             AcknowledgedConnectionRequest acceptedReq = new()
             {
                 Name = p.Name,
@@ -242,8 +242,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            //
-            await _cns.Connect(request.SenderDotYouId, request.Name, xToken);
+            //HACK: storing senders half key until i meet w/ Michael
+            await _cns.Connect(request.SenderDotYouId, request.Name, xToken, sendersHalfKey);
 
             await this.DeletePendingRequest(request.SenderDotYouId);
 

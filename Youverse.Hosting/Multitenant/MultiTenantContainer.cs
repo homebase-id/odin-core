@@ -93,6 +93,7 @@ namespace Youverse.Hosting.Multitenant
                 lifetimeScope = _applicationContainer.BeginLifetimeScope(
                     MultiTenantTag,
                     cb => _tenantServiceConfiguration(cb, tenant));
+                
                 _tenantLifetimeScopes.Add(tenantId, lifetimeScope); 
             }
 

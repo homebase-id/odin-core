@@ -2,35 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {
-    public interface IAuthorizationService
-    {
-        Task AssertCallerHasPermission(AccessControlList acl);
-
-        Task<bool> CallerHasPermission(AccessControlList acl);
-
-        Task<bool> CallerIsConnected();
-
-        Task<bool> CallerIsInYouverseNetwork();
-
-        Task<bool> CallerIsInList(List<string> dotYouIdList);
-
-        Task<bool> CallerIsInCircle(Guid? circleId);
-    }
-
-    public class AuthorizationService : IAuthorizationService
+    public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
         private readonly DotYouContext _context;
         private readonly ICircleNetworkService _circleNetwork;
 
-        public AuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork)
+        public DriveAclAuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
         {
-            _context = context;
+            //_context = context;
+            _context = httpContext.HttpContext.RequestServices.GetService<DotYouContext>();
             _circleNetwork = circleNetwork;
         }
 
@@ -44,7 +32,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
             var caller = _context.Caller;
-            if (caller.IsOwner)
+            if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
             }

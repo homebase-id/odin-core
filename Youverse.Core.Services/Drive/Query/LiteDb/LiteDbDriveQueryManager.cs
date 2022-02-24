@@ -4,8 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
@@ -13,8 +16,6 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
-        private readonly IAuthorizationService _authorizationService;
-
         private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
         private LiteDBSingleCollectionStorage<IndexedItem> _backupIndexStorage;
         private StorageDriveIndex _currentIndex;
@@ -26,10 +27,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private readonly string IndexCollectionName = "index";
 
-        public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger, IAuthorizationService authorizationService)
+        private readonly IHttpContextAccessor _accessor;
+
+        public LiteDbDriveQueryManager(StorageDrive drive, ILogger<object> logger, IHttpContextAccessor accessor)
         {
             _logger = logger;
-            _authorizationService = authorizationService;
+            _accessor = accessor;
             this.Drive = drive;
 
             _primaryIndex = new StorageDriveIndex(IndexTier.Primary, drive.GetIndexPath());
@@ -44,7 +47,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public StorageDrive Drive { get; init; }
 
-        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -56,7 +59,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     item => item.CreatedTimestamp)
                     .GetAwaiter().GetResult();
                 
-                var filtered = ApplySecurity(unfiltered, pageOptions);
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
                 if (!includeMetadataHeader)
                 {
                     StripContent(ref filtered);
@@ -66,7 +69,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions)
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -80,7 +83,9 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                         PageOptions.All)
                     .GetAwaiter().GetResult();
 
-                var filtered = ApplySecurity(unfiltered, pageOptions);
+                var ctx = _accessor.HttpContext.RequestServices.GetRequiredService<DotYouContext>();
+                
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
 
                 if (!includeMetadataHeader)
                 {
@@ -91,9 +96,9 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions)
+        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions,IDriveAclAuthorizationService driveAclAuthorizationService)
         {
-            Func<IndexedItem, bool> callerHasPermission = (item) => _authorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
+            Func<IndexedItem, bool> callerHasPermission = (item) => driveAclAuthorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
             var filtered = unfiltered.Results.Where(callerHasPermission);
 
             //possible memory spike

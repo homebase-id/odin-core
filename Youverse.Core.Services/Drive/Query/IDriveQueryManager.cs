@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 
@@ -28,7 +29,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions);
+        Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
@@ -37,7 +38,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions);
+        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
 
         /// <summary>

@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Tests
 
         public IMediator Mediator { get; private set; }
 
-        public IAuthorizationService AuthorizationService { get; private set; }
+        public IDriveAclAuthorizationService DriveAclAuthorizationService { get; private set; }
 
         public string? DataStoragePath => _dataStoragePath;
 
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateAuthorizationService()
         {
-            AuthorizationService = new AuthorizationService(this.Context, null);
+            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context, null, null);
         }
 
         public void LogDataPath()

@@ -43,7 +43,7 @@ namespace Youverse.Hosting
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
             RegisterMediator(ref cb);
-            
+
             cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
@@ -54,7 +54,9 @@ namespace Youverse.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<DotYouContext>().AsSelf().SingleInstance();
+            cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+            cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
+
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
@@ -69,15 +71,15 @@ namespace Youverse.Hosting
 
             cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
 
-            cb.RegisterType<AuthorizationService>().As<IAuthorizationService>().SingleInstance();
-            
+            cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
+
             cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .SingleInstance();
-            
+
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
@@ -88,7 +90,7 @@ namespace Youverse.Hosting
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
             cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>().SingleInstance();
             cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>().SingleInstance();
-            
+
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
@@ -100,19 +102,18 @@ namespace Youverse.Hosting
             cb.RegisterType<DemoDataGenerator>().SingleInstance();
 
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
-            
+
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             //TODO breakout interface
             cb.RegisterType<XTokenService>().AsSelf().SingleInstance();
-
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)
         {
             //TODO: following the docs here but should we pull in everything from this assembly?
             cb.RegisterAssemblyTypes(typeof(IMediator).GetTypeInfo().Assembly).AsImplementedInterfaces().SingleInstance();
-            
+
             var mediatrOpenTypes = new[]
             {
                 typeof(IRequestHandler<,>),
@@ -134,7 +135,7 @@ namespace Youverse.Hosting
                     // see also https://github.com/jbogard/MediatR/issues/462
                     .AsImplementedInterfaces();
             }
-            
+
             cb.Register<ServiceFactory>(ctx =>
             {
                 var c = ctx.Resolve<IComponentContext>();
@@ -149,13 +150,12 @@ namespace Youverse.Hosting
 
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
-            var ctx = scope.Resolve<DotYouContext>();
-
-
+            var ctx = scope.Resolve<TenantContext>();
+            
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
             ctx.DotYouRegistryId = id;
-            ctx.HostDotYouId = (DotYouIdentity)tenant.Name;
+            ctx.HostDotYouId = (DotYouIdentity) tenant.Name;
 
             ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());

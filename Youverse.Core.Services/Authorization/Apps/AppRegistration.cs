@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public List<DriveGrant> DriveGrants { get; set; }
+        public List<AppDriveGrant> DriveGrants { get; set; }
 
         /// <summary>
         /// Indicates this app is allowed to manage connections, including sending, accepting, and removing requests and existing connections

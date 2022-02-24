@@ -155,10 +155,7 @@ namespace Youverse.Hosting
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-
-
-            string hack = "";
-
+            
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner")
                 , adminApp =>
                 {

@@ -215,9 +215,9 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray halfKey)
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteHalfKey)
         {
-            xtoken.AssertValidHalfKey(halfKey);
+            xtoken.AssertValidHalfKey(remoteHalfKey);
 
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -230,10 +230,11 @@ namespace Youverse.Core.Services.Contacts.Circle
                 return;
             }
 
-            await this.StoreConnection(dotYouId, name, xtoken);
+            await this.StoreConnection(dotYouId, name, xtoken, remoteHalfKey);
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        //HACK: added temporarily to store the half key until I meet w/ michael and we can sort out this handshake process
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, byte[] halfKey)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -245,10 +246,10 @@ namespace Youverse.Core.Services.Contacts.Circle
                 return;
             }
 
-            await this.StoreConnection(dotYouId, name, xtoken);
+            await this.StoreConnection(dotYouId, name, xtoken, halfKey.ToSensitiveByteArray());
         }
 
-        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken)
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteHalf)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -258,7 +259,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                XToken = xtoken
+                XToken = xtoken,
+                RemoteHalf = remoteHalf.GetKey()
             };
 
             _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));

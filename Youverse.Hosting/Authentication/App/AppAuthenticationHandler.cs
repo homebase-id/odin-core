@@ -5,6 +5,8 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,10 +25,12 @@ namespace Youverse.Hosting.Authentication.App
     /// </summary>
     public class AppAuthenticationHandler : AuthenticationHandler<AppAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private IAppAuthenticationService _authService;
         public AppAuthenticationHandler(IOptionsMonitor<AppAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, ISystemClock clock)
+            UrlEncoder encoder, ISystemClock clock, IAppAuthenticationService authService)
             : base(options, logger, encoder, clock)
         {
+            _authService = authService;
         }
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -37,10 +41,10 @@ namespace Youverse.Hosting.Authentication.App
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
+            // var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
             if (GetAuthResult(out var authResult))
             {
-                var validationResult = await authService.ValidateClientToken(authResult.SessionToken);
+                var validationResult = await _authService.ValidateClientToken(authResult.SessionToken);
                 if (validationResult.IsValid)
                 {
                     //TODO: this needs to be pulled from context rather than the domain
@@ -58,7 +62,6 @@ namespace Youverse.Hosting.Authentication.App
                         // will not resolve now, however
                         new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                         new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
-
                     };
 
                     var identity = new ClaimsIdentity(claims, AppAuthConstants.SchemeName);

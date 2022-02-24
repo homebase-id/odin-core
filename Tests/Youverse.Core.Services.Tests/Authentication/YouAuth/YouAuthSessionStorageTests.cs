@@ -70,9 +70,9 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 DriveKeyHalfKey = hhk,
                 MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref mk, ref ksk),
-                SharedSecretKey = ByteArrayUtil.GetRndByteArray(16),
+                ClientSharedSecretKey = ByteArrayUtil.GetRndByteArray(16),
                 IsRevoked = false,
-                DriveKeys = new List<DriveKey>()
+                DriveGrants = new List<XTokenDriveGrant>()
             };
             
             var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
@@ -87,11 +87,11 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             
             
             Assert.That(session.XToken.DriveKeyHalfKey.KeyEncrypted, Is.EqualTo(copy.XToken.DriveKeyHalfKey.KeyEncrypted));
-            Assert.That(session.XToken.SharedSecretKey, Is.EqualTo(copy.XToken.SharedSecretKey));
+            Assert.That(session.XToken.ClientSharedSecretKey, Is.EqualTo(copy.XToken.ClientSharedSecretKey));
             Assert.That(session.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted, Is.EqualTo(copy.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted));
             Assert.That(session.XToken.Created, Is.EqualTo(copy.XToken.Created));
             Assert.That(session.XToken.Id, Is.EqualTo(copy.XToken.Id));
-            CollectionAssert.AreEquivalent(session.XToken.DriveKeys, copy.XToken.DriveKeys);
+            CollectionAssert.AreEquivalent(session.XToken.DriveGrants, copy.XToken.DriveGrants);
         }
 
     }

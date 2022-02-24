@@ -45,14 +45,14 @@ namespace Youverse.Core.Services.Authorization.Exchange
             //TODO: encrypt shared secret using the ??
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
-            var driveKeys = new List<DriveKey>();
+            var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdList)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                var dk = new DriveKey()
+                var dk = new XTokenDriveGrant()
                 {
                     DriveId = id,
                     XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -68,9 +68,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 DriveKeyHalfKey = hostHalfKey,
                 MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                SharedSecretKey = sharedSecret,
+                ClientSharedSecretKey = sharedSecret,
                 IsRevoked = false,
-                DriveKeys = driveKeys
+                DriveGrants = driveKeys
             };
 
             //TODO: RSA Encrypt
@@ -103,14 +103,14 @@ namespace Youverse.Core.Services.Authorization.Exchange
             clone.Wipe();
 
             var masterKey = _context.Caller.GetMasterKey();
-            var driveKeys = new List<DriveKey>();
+            var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdlist)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                var dk = new DriveKey()
+                var dk = new XTokenDriveGrant()
                 {
                     DriveId = id,
                     XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -126,9 +126,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 DriveKeyHalfKey = newHostHalfKey,
                 MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                SharedSecretKey = sharedSecret,
+                ClientSharedSecretKey = sharedSecret,
                 IsRevoked = false,
-                DriveKeys = driveKeys
+                DriveGrants = driveKeys
             };
 
             combinedBytes.ToSensitiveByteArray().Wipe();
@@ -156,10 +156,10 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
                 //clone and re-encrypt the drive keys
-                var newDriveKeys = existingToken.DriveKeys.Select(dk =>
+                var newDriveKeys = existingToken.DriveGrants.Select(dk =>
                 {
                     var storageKey = dk.XTokenEncryptedStorageKey.DecryptKeyClone(ref driveKey);
-                    var ndk = new DriveKey()
+                    var ndk = new XTokenDriveGrant()
                     {
                         DriveId = dk.DriveId,
                         XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -172,9 +172,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     Created = DateTimeExtensions.UnixTimeMilliseconds(),
                     DriveKeyHalfKey = hostHalfKey,
                     MasterKeyEncryptedDriveKey = existingToken.MasterKeyEncryptedDriveKey,
-                    SharedSecretKey = sharedSecret,
+                    ClientSharedSecretKey = sharedSecret,
                     IsRevoked = false,
-                    DriveKeys = newDriveKeys
+                    DriveGrants = newDriveKeys
                 };
                 
                 return Task.FromResult((token, remoteHalfKey.GetKey()));
