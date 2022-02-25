@@ -8,5 +8,6 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         public string Name { get; set; }
         public bool CreateDrive { get; set; }
         public bool CanManageConnections { get; set; }
+        public Guid? DefaultDrivePublicId { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 
@@ -19,7 +20,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
             await SetupWebHomeApp();
             await SetupChat();
         }
-        
+
         private async Task SetupProfile()
         {
             string profileAppName = "Profile Data";
@@ -27,7 +28,11 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
-                await _appRegService.RegisterApp(SystemAppConstants.ProfileAppId, profileAppName, createDrive: true, canManageConnections: false);
+                var appReg = await _appRegService.RegisterApp(SystemAppConstants.ProfileAppId, profileAppName, createDrive: true, canManageConnections: false);
+
+                Guid FinancialProfileDriveIdentifier = Guid.Parse("55223344-EEEE-DDDD-0000-111111111122");
+                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, FinancialProfileDriveIdentifier, "Financial Profile");
+
             }
         }
 
@@ -46,7 +51,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
         {
             string webHomeAppName = "Home Page";
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
-            if(null == existingApp)
+            if (null == existingApp)
             {
                 await _appRegService.RegisterApp(SystemAppConstants.WebHomeAppId, webHomeAppName, true);
             }

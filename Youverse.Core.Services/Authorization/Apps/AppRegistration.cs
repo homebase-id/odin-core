@@ -25,14 +25,20 @@ namespace Youverse.Core.Services.Authorization.Apps
         public bool IsRevoked { get; set; }
 
         /// <summary>
-        /// The drive associated with this app.
+        /// The default drive to be used with this app.
         /// </summary>
-        public Guid? DriveId { get; set; }
-
+        public Guid? DefaultDriveId { get; set; }
+        
+        /// <summary>
+        /// All drives owned by this app
+        /// </summary>
+        public List<AppDriveGrant> OwnedDrives { get; set; }
+        
+        
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>
-        public List<AppDriveGrant> DriveGrants { get; set; }
+        public List<AppDriveGrant> AdditionalDriveGrants { get; set; }
 
         /// <summary>
         /// Indicates this app is allowed to manage connections, including sending, accepting, and removing requests and existing connections

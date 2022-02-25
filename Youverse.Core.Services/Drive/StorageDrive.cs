@@ -85,6 +85,11 @@ namespace Youverse.Core.Services.Drive
     public class StorageDriveBase
     {
         public virtual Guid Id { get; init; }
+        
+        /// <summary>
+        /// Specifies a fixed value used to look up this drive.  This is intended to be shared 
+        /// </summary>
+        public virtual Guid? Key { get; init; }
 
         public virtual string Name { get; set; }
 

@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpPost]
         public async Task<IActionResult> RegisterApp([FromBody]AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistration.RegisterApp(appRegistration.ApplicationId, appRegistration.Name, appRegistration.CreateDrive, appRegistration.CanManageConnections);
+            var reg = await _appRegistration.RegisterApp(appRegistration.ApplicationId, appRegistration.Name, appRegistration.CreateDrive, appRegistration.DefaultDrivePublicId, appRegistration.CanManageConnections);
             return new JsonResult(reg);
         }
 
