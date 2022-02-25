@@ -2,35 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {
-    public interface IAuthorizationService
+    public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
-        Task AssertCallerHasPermission(AccessControlList acl);
-
-        Task<bool> CallerHasPermission(AccessControlList acl);
-
-        Task<bool> CallerIsConnected();
-
-        Task<bool> CallerIsInYouverseNetwork();
-
-        Task<bool> CallerIsInList(List<string> dotYouIdList);
-
-        Task<bool> CallerIsInCircle(Guid? circleId);
-    }
-
-    public class AuthorizationService : IAuthorizationService
-    {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _circleNetwork;
 
-        public AuthorizationService(DotYouContext context, ICircleNetworkService circleNetwork)
+        public DriveAclAuthorizationService(DotYouContextAccessor contextAccessor, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _circleNetwork = circleNetwork;
         }
 
@@ -43,8 +30,8 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
-            var caller = _context.Caller;
-            if (caller.IsOwner)
+            var caller = _contextAccessor.GetCurrent().Caller;
+            if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
             }
@@ -80,18 +67,18 @@ namespace Youverse.Core.Services.Authorization.Acl
         public async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            var isConnected = await _circleNetwork.IsConnected(_context.Caller.DotYouId);
+            var isConnected = await _circleNetwork.IsConnected(_contextAccessor.GetCurrent().Caller.DotYouId);
             return isConnected;
         }
 
         public Task<bool> CallerIsInYouverseNetwork()
         {
-            return Task.FromResult(_context.Caller.IsInYouverseNetwork);
+            return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInYouverseNetwork);
         }
 
         public Task<bool> CallerIsInList(List<string> dotYouIdList)
         {
-            var inList = dotYouIdList.Any(s => s.Equals(_context.Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
+            var inList = dotYouIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().Caller.DotYouId.Id, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

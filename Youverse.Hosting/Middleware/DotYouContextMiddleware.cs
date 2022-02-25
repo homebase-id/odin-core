@@ -1,16 +1,23 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.App;
@@ -26,6 +33,7 @@ namespace Youverse.Hosting.Middleware
         private readonly IIdentityContextRegistry _registry;
         private readonly ITenantProvider _tenantProvider;
 
+
         public DotYouContextMiddleware(RequestDelegate next, IIdentityContextRegistry registry, ITenantProvider tenantProvider)
         {
             _next = next;
@@ -33,7 +41,7 @@ namespace Youverse.Hosting.Middleware
             _tenantProvider = tenantProvider;
         }
 
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
+        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -43,7 +51,7 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-
+            
             if (authType == OwnerAuthConstants.SchemeName)
             {
                 await LoadOwnerContext(httpContext, dotYouContext);
@@ -60,7 +68,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == YouAuthConstants.Scheme)
             {
-                //TODO: is there anything special here for youauth?
+                await LoadYouAuthContext(httpContext, dotYouContext, youAuthSessionManager);
                 await _next(httpContext);
                 return;
             }
@@ -79,38 +87,56 @@ namespace Youverse.Hosting.Middleware
 
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
-            //var masterKey = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
             var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: true,
                 masterKey: masterKey
             );
 
             var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
-            if (!string.IsNullOrEmpty(appIdValue))
+            if (string.IsNullOrEmpty(appIdValue))
+            {
+                //TODO: Need to sort out owner permissions?  is this just everything?
+                var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
+                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                
+                dotYouContext.SetPermissionContext(new PermissionContext(null, permissionGrants, null));
+            }
+            else
             {
                 Guard.Argument(appIdValue, DotYouHeaderNames.AppId).Require(Guid.TryParse(appIdValue, out var appId), v => "If appId specified, it must be a valid Guid");
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
 
                 var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
 
-                dotYouContext.AppContext = new OwnerAppContext(
+                var appCtx = new OwnerAppContext(
                     appId: appId,
                     appClientId: authResult.SessionToken,
                     clientSharedSecret: clientSharedSecret,
                     driveId: ctxBase.DriveId.GetValueOrDefault(),
                     masterKeyEncryptedAppKey: ctxBase.MasterKeyEncryptedAppKey,
                     driveGrants: ctxBase.DriveGrants,
-                    canManageConnections: ctxBase.CanManageConnections,
+                    canManageConnections: true,
                     masterKey: masterKey);
-            }
-        }
+                
+                dotYouContext.AppContext = appCtx;
 
+                var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
+                if (appCtx.CanManageConnections)
+                {
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                }
+                
+                var driveGrants = MapAppDriveGrants(appCtx.DriveGrants);
+                dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, dotYouContext.AppContext.GetAppKey()));
+            }
+        }   
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            var authService = httpContext.RequestServices.GetRequiredService<IAppAuthenticationService>();
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
 
             var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
@@ -118,33 +144,122 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
+            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+            dotYouContext.AppContext = appCtx;
+            
+            var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
 
-            dotYouContext.AppContext = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+            if (appCtx.CanManageConnections)
+            {
+                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+            }
+
+            dotYouContext.SetPermissionContext(new PermissionContext(MapAppDriveGrants(appCtx.DriveGrants), permissionGrants, dotYouContext.AppContext.GetAppKey()));
+        }
+
+        private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager)
+        {
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+
+            var value = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+            var authResult = DotYouAuthenticationResult.Parse(value);
+            var user = httpContext.User;
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
+                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                masterKey: null // Note: we're logged in using an app token so we do not have the master key
+            );
+
+            //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
+            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+            dotYouContext.AppContext = appCtx;
+
+            var (xtoken, xTokenHalfKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
+            if (xtoken is {IsRevoked: false})
+            {
+                var dk = xtoken.DriveKeyHalfKey.DecryptKeyClone(ref xTokenHalfKey);
+
+                var driveGrants = xtoken.DriveGrants.Select(dg => new PermissionDriveGrant()
+                {
+                    DriveId = dg.DriveId,
+                    EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
+                    Permissions = DrivePermissions.Read
+                }).ToList();
+
+                dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, null, dk));
+            }
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
-            
+
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity) user.Identity.Name,
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
             );
-            
-            //Note: transit context may or may not have an app.  The need for an app is enforced by auth policy on the endpoint
-            //as well as the calling code
+
+            var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
+
+            IEnumerable<PermissionDriveGrant> driveGrants = null;
+            SensitiveByteArray driveDecryptionKey = null;
+
+            //Note: transit context may or may not have an app.  The need for an app is
+            //enforced by auth policy on the endpoint as well as the calling code
             if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
             {
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                dotYouContext.AppContext = await appRegSvc.GetAppContextBase(appId);
+                var appCtx = await appRegSvc.GetAppContextBase(appId);
+                dotYouContext.AppContext = appCtx;
+
+                driveGrants = MapAppDriveGrants(appCtx.DriveGrants);
+                driveDecryptionKey = appCtx.GetAppKey();
+                if (appCtx.CanManageConnections)
+                {
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkRequestPermissions.Manage);
+                }
             }
+
+            dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, driveDecryptionKey));
+        }
+
+        private async Task<(XToken, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
+        {
+            var xTokenValue = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+            if (!string.IsNullOrWhiteSpace(xTokenValue))
+            {
+                var xTokenHalfKey = Convert.FromBase64String(xTokenValue);
+                if (xTokenHalfKey?.Length > 0)
+                {
+                    var sessionId = Guid.Parse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? throw new YouverseSecurityException("Missing session"));
+                    var session = await youAuthSessionManager.LoadFromId(sessionId);
+                    return (session?.XToken, xTokenHalfKey.ToSensitiveByteArray());
+                }
+            }
+
+            return (null, null);
+        }
+
+        private IEnumerable<PermissionDriveGrant> MapAppDriveGrants(IEnumerable<AppDriveGrant> appDriveGrants)
+        {
+            var driveGrants = appDriveGrants.Select(dg => new PermissionDriveGrant()
+            {
+                DriveId = dg.DriveId,
+                EncryptedStorageKey = dg.AppKeyEncryptedStorageKey,
+                Permissions = dg.Permissions
+            }).ToList();
+
+            return driveGrants;
         }
     }
 }

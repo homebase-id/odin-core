@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit
     {
         private const string CollectionName = "tkeqs";
         private readonly ISystemStorage _systemStorage;
-        public TransferKeyEncryptionQueueService(DotYouContext context, ILogger<ITransferKeyEncryptionQueueService> logger, ISystemStorage systemStorage)
+        public TransferKeyEncryptionQueueService(DotYouContextAccessor contextAccessor, ILogger<ITransferKeyEncryptionQueueService> logger, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
         }

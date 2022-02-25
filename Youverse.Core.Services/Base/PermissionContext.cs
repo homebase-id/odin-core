@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 
@@ -10,13 +10,15 @@ namespace Youverse.Core.Services.Base
 {
     public class PermissionContext
     {
-        private Dictionary<PermissionType, int> _permissionGrants;
-        private List<DriveGrant> _driveGrants;
+        private readonly Dictionary<SystemApiPermissionType, int> _systemApiPermissionGrants;
+        private readonly IEnumerable<PermissionDriveGrant> _driveGrants;
+        private readonly SensitiveByteArray _driveDecryptionKey;
 
-        public PermissionContext(List<DriveGrant> driveGrants, Dictionary<PermissionType, int> permissionGrants)
+        public PermissionContext(IEnumerable<PermissionDriveGrant> driveGrants, Dictionary<SystemApiPermissionType, int> systemApiPermissionGrants, SensitiveByteArray driveDecryptionKey)
         {
             _driveGrants = driveGrants;
-            _permissionGrants = permissionGrants;
+            _systemApiPermissionGrants = systemApiPermissionGrants;
+            _driveDecryptionKey = driveDecryptionKey;
         }
 
         public bool HasDrivePermission(Guid driveId, DrivePermissions permission)
@@ -25,19 +27,24 @@ namespace Youverse.Core.Services.Base
             return grant != null && grant.Permissions.HasFlag(permission);
         }
 
-        public bool HasPermission(PermissionType pmt, int permission)
+        public bool HasPermission(SystemApiPermissionType pmt, int permission)
         {
-            if (_permissionGrants.TryGetValue(pmt, out var value))
+            if (null == _systemApiPermissionGrants)
+            {
+                return false;
+            }
+            
+            if (_systemApiPermissionGrants.TryGetValue(pmt, out var value))
             {
                 switch (pmt)
                 {
-                    case PermissionType.Contact:
+                    case SystemApiPermissionType.Contact:
                         return ((ContactPermissions) value).HasFlag((ContactPermissions) permission);
-                    
-                    case PermissionType.CircleNetwork:
+
+                    case SystemApiPermissionType.CircleNetwork:
                         return ((CircleNetworkPermissions) value).HasFlag((CircleNetworkPermissions) permission);
-                    
-                    case PermissionType.CircleNetworkRequests:
+
+                    case SystemApiPermissionType.CircleNetworkRequests:
                         return ((CircleNetworkRequestPermissions) value).HasFlag((CircleNetworkRequestPermissions) permission);
                 }
             }
@@ -45,14 +52,14 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public void AssertHasPermission(PermissionType pmt, int permission)
+        public void AssertHasPermission(SystemApiPermissionType pmt, int permission)
         {
             if (!HasPermission(pmt, permission))
             {
                 throw new YouverseSecurityException("Does not have permission");
             }
         }
-        
+
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -75,5 +82,24 @@ namespace Youverse.Core.Services.Base
             }
         }
 
+        /// <summary>
+        /// Returns the encryption key specific to this app.  This is only available
+        /// when the owner is making an HttpRequest.
+        /// </summary>
+        /// <returns></returns>
+        public SensitiveByteArray GetDriveStorageKey(Guid driveId)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+
+            //TODO: this sort of security check feels like it should be in a service..
+            if (null == grant)
+            {
+                throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+            }
+
+            var appKey = this._driveDecryptionKey;
+            var storageKey = grant.EncryptedStorageKey.DecryptKeyClone(ref appKey);
+            return storageKey;
+        }
     }
 }

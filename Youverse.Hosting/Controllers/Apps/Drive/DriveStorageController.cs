@@ -25,11 +25,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     {
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public DriveStorageController(DotYouContext context, IDriveService driveService, IAppService appService)
+        public DriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _driveService = driveService;
             _appService = appService;
         }
@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new DriveFileId()
             {
-                DriveId = _context.AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new DriveFileId()
             {
-                DriveId = _context.AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
                 FileId = fileId
             };
 

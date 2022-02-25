@@ -95,7 +95,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt
-                    halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
+                    //halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
+                    halfKey = info.RemoteHalf;
                 }
             }
 

@@ -12,12 +12,12 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICertificateResolver _certificateResolver;
 
-        public DotYouHttpClientFactory(DotYouContext context, ICertificateResolver certificateResolver)
+        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _certificateResolver = certificateResolver;
         }
 
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
 
-            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _context.AppContext?.AppId.ToString() ?? "";
+            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _contextAccessor.GetCurrent().AppContext?.AppId.ToString() ?? "";
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
 
             var ogClient = RestService.For<T>(client);

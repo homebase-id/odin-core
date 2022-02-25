@@ -19,12 +19,12 @@ namespace Youverse.Core.Services.Profile
         private const string CategoryAttributeStorageCollection = "cdas";
         private const string AttributeStorageCollection = "das";
 
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
 
-        public AttributeStorage(DotYouContext context, ISystemStorage systemStorage)
+        public AttributeStorage(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
         }
 
@@ -116,7 +116,7 @@ namespace Youverse.Core.Services.Profile
 
         private void AssertCallerIsOwner()
         {
-            if (this._context.Caller.IsOwner == false)
+            if (this._contextAccessor.GetCurrent().Caller.IsOwner == false)
             {
                 throw new SecurityException("Caller must be owner");
             }

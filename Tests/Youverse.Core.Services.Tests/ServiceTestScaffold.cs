@@ -23,12 +23,12 @@ namespace Youverse.Core.Services.Tests
         private string? _dataStoragePath;
         private string? _tempStoragePath;
         public ISystemStorage? SystemStorage { get; private set; }
-        public DotYouContext? Context { get; private set; }
+        public DotYouContextAccessor? Context { get; private set; }
         public ILoggerFactory LoggerFactory { get; private set; }
 
         public IMediator Mediator { get; private set; }
 
-        public IAuthorizationService AuthorizationService { get; private set; }
+        public IDriveAclAuthorizationService DriveAclAuthorizationService { get; private set; }
 
         public string? DataStoragePath => _dataStoragePath;
 
@@ -48,17 +48,13 @@ namespace Youverse.Core.Services.Tests
 
             Directory.CreateDirectory(DataStoragePath);
             Directory.CreateDirectory(_tempStoragePath);
-
-            Context = Substitute.For<DotYouContext>();
-            Context.StorageConfig = new TenantStorageConfig(DataStoragePath, _tempStoragePath);
-            Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
+            
+            var tcontext = new TenantContext();
+            tcontext.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
+            Context = Substitute.For<DotYouContextAccessor>(tcontext, null);
+            // Context.Caller = new CallerContext(new DotYouIdentity("unit-tests"), true, new SensitiveByteArray(new byte[16]));
         }
 
-        public void CreateSystemStorage()
-        {
-            var logger = Substitute.For<ILogger<LiteDbSystemStorage>>();
-            SystemStorage = new LiteDbSystemStorage(logger, Context);
-        }
 
         public void CreateLoggerFactory()
         {
@@ -72,7 +68,7 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateAuthorizationService()
         {
-            AuthorizationService = new AuthorizationService(this.Context, null);
+            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context, null, null);
         }
 
         public void LogDataPath()

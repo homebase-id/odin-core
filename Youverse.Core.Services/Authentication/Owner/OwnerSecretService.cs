@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         protected readonly ISystemStorage _systemStorage;
 
-        public OwnerSecretService(DotYouContext context, ILogger<IOwnerSecretService> logger, ISystemStorage systemStorage)
+        public OwnerSecretService(DotYouContextAccessor contextAccessor, ILogger<IOwnerSecretService> logger, ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
         }

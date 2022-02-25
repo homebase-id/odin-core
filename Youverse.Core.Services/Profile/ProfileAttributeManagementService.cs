@@ -13,16 +13,16 @@ namespace Youverse.Core.Services.Profile
     /// <inheritdoc cref="IProfileAttributeManagementService"/>
     public class ProfileAttributeManagementService : IProfileAttributeManagementService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly AttributeStorage _das;
         private readonly ISystemStorage _systemStorage;
 
 
-        public ProfileAttributeManagementService(DotYouContext context, ILogger<IProfileAttributeManagementService> logger, ISystemStorage systemStorage)
+        public ProfileAttributeManagementService(DotYouContextAccessor contextAccessor, ILogger<IProfileAttributeManagementService> logger, ISystemStorage systemStorage)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
-            _das = new AttributeStorage(context, systemStorage);
+            _das = new AttributeStorage(contextAccessor, systemStorage);
         }
 
         public Task SavePublicProfile(NameAttribute primaryName, ProfilePicAttribute photo, params BaseAttribute[] additionalAttributes)
@@ -166,7 +166,7 @@ namespace Youverse.Core.Services.Profile
         private void AssertCallerIsOwner()
         {
             //HACK: refactoring profiles
-            // if (this._context.Caller.IsOwner == false)
+            // if (this._context.GetCurrent().Caller.IsOwner == false)
             // {
             //     throw new SecurityException("Caller must be owner");
             // }

@@ -1,11 +1,9 @@
 ﻿using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Circles

@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Profile
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly ISystemStorage _systemStorage;
         
-        public ProfileService(DotYouContext context, ILogger<IProfileService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
+        public ProfileService(DotYouContextAccessor contextAccessor, ILogger<IProfileService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage)
         {
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _systemStorage = systemStorage;

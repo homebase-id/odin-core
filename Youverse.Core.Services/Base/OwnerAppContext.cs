@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public OwnerAppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey, List<DriveGrant> driveGrants, bool canManageConnections, SensitiveByteArray masterKey)
+        public OwnerAppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey, List<AppDriveGrant> driveGrants, bool canManageConnections, SensitiveByteArray masterKey)
             : base(appId, appClientId, clientSharedSecret, driveId, driveGrants, canManageConnections, masterKeyEncryptedAppKey)
         {
             this._masterKey = masterKey;

@@ -17,13 +17,13 @@ namespace Youverse.Core.Services.Authorization.Exchange
 {
     public class XTokenService
     {
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
 
-        public XTokenService(DotYouContext context, ILogger<XTokenService> logger, ISystemStorage systemStorage, IDriveService driveService)
+        public XTokenService(DotYouContextAccessor contextAccessor, ILogger<XTokenService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _driveService = driveService;
         }
@@ -36,23 +36,23 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// <returns></returns>
         public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdList)
         {
-            _context.Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
 
             //TODO: encrypt shared secret using the ??
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
-            var driveKeys = new List<DriveKey>();
+            var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdList)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                var dk = new DriveKey()
+                var dk = new XTokenDriveGrant()
                 {
                     DriveId = id,
                     XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -68,9 +68,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 DriveKeyHalfKey = hostHalfKey,
                 MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                SharedSecretKey = sharedSecret,
+                ClientSharedSecretKey = sharedSecret,
                 IsRevoked = false,
-                DriveKeys = driveKeys
+                DriveGrants = driveKeys
             };
 
             //TODO: RSA Encrypt
@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public async Task<(XToken, SensitiveByteArray)> CreateXTokenFromBits(List<Guid> driveIdlist, string rsaEncryptedXTokenBits)
         {
-            _context.Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var combinedBytes = Convert.FromBase64String(rsaEncryptedXTokenBits);
 
@@ -102,15 +102,15 @@ namespace Youverse.Core.Services.Authorization.Exchange
             Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
             clone.Wipe();
 
-            var masterKey = _context.Caller.GetMasterKey();
-            var driveKeys = new List<DriveKey>();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var driveKeys = new List<XTokenDriveGrant>();
 
             foreach (var id in driveIdlist)
             {
                 var x = await _driveService.GetDrive(id);
                 var storageKey = x.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                var dk = new DriveKey()
+                var dk = new XTokenDriveGrant()
                 {
                     DriveId = id,
                     XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -126,9 +126,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 DriveKeyHalfKey = newHostHalfKey,
                 MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                SharedSecretKey = sharedSecret,
+                ClientSharedSecretKey = sharedSecret,
                 IsRevoked = false,
-                DriveKeys = driveKeys
+                DriveGrants = driveKeys
             };
 
             combinedBytes.ToSensitiveByteArray().Wipe();
@@ -156,10 +156,10 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
                 //clone and re-encrypt the drive keys
-                var newDriveKeys = existingToken.DriveKeys.Select(dk =>
+                var newDriveKeys = existingToken.DriveGrants.Select(dk =>
                 {
                     var storageKey = dk.XTokenEncryptedStorageKey.DecryptKeyClone(ref driveKey);
-                    var ndk = new DriveKey()
+                    var ndk = new XTokenDriveGrant()
                     {
                         DriveId = dk.DriveId,
                         XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
@@ -172,9 +172,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     Created = DateTimeExtensions.UnixTimeMilliseconds(),
                     DriveKeyHalfKey = hostHalfKey,
                     MasterKeyEncryptedDriveKey = existingToken.MasterKeyEncryptedDriveKey,
-                    SharedSecretKey = sharedSecret,
+                    ClientSharedSecretKey = sharedSecret,
                     IsRevoked = false,
-                    DriveKeys = newDriveKeys
+                    DriveGrants = newDriveKeys
                 };
                 
                 return Task.FromResult((token, remoteHalfKey.GetKey()));

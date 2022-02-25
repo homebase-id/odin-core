@@ -21,13 +21,13 @@ namespace Youverse.Core.Services.Authorization.Apps
         private const string AppClientRegistrationStorageName = "adrs";
         private const string AppRsaKeyList = "arsa";
 
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
 
-        public AppRegistrationService(DotYouContext context, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService)
+        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _driveService = driveService;
         }
@@ -37,15 +37,15 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
-            _context.Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             Guid? driveId = null;
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
             var apk = appKey.DecryptKeyClone(ref masterKey);
 
-            List<DriveGrant> grants = null;
+            List<AppDriveGrant> grants = null;
 
             if (createDrive)
             {
@@ -54,8 +54,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
                 var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
 
-                grants = new List<DriveGrant>();
-                grants.Add(new DriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
+                grants = new List<AppDriveGrant>();
+                grants.Add(new AppDriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
                 driveId = drive.Id;
             }
 
@@ -167,7 +167,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey)
         {
-            _context.Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(applicationId);
 
@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //Note: never store clientAppToken
 
-            var masterKey = _context.Caller.GetMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var appKey = appReg.MasterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
 
             var clientEncryptedAppKey = new SymmetricKeyEncryptedXor(ref appKey, out var clientKek);

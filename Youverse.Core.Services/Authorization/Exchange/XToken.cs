@@ -15,20 +15,20 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public SymmetricKeyEncryptedAes MasterKeyEncryptedDriveKey { get; set; }
 
-        public byte[] SharedSecretKey { get; set; }
+        public byte[] ClientSharedSecretKey { get; set; }
 
         public bool IsRevoked { get; set; }
 
-        public List<DriveKey> DriveKeys { get; set; }
+        public List<XTokenDriveGrant> DriveGrants { get; set; }
 
         public void AssertValidHalfKey(SensitiveByteArray halfKey)
         {
-            
+            var _ = DriveKeyHalfKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
         }
 
     }
 
-    public class DriveKey
+    public class XTokenDriveGrant
     {
         public Guid DriveId { get; set; }
         

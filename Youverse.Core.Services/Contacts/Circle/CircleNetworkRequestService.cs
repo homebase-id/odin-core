@@ -12,6 +12,9 @@ using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Authorization.Apps;
 using System.Collections.Generic;
+using MediatR;
+using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.Contacts.Circle
 {
@@ -20,7 +23,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
         const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
 
-        private readonly DotYouContext _context;
+        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _cns;
         private readonly ILogger<ICircleNetworkRequestService> _logger;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
@@ -28,17 +31,20 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly ISystemStorage _systemStorage;
         private readonly XTokenService _xTokenService;
         private readonly IAppRegistrationService _appReg;
+        private readonly IMediator _mediator;
+        private readonly TenantContext _tenantContext;
 
-
-        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContext context, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, AppNotificationHandler hub, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage)
+        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
         {
-            _context = context;
+            _contextAccessor = contextAccessor;
             _cns = cns;
             _logger = logger;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _mgts = mgts;
             _systemStorage = systemStorage;
-            _context = context;
+            _mediator = mediator;
+            _tenantContext = tenantContext;
+            _contextAccessor = contextAccessor;
             _xTokenService = xTokenService;
             _appReg = appReg;
 
@@ -48,8 +54,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            _context.AssertCanManageConnections();
-            
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
+
             Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
@@ -59,7 +65,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
             return results;
@@ -67,7 +73,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
@@ -75,7 +81,6 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             var remoteRsaKey = new byte[0]; //TODO
 
-            //TODO: fix in merge
             var profileAppId = SystemAppConstants.ProfileAppId;
             var profileApp = await _appReg.GetAppRegistration(profileAppId);
 
@@ -91,7 +96,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Id = header.Id,
                 Recipient = header.Recipient,
                 Message = header.Message,
-                SenderDotYouId = this._context.HostDotYouId, //this should not be required since it's set on the receiving end
+                SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
                 RSAEncryptedXToken = remoteToken
             };
@@ -124,14 +129,13 @@ namespace Youverse.Core.Services.Contacts.Circle
         //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            
             //in transit context on the recipient's server, i need to receive a request
             // - there is no app
             // - the caller is not an owner and does not have a master key
-            
+
             //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the youverse network
-            //_context.AssertCanManageConnections();
-            
+            //_context.GetCurrent()/AssertCanManageConnections();
+
             //TODO: check robot detection code
 
             //note: this would occur during the operation verification process
@@ -139,30 +143,33 @@ namespace Youverse.Core.Services.Contacts.Circle
             _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
 
-            //this.Notify.ConnectionRequestReceived(request).Wait();
+            _mediator.Publish(new ConnectionRequestReceived()
+            {
+                Sender = request.SenderDotYouId
+            });
 
             return Task.CompletedTask;
         }
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
-
+            //_context.GetCurrent().AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
 
         public async Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             return await this.GetSentRequestInternal(recipient);
         }
 
-
         public Task DeleteSentRequest(DotYouIdentity recipient)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
             return DeleteSentRequestInternal(recipient);
         }
 
@@ -188,20 +195,23 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
-            var half = handshakeResponse.HalfKey.ToSensitiveByteArray();
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, half);
+            var remoteHalf = handshakeResponse.HalfKey.ToSensitiveByteArray();
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, remoteHalf);
 
             await this.DeleteSentRequestInternal(originalRequest.Recipient);
 
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequestInternal(originalRequest.Recipient);
 
-            // this.Notify.ConnectionRequestAccepted(request).Wait();
+            await _mediator.Publish(new ConnectionRequestAccepted()
+            {
+                Sender = originalRequest.SenderDotYouId
+            });
         }
-        
+
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             var request = await GetPendingRequest(sender);
 
@@ -218,7 +228,8 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
-            
+
+            //TODO: consider - do we send back an xtoiken with drive and keys?
             AcknowledgedConnectionRequest acceptedReq = new()
             {
                 Name = p.Name,
@@ -234,8 +245,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            //
-            await _cns.Connect(request.SenderDotYouId, request.Name, xToken);
+            //HACK: storing senders half key until i meet w/ Michael
+            await _cns.Connect(request.SenderDotYouId, request.Name, xToken, sendersHalfKey);
 
             await this.DeletePendingRequest(request.SenderDotYouId);
 
@@ -245,7 +256,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public Task DeletePendingRequest(DotYouIdentity sender)
         {
-            _context.AssertCanManageConnections();
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             return DeletePendingRequestInternal(sender);
         }
@@ -265,7 +276,6 @@ namespace Youverse.Core.Services.Contacts.Circle
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
             return result;
         }
-
 
         private async Task<(XToken, SensitiveByteArray)> DeserializeXToken(string rsaEncryptedXToken)
         {
