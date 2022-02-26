@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Transit.Upload
             Guid driveId;
 
             //Use the drive requested, if set
-            var requestedDrive = instructionSet?.StorageOptions?.PublicDriveIdentifier;
+            var requestedDrive = instructionSet?.StorageOptions?.DriveIdentifier;
             if (requestedDrive.HasValue)
             {
                 var requestedDriveId = _contextAccessor.GetCurrent().AppContext.OwnedDrives

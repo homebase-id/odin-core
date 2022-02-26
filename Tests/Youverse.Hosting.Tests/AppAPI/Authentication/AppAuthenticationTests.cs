@@ -12,6 +12,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
     public class AppAuthenticationTests
     {
         private TestScaffold _scaffold;
+        public static readonly Guid DefaultDrivePublicId = Guid.Parse("98408493-4440-0888-0000-001260004445");
+
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -32,7 +34,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
             var (authResult, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -50,7 +52,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
             var (authResult, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -62,7 +64,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
                 Assert.That(validateResponse.Content.IsValid, Is.True);
             }
-            
+
             await _scaffold.RevokeSampleApp(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -81,7 +83,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddApp(identity, appId, Guid.NewGuid());
             var (authResult, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -100,7 +102,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var identity = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            await _scaffold.AddApp(identity, appId);
+            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
             var (authResult, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))

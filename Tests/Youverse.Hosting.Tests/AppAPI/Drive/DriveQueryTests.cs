@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetByTag(tag, false, 1, 100);
+                var response = await svc.GetByTag(uploadContext.TestAppContext.DefaultDrivePublicId, tag, false, 1, 100);
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
@@ -91,7 +91,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(ownerClient);
 
-                var response = await svc.GetByTag(tag, false, 1, 100);
+                var response = await svc.GetByTag(uploadContext.TestAppContext.DefaultDrivePublicId, tag, false, 1, 100);
 
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(true, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DefaultDrivePublicId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -140,11 +140,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var uploadContext = await _scaffold.Upload(identity);
 
+
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(false, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DefaultDrivePublicId, false, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);

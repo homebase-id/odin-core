@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(true, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DefaultDrivePublicId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(false, 1, 100);
+                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DefaultDrivePublicId, false, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);

@@ -32,17 +32,19 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         // }
 
         [HttpGet("tag")]
-        public async Task<IActionResult> GetByTag(Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetByTag(Guid driveIdentifier, Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
+
             var page = await _driveQueryService.GetByTag(driveId, tag, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
         [HttpGet("recent")]
-        public async Task<IActionResult> GetRecentlyCreatedItems(bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveIdentifier, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+            // var driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
             var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }

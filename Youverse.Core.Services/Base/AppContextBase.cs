@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
@@ -34,19 +35,27 @@ namespace Youverse.Core.Services.Base
 
         public List<AppDriveGrant> OwnedDrives { get; init; }
 
+        public Guid GetDriveId(Guid driveIdentifier)
+        {
+            var driveId = this.OwnedDrives
+                .Single(x => x.DriveIdentifier == driveIdentifier)
+                .DriveId;
+
+            return driveId;
+        }
+
         /// <summary>
         /// Returns the shared secret between the client app and
         /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <value></value>
         public SensitiveByteArray ClientSharedSecret { get; init; }
-        
+
         public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; init; }
-        
+
         public virtual SensitiveByteArray GetAppKey()
         {
             return null;
         }
-
     }
 }
