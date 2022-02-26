@@ -2,6 +2,7 @@
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Tests.AppAPI;
 
 namespace Youverse.Hosting.Tests
 {
@@ -21,8 +22,9 @@ namespace Youverse.Hosting.Tests
         /// The file meta data that was uploaded. 
         /// </summary>
         public UploadFileMetadata FileMetadata { get; set; }
-        
+
         public string PayloadData { get; set; }
 
+        public TestSampleAppContext TestAppContext { get; set; }
     }
 }

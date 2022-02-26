@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Apps;
@@ -8,13 +9,13 @@ namespace Youverse.Core.Services.Base
 {
     public class AppContextBase : IAppContext
     {
-        public AppContextBase(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, List<AppDriveGrant> driveGrants, bool canManageConnections, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
+        public AppContextBase(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, List<AppDriveGrant> ownedDrives, bool canManageConnections, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
             this.AppId = appId;
             this.DriveId = driveId;
-            this.DriveGrants = driveGrants;
+            this.OwnedDrives = ownedDrives;
             this.AppClientId = appClientId;
             this.ClientSharedSecret = clientSharedSecret;
             this.MasterKeyEncryptedAppKey = masterKeyEncryptedAppKey;
@@ -32,7 +33,16 @@ namespace Youverse.Core.Services.Base
 
         public bool CanManageConnections { get; }
 
-        public List<AppDriveGrant> DriveGrants { get; init; }
+        public List<AppDriveGrant> OwnedDrives { get; init; }
+
+        public Guid GetDriveId(Guid driveIdentifier)
+        {
+            var driveId = this.OwnedDrives
+                .Single(x => x.DriveIdentifier == driveIdentifier)
+                .DriveId;
+
+            return driveId;
+        }
 
         /// <summary>
         /// Returns the shared secret between the client app and
@@ -40,13 +50,12 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         /// <value></value>
         public SensitiveByteArray ClientSharedSecret { get; init; }
-        
+
         public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; init; }
-        
+
         public virtual SensitiveByteArray GetAppKey()
         {
             return null;
         }
-
     }
 }

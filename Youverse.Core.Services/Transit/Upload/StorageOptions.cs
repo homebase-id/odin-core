@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// The drive in which to store this file
         /// </summary>
-        public Guid? DriveId { get; set; }
+        public Guid? DriveIdentifier { get; set; }
     
         /// <summary>
         /// The fileId to overwrite if it exists
@@ -19,19 +19,6 @@ namespace Youverse.Core.Services.Transit.Upload
         /// Seconds in unix time UTC indicating when this file expires 
         /// </summary>
         public UInt64? ExpiresTimestamp { get; set; }
-
-        public DriveFileId? GetFile()
-        {
-            if (DriveId.HasValue && OverwriteFileId.HasValue)
-            {
-                return new DriveFileId()
-                {
-                    DriveId = DriveId.GetValueOrDefault(),
-                    FileId = OverwriteFileId.GetValueOrDefault()
-                };
-            }
-
-            return null;
-        }
+        
     }
 }

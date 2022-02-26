@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveId = null,
+                    DriveIdentifier = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -256,7 +256,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var driveQueryClient = RestService.For<IDriveQueryClient>(recipientClient);
 
-                var response = await driveQueryClient.GetByTag(categoryId, true, 1, 100);
+                var response = await driveQueryClient.GetByTag(recipientContext.DefaultDrivePublicId, categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);

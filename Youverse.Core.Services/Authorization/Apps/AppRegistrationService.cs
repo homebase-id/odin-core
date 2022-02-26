@@ -32,36 +32,28 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid defaultDrivePublicId, bool createDrive = false, bool canManageConnections = false)
         {
-            Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
-
+            Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
+            
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            Guid? driveId = null;
-
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var appKey = new SymmetricKeyEncryptedAes(ref masterKey);
-            var apk = appKey.DecryptKeyClone(ref masterKey);
-
-            List<AppDriveGrant> grants = null;
-
+            var masterKeyEncryptedAppKey = new SymmetricKeyEncryptedAes(ref masterKey);
+            
+            AppDriveGrant defaultDriveGrant = null;
             if (createDrive)
             {
-                var drive = await _driveService.CreateDrive($"{name}-drive");
-                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-
-                var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref apk, ref storageKey);
-
-                grants = new List<AppDriveGrant>();
-                grants.Add(new AppDriveGrant() {DriveId = drive.Id, AppKeyEncryptedStorageKey = appEncryptedStorageKey, Permissions = DrivePermissions.All});
-                driveId = drive.Id;
+                Guard.Argument(defaultDrivePublicId, nameof(defaultDrivePublicId)).NotEqual(Guid.Empty);
+                defaultDriveGrant = await this.CreateOwnedDriveInternal(defaultDrivePublicId, $"{name}-default drive", masterKeyEncryptedAppKey);
             }
 
             const int maxKeys = 4; //leave this size 
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref apk, maxKeys);
-            apk.Wipe();
+            var appKey = masterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref appKey, maxKeys);
+            appKey.Wipe();
+
             rsaKeyList.Id = applicationId;
             _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
 
@@ -71,10 +63,11 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 ApplicationId = applicationId,
                 Name = name,
-                MasterKeyEncryptedAppKey = appKey,
-                DriveId = driveId,
-                DriveGrants = grants,
-                CanManageConnections = canManageConnections
+                MasterKeyEncryptedAppKey = masterKeyEncryptedAppKey,
+                DefaultDriveId = defaultDriveGrant?.DriveId,
+                OwnedDrives = defaultDriveGrant == null ? new List<AppDriveGrant>() : new List<AppDriveGrant> {defaultDriveGrant},
+                CanManageConnections = canManageConnections,
+                AdditionalDriveGrants = new List<AppDriveGrant>()
             };
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -82,6 +75,46 @@ namespace Youverse.Core.Services.Authorization.Apps
             //
 
             return this.ToAppRegistrationResponse(appReg);
+        }
+
+        public async Task CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName)
+        {
+            Guard.Argument(appId, nameof(appId)).NotEqual(Guid.Empty);
+            Guard.Argument(publicDriveIdentifier, nameof(publicDriveIdentifier)).NotEqual(Guid.Empty);
+            Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
+
+            var app = await this.GetAppRegistrationInternal(appId);
+            if (null == app)
+            {
+                throw new MissingDataException("App not found");
+            }
+
+            var grant = await this.CreateOwnedDriveInternal(publicDriveIdentifier, driveName, app.MasterKeyEncryptedAppKey);
+
+            app.OwnedDrives.Add(grant);
+
+            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(app));
+        }
+
+        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid publicDriveIdentifier, string driveName, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
+        {
+            Guard.Argument(publicDriveIdentifier, nameof(publicDriveIdentifier)).NotEqual(Guid.Empty);
+            Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
+
+            var drive = await _driveService.CreateDrive(driveName);
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
+            var appKey = masterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
+            var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref appKey, ref storageKey);
+
+            return new AppDriveGrant()
+            {
+                DriveIdentifier = publicDriveIdentifier,
+                DriveId = drive.Id,
+                AppKeyEncryptedStorageKey = appEncryptedStorageKey,
+                Permissions = DrivePermissions.All
+            };
         }
 
         public Task RefreshAppKeys()
@@ -102,15 +135,14 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appClient = await this.GetClientRegistration(token);
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
-
             return new AppContext(
                 appId: appReg.ApplicationId,
                 appClientId: appClient.Id,
                 clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
-                driveId: appReg.DriveId,
+                driveId: appReg.DefaultDriveId,
                 hostHalfAppKey: appClient.ServerHalfAppKey,
                 clientHalfAppKey: clientHalfKek,
-                driveGrants: appReg.DriveGrants,
+                ownedDrives: appReg.OwnedDrives,
                 canManageConnections: appReg.CanManageConnections
             );
         }
@@ -128,8 +160,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appId: appId,
                 appClientId: Guid.Empty,
                 clientSharedSecret: null,
-                driveId: appReg.DriveId.GetValueOrDefault(),
-                driveGrants: appReg.DriveGrants,
+                driveId: appReg.DefaultDriveId.GetValueOrDefault(),
+                ownedDrives: appReg.OwnedDrives,
                 canManageConnections: appReg.CanManageConnections,
                 masterKeyEncryptedAppKey: includeMasterKey ? appReg.MasterKeyEncryptedAppKey : null);
         }
@@ -263,19 +295,45 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result;
         }
 
+        // private List<DriveIdentifier> RedactDriveData(List<AppDriveGrant> driveGrants)
+        // {
+        //     return driveGrants.Select(x => new DriveIdentifier()
+        //     {
+        //         DriveId = x.DriveId,
+        //         PublicIdentifier = x.DriveIdentifier
+        //         //x.AppKeyEncryptedStorageKey  never returning this to client
+        //     }).ToList();
+        // }
+
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
         {
             if (appReg == null)
             {
                 return null;
             }
-            
+
+            var ownedDrives = appReg.OwnedDrives.Select(x => new
+            {
+                x.Permissions,
+                x.DriveId,
+                PublicIdentifier = x.DriveIdentifier
+                //x.AppKeyEncryptedStorageKey  never returning this to client
+            });
+
+            var additionalDrives = appReg.AdditionalDriveGrants.Select(x => new
+            {
+                x.Permissions,
+                x.DriveId,
+                PublicIdentifier = x.DriveIdentifier
+                //x.AppKeyEncryptedStorageKey  never returning this to client
+            });
+
             //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
                 Name = appReg.Name,
-                DriveId = appReg.DriveId,
+                DefaultDriveId = appReg.DefaultDriveId,
                 IsRevoked = appReg.IsRevoked
             };
         }

@@ -10,5 +10,7 @@ namespace Youverse.Hosting.Tests.AppAPI
         public Guid AppId { get; set; }
         public DotYouAuthenticationResult AuthResult { get; set; }
         public byte[] AppSharedSecretKey { get; set; }
+        
+        public Guid DefaultDrivePublicId { get; set; }
     }
 }

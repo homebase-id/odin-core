@@ -4,8 +4,13 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
+    /// <summary>
+    /// Specifies a drive
+    /// </summary>
     public class AppDriveGrant
     {
+        public Guid DriveIdentifier { get; set; }
+
         public Guid DriveId { get; set; }
         
         public SymmetricKeyEncryptedAes AppKeyEncryptedStorageKey { get; set; }
@@ -14,6 +19,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// The type of access allowed for this drive grant
         /// </summary>
         public DrivePermissions Permissions { get; set; }
-        
     }
+    
 }

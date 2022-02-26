@@ -52,11 +52,13 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
-
+            
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
+            
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
-            
+
+
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
