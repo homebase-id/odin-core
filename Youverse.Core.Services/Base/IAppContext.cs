@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authorization.Apps;
 
 namespace Youverse.Core.Services.Base
 {
@@ -19,14 +21,15 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         bool CanManageConnections { get; }
 
+        List<AppDriveGrant> OwnedDrives { get; init; }
+
         /// <summary>
         /// Returns the shared secret between the client app and
         /// the server.  Do not use for permanent storage.  
         /// </summary>
         /// <value></value>
         SensitiveByteArray ClientSharedSecret { get; }
-        
+
         SensitiveByteArray GetAppKey();
-        
     }
 }

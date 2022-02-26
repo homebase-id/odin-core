@@ -85,10 +85,10 @@ namespace Youverse.Core.Services.Contacts.Circle
             var profileApp = await _appReg.GetAppRegistration(profileAppId);
 
             Guard.Argument(profileApp, nameof(profileApp)).NotNull("Invalid App");
-            Guard.Argument(profileApp.DriveId, nameof(profileApp.DriveId)).Require(x => x.HasValue);
+            Guard.Argument(profileApp.DefaultDriveId, nameof(profileApp.DefaultDriveId)).Require(x => x.HasValue);
 
             //TODO: add all drives based on what what access was granted to the recipient
-            var drives = new List<Guid> {profileApp.DriveId.GetValueOrDefault()};
+            var drives = new List<Guid> {profileApp.DefaultDriveId.GetValueOrDefault()};
             var (token, remoteToken) = await _xTokenService.CreateXToken(remoteRsaKey, drives);
 
             var request = new ConnectionRequest

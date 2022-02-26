@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var savedApp = await GetSampleApp(applicationId);
                 Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
                 Assert.IsTrue(savedApp.Name == request.Name);
-                Assert.IsTrue(savedApp.DriveId == null);
+                Assert.IsTrue(savedApp.DefaultDriveId == null);
 
                 return appReg;
             }

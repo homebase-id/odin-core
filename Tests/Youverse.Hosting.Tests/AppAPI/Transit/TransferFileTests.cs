@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveId = null,
+                    PublicDriveIdentifier = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },

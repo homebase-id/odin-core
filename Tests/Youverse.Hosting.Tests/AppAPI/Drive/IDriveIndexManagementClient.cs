@@ -9,10 +9,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         
         private const string RootPath = "/api/owner/v1/drive/index";
         
-        [Post(RootPath + "/rebuildall")]
+        [Post(RootPath + "/rebuildallindices")]
         Task<ApiResponse<bool>> RebuildAll();
 
-        [Post(RootPath + "/rebuild")]
+        [Post(RootPath + "/rebuildindex")]
         Task<ApiResponse<bool>> Rebuild(Guid driveId);
     }
 }

@@ -28,11 +28,14 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
-                var appReg = await _appRegService.RegisterApp(SystemAppConstants.ProfileAppId, profileAppName, createDrive: true, canManageConnections: false);
+                var appReg = await _appRegService.RegisterApp(
+                    SystemAppConstants.ProfileAppId,
+                    profileAppName,
+                    SystemAppConstants.ProfileAppDefaultProfileDriveId,
+                    createDrive: true,
+                    canManageConnections: false);
 
-                Guid FinancialProfileDriveIdentifier = Guid.Parse("55223344-EEEE-DDDD-0000-111111111122");
-                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, FinancialProfileDriveIdentifier, "Financial Profile");
-
+                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, SystemAppConstants.ProfileAppFinancialProfileDriveId, "Financial Profile");
             }
         }
 
@@ -43,7 +46,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
             if (null == existingApp)
             {
-                await _appRegService.RegisterApp(SystemAppConstants.ChatAppId, chatAppName, createDrive: true, canManageConnections: true);
+                await _appRegService.RegisterApp(
+                    SystemAppConstants.ChatAppId, 
+                    chatAppName, 
+                    SystemAppConstants.ChatAppDefaultDriveId,
+                    createDrive: true,
+                    canManageConnections: true);
             }
         }
 
@@ -53,7 +61,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
             if (null == existingApp)
             {
-                await _appRegService.RegisterApp(SystemAppConstants.WebHomeAppId, webHomeAppName, true);
+                await _appRegService.RegisterApp(
+                    SystemAppConstants.WebHomeAppId, 
+                    webHomeAppName,
+                    SystemAppConstants.WebHomeDefaultDriveId,
+                    createDrive: true,
+                    canManageConnections:false);
             }
         }
     }

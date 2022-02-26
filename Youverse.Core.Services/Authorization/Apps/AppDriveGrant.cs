@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     /// </summary>
     public class AppDriveGrant
     {
-        public Guid PublicIdentifier { get; set; }
+        public Guid DriveIdentifier { get; set; }
 
         public Guid DriveId { get; set; }
         
@@ -19,7 +19,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// The type of access allowed for this drive grant
         /// </summary>
         public DrivePermissions Permissions { get; set; }
-        
     }
     
 }

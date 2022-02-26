@@ -33,8 +33,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// All drives owned by this app
         /// </summary>
         public List<AppDriveGrant> OwnedDrives { get; set; }
-        
-        
+
         /// <summary>
         /// List of additional drives to which this app has access.  The key is the DriveId.  The value is the is the Drive's storage DEK 
         /// </summary>

@@ -37,6 +37,8 @@ namespace Youverse.Hosting.Tests
     //Note: this class is wayyy to big, need to decompose :)
     public class TestScaffold
     {
+        public static readonly Guid DefaultDrivePublicId = Guid.Parse("99888555-0000-0000-0000-000000004445");
+
         private readonly string _folder;
         private readonly string _password = "EnSøienØ";
         private IHost _webserver;
@@ -353,7 +355,8 @@ namespace Youverse.Hosting.Tests
 
             return Task.CompletedTask;
         }
-
+        
+        
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, bool createDrive = false, bool canManageConnections = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
@@ -364,7 +367,8 @@ namespace Youverse.Hosting.Tests
                     Name = $"Test_{appId}",
                     ApplicationId = appId,
                     CreateDrive = createDrive,
-                    CanManageConnections = canManageConnections
+                    CanManageConnections = canManageConnections,
+                    DefaultDrivePublicId = TestScaffold.DefaultDrivePublicId
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -375,8 +379,8 @@ namespace Youverse.Hosting.Tests
 
                 if (createDrive)
                 {
-                    Assert.That(appReg.DriveId.HasValue, Is.True);
-                    Assert.That(appReg.DriveId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
+                    Assert.That(appReg.DefaultDriveId.HasValue, Is.True);
+                    Assert.That(appReg.DefaultDriveId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
                 }
 
                 var updatedAppResponse = await svc.GetRegisteredApp(appId);
@@ -473,7 +477,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveId = null,
+                    PublicDriveIdentifier = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -503,7 +507,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveId = null,
+                    PublicDriveIdentifier = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -526,7 +530,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveId = null,
+                    PublicDriveIdentifier = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },

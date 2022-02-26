@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Base
     public class DotYouContext
     {
         private PermissionContext _permissions;
-
+        
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }

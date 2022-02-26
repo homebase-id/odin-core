@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -45,12 +47,26 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
 
-            var driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+            Guid driveId;
 
             //Use the drive requested, if set
-            if (instructionSet.StorageOptions?.DriveId.HasValue ?? false)
+            var requestedDrive = instructionSet?.StorageOptions?.PublicDriveIdentifier;
+            if (requestedDrive.HasValue)
             {
-                driveId = instructionSet.StorageOptions.DriveId.Value;
+                var requestedDriveId = _contextAccessor.GetCurrent().AppContext.OwnedDrives
+                    .SingleOrDefault(x => x.DriveIdentifier == requestedDrive.Value)?
+                    .DriveId;
+
+                if (!requestedDriveId.HasValue)
+                {
+                    throw new MissingDataException("Invalid public drive identifier");
+                }
+
+                driveId = requestedDriveId.GetValueOrDefault();
+            }
+            else
+            {
+                driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
             }
 
             if (driveId == Guid.Empty)

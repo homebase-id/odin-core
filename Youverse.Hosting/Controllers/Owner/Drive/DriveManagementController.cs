@@ -10,25 +10,28 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Owner.Drive
 {
     [ApiController]
+    // [Route(OwnerApiPathConstants.DrivesV1)]
     [Route("/api/owner/v1/drive/index")]
     [AuthorizeOwnerConsole]
     public class DriveManagementController : ControllerBase
     {
         private readonly IDriveQueryService _queryService;
+        private readonly IDriveService _driveService;
 
-        public DriveManagementController(IDriveQueryService queryService)
+        public DriveManagementController(IDriveQueryService queryService, IDriveService driveService)
         {
             _queryService = queryService;
+            _driveService = driveService;
         }
-        
-        [HttpPost("rebuildall")]
+
+        [HttpPost("rebuildallindices")]
         public async Task<bool> RebuildAll()
         {
             await _queryService.RebuildAllIndices();
             return true;
         }
         
-        [HttpPost("rebuild")]
+        [HttpPost("rebuildindex")]
         public async Task<bool> Rebuild(Guid driveId)
         {
             await _queryService.RebuildBackupIndex(driveId);

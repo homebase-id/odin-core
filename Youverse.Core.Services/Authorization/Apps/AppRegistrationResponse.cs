@@ -13,6 +13,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The drive associated with this app.
         /// </summary>
-        public Guid? DriveId { get; set; }
+        public Guid? DefaultDriveId { get; set; }
     }
 }
