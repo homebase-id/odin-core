@@ -67,11 +67,11 @@ namespace Youverse.Core.Services.Transit
 
             //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
-            await _driveService.StoreLongTerm(package.File, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
-
+            await _driveService.StoreLongTerm(package.InternalFile, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+            
             var tx = new UploadResult()
             {
-                File = package.File
+                File = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(package.InternalFile)
             };
 
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
@@ -83,7 +83,7 @@ namespace Youverse.Core.Services.Transit
             return tx;
         }
 
-        public async Task AcceptTransfer(DriveFileId file, uint publicKeyCrc)
+        public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
         {
             _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
 
@@ -104,8 +104,8 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
         {
-            var metadataStream = await _driveService.GetTempStream(package.File, MultipartUploadParts.Metadata.ToString());
-            
+            var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+
             var clientSharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
@@ -120,7 +120,7 @@ namespace Youverse.Core.Services.Transit
             var sharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
             var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
-            var metadata = new FileMetadata(package.File)
+            var metadata = new FileMetadata(package.InternalFile)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
 
@@ -133,7 +133,7 @@ namespace Youverse.Core.Services.Transit
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                     PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
                 },
-                
+
                 SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
                 AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.Transit
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? new List<string>();
             await _outboxService.Add(recipients.Select(r => new OutboxItem()
             {
-                File = package.File,
+                File = package.InternalFile,
                 Recipient = (DotYouIdentity) r,
                 AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
                 AppClientId = this._contextAccessor.GetCurrent().AppContext.AppClientId
@@ -166,8 +166,8 @@ namespace Youverse.Core.Services.Transit
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.File);
-            var storageKey = this._contextAccessor.GetCurrent().Permissions.GetDriveStorageKey(package.File.DriveId);
+            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.InternalFile);
+            var storageKey = this._contextAccessor.GetCurrent().Permissions.GetDriveStorageKey(package.InternalFile.DriveId);
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 
@@ -191,7 +191,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         Recipient = recipient,
                         Header = header,
-                        File = package.File
+                        File = package.InternalFile
                     };
 
                     _systemStorage.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
@@ -228,7 +228,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
-                FileId = package.File.FileId,
+                FileId = package.InternalFile.FileId,
                 AppId = _contextAccessor.GetCurrent().AppContext.AppId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -295,9 +295,9 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var metadata = await _driveService.GetMetadata(file);
-                
+
                 //redact information
-                metadata.File = DriveFileId.Redacted();
+                metadata.File = InternalDriveFileId.Redacted();
                 metadata.SenderDotYouId = string.Empty;
                 metadata.AccessControlList = null;
 
@@ -306,18 +306,18 @@ namespace Youverse.Core.Services.Transit
                 //if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
-                    File = DriveFileId.Redacted(),
+                    File = InternalDriveFileId.Redacted(),
                     Created = metadata.Created,
                     Updated = metadata.Updated,
                     AppData = metadata.AppData,
                     ContentType = metadata.ContentType,
                 };
-                
+
                 var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                
+
                 var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
@@ -370,7 +370,7 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<RsaEncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, DriveFileId file)
+        private async Task<RsaEncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, InternalDriveFileId file)
         {
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
             return item?.Header;

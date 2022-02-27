@@ -50,23 +50,14 @@ namespace Youverse.Core.Services.Transit.Upload
             Guid driveId;
 
             //Use the drive requested, if set
-            var requestedDrive = instructionSet?.StorageOptions?.DriveIdentifier;
-            if (requestedDrive.HasValue)
+            Guid? requestedDriveIdentifier = instructionSet?.StorageOptions?.DriveIdentifier;
+            if (requestedDriveIdentifier.HasValue)
             {
-                var requestedDriveId = _contextAccessor.GetCurrent().AppContext.OwnedDrives
-                    .SingleOrDefault(x => x.DriveIdentifier == requestedDrive.Value)?
-                    .DriveId;
-
-                if (!requestedDriveId.HasValue)
-                {
-                    throw new MissingDataException("Invalid public drive identifier");
-                }
-
-                driveId = requestedDriveId.GetValueOrDefault();
+                driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(requestedDriveIdentifier.Value);
             }
             else
             {
-                driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+                driveId = _contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault();
             }
 
             if (driveId == Guid.Empty)
@@ -74,11 +65,12 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Missing or invalid driveId");
             }
 
-            DriveFileId file;
+            InternalDriveFileId file;
+
             if (instructionSet.StorageOptions?.OverwriteFileId.HasValue ?? false)
             {
                 //file to overwrite
-                file = new DriveFileId()
+                file = new InternalDriveFileId()
                 {
                     DriveId = driveId,
                     FileId = instructionSet.StorageOptions.OverwriteFileId.GetValueOrDefault()
@@ -91,6 +83,7 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             var pkgId = Guid.NewGuid();
+            var driveIdentifier = _contextAccessor.GetCurrent().AppContext.GetDriveIdentifier(driveId);
             var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
 
@@ -104,7 +97,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid package Id");
             }
 
-            await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Metadata.ToString(), data);
+            await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
         }
 
         public async Task AddPayload(Guid packageId, Stream data)
@@ -114,7 +107,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid package Id");
             }
 
-            await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Payload.ToString(), data);
+            await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         }
 
         public async Task<UploadPackage> GetPackage(Guid packageId)

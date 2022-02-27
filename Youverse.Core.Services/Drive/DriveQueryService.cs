@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drive
                 var dsr = FromIndexedItem(item);
                 if (includePayload)
                 {
-                    var file = new DriveFileId()
+                    var file = new InternalDriveFileId()
                     {
                         DriveId = driveId,
                         FileId = dsr.FileId

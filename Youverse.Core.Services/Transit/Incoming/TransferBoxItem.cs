@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// </summary>
         public uint PublicKeyCrc { get; set; }
         
-        public DriveFileId TempFile { get; set; }
+        public InternalDriveFileId TempFile { get; set; }
         
         public UInt64 AddedTimestamp { get; set; }
         

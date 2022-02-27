@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Transit.Upload
 {
     public class RecipientTransferKeyHeaderItem
     {
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
         public DotYouIdentity Recipient { get; set; }
         public RsaEncryptedRecipientTransferKeyHeader Header { get; set; }
     }

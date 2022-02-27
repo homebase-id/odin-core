@@ -104,7 +104,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             return await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
         }
 
-        public async Task Remove(DotYouIdentity recipient, DriveFileId file)
+        public async Task Remove(DotYouIdentity recipient, InternalDriveFileId file)
         {
             //TODO: need to make a better queue here
             Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.File == file;

@@ -17,15 +17,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         private const string RootEndpoint = AppApiPathConstants.DrivesV1;
         
         [Get(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId);
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid driveIdentifier, Guid fileId);
 
         [Get(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(Guid fileId);
+        Task<ApiResponse<HttpContent>> GetPayload(Guid driveIdentifier, Guid fileId);
         
         [Get(RootEndpoint + "/temp/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetTempFileHeader(Guid fileId);
+        Task<ApiResponse<ClientFileHeader>> GetTempFileHeader(Guid driveIdentifier, Guid fileId);
 
         [Get(RootEndpoint + "/temp/files/payload")]
-        Task<ApiResponse<HttpContent>> GetTempPayload(Guid fileId);
+        Task<ApiResponse<HttpContent>> GetTempPayload(Guid driveIdentifier, Guid fileId);
     }
 }

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 
@@ -15,13 +16,16 @@ namespace Youverse.Core.Services.Transit.Incoming
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator)
+
+        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor)
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
+            _contextAccessor = contextAccessor;
         }
-        
+
         public Task Add(TransferBoxItem item)
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
@@ -32,7 +36,7 @@ namespace Youverse.Core.Services.Transit.Incoming
                 InboxItemId = item.Id,
                 Sender = item.Sender,
                 AppId = item.AppId,
-                TempFile = item.TempFile
+                TempFile = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(item.TempFile)
             });
 
             return Task.CompletedTask;
@@ -42,7 +46,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         {
             return await _systemStorage.WithTenantSystemStorageReturnList<TransferBoxItem>(GetAppCollectionName(appId), s => s.GetList(pageOptions));
         }
-        
+
         public async Task<TransferBoxItem> GetItem(Guid appId, Guid id)
         {
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<TransferBoxItem>(GetAppCollectionName(appId), s => s.Get(id));

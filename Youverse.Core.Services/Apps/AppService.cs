@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Apps
             _systemStorage = systemStorage;
         }
 
-        public async Task<ClientFileHeader> GetClientEncryptedFileHeader(DriveFileId file)
+        public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var ekh = await _driveService.GetEncryptedKeyHeader(file);
             var storageKey = _contextAccessor.GetCurrent().Permissions.GetDriveStorageKey(file.DriveId);

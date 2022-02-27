@@ -14,8 +14,8 @@ namespace Youverse.Core.Services.Base
         private readonly SymmetricKeyEncryptedXor _hostHalfAppKey;
         private SensitiveByteArray _clientHalfAppKey; //TODO: can we make this readonly?
 
-        public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? driveId, SymmetricKeyEncryptedXor hostHalfAppKey, SensitiveByteArray clientHalfAppKey, List<AppDriveGrant> ownedDrives, bool canManageConnections)
-            : base(appId, appClientId, clientSharedSecret, driveId, ownedDrives, canManageConnections, null)
+        public AppContext(Guid appId, Guid appClientId, SensitiveByteArray clientSharedSecret, Guid? defaultDriveId, SymmetricKeyEncryptedXor hostHalfAppKey, SensitiveByteArray clientHalfAppKey, List<AppDriveGrant> ownedDrives, bool canManageConnections)
+            : base(appId, appClientId, clientSharedSecret, defaultDriveId, ownedDrives, canManageConnections, null)
         {
             this.ClientSharedSecret = clientSharedSecret;
             this._hostHalfAppKey = hostHalfAppKey;

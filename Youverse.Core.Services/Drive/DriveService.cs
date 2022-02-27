@@ -106,11 +106,11 @@ namespace Youverse.Core.Services.Drive
             return converted;
         }
 
-        public DriveFileId CreateFileId(Guid driveId)
+        public InternalDriveFileId CreateFileId(Guid driveId)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(driveId);
 
-            var df = new DriveFileId()
+            var df = new InternalDriveFileId()
             {
                 FileId = GetLongTermStorageManager(driveId).CreateFileId(),
                 DriveId = driveId,
@@ -119,7 +119,7 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public async Task WriteMetaData(DriveFileId file, FileMetadata metadata)
+        public async Task WriteMetaData(InternalDriveFileId file, FileMetadata metadata)
         {
             Guard.Argument(metadata, nameof(metadata)).NotNull();
             Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
@@ -147,7 +147,7 @@ namespace Youverse.Core.Services.Drive
             OnLongTermFileChanged(file, metadata);
         }
 
-        public async Task WritePayload(DriveFileId file, Stream stream)
+        public async Task WritePayload(InternalDriveFileId file, Stream stream)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
@@ -162,7 +162,7 @@ namespace Youverse.Core.Services.Drive
             await this.WriteMetaData(file, metadata);
         }
 
-        public Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream)
+        public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
@@ -170,7 +170,7 @@ namespace Youverse.Core.Services.Drive
             return task;
         }
 
-        public async Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
+        public async Task<T> GetDeserializedStream<T>(InternalDriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
 
@@ -185,28 +185,28 @@ namespace Youverse.Core.Services.Drive
             return o;
         }
 
-        public Task WriteTempStream(DriveFileId file, string extension, Stream stream)
+        public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
-        public Task<Stream> GetTempStream(DriveFileId file, string extension)
+        public Task<Stream> GetTempStream(InternalDriveFileId file, string extension)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
         }
 
-        public Task DeleteTempFile(DriveFileId file, string extension)
+        public Task DeleteTempFile(InternalDriveFileId file, string extension)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
         }
 
-        public Task DeleteTempFiles(DriveFileId file)
+        public Task DeleteTempFiles(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
@@ -220,7 +220,7 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
         }
 
-        public async Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader)
+        public async Task<EncryptedKeyHeader> WriteKeyHeader(InternalDriveFileId file, KeyHeader keyHeader)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
@@ -241,13 +241,13 @@ namespace Youverse.Core.Services.Drive
             return encryptedKeyHeader;
         }
 
-        public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file)
+        public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId);
         }
 
-        public async Task<FileMetadata> GetMetadata(DriveFileId file)
+        public async Task<FileMetadata> GetMetadata(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
 
@@ -268,7 +268,7 @@ namespace Youverse.Core.Services.Drive
         // {
         // }
 
-        public async Task<Stream> GetPayloadStream(DriveFileId file)
+        public async Task<Stream> GetPayloadStream(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
 
@@ -276,7 +276,7 @@ namespace Youverse.Core.Services.Drive
             return stream;
         }
 
-        public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(DriveFileId file)
+        public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(InternalDriveFileId file)
         {
             var size = await this.GetPayloadSize(file);
             if (size > MaxPayloadMemorySize)
@@ -290,32 +290,32 @@ namespace Youverse.Core.Services.Drive
             return (false, size, bytes);
         }
 
-        public Task<long> GetPayloadSize(DriveFileId file)
+        public Task<long> GetPayloadSize(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
 
             return GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
         }
 
-        public void AssertFileIsValid(DriveFileId file)
+        public void AssertFileIsValid(InternalDriveFileId file)
         {
             GetLongTermStorageManager(file.DriveId).AssertFileIsValid(file.FileId);
         }
 
-        public bool FileExists(DriveFileId file)
+        public bool FileExists(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanReadDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
-        public Task DeleteLongTermFile(DriveFileId file)
+        public Task DeleteLongTermFile(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
             return GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
         }
 
-        public async Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
+        public async Task StoreLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
@@ -332,14 +332,14 @@ namespace Youverse.Core.Services.Drive
             OnLongTermFileChanged(file, metadata);
         }
 
-        public Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader)
+        public Task WriteEncryptedKeyHeader(InternalDriveFileId file, EncryptedKeyHeader encryptedKeyHeader)
         {
             _contextAccessor.GetCurrent().Permissions.AssertCanWriteToDrive(file.DriveId);
 
             return GetLongTermStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
         }
 
-        private void OnLongTermFileChanged(DriveFileId file, FileMetadata metadata)
+        private void OnLongTermFileChanged(InternalDriveFileId file, FileMetadata metadata)
         {
             var notification = new DriveFileChangedNotification()
             {

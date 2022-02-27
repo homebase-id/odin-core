@@ -43,7 +43,6 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveIdentifier, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            // var driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
             var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
             var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);

@@ -628,7 +628,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {
@@ -731,7 +731,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {

@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             Guid id = Guid.NewGuid();
 
-            var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault());
+            var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault());
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());

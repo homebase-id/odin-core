@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Middleware
                     appId: appId,
                     appClientId: authResult.SessionToken,
                     clientSharedSecret: clientSharedSecret,
-                    driveId: ctxBase.DriveId.GetValueOrDefault(),
+                    defaultDriveId: ctxBase.DefaultDriveId.GetValueOrDefault(),
                     masterKeyEncryptedAppKey: ctxBase.MasterKeyEncryptedAppKey,
                     ownedDrives: ctxBase.OwnedDrives,
                     canManageConnections: true,

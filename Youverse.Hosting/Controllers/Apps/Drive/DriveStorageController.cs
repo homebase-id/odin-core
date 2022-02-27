@@ -35,11 +35,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata(Guid fileId)
+        public async Task<IActionResult> GetMetadata(Guid driveIdentifier, Guid fileId)
         {
-            var file = new DriveFileId()
+            var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -47,11 +47,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayload(Guid fileId)
+        public async Task<IActionResult> GetPayload(Guid driveIdentifier, Guid fileId)
         {
-            var file = new DriveFileId()
+            var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
                 FileId = fileId
             };
 

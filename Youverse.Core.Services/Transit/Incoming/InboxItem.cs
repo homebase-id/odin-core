@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public Guid Id { get; set; }
 
-        public DriveFileId File { get; set; }
+        public ExternalFileIdentifier File { get; set; }
         
         public UInt64 AddedTimestamp { get; set; }
         

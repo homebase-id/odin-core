@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Drive.Storage
     {
         public FileMetadata()
         {
-            this.File = new DriveFileId()
+            this.File = new InternalDriveFileId()
             {
                 DriveId = Guid.Empty,
                 FileId = Guid.Empty
@@ -20,13 +20,13 @@ namespace Youverse.Core.Services.Drive.Storage
             this.AppData = new AppFileMetaData();
         }
 
-        public FileMetadata(DriveFileId file)
+        public FileMetadata(InternalDriveFileId file)
         {
             this.File = file;
             this.AppData = new AppFileMetaData();
         }
 
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
         public UInt64 Created { get; set; }
         public UInt64 Updated { get; set; }
         public string ContentType { get; set; }

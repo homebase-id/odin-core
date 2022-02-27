@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Mediator
 {
     public class DriveFileChangedNotification : EventArgs, INotification
     {
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
 
         public FileMetadata FileMetadata { get; set; }
     }

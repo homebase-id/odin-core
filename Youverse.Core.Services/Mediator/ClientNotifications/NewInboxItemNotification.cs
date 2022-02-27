@@ -5,7 +5,7 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Mediator.ClientNotifications
 {
-    public class NewInboxItemNotification : INotification, IOwnerConsoleNotification
+    public class NewInboxItemNotification : IOwnerConsoleNotification
     {
         public string Key => "NewInboxItem";
 
@@ -15,6 +15,6 @@ namespace Youverse.Core.Services.Mediator.ClientNotifications
 
         public DotYouIdentity Sender { get; set; }
 
-        public DriveFileId TempFile { get; set; }
+        public ExternalFileIdentifier TempFile { get; set; }
     }
 }

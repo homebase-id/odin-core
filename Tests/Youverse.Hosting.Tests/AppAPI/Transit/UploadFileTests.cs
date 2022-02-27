@@ -83,23 +83,26 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
-                var transferResult = response.Content;
+                var uploadResult = response.Content;
 
-                Assert.That(transferResult.File, Is.Not.Null);
-                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(uploadResult.File, Is.Not.Null);
+                Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(uploadResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
 
-                Assert.That(transferResult.RecipientStatus, Is.Not.Null);
-                Assert.IsTrue(transferResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
+                Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
 
                 //
 
-                var fileId = transferResult.File.FileId;
+                ////
+                var driveIdentifier = uploadResult.File.DriveIdentifier;
+
+                var fileId = uploadResult.File.FileId;
 
                 //retrieve the file that was uploaded; decrypt; 
                 var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
 
-                var fileResponse = await driveSvc.GetFileHeader(fileId);
+                var fileResponse = await driveSvc.GetFileHeader(uploadResult.File.DriveIdentifier, fileId);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -127,7 +130,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(fileId);
+                var payloadResponse = await driveSvc.GetPayload(driveIdentifier, fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

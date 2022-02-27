@@ -139,7 +139,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appId: appReg.ApplicationId,
                 appClientId: appClient.Id,
                 clientSharedSecret: new SensitiveByteArray(appClient.SharedSecretKey),
-                driveId: appReg.DefaultDriveId,
+                defaultDriveId: appReg.DefaultDriveId,
                 hostHalfAppKey: appClient.ServerHalfAppKey,
                 clientHalfAppKey: clientHalfKek,
                 ownedDrives: appReg.OwnedDrives,
@@ -160,7 +160,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appId: appId,
                 appClientId: Guid.Empty,
                 clientSharedSecret: null,
-                driveId: appReg.DefaultDriveId.GetValueOrDefault(),
+                defaultDriveId: appReg.DefaultDriveId.GetValueOrDefault(),
                 ownedDrives: appReg.OwnedDrives,
                 canManageConnections: appReg.CanManageConnections,
                 masterKeyEncryptedAppKey: includeMasterKey ? appReg.MasterKeyEncryptedAppKey : null);

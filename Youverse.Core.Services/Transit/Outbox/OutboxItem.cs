@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             this.Id = Guid.NewGuid();
             this.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             this.Attempts = new List<TransferAttempt>();
-            this.File = new DriveFileId();
+            this.File = new InternalDriveFileId();
         }
 
         public Guid Id { get; set; }
@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         
         public DotYouIdentity Recipient { get; set; }
         
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
         
         /// <summary>
         /// Specifies how this item should be prioritized by the Outbox Sending

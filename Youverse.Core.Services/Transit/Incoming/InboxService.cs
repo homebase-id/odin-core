@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Transit.Incoming
             return await _systemStorage.WithTenantSystemStorageReturnList<InboxItem>(GetAppCollectionName(), s => s.GetList(pageOptions));
         }
 
-        public async Task Remove(DotYouIdentity recipient, DriveFileId file)
+        public async Task Remove(DotYouIdentity recipient, InternalDriveFileId file)
         {
             //TODO: need to make a better queue here
             Expression<Func<TransferBoxItem, bool>> predicate = item => item.Sender == recipient && item.TempFile == file;

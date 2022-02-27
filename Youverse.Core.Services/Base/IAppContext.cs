@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
 {
@@ -14,7 +15,7 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Specifies the drive associated with this app
         /// </summary>
-        Guid? DriveId { get; }
+        Guid? DefaultDriveId { get; }
 
         /// <summary>
         /// Indicates this app can manage connections and requests.
@@ -29,7 +30,21 @@ namespace Youverse.Core.Services.Base
         /// <param name="driveIdentifier"></param>
         /// <returns></returns>
         Guid GetDriveId(Guid driveIdentifier);
-        
+
+        /// <summary>
+        /// Returns the public drive identifier for the given DriveId
+        /// </summary>
+        /// <param name="driveId"></param>
+        /// <returns></returns>
+        Guid GetDriveIdentifier(Guid driveId);
+
+        /// <summary>
+        /// Maps an internal file to an external file identifier
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        ExternalFileIdentifier GetExternalFileIdentifier(InternalDriveFileId file);
+
         /// <summary>
         /// Returns the shared secret between the client app and
         /// the server.  Do not use for permanent storage.  

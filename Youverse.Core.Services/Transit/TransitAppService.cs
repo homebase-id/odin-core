@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit
             _inboxService = inboxService;
         }
 
-        public async Task StoreLongTerm(DriveFileId file)
+        public async Task StoreLongTerm(InternalDriveFileId file)
         {
             var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
@@ -70,12 +70,13 @@ namespace Youverse.Core.Services.Transit
             foreach (var item in items.Results)
             {
                 await StoreLongTerm(item.TempFile);
+                var externalFileIdentifier = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(item.TempFile);
                 await _inboxService.Add(new InboxItem()
                 {
                     Sender = item.Sender,
                     AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                     AppId = item.AppId,
-                    File = item.TempFile,
+                    File = externalFileIdentifier,
                     Priority = 0 //TODO
                 });
                 await _transitBoxService.Remove(item.AppId, item.Id);
