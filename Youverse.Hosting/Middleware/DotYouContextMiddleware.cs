@@ -19,6 +19,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
@@ -109,9 +110,7 @@ namespace Youverse.Hosting.Middleware
             else
             {
                 Guard.Argument(appIdValue, DotYouHeaderNames.AppId).Require(Guid.TryParse(appIdValue, out var appId), v => "If appId specified, it must be a valid Guid");
-                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-
-                var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+                var ctxBase = await this.EnsureSystemAppsOrFail(appId, httpContext);
 
                 var appCtx = new OwnerAppContext(
                     appId: appId,
@@ -135,6 +134,29 @@ namespace Youverse.Hosting.Middleware
                 var driveGrants = MapAppDriveGrants(appCtx.OwnedDrives);
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, dotYouContext.AppContext.GetAppKey()));
             }
+        }
+
+        private async Task<AppContextBase> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
+        {
+            //HACK: this method should be removed when correct provisioning is in place
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+
+            if (null == ctxBase)
+            {
+                if (appId == SystemAppConstants.ChatAppId || appId == SystemAppConstants.ProfileAppId || appId == SystemAppConstants.WebHomeAppId)
+                {
+                    var provService = httpContext.RequestServices.GetRequiredService<IIdentityProvisioner>();
+                    await provService.EnsureSystemApps();
+                    ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+                }
+                else
+                {
+                    throw new YouverseSecurityException("App is invalid");
+                }
+            }
+
+            return ctxBase;
         }
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)

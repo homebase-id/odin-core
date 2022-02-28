@@ -83,7 +83,7 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             var pkgId = Guid.NewGuid();
-            var driveIdentifier = _contextAccessor.GetCurrent().AppContext.GetDriveIdentifier(driveId);
+
             var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
 

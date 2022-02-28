@@ -229,6 +229,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         private IndexedItem ConvertMetadata(FileMetadata metadata)
         {
+            //Note: drive is not indexed since this index sits with-in the drive's structure
             return new IndexedItem()
             {
                 FileId = metadata.File.FileId,

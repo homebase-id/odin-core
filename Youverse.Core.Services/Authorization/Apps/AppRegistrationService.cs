@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
@@ -82,8 +83,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(appId, nameof(appId)).NotEqual(Guid.Empty);
             Guard.Argument(publicDriveIdentifier, nameof(publicDriveIdentifier)).NotEqual(Guid.Empty);
             Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
-
+            
             var app = await this.GetAppRegistrationInternal(appId);
+
             if (null == app)
             {
                 throw new MissingDataException("App not found");
@@ -151,7 +153,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
 
-            if (appReg == null || appReg.IsRevoked)
+            if (appReg == null)
+            {
+                return null;
+            }
+            
+            if (appReg.IsRevoked)
             {
                 throw new YouverseSecurityException("App is not registered or revoked");
             }

@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppDefaultProfileDriveId,
+                    SystemAppConstants.ProfileAppStandardProfileDriveId,
                     createDrive: true,
                     canManageConnections: false);
 
