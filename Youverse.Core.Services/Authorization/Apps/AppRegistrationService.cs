@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid defaultDrivePublicId, bool createDrive = false, bool canManageConnections = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveIdentifier, bool createDrive = false, bool canManageConnections = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
@@ -46,8 +46,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             AppDriveGrant defaultDriveGrant = null;
             if (createDrive)
             {
-                Guard.Argument(defaultDrivePublicId, nameof(defaultDrivePublicId)).NotEqual(Guid.Empty);
-                defaultDriveGrant = await this.CreateOwnedDriveInternal(defaultDrivePublicId, $"{name}-default drive", masterKeyEncryptedAppKey);
+                Guard.Argument(driveIdentifier, nameof(driveIdentifier)).NotEqual(Guid.Empty);
+                defaultDriveGrant = await this.CreateOwnedDriveInternal(driveIdentifier, $"{name}-default drive", masterKeyEncryptedAppKey);
             }
 
             const int maxKeys = 4; //leave this size 
@@ -98,9 +98,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(app));
         }
 
-        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid publicDriveIdentifier, string driveName, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
+        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid driveIdentifier, string driveName, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
         {
-            Guard.Argument(publicDriveIdentifier, nameof(publicDriveIdentifier)).NotEqual(Guid.Empty);
+            Guard.Argument(driveIdentifier, nameof(driveIdentifier)).NotEqual(Guid.Empty);
             Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
 
             var drive = await _driveService.CreateDrive(driveName);
@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             return new AppDriveGrant()
             {
-                DriveIdentifier = publicDriveIdentifier,
+                DriveIdentifier = driveIdentifier,
                 DriveId = drive.Id,
                 AppKeyEncryptedStorageKey = appEncryptedStorageKey,
                 Permissions = DrivePermissions.All

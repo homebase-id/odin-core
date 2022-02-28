@@ -31,11 +31,11 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppStandardProfileDriveId,
+                    SystemAppConstants.ProfileAppStandardProfileDriveIdentifier,
                     createDrive: true,
                     canManageConnections: false);
 
-                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, SystemAppConstants.ProfileAppFinancialProfileDriveId, "Financial Profile");
+                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, SystemAppConstants.ProfileAppFinancialProfileDriveIdentifier, "Financial Profile");
             }
         }
 
@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 await _appRegService.RegisterApp(
                     SystemAppConstants.ChatAppId, 
                     chatAppName, 
-                    SystemAppConstants.ChatAppDefaultDriveId,
+                    SystemAppConstants.ChatAppDefaultDriveIdentifier,
                     createDrive: true,
                     canManageConnections: true);
             }
@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 await _appRegService.RegisterApp(
                     SystemAppConstants.WebHomeAppId, 
                     webHomeAppName,
-                    SystemAppConstants.WebHomeDefaultDriveId,
+                    SystemAppConstants.WebHomeDefaultDriveIdentifier,
                     createDrive: true,
                     canManageConnections:false);
             }

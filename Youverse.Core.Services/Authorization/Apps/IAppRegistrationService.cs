@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         //Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false);
         
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid defaultDrivePublicId, bool createDrive = false, bool canManageConnections = false);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveIdentifier, bool createDrive = false, bool canManageConnections = false);
         
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
