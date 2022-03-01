@@ -91,7 +91,7 @@ namespace Youverse.Hosting.Middleware
             var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
             dotYouContext.Caller = new CallerContext(
-                authContext: "Owner",
+                authContext: OwnerAuthConstants.SchemeName,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: true,
                 masterKey: masterKey
@@ -168,7 +168,7 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(
-                authContext: "App",
+                authContext: AppAuthConstants.SchemeName,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
@@ -191,20 +191,20 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager)
         {
-            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-
-            var value = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
-            var authResult = DotYouAuthenticationResult.Parse(value);
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(
-                authContext: "YouAuth",
+                authContext: YouAuthConstants.Scheme,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
-            //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
+            var value = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+
+            var authResult = DotYouAuthenticationResult.Parse(value);
+            
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
             dotYouContext.AppContext = appCtx;
 
@@ -229,7 +229,7 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(
-                authContext: "Transit",
+                authContext: TransitPerimeterAuthConstants.TransitAuthScheme,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key

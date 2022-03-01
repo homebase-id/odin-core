@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId);
+                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt

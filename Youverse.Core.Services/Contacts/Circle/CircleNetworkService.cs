@@ -155,21 +155,26 @@ namespace Youverse.Core.Services.Contacts.Circle
             return results;
         }
 
-        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId)
+        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, bool overrideHack = false)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            //HACK: DOING THIS WHILE DESIGNING XTOKEN - REMOVE THIS
+            if(!overrideHack)
+            {
+                _contextAccessor.GetCurrent().AssertCanManageConnections();
+            }
+            
             return await GetConnectionInfoInternal(dotYouId);
         }
 
         public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey)
         {
             var connection = await GetConnectionInfoInternal(dotYouId);
-            
+
             if (connection?.XToken == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
-            
+
             connection.XToken.AssertValidHalfKey(xTokenHalfKey);
 
             return connection;

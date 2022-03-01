@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -9,11 +8,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Exchange;
 
 namespace Youverse.Hosting.Authentication.YouAuth
 {

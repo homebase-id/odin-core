@@ -6,10 +6,12 @@
 
         public const string AuthV1 = BasePathV1 + "/auth";
 
-        public const string ValidateAuthorizationCodeRequestMethodName= "validate-ac-req";
+        public const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
         public const string ValidateAuthorizationCodeRequestPath = AuthV1 + "/" + ValidateAuthorizationCodeRequestMethodName;
-        
-        public const string IsAuthenticatedMethodName =  "is-authenticated";
+
+        public const string IsAuthenticatedMethodName = "is-authenticated";
         public const string DeleteTokenMethodName = "delete-token";
+
+        public const string DrivesV1 = BasePathV1 + "/drive";
     }
 }

@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Authentication.YouAuth;
 using Youverse.Hosting.Controllers.Owner;
 using Youverse.Hosting.Controllers.YouAuth;
 
 
-namespace Youverse.Hosting.Controllers.Apps.Drive
+namespace Youverse.Hosting.Controllers.YouAuth.Drive
 {
     [ApiController]
-    [Route(AppApiPathConstants.DrivesV1)]
-    [Route(OwnerApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
-    [AuthorizeOwnerConsoleOrApp]
+    [Route(YouAuthApiPathConstants.DrivesV1 + "/query")]
+    [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
     public class DriveStorageController : ControllerBase
     {
         private readonly IAppService _appService;

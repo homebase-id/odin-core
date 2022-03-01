@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId);
+        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, bool overrideHack = false);
 
         /// <summary>
         /// Gets the connection info if the specified <param name="xTokenHalfKey">xtoken half key</param> is valid
@@ -113,6 +113,5 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task DeleteConnection(DotYouIdentity dotYouId);
-
     }
 }
