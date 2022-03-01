@@ -237,7 +237,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             await this.StoreConnection(dotYouId, name, xtoken, remoteGrantKey, remoteSharedSecret);
 
         }
-
+        
         private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
