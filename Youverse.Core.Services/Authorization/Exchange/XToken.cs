@@ -11,11 +11,11 @@ namespace Youverse.Core.Services.Authorization.Exchange
         
         public UInt64 Created { get; set; }
 
-        public SymmetricKeyEncryptedXor DriveKeyHalfKey { get; set; }
+        public SymmetricKeyEncryptedXor HalfKeyEncryptedDriveGrantKey { get; set; }
 
-        public SymmetricKeyEncryptedAes MasterKeyEncryptedDriveKey { get; set; }
+        public SymmetricKeyEncryptedAes MasterKeyEncryptedDriveGrantKey { get; set; }
 
-        public byte[] ClientSharedSecretKey { get; set; }
+        public byte[] KeyStoreKeyEncryptedSharedSecret { get; set; }
 
         public bool IsRevoked { get; set; }
 
@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public void AssertValidHalfKey(SensitiveByteArray halfKey)
         {
-            var _ = DriveKeyHalfKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
+            var _ = HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
         }
 
     }

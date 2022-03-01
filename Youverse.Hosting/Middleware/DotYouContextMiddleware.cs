@@ -211,7 +211,7 @@ namespace Youverse.Hosting.Middleware
             var (xtoken, xTokenHalfKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
             if (xtoken is {IsRevoked: false})
             {
-                var dk = xtoken.DriveKeyHalfKey.DecryptKeyClone(ref xTokenHalfKey);
+                var dk = xtoken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref xTokenHalfKey);
 
                 var driveGrants = xtoken.DriveGrants.Select(dg => new PermissionDriveGrant()
                 {

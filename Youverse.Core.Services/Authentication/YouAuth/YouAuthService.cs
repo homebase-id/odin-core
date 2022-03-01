@@ -96,7 +96,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 {
                     //TODO: RSA Encrypt
                     //halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
-                    halfKey = info.RemoteHalf;
+                    halfKey = info.RemoteGrantKey;
                 }
             }
 

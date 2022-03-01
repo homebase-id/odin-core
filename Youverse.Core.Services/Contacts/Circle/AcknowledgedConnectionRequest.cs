@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         [Obsolete]
         public ProfilePicAttribute ProfilePic { get; set; }
 
-        public byte[] HalfKey { get; set; }
+        public string SharedSecretEncryptedCredentials { get; set; }
         
         public string RecipientGivenName { get; set; }
         

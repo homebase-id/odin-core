@@ -26,7 +26,9 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public XToken XToken { get; set; }
         
-        public byte[] RemoteHalf { get; set; }
+        public byte[] RemoteGrantKey { get; set; }
+
+        public byte[] RemoteSharedSecret { get; set; }
 
         public long LastUpdated { get; set; }
     }
