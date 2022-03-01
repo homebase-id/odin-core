@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             return $"{SenderDotYouId} ({this.Name.Personal} {this.Name.Surname})";
         }
 
-        public string RSAEncryptedXToken { get; set; }
+        public string RSAEncryptedCredentials { get; set; }
 
         public XToken PendingXToken { get; set; }
 

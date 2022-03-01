@@ -215,41 +215,26 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteHalfKey)
+        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
-            xtoken.AssertValidHalfKey(remoteHalfKey);
+            //TODO: need to add securitry that this method can be called
 
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
             var info = await this.GetConnectionInfoInternal(dotYouId);
-            this.AssertConnectionIsNoneOrValid(info);
-
-            if (info.Status == ConnectionStatus.Connected)
+            
+            if (info.Status != ConnectionStatus.None)
             {
-                return;
+                throw new YouverseSecurityException("invalid connection state");
             }
 
-            await this.StoreConnection(dotYouId, name, xtoken, remoteHalfKey);
+            await this.StoreConnection(dotYouId, name, xtoken, remoteGrantKey, remoteSharedSecret);
+
         }
 
-        //HACK: added temporarily to store the half key until I meet w/ michael and we can sort out this handshake process
-        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, byte[] halfKey)
-        {
-            var dotYouId = (DotYouIdentity) dotYouIdentity;
 
-            //1. validate current connection state
-            await AssertConnectionIsNoneOrValid(dotYouId);
-            var info = await this.GetConnectionInfo(dotYouId);
-            if (info.Status == ConnectionStatus.Connected)
-            {
-                return;
-            }
-
-            await this.StoreConnection(dotYouId, name, xtoken, halfKey.ToSensitiveByteArray());
-        }
-
-        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteHalf)
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -260,7 +245,8 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 XToken = xtoken,
-                RemoteHalf = remoteHalf.GetKey()
+                RemoteGrantKey = remoteGrantKey.GetKey(),
+                RemoteSharedSecret = remoteSharedSecret.GetKey()
             };
 
             _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));

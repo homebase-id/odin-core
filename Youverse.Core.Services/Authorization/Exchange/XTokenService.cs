@@ -34,16 +34,18 @@ namespace Youverse.Core.Services.Authorization.Exchange
         /// <param name="publicKey"></param>
         /// <param name="driveIdList">The drives which are granted access</param>
         /// <returns></returns>
-        public async Task<(XToken, string)> CreateXToken(byte[] publicKey, List<Guid> driveIdList)
+        public async Task<(XToken, SensitiveByteArray, SensitiveByteArray)> CreateXToken(List<Guid> driveIdList)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
+            var halfKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteGrantKey);
 
-            //TODO: encrypt shared secret using the ??
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
+
+            //TODO: encrypt shared secret using the keyStoreKey
+            var encryptedSharedSecret = sharedSecret;
 
             var driveKeys = new List<XTokenDriveGrant>();
 
@@ -66,41 +68,43 @@ namespace Youverse.Core.Services.Authorization.Exchange
             {
                 Id = Guid.NewGuid(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                DriveKeyHalfKey = hostHalfKey,
-                MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                ClientSharedSecretKey = sharedSecret,
+                HalfKeyEncryptedDriveGrantKey = halfKeyEncryptedDriveGrantKey,
+                MasterKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                KeyStoreKeyEncryptedSharedSecret = encryptedSharedSecret,
                 IsRevoked = false,
                 DriveGrants = driveKeys
             };
 
-            //TODO: RSA Encrypt
-            var combinedBytes = ByteArrayUtil.Combine(hostHalfKey.KeyEncrypted, remoteHalfKey.GetKey(), sharedSecret);
-            var request = Convert.ToBase64String(combinedBytes);
-
-            combinedBytes.ToSensitiveByteArray().Wipe();
+           
             keyStoreKey.Wipe();
 
-            return (xtoken, request);
+            return (xtoken, remoteGrantKey, sharedSecret.ToSensitiveByteArray());
         }
 
-        public async Task<(XToken, SensitiveByteArray)> CreateXTokenFromBits(List<Guid> driveIdlist, string rsaEncryptedXTokenBits)
+
+
+
+        public async Task<(XToken, SensitiveByteArray)> xxxCreateXTokenFromOrigin(List<Guid> driveIdlist, string rsaEncryptedCredentials)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var combinedBytes = Convert.FromBase64String(rsaEncryptedXTokenBits);
+            var combinedBytes = Convert.FromBase64String(rsaEncryptedCredentials);
 
-            var (hostHalfKey, remoteHalfKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
 
-            var keyStoreKey = XorManagement.XorDecrypt(hostHalfKey, remoteHalfKey).ToSensitiveByteArray();
+            // We intentionally swap the local and remote key.
+            // Sam creates a local and remote half. Send both to Frodo.
+            // Frodo swaps (below) the two keys, so that what's local to
+            // Sam is remote to Frodo and vice versa
+            var (remoteHalfKey, localHalfKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
 
-            //var hostHalfKeySBA = hostHalfKey.ToSensitiveByteArray();
-            var remoteHalfKeySBA = remoteHalfKey.ToSensitiveByteArray();
+            var localSBA = localHalfKey.ToSensitiveByteArray();
+            var remoteSBA = remoteHalfKey.ToSensitiveByteArray();
 
-            var newHostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, remoteHalfKeySBA, false);
+            var newHostHalfKey = new SymmetricKeyEncryptedXor(ref localSBA, remoteSBA, false, false);
 
-            var clone = newHostHalfKey.DecryptKeyClone(ref remoteHalfKeySBA);
-            Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(keyStoreKey.GetKey(), clone.GetKey()), "matching keys").Require(v => v);
-            clone.Wipe();
+            var keyStoreKey = newHostHalfKey.DecryptKeyClone(ref remoteSBA);
+            Guard.Argument(ByteArrayUtil.EquiByteArrayCompare(XorManagement.XorEncrypt(remoteHalfKey, localHalfKey), keyStoreKey.GetKey()), "Sanity check failed: incoming keys do not match").Require(v => v);
+
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var driveKeys = new List<XTokenDriveGrant>();
@@ -124,9 +128,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
             {
                 Id = Guid.NewGuid(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                DriveKeyHalfKey = newHostHalfKey,
-                MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
-                ClientSharedSecretKey = sharedSecret,
+                HalfKeyEncryptedDriveGrantKey = newHostHalfKey,
+                MasterKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                KeyStoreKeyEncryptedSharedSecret = sharedSecret,
                 IsRevoked = false,
                 DriveGrants = driveKeys
             };
@@ -134,8 +138,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
             combinedBytes.ToSensitiveByteArray().Wipe();
             keyStoreKey.Wipe();
 
-            return (xtoken, remoteHalfKeySBA);
+            return (xtoken, remoteSBA);
         }
+
 
         /// <summary>
         /// Creates a new XToken from an existing Xtoken by copying and re-encrypting the drives
@@ -149,7 +154,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             SensitiveByteArray keyStoreKey = null;
             try
             {
-                driveKey = existingToken.DriveKeyHalfKey.DecryptKeyClone(ref halfKey);
+                driveKey = existingToken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref halfKey);
                 keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var hostHalfKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
 
@@ -170,9 +175,9 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 {
                     Id = Guid.NewGuid(),
                     Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                    DriveKeyHalfKey = hostHalfKey,
-                    MasterKeyEncryptedDriveKey = existingToken.MasterKeyEncryptedDriveKey,
-                    ClientSharedSecretKey = sharedSecret,
+                    HalfKeyEncryptedDriveGrantKey = hostHalfKey,
+                    MasterKeyEncryptedDriveGrantKey = existingToken.MasterKeyEncryptedDriveGrantKey,
+                    KeyStoreKeyEncryptedSharedSecret = sharedSecret,
                     IsRevoked = false,
                     DriveGrants = newDriveKeys
                 };

@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             //TODO: add all drives based on what what access was granted to the recipient
             var drives = new List<Guid> {profileApp.DefaultDriveId.GetValueOrDefault()};
-            var (token, remoteToken) = await _xTokenService.CreateXToken(remoteRsaKey, drives);
+            var (xToken, remoteGrantKey, sharedSecret) = await _xTokenService.CreateXToken(drives);
 
             var request = new ConnectionRequest
             {
@@ -98,7 +98,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
-                RSAEncryptedXToken = remoteToken
+                RSAEncryptedCredentials = EncryptRequestCredentials(header.Recipient, remoteGrantKey, sharedSecret)
             };
 
             var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -119,9 +119,12 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception("Failed to establish connection request");
             }
 
+            sharedSecret.Wipe();
+            remoteGrantKey.Wipe();
+
             //Note: the pending Xtoken attached only AFTER we send the request
-            request.RSAEncryptedXToken = "";
-            request.PendingXToken = token;
+            request.RSAEncryptedCredentials = "";
+            request.PendingXToken = xToken;
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
@@ -183,31 +186,6 @@ namespace Youverse.Core.Services.Contacts.Circle
             return Task.CompletedTask;
         }
 
-        public async Task EstablishConnection(AcknowledgedConnectionRequest handshakeResponse)
-        {
-            //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
-
-            var originalRequest = await this.GetSentRequestInternal(handshakeResponse.SenderDotYouId);
-
-            //Assert that I previously sent a request to the dotIdentity attempting to connected with me
-            if (null == originalRequest)
-            {
-                throw new InvalidOperationException("The original request no longer exists in Sent Requests");
-            }
-
-            var remoteHalf = handshakeResponse.HalfKey.ToSensitiveByteArray();
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, remoteHalf);
-
-            await this.DeleteSentRequestInternal(originalRequest.Recipient);
-
-            //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            await this.DeletePendingRequestInternal(originalRequest.Recipient);
-
-            await _mediator.Publish(new ConnectionRequestAccepted()
-            {
-                Sender = originalRequest.SenderDotYouId
-            });
-        }
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
@@ -224,17 +202,20 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            var (xToken, sendersHalfKey) = await this.DeserializeXToken(request.RSAEncryptedXToken);
+            var (remoteGrantKey, remoteSharedSecret) = this.DecryptRequestCredentials(request.RSAEncryptedCredentials);
+
+            var driveIdList = new List<Guid>();
+            
+            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _xTokenService.CreateXToken(driveIdList);
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
-            //TODO: consider - do we send back an xtoiken with drive and keys?
-            AcknowledgedConnectionRequest acceptedReq = new()
+            AcknowledgedConnectionRequest acceptedReq = new() //todo; rename to connectrion request reply
             {
                 Name = p.Name,
                 ProfilePic = p.Photo,
-                HalfKey = sendersHalfKey.GetKey()
+                SharedSecretEncryptedCredentials = EncryptReplyCredentials(remoteGrantKeyReply, remoteSharedSecretReply, remoteSharedSecret)
             };
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
@@ -245,13 +226,45 @@ namespace Youverse.Core.Services.Contacts.Circle
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            //HACK: storing senders half key until i meet w/ Michael
-            await _cns.Connect(request.SenderDotYouId, request.Name, xToken, sendersHalfKey);
+            await _cns.Connect(request.SenderDotYouId, request.Name, xToken, remoteGrantKey, remoteSharedSecret);
+
+            remoteSharedSecret.Wipe();
+            remoteGrantKey.Wipe();
 
             await this.DeletePendingRequest(request.SenderDotYouId);
 
             //Just in case I had sent a request, lets delete it too (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeleteSentRequest(request.SenderDotYouId);
+        }
+
+        public async Task EstablishConnection(AcknowledgedConnectionRequest handshakeResponse)
+        {
+            //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
+
+            var originalRequest = await this.GetSentRequestInternal(handshakeResponse.SenderDotYouId);
+
+            //Assert that I previously sent a request to the dotIdentity attempting to connected with me
+            if (null == originalRequest)
+            {
+                throw new InvalidOperationException("The original request no longer exists in Sent Requests");
+            }
+
+
+            var encryptionKey = originalRequest.PendingXToken.KeyStoreKeyEncryptedSharedSecret;
+
+            var (remoteGrantKey, remoteSharedSecret)  = this.DecryptReplyCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey.ToSensitiveByteArray());
+            
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, remoteGrantKey, remoteSharedSecret);
+
+            await this.DeleteSentRequestInternal(originalRequest.Recipient);
+
+            //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
+            await this.DeletePendingRequestInternal(originalRequest.Recipient);
+
+            await _mediator.Publish(new ConnectionRequestAccepted()
+            {
+                Sender = originalRequest.SenderDotYouId
+            });
         }
 
         public Task DeletePendingRequest(DotYouIdentity sender)
@@ -277,13 +290,51 @@ namespace Youverse.Core.Services.Contacts.Circle
             return result;
         }
 
-        private async Task<(XToken, SensitiveByteArray)> DeserializeXToken(string rsaEncryptedXToken)
+        private string EncryptReplyCredentials(SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret, SensitiveByteArray encryptionKey)
         {
-            //TODO: get driveID from the profile app
-            var driveIdList = new List<Guid>();
-            var (xToken, sendersHalfKey) = await _xTokenService.CreateXTokenFromBits(driveIdList, rsaEncryptedXToken);
+            var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
 
-            return (xToken, sendersHalfKey);
+            //TODO: encrypt using encryptionKey
+
+            var data = Convert.ToBase64String(combinedBytes);
+
+            combinedBytes.ToSensitiveByteArray().Wipe();
+
+            return data;
+        }
+
+
+        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyCredentials(string replyData, SensitiveByteArray encryptionKey)
+        {
+            var combinedBytes = Convert.FromBase64String(replyData);
+
+            //TODO: AES decrypt
+            var (remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16);
+            return (remoteGrantKey.ToSensitiveByteArray(), sharedSecret.ToSensitiveByteArray());
+        }
+
+        private string EncryptRequestCredentials(DotYouIdentity recipient, SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret)
+        {
+            var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
+
+            //TODO: Now RSA Encrypt
+
+            var data = Convert.ToBase64String(combinedBytes);
+
+            combinedBytes.ToSensitiveByteArray().Wipe();
+
+            return data;
+        }
+
+        private (SensitiveByteArray, SensitiveByteArray) DecryptRequestCredentials(string rsaEncryptedCredentials)
+        {
+            //TODO look up private key from ??
+            
+            var combinedBytes = Convert.FromBase64String(rsaEncryptedCredentials);
+
+            //TODO: rsa decrypt
+            var (remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16);
+            return (remoteGrantKey.ToSensitiveByteArray(), sharedSecret.ToSensitiveByteArray());
         }
     }
 }

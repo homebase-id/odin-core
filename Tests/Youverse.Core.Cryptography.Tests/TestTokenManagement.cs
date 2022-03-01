@@ -49,38 +49,7 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Fail();
         }
 
-
-        /// <summary>
-        /// Connect Request example. Sam sends request to Frodo.
-        /// </summary>
-        [Test]
-        public void TokenHosToHostShareKeyExample()
-        {
-            var sharedSecretKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16)); // Sam create secret key
-            var samsSymKey = new SymmetricKeyEncryptedXor(ref sharedSecretKey, out var samsRemoteHalfKey);
-
-            // Remote half is for Frodo, symKey.KeyEncrypted is Sam's half
-            // According to the protocol we send both halves to Frodo.
-
-            var frodoLocalHalf = samsRemoteHalfKey;
-            var frodoRemoteHalf = samsSymKey.KeyEncrypted.ToSensitiveByteArray();
-
-            // So we can reconstruct the shared key like this, or I could make a constructor in the
-            // class. Might be better
-            var frodoSharedSecretKey = XorManagement.XorDecrypt(frodoRemoteHalf.GetKey(), frodoLocalHalf.GetKey()).ToSensitiveByteArray();
-            if (ByteArrayUtil.EquiByteArrayCompare(frodoSharedSecretKey.GetKey(), sharedSecretKey.GetKey()) == false)
-                Assert.Fail();
-
-            // Reverse construct Frodo's sym key - as suggested above, I think another constructor is better
-            var frodoSymKey = new SymmetricKeyEncryptedXor(ref frodoSharedSecretKey, frodoRemoteHalf, false);
-            var cloneFrodoSecretKey = frodoSymKey.DecryptKeyClone(ref frodoRemoteHalf);
-
-            if (ByteArrayUtil.EquiByteArrayCompare(cloneFrodoSecretKey.GetKey(), sharedSecretKey.GetKey()) == false)
-                Assert.Fail(); // Make sure we reverse constructed the key properly
-
-            Assert.Pass();
-        }
-
+    
         /// <summary>
         /// Connect Request example. Sam sends request to Frodo.
         /// </summary>
