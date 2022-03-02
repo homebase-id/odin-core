@@ -24,6 +24,8 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public List<ExchangeDriveGrant> DriveGrants { get; set; }
         
+        public List<Guid> CircleGrants { get; set; }
+        
         public void AssertValidHalfKey(SensitiveByteArray halfKey)
         {
             var _ = HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid

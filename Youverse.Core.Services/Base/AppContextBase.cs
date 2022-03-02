@@ -37,18 +37,18 @@ namespace Youverse.Core.Services.Base
 
         public List<AppDriveGrant> OwnedDrives { get; init; }
 
-        public Guid GetDriveId(Guid driveIdentifier)
+        public Guid GetDriveId(Guid driveIdentifier, bool failIfInvalid = true)
         {
             var driveId = this.OwnedDrives
                 .SingleOrDefault(x => x.DriveIdentifier == driveIdentifier)?
                 .DriveId;
             
-            if (!driveId.HasValue)
+            if (!driveId.HasValue && failIfInvalid)
             {
                 throw new MissingDataException("Invalid public drive identifier");
             }
             
-            return driveId.Value;
+            return driveId.GetValueOrDefault();
         }
         
         public Guid GetDriveIdentifier(Guid driveId)

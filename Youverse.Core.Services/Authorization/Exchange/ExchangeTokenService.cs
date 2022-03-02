@@ -5,14 +5,11 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit;
-using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Exchange
 {
@@ -22,29 +19,17 @@ namespace Youverse.Core.Services.Authorization.Exchange
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
         private readonly ICircleDefinitionService _cds;
+        private readonly IAppRegistrationService _appRegistration;
 
-        public ExchangeTokenService(DotYouContextAccessor contextAccessor, ILogger<ExchangeTokenService> logger, ISystemStorage systemStorage, IDriveService driveService, ICircleDefinitionService cds)
+        public ExchangeTokenService(DotYouContextAccessor contextAccessor, ILogger<ExchangeTokenService> logger, ISystemStorage systemStorage, IDriveService driveService, ICircleDefinitionService cds, IAppRegistrationService appRegistration)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _driveService = driveService;
             _cds = cds;
+            _appRegistration = appRegistration;
         }
 
-        private async Task<List<Guid>> GetDefaultExchangeDrives()
-        {
-            var profileAppId = SystemAppConstants.ProfileAppId;
-            var profileAppContext = await _appReg.GetAppContextBase(profileAppId);
-
-            Guard.Argument(profileAppContext, nameof(profileAppContext)).NotNull("Invalid App");
-            Guard.Argument(profileAppContext.DefaultDriveId, nameof(profileAppContext.DefaultDriveId)).Require(x => x.HasValue);
-
-            //TODO: add all drives based on what what access was granted to the recipient
-            return new List<Guid>
-            {
-                profileAppContext.GetDriveIdentifier(profileAppContext.DefaultDriveId.GetValueOrDefault())
-            };
-        }
 
         /// <summary>
         /// Creates a new Exchange registration and token based on system defaults
@@ -55,10 +40,10 @@ namespace Youverse.Core.Services.Authorization.Exchange
             var context = _contextAccessor.GetCurrent();
             context.Caller.AssertHasMasterKey();
 
-            var root = _cds.GetRootCircle();
+            var rootCircle = _cds.GetRootCircle();
 
             //drives will come from the circle
-            var driveIdList = root.Grants.SelectMany(x => x.DriveIdentifiers);
+            var driveIdList = rootCircle.Grants.SelectMany(x => x.DriveIdentifiers);
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -70,20 +55,30 @@ namespace Youverse.Core.Services.Authorization.Exchange
             var encryptedSharedSecret = sharedSecret;
 
             var grants = new List<ExchangeDriveGrant>();
-
-            foreach (var driveIdentifier in driveIdList)
+            foreach (var grant in rootCircle.Grants)
             {
-                var drive = await _driveService.GetDrive(context.AppContext.GetDriveId(driveIdentifier));
-                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-
-                var dk = new ExchangeDriveGrant()
+                var appReg = await _appRegistration.GetAppContextBase(grant.Appid);
+                if (appReg == null)
                 {
-                    DriveIdentifier = driveIdentifier,
-                    XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
-                };
+                    //TODO: how to handle here?  warning?log?
+                    continue;
+                }
+                
+                foreach (var driveIdentifier in grant.DriveIdentifiers)
+                {
+                    var driveId = appReg.GetDriveId(driveIdentifier);
+                    var drive = await _driveService.GetDrive(driveId);
+                    var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
-                storageKey.Wipe();
-                grants.Add(dk);
+                    var dk = new ExchangeDriveGrant()
+                    {
+                        DriveIdentifier = driveIdentifier,
+                        XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
+                    };
+
+                    storageKey.Wipe();
+                    grants.Add(dk);
+                }
             }
 
             var reg = new ExchangeRegistration()
@@ -94,7 +89,8 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 MasterKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 KeyStoreKeyEncryptedSharedSecret = encryptedSharedSecret,
                 IsRevoked = false,
-                DriveGrants = grants
+                DriveGrants = grants,
+                CircleGrants = new List<Guid>() {rootCircle.Id}
             };
 
 
@@ -141,7 +137,8 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     MasterKeyEncryptedDriveGrantKey = existingToken.MasterKeyEncryptedDriveGrantKey,
                     KeyStoreKeyEncryptedSharedSecret = sharedSecret,
                     IsRevoked = false,
-                    DriveGrants = newDriveKeys
+                    DriveGrants = newDriveKeys,
+                    CircleGrants = existingToken.CircleGrants
                 };
 
                 return Task.FromResult((token, remoteHalfKey.GetKey()));

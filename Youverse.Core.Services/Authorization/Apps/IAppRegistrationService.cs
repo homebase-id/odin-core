@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Creates the AppContext for a given client registration
         /// </summary>
         /// <returns></returns>
-        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek);
+        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek, bool failIfRevoked = false);
 
         /// <summary>
         /// Gets all registered apps
@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Creates app context specifically for the transit system
         /// </summary>
         /// <returns></returns>
-        Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false);
+        Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false, bool failIfRevoked = false);
 
         /// <summary>
         /// Creates a new drive to be used with the specified app.  

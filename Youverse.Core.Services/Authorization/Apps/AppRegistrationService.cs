@@ -133,10 +133,16 @@ namespace Youverse.Core.Services.Authorization.Apps
             return ToAppRegistrationResponse(result);
         }
 
-        public async Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek)
+        public async Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek, bool failIfRevoked = false)
         {
             var appClient = await this.GetClientRegistration(token);
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
+            
+            if (failIfRevoked && appReg.IsRevoked)
+            {
+                throw new YouverseSecurityException("App is not registered or revoked");
+            }
+            
             return new AppContext(
                 appId: appReg.ApplicationId,
                 appClientId: appClient.Id,
@@ -149,7 +155,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             );
         }
 
-        public async Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false)
+        public async Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false, bool failIfRevoked = false)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
 
@@ -158,7 +164,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 return null;
             }
             
-            if (appReg.IsRevoked)
+            if (failIfRevoked && appReg.IsRevoked)
             {
                 throw new YouverseSecurityException("App is not registered or revoked");
             }

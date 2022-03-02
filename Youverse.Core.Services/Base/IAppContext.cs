@@ -27,9 +27,8 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Gets the drive id which matches the public drive identifier
         /// </summary>
-        /// <param name="driveIdentifier"></param>
         /// <returns></returns>
-        Guid GetDriveId(Guid driveIdentifier);
+        Guid GetDriveId(Guid driveIdentifier, bool failIfInvalid = true);
 
         /// <summary>
         /// Returns the public drive identifier for the given DriveId

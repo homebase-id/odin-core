@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Middleware
             );
 
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
-            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek, true);
             dotYouContext.AppContext = appCtx;
 
             var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
@@ -200,27 +200,42 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
+            var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
+            if (string.IsNullOrEmpty(appIdValue))
+            {
+                //grant nothing extra if no app is specified
+                return;
+            }
 
-            //TODO: build app context from xtoken; how do i know which appid?
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-
-            //HACK: so this needs to be appid that is aligned with the drives; should it be the profile?
-            var appId =  SystemAppConstants.ProfileAppId;
-            var appCtx = await appRegSvc.GetAppContextBase(appId, false);
+            var appId = Guid.Parse(appIdValue);
+            var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
             dotYouContext.AppContext = appCtx;
 
-            var (xtoken, remoteGrantKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
-            if (xtoken is {IsRevoked: false})
+            var (exchangeRegistration, remoteGrantKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
+            if (exchangeRegistration is {IsRevoked: false})
             {
-                var dk = xtoken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref remoteGrantKey);
+                //TODO: hit the circle membership service to validate the circle still has the app AND the user is a member of it?
+                var dk = exchangeRegistration.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref remoteGrantKey);
 
-                var driveGrants = xtoken.DriveGrants.Select(dg => new PermissionDriveGrant()
+                //here we can load the actual drive id for now but really should move these to the drive service, deep inside
+                List<PermissionDriveGrant> driveGrants = new List<PermissionDriveGrant>();
+
+                //load a drive for any drive which matches the app context
+                foreach (var dg in exchangeRegistration.DriveGrants)
                 {
-                    DriveId = dg.DriveIdentifier,
-                    EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
-                    Permissions = DrivePermissions.Read
-                }).ToList();
-
+                    var driveId = appCtx.GetDriveId(dg.DriveIdentifier, false);
+                    if (driveId != Guid.Empty)
+                    {
+                        driveGrants.Add(new PermissionDriveGrant()
+                        {
+                            DriveId = driveId,
+                            EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
+                            Permissions = DrivePermissions.Read
+                        });
+                    }
+                }
+                
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, null, dk));
             }
         }
@@ -246,7 +261,9 @@ namespace Youverse.Hosting.Middleware
             if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
             {
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                var appCtx = await appRegSvc.GetAppContextBase(appId);
+                var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
+
+
                 dotYouContext.AppContext = appCtx;
 
                 driveGrants = MapAppDriveGrants(appCtx.OwnedDrives);
