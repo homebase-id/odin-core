@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Authentication.YouAuth
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
-            var claimsIdentity = new ClaimsIdentity(claims, nameof(YouAuthAuthenticationHandler));
+            var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.Scheme);
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
 
             return AuthenticateResult.Success(ticket);

@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public const string SessionCookieName = "EZ1921";
 
-        public const string XTokenCookieName = "FA2132";
+        public const string XTokenCookieName = "XT32";
 
         public const string IdentityClaim = ClaimTypes.Name; // SEB:TODO figure out the right claim
 

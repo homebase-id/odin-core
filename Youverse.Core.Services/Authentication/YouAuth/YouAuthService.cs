@@ -87,7 +87,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
 
-            byte[] halfKey = Array.Empty<byte>();
+            byte[] remoteGrantKey = Array.Empty<byte>();
             if (isValid)
             {
                 string dotYouId = initiator;
@@ -95,12 +95,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt
-                    //halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
-                    halfKey = info.RemoteGrantKey;
+                    remoteGrantKey = info.RemoteGrantKey;
                 }
             }
 
-            return (isValid, halfKey);
+            return (isValid, remoteGrantKey);
         }
 
         //

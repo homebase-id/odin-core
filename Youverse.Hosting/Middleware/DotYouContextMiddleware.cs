@@ -200,18 +200,16 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null // Note: we're logged in using an app token so we do not have the master key
             );
 
-            var value = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
 
-            var authResult = DotYouAuthenticationResult.Parse(value);
-            
-            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
-            dotYouContext.AppContext = appCtx;
+            //TODO: build app context from xtoken; how do i know which appid?
+            // var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            // var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
+            // dotYouContext.AppContext = appCtx;
 
-            var (xtoken, xTokenHalfKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
+            var (xtoken, remoteGrantKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
             if (xtoken is {IsRevoked: false})
             {
-                var dk = xtoken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref xTokenHalfKey);
+                var dk = xtoken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref remoteGrantKey);
 
                 var driveGrants = xtoken.DriveGrants.Select(dg => new PermissionDriveGrant()
                 {
@@ -262,15 +260,15 @@ namespace Youverse.Hosting.Middleware
 
         private async Task<(XToken, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
         {
-            var xTokenValue = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
-            if (!string.IsNullOrWhiteSpace(xTokenValue))
+            var remoteGrantKeyValue = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+            if (!string.IsNullOrWhiteSpace(remoteGrantKeyValue))
             {
-                var xTokenHalfKey = Convert.FromBase64String(xTokenValue);
-                if (xTokenHalfKey?.Length > 0)
+                var remoteGrantKey = Convert.FromBase64String(remoteGrantKeyValue);
+                if (remoteGrantKey?.Length > 0)
                 {
                     var sessionId = Guid.Parse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? throw new YouverseSecurityException("Missing session"));
                     var session = await youAuthSessionManager.LoadFromId(sessionId);
-                    return (session?.XToken, xTokenHalfKey.ToSensitiveByteArray());
+                    return (session?.XToken, remoteGrantKey.ToSensitiveByteArray());
                 }
             }
 
