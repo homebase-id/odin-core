@@ -13,7 +13,7 @@ using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
     //Need to consider using the recipient public key instead of the dotyouid
     //meaning i can go to frodo site, click connect and the public ke cert has all i need to
@@ -170,12 +170,12 @@ namespace Youverse.Core.Services.Contacts.Circle
         {
             var connection = await GetConnectionInfoInternal(dotYouId);
 
-            if (connection?.XToken == null)
+            if (connection?.ExchangeRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            connection.XToken.AssertValidHalfKey(xTokenHalfKey);
+            connection.ExchangeRegistration.AssertValidHalfKey(xTokenHalfKey);
 
             return connection;
         }
@@ -220,7 +220,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
+        public async Task Connect(string dotYouIdentity, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
             //TODO: need to add securitry that this method can be called
 
@@ -238,7 +238,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         }
         
-        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, XToken xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -248,7 +248,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                XToken = xtoken,
+                ExchangeRegistration = xtoken,
                 RemoteGrantKey = remoteGrantKey.GetKey(),
                 RemoteSharedSecret = remoteSharedSecret.GetKey()
             };

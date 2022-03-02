@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, halfKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, remoteGrantKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
             
-            var (session, sessionHalfKey) = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
+            var (session, sessionRemoteGrantKey) = await _youAuthService.CreateSession(subject, remoteGrantKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -64,9 +64,9 @@ namespace Youverse.Hosting.Controllers.YouAuth
             };
 
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if(null != sessionHalfKey)
+            if(null != sessionRemoteGrantKey)
             {
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionHalfKey), options);
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionRemoteGrantKey), options);
             }
             
             //session.XToken.SharedSecretKey

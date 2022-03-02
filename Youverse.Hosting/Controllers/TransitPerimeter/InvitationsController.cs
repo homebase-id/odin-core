@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 
 namespace Youverse.Hosting.Controllers.TransitPerimeter
@@ -36,9 +37,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
 
         [HttpPost("establishconnection")]
-        public async Task<IActionResult> EstablishConnection([FromBody] AcknowledgedConnectionRequest request)
+        public async Task<IActionResult> EstablishConnection([FromBody] ConnectionRequestReply requestReply)
         {
-            await _circleNetworkRequestService.EstablishConnection(request);
+            await _circleNetworkRequestService.EstablishConnection(requestReply);
             return new JsonResult(new NoResultResponse(true));
         }
     }

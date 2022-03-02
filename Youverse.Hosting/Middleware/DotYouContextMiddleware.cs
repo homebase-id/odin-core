@@ -202,9 +202,12 @@ namespace Youverse.Hosting.Middleware
 
 
             //TODO: build app context from xtoken; how do i know which appid?
-            // var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            // var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek);
-            // dotYouContext.AppContext = appCtx;
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+
+            //HACK: so this needs to be appid that is aligned with the drives; should it be the profile?
+            var appId =  SystemAppConstants.ProfileAppId;
+            var appCtx = await appRegSvc.GetAppContextBase(appId, false);
+            dotYouContext.AppContext = appCtx;
 
             var (xtoken, remoteGrantKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
             if (xtoken is {IsRevoked: false})
@@ -213,7 +216,7 @@ namespace Youverse.Hosting.Middleware
 
                 var driveGrants = xtoken.DriveGrants.Select(dg => new PermissionDriveGrant()
                 {
-                    DriveId = dg.DriveId,
+                    DriveId = dg.DriveIdentifier,
                     EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
                     Permissions = DrivePermissions.Read
                 }).ToList();
@@ -258,7 +261,7 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, driveDecryptionKey));
         }
 
-        private async Task<(XToken, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
+        private async Task<(ExchangeRegistration, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
         {
             var remoteGrantKeyValue = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
             if (!string.IsNullOrWhiteSpace(remoteGrantKeyValue))
@@ -268,7 +271,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     var sessionId = Guid.Parse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? throw new YouverseSecurityException("Missing session"));
                     var session = await youAuthSessionManager.LoadFromId(sessionId);
-                    return (session?.XToken, remoteGrantKey.ToSensitiveByteArray());
+                    return (session?.ExchangeRegistration, remoteGrantKey.ToSensitiveByteArray());
                 }
             }
 

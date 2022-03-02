@@ -5,6 +5,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Profile;
 
 namespace Youverse.Hosting.Controllers.Owner.Demo

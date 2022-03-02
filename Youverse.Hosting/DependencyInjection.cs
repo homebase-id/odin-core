@@ -15,6 +15,8 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.Mediator;
@@ -107,7 +109,10 @@ namespace Youverse.Hosting
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             //TODO breakout interface
-            cb.RegisterType<XTokenService>().AsSelf().SingleInstance();
+            cb.RegisterType<ExchangeTokenService>().AsSelf().SingleInstance();
+            
+            cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
+            
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

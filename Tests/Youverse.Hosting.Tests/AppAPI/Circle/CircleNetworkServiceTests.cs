@@ -7,6 +7,8 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
 {

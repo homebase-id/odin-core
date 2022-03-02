@@ -7,6 +7,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Core.Services.Base
 {
@@ -21,7 +22,7 @@ namespace Youverse.Core.Services.Base
         Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] ConnectionRequest request);
 
         [Post(RootPath + "/invitations/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] AcknowledgedConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] ConnectionRequestReply requestReply);
 
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();

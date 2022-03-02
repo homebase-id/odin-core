@@ -6,6 +6,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 
 #nullable enable
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -19,7 +20,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         private readonly ICircleNetworkService _circleNetwork;
 
-        private readonly XTokenService _xTokenService;
+        private readonly ExchangeTokenService _exchangeTokenService;
         //
 
         public YouAuthService(
@@ -27,14 +28,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IYouAuthSessionManager youSessionManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, XTokenService xTokenService)
+            ICircleNetworkService circleNetwork, ExchangeTokenService exchangeTokenService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _xTokenService = xTokenService;
+            _exchangeTokenService = exchangeTokenService;
         }
 
         //
@@ -106,7 +107,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public async ValueTask<(YouAuthSession, byte[]?)> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
         {
-            XToken token = null;
+            ExchangeRegistration token = null;
             byte[] halfKey = null;
             
             if (xTokenHalfKey != null)
@@ -114,8 +115,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, xTokenHalfKey);
                 if (connection.IsConnected())
                 {
-                    var xToken = connection.XToken;
-                    (token, halfKey) = await _xTokenService.CloneXToken(xToken, xTokenHalfKey);
+                    var xToken = connection.ExchangeRegistration;
+                    (token, halfKey) = await _exchangeTokenService.TransferXToken(xToken, xTokenHalfKey);
                 }
             }
 

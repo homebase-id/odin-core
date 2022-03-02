@@ -5,7 +5,10 @@ using Youverse.Core.Cryptography.Data;
 
 namespace Youverse.Core.Services.Authorization.Exchange
 {
-    public class XToken
+    /// <summary>
+    /// Data which allows the 
+    /// </summary>
+    public class ExchangeRegistration
     {
         public Guid Id { get; set; }
         
@@ -19,21 +22,12 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
         public bool IsRevoked { get; set; }
 
-        public List<XTokenDriveGrant> DriveGrants { get; set; }
-
+        public List<ExchangeDriveGrant> DriveGrants { get; set; }
+        
         public void AssertValidHalfKey(SensitiveByteArray halfKey)
         {
             var _ = HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
         }
 
     }
-
-    public class XTokenDriveGrant
-    {
-        public Guid DriveId { get; set; }
-        
-        public SymmetricKeyEncryptedAes XTokenEncryptedStorageKey { get; set; }
-
-    }
-
 }

@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject, XToken token)
+        public ValueTask<YouAuthSession> CreateSession(string subject, ExchangeRegistration token)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {

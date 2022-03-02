@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {

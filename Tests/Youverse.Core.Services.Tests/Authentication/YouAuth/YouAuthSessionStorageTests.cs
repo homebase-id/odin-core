@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
             
-            var xtoken = new XToken()
+            var xtoken = new ExchangeRegistration()
             {
                 Id = Guid.NewGuid(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
                 MasterKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedAes(ref mk, ref ksk),
                 KeyStoreKeyEncryptedSharedSecret = ByteArrayUtil.GetRndByteArray(16),
                 IsRevoked = false,
-                DriveGrants = new List<XTokenDriveGrant>()
+                DriveGrants = new List<ExchangeDriveGrant>()
             };
             
             var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
@@ -86,12 +86,12 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Assert.AreEqual(session.Subject, copy!.Subject);
             
             
-            Assert.That(session.XToken.HalfKeyEncryptedDriveGrantKey.KeyEncrypted, Is.EqualTo(copy.XToken.HalfKeyEncryptedDriveGrantKey.KeyEncrypted));
-            Assert.That(session.XToken.KeyStoreKeyEncryptedSharedSecret, Is.EqualTo(copy.XToken.KeyStoreKeyEncryptedSharedSecret));
-            Assert.That(session.XToken.MasterKeyEncryptedDriveGrantKey.KeyEncrypted, Is.EqualTo(copy.XToken.MasterKeyEncryptedDriveGrantKey.KeyEncrypted));
-            Assert.That(session.XToken.Created, Is.EqualTo(copy.XToken.Created));
-            Assert.That(session.XToken.Id, Is.EqualTo(copy.XToken.Id));
-            CollectionAssert.AreEquivalent(session.XToken.DriveGrants, copy.XToken.DriveGrants);
+            Assert.That(session.ExchangeRegistration.HalfKeyEncryptedDriveGrantKey.KeyEncrypted, Is.EqualTo(copy.ExchangeRegistration.HalfKeyEncryptedDriveGrantKey.KeyEncrypted));
+            Assert.That(session.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret, Is.EqualTo(copy.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret));
+            Assert.That(session.ExchangeRegistration.MasterKeyEncryptedDriveGrantKey.KeyEncrypted, Is.EqualTo(copy.ExchangeRegistration.MasterKeyEncryptedDriveGrantKey.KeyEncrypted));
+            Assert.That(session.ExchangeRegistration.Created, Is.EqualTo(copy.ExchangeRegistration.Created));
+            Assert.That(session.ExchangeRegistration.Id, Is.EqualTo(copy.ExchangeRegistration.Id));
+            CollectionAssert.AreEquivalent(session.ExchangeRegistration.DriveGrants, copy.ExchangeRegistration.DriveGrants);
         }
 
     }

@@ -1,22 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Notifications;
-using Youverse.Core.Services.Profile;
-using Youverse.Core.Services.Authorization.Apps;
-using System.Collections.Generic;
-using MediatR;
-using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Mediator.ClientNotifications;
+using Youverse.Core.Services.Profile;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
@@ -29,12 +28,12 @@ namespace Youverse.Core.Services.Contacts.Circle
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly IProfileAttributeManagementService _mgts;
         private readonly ISystemStorage _systemStorage;
-        private readonly XTokenService _xTokenService;
+        private readonly ExchangeTokenService _exchangeTokenService;
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
 
-        public CircleNetworkRequestService(IAppRegistrationService appReg, XTokenService xTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
+        public CircleNetworkRequestService(IAppRegistrationService appReg, ExchangeTokenService exchangeTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -45,7 +44,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             _mediator = mediator;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
-            _xTokenService = xTokenService;
+            _exchangeTokenService = exchangeTokenService;
             _appReg = appReg;
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
@@ -81,15 +80,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             var remoteRsaKey = new byte[0]; //TODO
 
-            var profileAppId = SystemAppConstants.ProfileAppId;
-            var profileApp = await _appReg.GetAppRegistration(profileAppId);
-
-            Guard.Argument(profileApp, nameof(profileApp)).NotNull("Invalid App");
-            Guard.Argument(profileApp.DefaultDriveId, nameof(profileApp.DefaultDriveId)).Require(x => x.HasValue);
-
-            //TODO: add all drives based on what what access was granted to the recipient
-            var drives = new List<Guid> {profileApp.DefaultDriveId.GetValueOrDefault()};
-            var (xToken, remoteGrantKey, sharedSecret) = await _xTokenService.CreateXToken(drives);
+            var (xToken, remoteGrantKey, sharedSecret) = await _exchangeTokenService.CreateDefault();
 
             var request = new ConnectionRequest
             {
@@ -98,7 +89,7 @@ namespace Youverse.Core.Services.Contacts.Circle
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
-                RSAEncryptedCredentials = EncryptRequestCredentials(header.Recipient, remoteGrantKey, sharedSecret)
+                RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials(header.Recipient, remoteGrantKey, sharedSecret)
             };
 
             var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -123,11 +114,12 @@ namespace Youverse.Core.Services.Contacts.Circle
             remoteGrantKey.Wipe();
 
             //Note: the pending Xtoken attached only AFTER we send the request
-            request.RSAEncryptedCredentials = "";
-            request.PendingXToken = xToken;
+            request.RSAEncryptedExchangeCredentials = "";
+            request.PendingExchangeRegistration = xToken;
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
+        
 
         //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -156,9 +148,7 @@ namespace Youverse.Core.Services.Contacts.Circle
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
-            //_context.GetCurrent().AssertCanManageConnections();
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
             return result;
         }
@@ -179,10 +169,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         private Task DeleteSentRequestInternal(DotYouIdentity recipient)
         {
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
-
-            //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
-
             return Task.CompletedTask;
         }
 
@@ -202,27 +189,24 @@ namespace Youverse.Core.Services.Contacts.Circle
 
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            var (remoteGrantKey, remoteSharedSecret) = this.DecryptRequestCredentials(request.RSAEncryptedCredentials);
+            var (remoteGrantKey, remoteSharedSecret) = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
-            var driveIdList = new List<Guid>();
-            
-            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _xTokenService.CreateXToken(driveIdList);
+            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _exchangeTokenService.CreateDefault();
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
-            AcknowledgedConnectionRequest acceptedReq = new() //todo; rename to connectrion request reply
+            ConnectionRequestReply acceptedReq = new()
             {
                 Name = p.Name,
                 ProfilePic = p.Photo,
-                SharedSecretEncryptedCredentials = EncryptReplyCredentials(remoteGrantKeyReply, remoteSharedSecretReply, remoteSharedSecret)
+                SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(remoteGrantKeyReply, remoteSharedSecretReply, remoteSharedSecret)
             };
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
 
             if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
             {
-                //TODO: add more info and clarify
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
@@ -232,12 +216,10 @@ namespace Youverse.Core.Services.Contacts.Circle
             remoteGrantKey.Wipe();
 
             await this.DeletePendingRequest(request.SenderDotYouId);
-
-            //Just in case I had sent a request, lets delete it too (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeleteSentRequest(request.SenderDotYouId);
         }
 
-        public async Task EstablishConnection(AcknowledgedConnectionRequest handshakeResponse)
+        public async Task EstablishConnection(ConnectionRequestReply handshakeResponse)
         {
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
 
@@ -250,11 +232,11 @@ namespace Youverse.Core.Services.Contacts.Circle
             }
 
 
-            var encryptionKey = originalRequest.PendingXToken.KeyStoreKeyEncryptedSharedSecret;
+            var encryptionKey = originalRequest.PendingExchangeRegistration.KeyStoreKeyEncryptedSharedSecret;
 
-            var (remoteGrantKey, remoteSharedSecret)  = this.DecryptReplyCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey.ToSensitiveByteArray());
-            
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingXToken, remoteGrantKey, remoteSharedSecret);
+            var (remoteGrantKey, remoteSharedSecret) = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey.ToSensitiveByteArray());
+
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingExchangeRegistration, remoteGrantKey, remoteSharedSecret);
 
             await this.DeleteSentRequestInternal(originalRequest.Recipient);
 
@@ -290,7 +272,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             return result;
         }
 
-        private string EncryptReplyCredentials(SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret, SensitiveByteArray encryptionKey)
+        private string EncryptReplyExchangeCredentials(SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret, SensitiveByteArray encryptionKey)
         {
             var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
 
@@ -304,7 +286,7 @@ namespace Youverse.Core.Services.Contacts.Circle
         }
 
 
-        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyCredentials(string replyData, SensitiveByteArray encryptionKey)
+        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyExchangeCredentials(string replyData, SensitiveByteArray encryptionKey)
         {
             var combinedBytes = Convert.FromBase64String(replyData);
 
@@ -313,7 +295,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             return (remoteGrantKey.ToSensitiveByteArray(), sharedSecret.ToSensitiveByteArray());
         }
 
-        private string EncryptRequestCredentials(DotYouIdentity recipient, SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret)
+        private string EncryptRequestExchangeCredentials(DotYouIdentity recipient, SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret)
         {
             var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
 
@@ -326,10 +308,10 @@ namespace Youverse.Core.Services.Contacts.Circle
             return data;
         }
 
-        private (SensitiveByteArray, SensitiveByteArray) DecryptRequestCredentials(string rsaEncryptedCredentials)
+        private (SensitiveByteArray, SensitiveByteArray) DecryptRequestExchangeCredentials(string rsaEncryptedCredentials)
         {
             //TODO look up private key from ??
-            
+
             var combinedBytes = Convert.FromBase64String(rsaEncryptedCredentials);
 
             //TODO: rsa decrypt

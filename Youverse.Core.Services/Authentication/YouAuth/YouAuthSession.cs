@@ -10,20 +10,20 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset ExpiresAt { get; init; }
         public string Subject { get; init; }
-        public XToken XToken { get; init; }
+        public ExchangeRegistration ExchangeRegistration { get; init; }
 
         public YouAuthSession()
         {
             //for litedb
         }
 
-        public YouAuthSession(Guid id, string subject, TimeSpan lifetime, XToken xToken)
+        public YouAuthSession(Guid id, string subject, TimeSpan lifetime, ExchangeRegistration exchangeRegistration)
         {
             Id = id;
             Subject = subject;
             CreatedAt = DateTimeOffset.Now;
             ExpiresAt = CreatedAt + lifetime;
-            XToken = xToken;
+            ExchangeRegistration = exchangeRegistration;
 
         }
 

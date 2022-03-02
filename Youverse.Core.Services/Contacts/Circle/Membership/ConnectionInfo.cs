@@ -2,8 +2,7 @@ using System;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Exchange;
 
-
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
     public class ConnectionInfo : DotYouIdBase
     {
@@ -24,7 +23,7 @@ namespace Youverse.Core.Services.Contacts.Circle
             return this._status == ConnectionStatus.Connected;
         }
 
-        public XToken XToken { get; set; }
+        public ExchangeRegistration ExchangeRegistration { get; set; }
         
         public byte[] RemoteGrantKey { get; set; }
 

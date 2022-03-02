@@ -1,16 +1,16 @@
-﻿using Dawn;
-using System;
+﻿using System;
+using Dawn;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 
     /// to establish a connection
     /// </summary>
     
-    public class AcknowledgedConnectionRequest: IIncomingCertificateMetaData
+    public class ConnectionRequestReply: IIncomingCertificateMetaData
     {
         // /// <summary>
         // /// The Id of the original connection request

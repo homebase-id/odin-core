@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
     /// Establishes connections between individuals
@@ -18,9 +18,9 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// Establishes a connection between two individuals.  This should be called
         /// from a recipient who has accepted a sender's connection request
         /// </summary>
-        /// <param name="request"></param>
+        /// <param name="requestReply"></param>
         /// <returns></returns>
-        Task EstablishConnection(AcknowledgedConnectionRequest request);
+        Task EstablishConnection(ConnectionRequestReply requestReply);
 
         /// <summary>
         /// Accepts a connection request.  This will store the public key certificate 

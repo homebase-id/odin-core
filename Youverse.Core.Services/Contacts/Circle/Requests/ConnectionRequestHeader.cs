@@ -1,7 +1,7 @@
 ﻿using System;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class ConnectionRequestHeader
     {

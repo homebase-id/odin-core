@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Exchange;
 
-namespace Youverse.Core.Services.Contacts.Circle
+namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class ConnectionRequest: ConnectionRequestHeader, IIncomingCertificateMetaData
     {
@@ -29,9 +29,9 @@ namespace Youverse.Core.Services.Contacts.Circle
             return $"{SenderDotYouId} ({this.Name.Personal} {this.Name.Surname})";
         }
 
-        public string RSAEncryptedCredentials { get; set; }
+        public string RSAEncryptedExchangeCredentials { get; set; }
 
-        public XToken PendingXToken { get; set; }
+        public ExchangeRegistration PendingExchangeRegistration { get; set; }
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.

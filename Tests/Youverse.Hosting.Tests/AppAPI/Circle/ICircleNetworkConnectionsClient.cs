@@ -3,6 +3,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Hosting.Controllers.Apps;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
