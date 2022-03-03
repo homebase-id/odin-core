@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ILoggerFactory _loggerFactory;
         private readonly IHttpContextAccessor _accessor;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContextAccessor contextAccessor, IHttpContextAccessor accessor=null)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContextAccessor contextAccessor, IHttpContextAccessor accessor = null)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
@@ -82,7 +82,7 @@ namespace Youverse.Core.Services.Drive
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
             {
-                //HACK; need to figure out what it means for an index to be valid or not
+                //HACK: need to figure out what it means for an index to be valid or not
                 if (queryManager.IndexReadyState == IndexReadyState.Ready)
                 {
                     var page = await queryManager.GetByTag(tag, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
@@ -136,6 +136,30 @@ namespace Youverse.Core.Services.Drive
 
         private DriveSearchResult FromIndexedItem(IndexedItem item)
         {
+            int priority = 1000;
+
+            switch (item.AccessControlList.RequiredSecurityGroup)
+            {
+                case SecurityGroupType.Anonymous:
+                    priority = 500;
+                    break;
+                case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
+                    priority = 400;
+                    break;
+                case SecurityGroupType.Connected:
+                    priority = 300;
+                    break;
+                case SecurityGroupType.CircleConnected:
+                    priority = 200;
+                    break;
+                case SecurityGroupType.CustomList:
+                    priority = 100;
+                    break;
+            }
+
+            //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
+
+            //could I add some sort of number here represenitn the secuirty level
             return new DriveSearchResult()
             {
                 FileId = item.FileId,
@@ -147,7 +171,8 @@ namespace Youverse.Core.Services.Drive
                 CreatedTimestamp = item.CreatedTimestamp,
                 LastUpdatedTimestamp = item.LastUpdatedTimestamp,
                 SenderDotYouId = item.SenderDotYouId,
-                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? item.AccessControlList : null
+                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? item.AccessControlList : null,
+                Priority = priority
             };
         }
 
@@ -207,8 +232,8 @@ namespace Youverse.Core.Services.Drive
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
             var x = _contextAccessor;
-            
-            manager = new LiteDbDriveQueryManager(drive, logger,_accessor);
+
+            manager = new LiteDbDriveQueryManager(drive, logger, _accessor);
 
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index

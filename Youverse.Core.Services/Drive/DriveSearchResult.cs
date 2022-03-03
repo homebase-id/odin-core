@@ -29,5 +29,10 @@ namespace Youverse.Core.Services.Drive
         public bool PayloadTooLarge { get; set; }
         public string PayloadContent { get; set; }
         public AccessControlList AccessControlList { get; set; }
+        
+        /// <summary>
+        /// The lower the number, the higher the priority
+        /// </summary>
+        public int Priority { get; set; }
     }
 }

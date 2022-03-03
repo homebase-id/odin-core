@@ -54,11 +54,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             lock (_indexStorage)
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-                var unfiltered = _indexStorage.GetList(PageOptions.All, 
-                    ListSortDirection.Ascending, 
-                    item => item.CreatedTimestamp)
+                var unfiltered = _indexStorage.GetList(PageOptions.All,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp)
                     .GetAwaiter().GetResult();
-                
+
                 var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
                 if (!includeMetadataHeader)
                 {
@@ -81,7 +81,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                         ListSortDirection.Ascending,
                         item => item.CreatedTimestamp,
                         PageOptions.All)
-                    .GetAwaiter().GetResult();
+                    .GetAwaiter()
+                    .GetResult();
 
                 var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
 
@@ -94,7 +95,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions,IDriveAclAuthorizationService driveAclAuthorizationService)
+        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             Func<IndexedItem, bool> callerHasPermission = (item) => driveAclAuthorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
             var filtered = unfiltered.Results.Where(callerHasPermission);
