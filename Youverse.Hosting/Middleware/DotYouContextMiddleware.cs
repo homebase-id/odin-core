@@ -216,25 +216,29 @@ namespace Youverse.Hosting.Middleware
             if (exchangeRegistration is {IsRevoked: false})
             {
                 //TODO: hit the circle membership service to validate the circle still has the app AND the user is a member of it?
-                var dk = exchangeRegistration.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref remoteGrantKey);
+                var dk = exchangeRegistration.RemoteKeyEncryptedKeyStoreKey.DecryptKeyClone(ref remoteGrantKey);
 
                 //here we can load the actual drive id for now but really should move these to the drive service, deep inside
                 List<PermissionDriveGrant> driveGrants = new List<PermissionDriveGrant>();
 
+                ///
+                //TODO: get reference from parent xtoken 
+                ///
+
                 //load a drive for any drive which matches the app context
-                foreach (var dg in exchangeRegistration.DriveGrants)
-                {
-                    var driveId = appCtx.GetDriveId(dg.DriveIdentifier, false);
-                    if (driveId != Guid.Empty)
-                    {
-                        driveGrants.Add(new PermissionDriveGrant()
-                        {
-                            DriveId = driveId,
-                            EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
-                            Permissions = DrivePermissions.Read
-                        });
-                    }
-                }
+                //foreach (var dg in exchangeRegistration.KeyStoreKeyEncryptedDriveGrants)
+                //{
+                //    var driveId = appCtx.GetDriveId(dg.DriveIdentifier, false);
+                //    if (driveId != Guid.Empty)
+                //    {
+                //        driveGrants.Add(new PermissionDriveGrant()
+                //        {
+                //            DriveId = driveId,
+                //            EncryptedStorageKey = dg.XTokenEncryptedStorageKey,
+                //            Permissions = DrivePermissions.Read
+                //        });
+                //    }
+                //}
                 
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, null, dk));
             }
@@ -278,7 +282,7 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, driveDecryptionKey));
         }
 
-        private async Task<(ExchangeRegistration, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
+        private async Task<(ChildExchangeRegistration, SensitiveByteArray)> GetXTokenFromSession(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager)
         {
             var remoteGrantKeyValue = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
             if (!string.IsNullOrWhiteSpace(remoteGrantKeyValue))

@@ -11,25 +11,47 @@ namespace Youverse.Core.Services.Authorization.Exchange
     public class ExchangeRegistration
     {
         public Guid Id { get; set; }
-        
+
         public UInt64 Created { get; set; }
+        public UInt64 LastUsed { get; set; }
 
-        public SymmetricKeyEncryptedXor HalfKeyEncryptedDriveGrantKey { get; set; }
+        public SymmetricKeyEncryptedXor RemoteKeyEncryptedKeyStoreKey { get; set; }
 
-        public SymmetricKeyEncryptedAes MasterKeyEncryptedDriveGrantKey { get; set; }
+        public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
 
         public byte[] KeyStoreKeyEncryptedSharedSecret { get; set; }
 
         public bool IsRevoked { get; set; }
 
-        public List<ExchangeDriveGrant> DriveGrants { get; set; }
+        public List<ExchangeDriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
         
         public List<Guid> CircleGrants { get; set; }
         
         public void AssertValidHalfKey(SensitiveByteArray halfKey)
         {
-            var _ = HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
+            var _ = RemoteKeyEncryptedKeyStoreKey.DecryptKeyClone(ref halfKey); //this throws exception if half key is invalid
         }
 
     }
+
+
+    public class ChildExchangeRegistration
+    {
+        public Guid Id { get; set; }
+
+        public UInt64 Created { get; set; }
+
+        public UInt64 LastUsed { get; set; }
+
+        public SymmetricKeyEncryptedXor RemoteKeyEncryptedKeyStoreKey { get; set; }
+
+        public byte[] KeyStoreKeyEncryptedSharedSecret { get; set; }
+
+        public bool IsRevoked { get; set; }
+
+        public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedParentXTokenKeyStoreKey { get; set; }
+
+    }
+
+
 }

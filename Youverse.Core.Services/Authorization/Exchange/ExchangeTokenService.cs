@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var halfKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteGrantKey);
+            var remoteKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteKey);
 
             var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
 
@@ -85,69 +85,50 @@ namespace Youverse.Core.Services.Authorization.Exchange
             {
                 Id = Guid.NewGuid(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                HalfKeyEncryptedDriveGrantKey = halfKeyEncryptedDriveGrantKey,
-                MasterKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                RemoteKeyEncryptedKeyStoreKey = remoteKeyEncryptedKeyStoreKey,
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 KeyStoreKeyEncryptedSharedSecret = encryptedSharedSecret,
                 IsRevoked = false,
-                DriveGrants = grants,
-                CircleGrants = new List<Guid>() {rootCircle.Id}
+                KeyStoreKeyEncryptedDriveGrants = grants
             };
 
 
             keyStoreKey.Wipe();
 
-            return (reg, remoteGrantKey, sharedSecret.ToSensitiveByteArray());
+            return (reg, remoteKey, sharedSecret.ToSensitiveByteArray());
         }
 
         /// <summary>
         /// Creates a new XToken from an existing Xtoken by copying and re-encrypting the drives
         /// </summary>
         /// <returns></returns>
-        public Task<(ExchangeRegistration, byte[])> TransferXToken(ExchangeRegistration existingToken, SensitiveByteArray remoteGrantKey)
+        public Task<(ChildExchangeRegistration, SensitiveByteArray, SensitiveByteArray)> CreateChildRegistration(ExchangeRegistration parentRegistration, SensitiveByteArray remoteKey)
         {
-            Guard.Argument(existingToken, nameof(existingToken)).NotNull("Missing XToken for connection").Require(!existingToken.IsRevoked, x => "Exchange Registration is Revoked");
+            var parentKeyStoreKey = parentRegistration.RemoteKeyEncryptedKeyStoreKey.DecryptKeyClone(ref remoteKey);
+            var context = _contextAccessor.GetCurrent();
 
-            SensitiveByteArray driveKey = null;
-            SensitiveByteArray keyStoreKey = null;
-            try
+            var childKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var childRemoteKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedXor(ref childKeyStoreKey, out var childRemoteKey);
+
+            var childSharedSecret = ByteArrayUtil.GetRndByteArray(16);
+
+            //TODO: encrypt shared secret using the keyStoreKey
+            var childEncryptedSharedSecret = childSharedSecret;
+
+            var reg = new ChildExchangeRegistration()
             {
-                driveKey = existingToken.HalfKeyEncryptedDriveGrantKey.DecryptKeyClone(ref remoteGrantKey);
-                keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                var halfKeyEncryptedDriveGrantKey = new SymmetricKeyEncryptedXor(ref keyStoreKey, out var remoteHalfKey);
+                Id = Guid.NewGuid(),
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                RemoteKeyEncryptedKeyStoreKey = childRemoteKeyEncryptedKeyStoreKey,
+                KeyStoreKeyEncryptedSharedSecret = childEncryptedSharedSecret,
+                IsRevoked = false,
+                KeyStoreKeyEncryptedParentXTokenKeyStoreKey = new SymmetricKeyEncryptedAes(ref parentKeyStoreKey, ref childKeyStoreKey)
+            };
 
-                var sharedSecret = ByteArrayUtil.GetRndByteArray(16);
+            parentKeyStoreKey.Wipe();
+            childKeyStoreKey.Wipe();
 
-                //clone and re-encrypt the drive keys
-                var newDriveKeys = existingToken.DriveGrants.Select(dk =>
-                {
-                    var storageKey = dk.XTokenEncryptedStorageKey.DecryptKeyClone(ref driveKey);
-                    var ndk = new ExchangeDriveGrant()
-                    {
-                        DriveIdentifier = dk.DriveIdentifier,
-                        XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
-                    };
-                    return ndk;
-                }).ToList();
-
-                var token = new ExchangeRegistration()
-                {
-                    Id = Guid.NewGuid(),
-                    Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                    HalfKeyEncryptedDriveGrantKey = halfKeyEncryptedDriveGrantKey,
-                    MasterKeyEncryptedDriveGrantKey = existingToken.MasterKeyEncryptedDriveGrantKey,
-                    KeyStoreKeyEncryptedSharedSecret = sharedSecret,
-                    IsRevoked = false,
-                    DriveGrants = newDriveKeys,
-                    CircleGrants = existingToken.CircleGrants
-                };
-
-                return Task.FromResult((token, remoteHalfKey.GetKey()));
-            }
-            finally
-            {
-                driveKey?.Wipe();
-                keyStoreKey?.Wipe();
-            }
+            return Task.FromResult((reg, childRemoteKey, childSharedSecret.ToSensitiveByteArray()));
         }
     }
 }

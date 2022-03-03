@@ -12,6 +12,18 @@ using Youverse.Hosting.Authentication.YouAuth;
 #nullable enable
 namespace Youverse.Hosting.Controllers.YouAuth
 {
+
+    public class YouAuthFinalizationInfo
+    {
+        public byte[] SharedSecret { get; set; }
+
+        /// <summary>
+        /// The original Url to which a browser should be redirected after storing the Shared Secret;
+        /// </summary>
+        public string ReturnUrl { get; set; }
+
+    }
+
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]
     public class YouAuthController : Controller
@@ -36,7 +48,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, remoteGrantKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, remoteKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -48,12 +60,12 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
                 return new ObjectResult(problemDetails)
                 {
-                    ContentTypes = {"application/problem+json"},
+                    ContentTypes = { "application/problem+json" },
                     StatusCode = problemDetails.Status,
                 };
             }
-            
-            var (session, sessionRemoteGrantKey) = await _youAuthService.CreateSession(subject, remoteGrantKey?.ToSensitiveByteArray() ?? null);
+
+            var (session, sessionRemoteGrantKey, childSharedSecret) = await _youAuthService.CreateSession(subject, remoteKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -64,14 +76,26 @@ namespace Youverse.Hosting.Controllers.YouAuth
             };
 
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if(null != sessionRemoteGrantKey)
+            if (null != sessionRemoteGrantKey)
             {
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionRemoteGrantKey), options);
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionRemoteGrantKey.GetKey()), options);
             }
-            
+
+            sessionRemoteGrantKey?.Wipe();
+            childSharedSecret?.Wipe();
+
+            //TODO: RSA Encrypt shared secret
+            var finalInfo = new YouAuthFinalizationInfo()
+            {
+                SharedSecret = childSharedSecret?.GetKey() ?? Array.Empty<byte>(),
+                ReturnUrl = returnUrl
+            };
+
+            return new JsonResult(finalInfo);
+
             //session.XToken.SharedSecretKey
             //TODO: need to send shared secret and place in local storage
-            return Redirect(returnUrl);
+            //return Redirect(returnUrl);
         }
 
 

@@ -68,6 +68,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 .CreateClient<IPerimeterHttpClient>(dotYouId, YouAuthDefaults.AppId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 
+            //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken
+
             if (response.IsSuccessStatusCode)
             {
                 if (null != response.Content && response.Content.Length > 0)
@@ -105,23 +107,24 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(YouAuthSession, byte[]?)> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
+        public async ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteKey)
         {
-            ExchangeRegistration token = null;
-            byte[] halfKey = null;
-            
-            if (xTokenHalfKey != null)
+            ChildExchangeRegistration token = null;
+            SensitiveByteArray childRemoteKey = null;
+            SensitiveByteArray childSharedSecret = null;
+
+            if (remoteKey != null)
             {
-                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, xTokenHalfKey);
+                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, remoteKey);
                 if (connection.IsConnected())
                 {
                     var xToken = connection.ExchangeRegistration;
-                    (token, halfKey) = await _exchangeTokenService.TransferXToken(xToken, xTokenHalfKey);
+                    (token, childRemoteKey, childSharedSecret) = await _exchangeTokenService.CreateChildRegistration(xToken, remoteKey);
                 }
             }
 
             var session = await _youSessionManager.CreateSession(subject, token);
-            return (session, halfKey);
+            return (session, childRemoteKey, childSharedSecret);
         }
 
         //
