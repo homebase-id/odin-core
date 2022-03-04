@@ -158,8 +158,6 @@ namespace Youverse.Core.Services.Drive
             }
 
             //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
-
-            //could I add some sort of number here represenitn the secuirty level
             return new DriveSearchResult()
             {
                 FileId = item.FileId,
