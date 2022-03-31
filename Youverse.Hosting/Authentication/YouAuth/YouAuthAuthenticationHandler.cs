@@ -32,15 +32,24 @@ namespace Youverse.Hosting.Authentication.YouAuth
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            //TODD: changing to set user as anonymous instead of failing.  This allows us to support reading files whose ACL = anonymous
+            // if (!TryGetSessionIdFromCookie(out Guid sessionId))
+            // {
+            //     return AuthenticateResult.Fail("No sessionId cookie");
+            // }
+
             if (!TryGetSessionIdFromCookie(out Guid sessionId))
             {
-                return AuthenticateResult.Fail("No sessionId cookie");
+                return AuthenticateResult.Success(CreateAnonTicket());
             }
 
             var session = await _youAuthSessionManager.LoadFromId(sessionId);
             if (session == null)
             {
-                return AuthenticateResult.Fail("No session matching session id");
+                //TODD: changing to set user as anonymous instead of failing.  This allows us to support reading files whose ACL = anonymous
+                // return AuthenticateResult.Fail("No session matching session id");
+                return AuthenticateResult.Success(CreateAnonTicket());
+
             }
 
             var claims = new[]
@@ -54,6 +63,19 @@ namespace Youverse.Hosting.Authentication.YouAuth
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
 
             return AuthenticateResult.Success(ticket);
+        }
+
+        private AuthenticationTicket CreateAnonTicket()
+        {
+            var claims = new[]
+            {
+                new Claim(YouAuthDefaults.IdentityClaim, "anonymous"),
+                new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                new Claim(DotYouClaimTypes.IsIdentified, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.Scheme);
+            return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
 
         //

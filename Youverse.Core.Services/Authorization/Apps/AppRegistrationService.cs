@@ -33,21 +33,21 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveIdentifier, bool createDrive = false, bool canManageConnections = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveIdentifier, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
-            
+
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var masterKeyEncryptedAppKey = new SymmetricKeyEncryptedAes(ref masterKey);
-            
+
             AppDriveGrant defaultDriveGrant = null;
             if (createDrive)
             {
                 Guard.Argument(driveIdentifier, nameof(driveIdentifier)).NotEqual(Guid.Empty);
-                defaultDriveGrant = await this.CreateOwnedDriveInternal(driveIdentifier, $"{name}-default drive", masterKeyEncryptedAppKey);
+                defaultDriveGrant = await this.CreateOwnedDriveInternal(driveIdentifier, $"{name}-default drive", allowAnonymousReadsToDrive, masterKeyEncryptedAppKey);
             }
 
             const int maxKeys = 4; //leave this size 
@@ -78,12 +78,12 @@ namespace Youverse.Core.Services.Authorization.Apps
             return this.ToAppRegistrationResponse(appReg);
         }
 
-        public async Task CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName)
+        public async Task CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName, bool allowAnonymousReads = false)
         {
             Guard.Argument(appId, nameof(appId)).NotEqual(Guid.Empty);
             Guard.Argument(publicDriveIdentifier, nameof(publicDriveIdentifier)).NotEqual(Guid.Empty);
             Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
-            
+
             var app = await this.GetAppRegistrationInternal(appId);
 
             if (null == app)
@@ -91,19 +91,25 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new MissingDataException("App not found");
             }
 
-            var grant = await this.CreateOwnedDriveInternal(publicDriveIdentifier, driveName, app.MasterKeyEncryptedAppKey);
+            //already exists
+            if (app.OwnedDrives.Exists(apg => apg.DriveIdentifier == publicDriveIdentifier))
+            {
+                return;
+            }
+
+            var grant = await this.CreateOwnedDriveInternal(publicDriveIdentifier, driveName, allowAnonymousReads, app.MasterKeyEncryptedAppKey);
 
             app.OwnedDrives.Add(grant);
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(app));
         }
 
-        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid driveIdentifier, string driveName, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
+        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid driveIdentifier, string driveName, bool allowAnonymousReads, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
         {
             Guard.Argument(driveIdentifier, nameof(driveIdentifier)).NotEqual(Guid.Empty);
             Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
 
-            var drive = await _driveService.CreateDrive(driveName);
+            var drive = await _driveService.CreateDrive(driveName, allowAnonymousReads);
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
@@ -137,12 +143,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appClient = await this.GetClientRegistration(token);
             var appReg = await this.GetAppRegistrationInternal(appClient.ApplicationId);
-            
+
             if (failIfRevoked && appReg.IsRevoked)
             {
                 throw new YouverseSecurityException("App is not registered or revoked");
             }
-            
+
             return new AppContext(
                 appId: appReg.ApplicationId,
                 appClientId: appClient.Id,
@@ -163,7 +169,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 return null;
             }
-            
+
             if (failIfRevoked && appReg.IsRevoked)
             {
                 throw new YouverseSecurityException("App is not registered or revoked");

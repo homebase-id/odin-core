@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Middleware
             _tenantProvider = tenantProvider;
         }
 
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager)
+        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == YouAuthConstants.Scheme)
             {
-                await LoadYouAuthContext(httpContext, dotYouContext, youAuthSessionManager);
+                await LoadYouAuthContext(httpContext, dotYouContext, youAuthSessionManager, driveService);
                 await _next(httpContext);
                 return;
             }
@@ -189,15 +189,22 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.SetPermissionContext(new PermissionContext(MapAppDriveGrants(appCtx.OwnedDrives), permissionGrants, dotYouContext.AppContext.GetAppKey()));
         }
 
-        private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager)
+        private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService)
         {
             var user = httpContext.User;
+
+            //HACK: need to determine how we can see if the subject of the session is in the youverse network
+            Guid.TryParse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "", out var sessionId);
+            var session = await youAuthSessionManager.LoadFromId(sessionId);
+
+            bool isInNetwork = session != null;
 
             dotYouContext.Caller = new CallerContext(
                 authContext: YouAuthConstants.Scheme,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
-                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null // Note: we're logged in using an app token so we do not have the master key
+                isOwner: false, //user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),  owner cannot log in via YouAuth
+                masterKey: null,
+                isInYouverseNetwork: isInNetwork
             );
 
             var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
@@ -210,7 +217,32 @@ namespace Youverse.Hosting.Middleware
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var appId = Guid.Parse(appIdValue);
             var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
+
+            if (appCtx == null)
+            {
+                throw new YouverseSecurityException("Invalid App");
+            }
+
+            //be sure to update the app shared secret with that from the xtoken 
+            // *** maybe I will make an Encryption Context ***
+
+            //what ever drive is owned by the app, we will grant access if that drive has 'allow anon'  
+
             dotYouContext.AppContext = appCtx;
+            var allGrants = MapAppDriveGrants(appCtx.OwnedDrives);
+
+            var anonDriveGrants = allGrants.Where(grant =>
+                {
+                    var drive = driveService.GetDrive(grant.DriveId, true).GetAwaiter().GetResult();
+                    return drive.AllowAnonymousReads;
+                })
+                .Select(pdg => //reduce to read only
+                {
+                    pdg.Permissions = DrivePermissions.Read;
+                    return pdg;
+                }).ToList();
+
+            dotYouContext.SetPermissionContext(new PermissionContext(anonDriveGrants, null, null));
 
             var (exchangeRegistration, remoteGrantKey) = await GetXTokenFromSession(httpContext, youAuthSessionManager);
             if (exchangeRegistration is {IsRevoked: false})
@@ -221,9 +253,9 @@ namespace Youverse.Hosting.Middleware
                 //here we can load the actual drive id for now but really should move these to the drive service, deep inside
                 List<PermissionDriveGrant> driveGrants = new List<PermissionDriveGrant>();
 
-                ///
+                //
                 //TODO: get reference from parent xtoken 
-                ///
+                //
 
                 //load a drive for any drive which matches the app context
                 //foreach (var dg in exchangeRegistration.KeyStoreKeyEncryptedDriveGrants)
@@ -239,7 +271,7 @@ namespace Youverse.Hosting.Middleware
                 //        });
                 //    }
                 //}
-                
+
                 dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, null, dk));
             }
         }

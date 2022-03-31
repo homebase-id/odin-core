@@ -37,6 +37,7 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Task.FromResult(true);
             }
 
+            //there must be an acl
             if (acl == null)
             {
                 return Task.FromResult(false);

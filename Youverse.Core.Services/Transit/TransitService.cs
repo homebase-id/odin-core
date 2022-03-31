@@ -167,7 +167,7 @@ namespace Youverse.Core.Services.Transit
         {
             var results = new Dictionary<string, TransferStatus>();
             var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.InternalFile);
-            var storageKey = this._contextAccessor.GetCurrent().Permissions.GetDriveStorageKey(package.InternalFile.DriveId);
+            var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(package.InternalFile.DriveId);
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 

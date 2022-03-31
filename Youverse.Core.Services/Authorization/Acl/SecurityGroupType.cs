@@ -1,5 +1,7 @@
 namespace Youverse.Core.Services.Authorization.Acl
 {
+    
+    //TODO: should we have an OwnerOnly?
     public enum SecurityGroupType
     {
         /// <summary>

@@ -6,6 +6,7 @@ using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -38,6 +39,12 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
+            //HACK: why is this suddenly needed!? 
+            services.Configure<KestrelServerOptions>(options =>
+            {
+                options.AllowSynchronousIO = true;
+            });
+            
             var config = new Configuration(Configuration);
             services.AddSingleton(config);
 
@@ -84,6 +91,7 @@ namespace Youverse.Hosting
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
                 TransitPerimeterPolicies.AddPolicies(policy);
+                YouAuthPolicies.AddPolicies(policy);
             });
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();

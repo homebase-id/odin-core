@@ -25,10 +25,12 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     public class DriveMetadataController : ControllerBase
     {
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IAppRegistrationService _appRegistrationService;
 
-        public DriveMetadataController(DotYouContextAccessor contextAccessor)
+        public DriveMetadataController(DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService)
         {
             _contextAccessor = contextAccessor;
+            _appRegistrationService = appRegistrationService;
         }
 
         [HttpGet("metadata")]
@@ -49,6 +51,18 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
                     Permissions = x.Permissions
                 })
             });
+        }
+
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateDrive(Guid driveIdentifier, string name, bool allowAnonymousReads)
+        {
+            await _appRegistrationService.CreateOwnedDrive(
+                this._contextAccessor.GetCurrent().AppContext.AppId,
+                driveIdentifier,
+                name,
+                allowAnonymousReads);
+
+            return Ok();
         }
     }
 }

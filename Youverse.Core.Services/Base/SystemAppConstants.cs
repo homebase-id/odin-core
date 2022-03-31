@@ -9,6 +9,7 @@ namespace Youverse.Core.Services.Base
         public static readonly Guid ChatAppId = Guid.Parse("99999789-5555-5555-5555-000000002222");
         public static readonly Guid ChatAppDefaultDriveIdentifier = Guid.Parse("99999789-5555-5555-6666-000000005555");
 
+        public static readonly Guid ProfileAppConfigDriveIdentifier = Guid.Parse("99999789-5555-5555-4444-000000005555");
         public static readonly Guid ProfileAppStandardProfileDriveIdentifier = Guid.Parse("99999789-4444-4444-4444-000000006666");
         public static readonly Guid ProfileAppFinancialProfileDriveIdentifier = Guid.Parse("99999789-4444-4444-4444-000000007777");
 

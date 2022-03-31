@@ -24,18 +24,28 @@ namespace Youverse.Core.Services.Registry.Provisioning
         private async Task SetupProfile()
         {
             string profileAppName = "Profile Data";
-
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppStandardProfileDriveIdentifier,
+                    SystemAppConstants.ProfileAppConfigDriveIdentifier,
                     createDrive: true,
-                    canManageConnections: false);
+                    canManageConnections: false,
+                    allowAnonymousReadsToDrive: true);
 
-                await _appRegService.CreateOwnedDrive(appReg.ApplicationId, SystemAppConstants.ProfileAppFinancialProfileDriveIdentifier, "Financial Profile");
+                await _appRegService.CreateOwnedDrive(
+                    appReg.ApplicationId,
+                    SystemAppConstants.ProfileAppStandardProfileDriveIdentifier,
+                    "Standard Profile",
+                    allowAnonymousReads: true);
+                
+                await _appRegService.CreateOwnedDrive(
+                    appReg.ApplicationId,
+                    SystemAppConstants.ProfileAppFinancialProfileDriveIdentifier,
+                    "Financial Profile",
+                    allowAnonymousReads: false);
             }
         }
 
@@ -47,11 +57,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             if (null == existingApp)
             {
                 await _appRegService.RegisterApp(
-                    SystemAppConstants.ChatAppId, 
-                    chatAppName, 
+                    SystemAppConstants.ChatAppId,
+                    chatAppName,
                     SystemAppConstants.ChatAppDefaultDriveIdentifier,
                     createDrive: true,
-                    canManageConnections: true);
+                    canManageConnections: true,
+                    allowAnonymousReadsToDrive: false);
             }
         }
 
@@ -62,11 +73,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             if (null == existingApp)
             {
                 await _appRegService.RegisterApp(
-                    SystemAppConstants.WebHomeAppId, 
+                    SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
                     SystemAppConstants.WebHomeDefaultDriveIdentifier,
                     createDrive: true,
-                    canManageConnections:false);
+                    canManageConnections: false,
+                    allowAnonymousReadsToDrive: true);
             }
         }
     }

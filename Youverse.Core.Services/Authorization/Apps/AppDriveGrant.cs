@@ -5,7 +5,7 @@ using Youverse.Core.Services.Drive;
 namespace Youverse.Core.Services.Authorization.Apps
 {
     /// <summary>
-    /// Specifies a drive
+    /// Specifies a permissions granted to an app for a given drive
     /// </summary>
     public class AppDriveGrant
     {

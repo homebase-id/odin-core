@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Exchange;
@@ -12,18 +16,6 @@ using Youverse.Hosting.Authentication.YouAuth;
 #nullable enable
 namespace Youverse.Hosting.Controllers.YouAuth
 {
-
-    public class YouAuthFinalizationInfo
-    {
-        public byte[] SharedSecret { get; set; }
-
-        /// <summary>
-        /// The original Url to which a browser should be redirected after storing the Shared Secret;
-        /// </summary>
-        public string ReturnUrl { get; set; }
-
-    }
-
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]
     public class YouAuthController : Controller
@@ -60,7 +52,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
                 return new ObjectResult(problemDetails)
                 {
-                    ContentTypes = { "application/problem+json" },
+                    ContentTypes = {"application/problem+json"},
                     StatusCode = problemDetails.Status,
                 };
             }
@@ -81,21 +73,14 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionRemoteGrantKey.GetKey()), options);
             }
 
+            var shareSecret64 = Convert.ToBase64String(childSharedSecret?.GetKey() ?? Array.Empty<byte>());
+
             sessionRemoteGrantKey?.Wipe();
             childSharedSecret?.Wipe();
 
-            //TODO: RSA Encrypt shared secret
-            var finalInfo = new YouAuthFinalizationInfo()
-            {
-                SharedSecret = childSharedSecret?.GetKey() ?? Array.Empty<byte>(),
-                ReturnUrl = returnUrl
-            };
 
-            return new JsonResult(finalInfo);
-
-            //session.XToken.SharedSecretKey
-            //TODO: need to send shared secret and place in local storage
-            //return Redirect(returnUrl);
+            var handlerUrl = $"/home/youauth/finalize?ss64={shareSecret64}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            return Redirect(handlerUrl);
         }
 
 
@@ -103,7 +88,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme, Policy = YouAuthPolicies.IsIdentified)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);

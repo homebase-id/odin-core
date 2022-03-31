@@ -13,7 +13,6 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
     [Route(OwnerApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
     [AuthorizeOwnerConsoleOrApp]
     public class DriveStorageController : ControllerBase
     {

@@ -63,6 +63,12 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public override bool AllowAnonymousReads
+        {
+            get => _inner.AllowAnonymousReads;
+            set { }
+        }
+
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
@@ -85,7 +91,7 @@ namespace Youverse.Core.Services.Drive
     public class StorageDriveBase
     {
         public virtual Guid Id { get; init; }
-        
+
         public virtual string Name { get; set; }
 
         /// <summary>
@@ -101,5 +107,10 @@ namespace Youverse.Core.Services.Drive
         public virtual byte[] EncryptedIdIv { get; set; }
 
         public virtual byte[] EncryptedIdValue { get; set; }
+
+        /// <summary>
+        /// Specifies if anonymous callers can read this drive.
+        /// </summary>
+        public virtual bool AllowAnonymousReads { get; set; }
     }
 }
