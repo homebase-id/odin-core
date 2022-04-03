@@ -16,5 +16,6 @@ namespace Youverse.Core.Services.Transit.Upload
         
         public string JsonContent { get; set; }
         
+        public Guid Alias { get; set; }
     }
 }

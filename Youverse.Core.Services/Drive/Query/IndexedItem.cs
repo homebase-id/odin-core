@@ -66,7 +66,9 @@ namespace Youverse.Core.Services.Drive.Query
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
         public string JsonContent { get; set; }
-        
+
+        public Guid Alias { get; set; }
+
         public bool PayloadIsEncrypted { get; set; }
         
         public AccessControlList AccessControlList { get; set; }

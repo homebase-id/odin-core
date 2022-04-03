@@ -96,6 +96,24 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
+        public async Task<PagedResult<DriveSearchResult>> GetByAlias(Guid driveId, Guid alias, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
+        {
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
+            {
+                //HACK: need to figure out what it means for an index to be valid or not
+                if (queryManager.IndexReadyState == IndexReadyState.Ready)
+                {
+                    var page = await queryManager.GetByAlias(alias, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
+                    var pageResult = await CreateSearchResult(driveId, page, includePayload);
+                    return pageResult;
+                }
+
+                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
+            }
+
+            throw new NoValidIndexException(driveId);
+        }
+
         private async Task<PagedResult<DriveSearchResult>> CreateSearchResult(Guid driveId, PagedResult<IndexedItem> page, bool includePayload)
         {
             var results = new List<DriveSearchResult>();
@@ -170,7 +188,8 @@ namespace Youverse.Core.Services.Drive
                 LastUpdatedTimestamp = item.LastUpdatedTimestamp,
                 SenderDotYouId = item.SenderDotYouId,
                 AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? item.AccessControlList : null,
-                Priority = priority
+                Priority = priority,
+                Alias = item.Alias
             };
         }
 

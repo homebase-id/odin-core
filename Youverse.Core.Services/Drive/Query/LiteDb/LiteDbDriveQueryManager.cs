@@ -94,6 +94,32 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 return filtered;
             }
         }
+        
+        public async Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        {
+            AssertValidIndexLoaded();
+
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
+            {
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                var unfiltered = _indexStorage.Find(item => item.Alias == alias,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter()
+                    .GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
+            }
+        }
 
         private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
@@ -240,7 +266,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 Tags = metadata.AppData.Tags,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent,
-                AccessControlList = metadata.AccessControlList
+                AccessControlList = metadata.AccessControlList,
+                Alias = metadata.AppData.Alias
             };
         }
 

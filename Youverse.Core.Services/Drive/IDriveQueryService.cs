@@ -12,6 +12,8 @@ namespace Youverse.Core.Services.Drive
 
         Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions);
 
+        Task<PagedResult<DriveSearchResult>> GetByAlias(Guid driveId, Guid alias, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions);
+
         Task RebuildBackupIndex(Guid driveId);
 
         Task RebuildAllIndices();

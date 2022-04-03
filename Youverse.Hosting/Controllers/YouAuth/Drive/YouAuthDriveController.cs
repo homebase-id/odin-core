@@ -69,6 +69,15 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         //     return new JsonResult(page);
         // }
 
+        [HttpGet("query/alias")]
+        public async Task<IActionResult> GetByAlias(Guid driveIdentifier, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        {
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
+
+            var page = await _driveQueryService.GetByAlias(driveId, alias, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
+            return new JsonResult(page);
+        }
+        
         [HttpGet("query/tag")]
         public async Task<IActionResult> GetByTag(Guid driveIdentifier, Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {

@@ -131,7 +131,8 @@ namespace Youverse.Core.Services.Transit
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
-                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
+                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted,
+                    Alias = uploadDescriptor.FileMetadata.AppData.Alias
                 },
 
                 SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,

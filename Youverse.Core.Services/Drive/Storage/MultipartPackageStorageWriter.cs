@@ -67,19 +67,21 @@ namespace Youverse.Core.Services.Transit.Upload
 
             InternalDriveFileId file;
 
-            if (instructionSet.StorageOptions?.OverwriteFileId.HasValue ?? false)
+            var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
+
+            if (overwriteFileId == Guid.Empty)
+            {
+                //get a new fileid
+                file = _driveService.CreateFileId(driveId);
+            }
+            else
             {
                 //file to overwrite
                 file = new InternalDriveFileId()
                 {
                     DriveId = driveId,
-                    FileId = instructionSet.StorageOptions.OverwriteFileId.GetValueOrDefault()
+                    FileId = overwriteFileId
                 };
-            }
-            else
-            {
-                //get a new fileid
-                file = _driveService.CreateFileId(driveId);
             }
 
             var pkgId = Guid.NewGuid();

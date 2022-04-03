@@ -32,11 +32,20 @@ namespace Youverse.Core.Services.Notifications
                 return;
             }
 
-            await socket.SendAsync(
-                buffer: new ArraySegment<byte>(Encoding.UTF8.GetBytes(message), 0, message.Length),
-                messageType: WebSocketMessageType.Text,
-                endOfMessage: true,
-                cancellationToken: CancellationToken.None);
+            try
+            {
+                await socket.SendAsync(
+                    buffer: new ArraySegment<byte>(Encoding.UTF8.GetBytes(message), 0, message.Length),
+                    messageType: WebSocketMessageType.Text,
+                    endOfMessage: true,
+                    cancellationToken: CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                //HACK: need to find out what is trying to write when the response is complete
+                Console.WriteLine(e);
+            }
+            
         }
 
         public async Task SendMessageAsync(string socketId, string message)

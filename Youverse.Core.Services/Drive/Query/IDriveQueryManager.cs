@@ -40,7 +40,16 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
+        /// <summary>
+        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
+        /// </summary>
+        /// <param name="tag">The category to match</param>
+        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
+        
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild
         /// </summary>
