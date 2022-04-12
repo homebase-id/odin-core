@@ -32,5 +32,11 @@ namespace Youverse.Core.Cryptography.Data
         /// RSA encrypted from the client to the host.
         /// </summary>
         public SymmetricKeyEncryptedAes KekEncryptedMasterKey { get; set; }
+        
+        /// <summary>
+        /// The Connection Key used to decrypt the shared secret on connection info and the RSA online key for connection request
+        /// </summary>
+        public SymmetricKeyEncryptedAes MasterKeyEncryptedConnectionKey { get; set; }
+
     }
 }

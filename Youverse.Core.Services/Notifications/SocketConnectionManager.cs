@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Notifications
         {
             return _sockets.FirstOrDefault(p => p.Value == socket).Key;
         }
-        
+
         public void AddSocket(WebSocket socket)
         {
             _sockets.TryAdd(CreateConnectionId(), socket);
@@ -36,9 +36,20 @@ namespace Youverse.Core.Services.Notifications
             WebSocket socket;
             _sockets.TryRemove(id, out socket);
 
-            await socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
-                statusDescription: "Closed by the ConnectionManager",
-                cancellationToken: CancellationToken.None);
+            try
+            {
+                await socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
+                    statusDescription: "Closed by the ConnectionManager",
+                    cancellationToken: CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                //TODO: swallowing: System.Net.WebSockets.WebSocketException The remote party closed the WebSocket connection without completing the close handshake.
+                //---> System.ObjectDisposedException: Cannot write to the response body, the response has completed.
+                
+                //I think this occurs because the client has already moved on.
+                Console.WriteLine(e);
+            }
         }
 
         private string CreateConnectionId()

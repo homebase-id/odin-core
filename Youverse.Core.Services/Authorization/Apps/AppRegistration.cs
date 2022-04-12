@@ -22,6 +22,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; set; }
 
+        /// <summary>
+        /// Key the decrypted value is used to decrypt the shared secret on
+        /// <see cref="ConnectionInfo"/> and online RSA Key used in a ConnectionRequest
+        /// </summary>
+        public SymmetricKeyEncryptedAes AppKeyEncryptedConnectionKey { get; set; }
+
         public bool IsRevoked { get; set; }
 
         /// <summary>

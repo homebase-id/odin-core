@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Profile;
 
@@ -32,8 +33,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
+        private readonly IPublicKeyService _pkService;
 
-        public CircleNetworkRequestService(IAppRegistrationService appReg, ExchangeTokenService exchangeTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
+        public CircleNetworkRequestService(IAppRegistrationService appReg, ExchangeTokenService exchangeTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext, IPublicKeyService pkService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -43,6 +45,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _systemStorage = systemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
+            _pkService = pkService;
             _contextAccessor = contextAccessor;
             _exchangeTokenService = exchangeTokenService;
             _appReg = appReg;
@@ -78,10 +81,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
-            var remoteRsaKey = new byte[0]; //TODO
-
+            var remoteRsaKey = await _pkService.GetOnlinePublicKey();
             var (xToken, remoteGrantKey, sharedSecret) = await _exchangeTokenService.CreateDefault();
 
+            //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
             {
                 Id = header.Id,
@@ -119,7 +122,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
-        
+
 
         //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)

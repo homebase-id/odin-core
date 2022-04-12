@@ -19,6 +19,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
@@ -112,7 +113,9 @@ namespace Youverse.Hosting
             cb.RegisterType<ExchangeTokenService>().AsSelf().SingleInstance();
             
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
-            
+
+            cb.RegisterType<PublicKeyService>().As<IPublicKeyService>().SingleInstance();
+
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

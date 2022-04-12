@@ -1,19 +1,35 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
+    public class TagGroupingGrouping
+    {
+        public TagGrouping[] TagGroupings { get; set; }
+        public Conjunction Conjunction { get; set; }
+    }
+
+    public class TagGrouping
+    {
+        public List<byte[]> Tags { get; set; }
+        public Conjunction Conjunction { get; set; }
+    }
+
+    public enum Conjunction
+    {
+        And,
+        Or
+    }
+
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
         private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
@@ -45,6 +61,10 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             set { this._indexReadyState = value; }
         }
 
+        public void QueryByTagGrouping(TagGrouping[] groups, Conjunction cj)
+        {
+        }
+
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
@@ -69,7 +89,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -77,7 +97,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             lock (_indexStorage)
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-                var unfiltered = _indexStorage.Find(item => item.Tags.Contains(tag),
+                // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
+                var unfiltered = _indexStorage.Find(item => (item.Tags.Contains(tag) || tag == Guid.Empty) && item.FileType == fileType,
                         ListSortDirection.Ascending,
                         item => item.CreatedTimestamp,
                         PageOptions.All)
@@ -94,7 +115,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 return filtered;
             }
         }
-        
+
         public async Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
@@ -144,7 +165,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public Task UpdateCurrentIndex(FileMetadata metadata)
         {
-            _indexStorage.Save(ConvertMetadata(metadata));
+            _indexStorage.Save(MetadataToIndexedItem(metadata));
 
             //technically the index is ready because it has at least one item in it
             //this, however, means we need to build a way for apps to understand the
@@ -161,7 +182,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 throw new Exception("Backup index not ready; call PrepareBackupIndexForRebuild before calling UpdateBackupIndex");
             }
 
-            _backupIndexStorage.Save(ConvertMetadata(metadata));
+            _backupIndexStorage.Save(MetadataToIndexedItem(metadata));
 
             return Task.CompletedTask;
         }
@@ -254,7 +275,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private IndexedItem ConvertMetadata(FileMetadata metadata)
+        private IndexedItem MetadataToIndexedItem(FileMetadata metadata)
         {
             //Note: drive is not indexed since this index sits with-in the drive's structure
             return new IndexedItem()
@@ -264,10 +285,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
                 Tags = metadata.AppData.Tags,
+                FileType = metadata.AppData.FileType,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent,
                 AccessControlList = metadata.AccessControlList,
-                Alias = metadata.AppData.Alias
+                Alias = metadata.AppData.Alias,
+                PayloadIsEncrypted = metadata.AppData.PayloadIsEncrypted,
             };
         }
 

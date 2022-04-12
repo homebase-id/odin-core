@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         }
 
         //
-        
+
         [HttpGet("files/header")]
         public async Task<IActionResult> GetMetadata(Guid driveIdentifier, Guid fileId)
         {
@@ -77,13 +77,13 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
             var page = await _driveQueryService.GetByAlias(driveId, alias, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
-        
+
         [HttpGet("query/tag")]
-        public async Task<IActionResult> GetByTag(Guid driveIdentifier, Guid tag, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetByTag(Guid driveIdentifier, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
             var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
 
-            var page = await _driveQueryService.GetByTag(driveId, tag, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
+            var page = await _driveQueryService.GetByTag(driveId, tag, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
