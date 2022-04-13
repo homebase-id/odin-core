@@ -62,6 +62,20 @@ namespace Youverse.Core.Services.Drive.Query
         /// Updates the current index that is in use.
         /// </summary>
         Task UpdateCurrentIndex(FileMetadata metadata);
+        
+        /// <summary>
+        /// Removes the specified file from the index that is currently in use.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        Task RemoveFromCurrentIndex(InternalDriveFileId file);
+
+        /// <summary>
+        /// Removes the specified file from the secondary index.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        Task RemoveFromSecondaryIndex(InternalDriveFileId file);
 
         /// <summary>
         /// Updates the index that is not currently in use.  Use when performing a rebuild.

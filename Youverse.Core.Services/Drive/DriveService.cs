@@ -322,7 +322,16 @@ namespace Youverse.Core.Services.Drive
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
-            return GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
+            var result = GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
+
+            var notification = new DriveFileDeletedNotification()
+            {
+                File = file
+            };
+
+            _mediator.Publish(notification);
+
+            return result;
         }
 
         public async Task StoreLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)

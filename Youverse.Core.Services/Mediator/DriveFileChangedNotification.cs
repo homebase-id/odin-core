@@ -11,4 +11,9 @@ namespace Youverse.Core.Services.Mediator
 
         public FileMetadata FileMetadata { get; set; }
     }
+
+    public class DriveFileDeletedNotification : EventArgs, INotification
+    {
+        public InternalDriveFileId File { get; set; }
+    }
 }

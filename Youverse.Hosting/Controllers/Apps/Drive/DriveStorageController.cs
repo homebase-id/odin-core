@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -51,6 +52,17 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
+        }
+
+        [HttpDelete("files")]
+        public async Task DeleteFile(Guid driveIdentifier, Guid fileId)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                FileId = fileId
+            };
+            await _driveService.DeleteLongTermFile(file);
         }
     }
 }

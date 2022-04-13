@@ -12,24 +12,6 @@ using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive.Query.LiteDb
 {
-    public class TagGroupingGrouping
-    {
-        public TagGrouping[] TagGroupings { get; set; }
-        public Conjunction Conjunction { get; set; }
-    }
-
-    public class TagGrouping
-    {
-        public List<byte[]> Tags { get; set; }
-        public Conjunction Conjunction { get; set; }
-    }
-
-    public enum Conjunction
-    {
-        And,
-        Or
-    }
-
     public class LiteDbDriveQueryManager : IDriveQueryManager
     {
         private LiteDBSingleCollectionStorage<IndexedItem> _indexStorage;
@@ -60,11 +42,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             get { return this._indexReadyState; }
             set { this._indexReadyState = value; }
         }
-
-        public void QueryByTagGrouping(TagGrouping[] groups, Conjunction cj)
-        {
-        }
-
+        
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
@@ -179,7 +157,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             if (null == _backupIndexStorage)
             {
-                throw new Exception("Backup index not ready; call PrepareBackupIndexForRebuild before calling UpdateBackupIndex");
+                throw new Exception("Backup index not ready; call PrepareSecondaryIndexForRebuild before calling UpdateSecondaryIndex");
             }
 
             _backupIndexStorage.Save(MetadataToIndexedItem(metadata));
@@ -187,6 +165,18 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             return Task.CompletedTask;
         }
 
+        public Task RemoveFromCurrentIndex(InternalDriveFileId file)
+        {
+            _indexStorage.Delete(file.FileId);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveFromSecondaryIndex(InternalDriveFileId file)
+        {
+            _indexStorage.Delete(file.FileId);
+            return Task.CompletedTask;
+        }
+        
         public Task PrepareSecondaryIndexForRebuild()
         {
             var backupIndex = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;

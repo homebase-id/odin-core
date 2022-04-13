@@ -55,12 +55,12 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
-            
+
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
@@ -82,6 +82,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .SingleInstance();
 
             cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
@@ -111,11 +112,10 @@ namespace Youverse.Hosting
 
             //TODO breakout interface
             cb.RegisterType<ExchangeTokenService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
 
             cb.RegisterType<PublicKeyService>().As<IPublicKeyService>().SingleInstance();
-
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)
@@ -160,7 +160,7 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
-            
+
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
             ctx.DotYouRegistryId = id;

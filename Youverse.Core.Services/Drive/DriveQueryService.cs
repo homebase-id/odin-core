@@ -17,7 +17,7 @@ using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>
+    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>, INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
@@ -269,6 +269,12 @@ namespace Youverse.Core.Services.Drive
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
             return manager.UpdateCurrentIndex(notification.FileMetadata);
+        }
+
+        public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
+        {
+            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
+            return manager.RemoveFromCurrentIndex(notification.File);
         }
     }
 }
