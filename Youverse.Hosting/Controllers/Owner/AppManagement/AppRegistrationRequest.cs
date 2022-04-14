@@ -15,5 +15,6 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         public Guid DefaultDrivePublicId { get; set; }
         public string DriveMetadata { get; set; }
         public Guid DriveType { get; set; }
+        public string DriveName { get; set; }
     }
 }

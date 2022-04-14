@@ -41,6 +41,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
                 appRegistration.Name,
                 appRegistration.DefaultDrivePublicId,
                 appRegistration.DriveType,
+                appRegistration.DriveName,
                 appRegistration.DriveMetadata,
                 appRegistration.CreateDrive,
                 appRegistration.CanManageConnections);

@@ -30,20 +30,21 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppConfigDriveAlias,
+                    SystemAppConstants.ProfileAppStandardProfileDriveAlias,
                     driveType: SystemAppConstants.ProfileDriveType,
+                    driveName: "Standard Profile",
                     driveMetadata: "",
                     createDrive: true,
                     canManageConnections: false,
                     allowAnonymousReadsToDrive: true);
 
-                await _appRegService.CreateOwnedDrive(
-                    appReg.ApplicationId,
-                    SystemAppConstants.ProfileAppStandardProfileDriveAlias,
-                    "Standard Profile",
-                    type: SystemAppConstants.ProfileDriveType,
-                    metadata: "",
-                    allowAnonymousReads: true);
+                // await _appRegService.CreateOwnedDrive(
+                //     appReg.ApplicationId,
+                //     SystemAppConstants.ProfileAppStandardProfileDriveAlias,
+                //     "Standard Profile",
+                //     type: SystemAppConstants.ProfileDriveType,
+                //     metadata: "",
+                //     allowAnonymousReads: true);
 
                 await _appRegService.CreateOwnedDrive(
                     appReg.ApplicationId,
@@ -67,6 +68,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                     chatAppName,
                     SystemAppConstants.ChatAppDefaultDriveAlias,
                     driveType: SystemAppConstants.ChatDriveType,
+                    driveName:"Default Chat Drive",
                     driveMetadata: "",
                     createDrive: true,
                     canManageConnections: true,
@@ -85,6 +87,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                     webHomeAppName,
                     SystemAppConstants.WebHomeDefaultDriveAlias,
                     driveType: SystemAppConstants.WebHomeDriveType,
+                    driveName:"Web Home Default Drive",
                     driveMetadata: "",
                     createDrive: true,
                     canManageConnections: false,

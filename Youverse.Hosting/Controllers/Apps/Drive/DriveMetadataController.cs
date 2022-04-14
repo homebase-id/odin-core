@@ -66,7 +66,8 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
                 {
                     Name = drive.Name,
                     Type = drive.Type,
-                    Alias = drive.Alias
+                    Alias = drive.Alias,
+                    Metadata = drive.Metadata
                 }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _driveService = driveService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             if (createDrive)
             {
                 Guard.Argument(driveAlias, nameof(driveAlias)).NotEqual(Guid.Empty);
-                defaultDriveGrant = await this.CreateOwnedDriveInternal(driveAlias, $"{name}-default drive", driveType, driveMetadata, allowAnonymousReadsToDrive, masterKeyEncryptedAppKey);
+                defaultDriveGrant = await this.CreateOwnedDriveInternal(driveAlias, driveName, driveType, driveMetadata, allowAnonymousReadsToDrive, masterKeyEncryptedAppKey);
             }
 
             const int maxKeys = 4; //leave this size 

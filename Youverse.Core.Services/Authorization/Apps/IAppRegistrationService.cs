@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
         //Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false);
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 

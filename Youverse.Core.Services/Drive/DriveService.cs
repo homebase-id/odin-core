@@ -51,49 +51,57 @@ namespace Youverse.Core.Services.Drive
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
+        private static object _createDriveLock = new object();
+
         public Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            //driveAlias and type must be unique
-            var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
-                    DriveCollectionName, s => s.Find(drive => drive.Type == type && drive.Alias == driveAlias, PageOptions.All))
-                .GetAwaiter().GetResult();
-
-            if (existingDrives.Results.Count > 0)
+            StorageDrive storageDrive;
+            
+            lock (_createDriveLock)
             {
-                throw new ConfigException("Drive Alias and type must be unique");
+                //driveAlias and type must be unique
+                var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
+                        DriveCollectionName, s => s.Find(drive => drive.Type == type && drive.Alias == driveAlias, PageOptions.All))
+                    .GetAwaiter().GetResult();
+
+                if (existingDrives.Results.Count > 0)
+                {
+                    throw new ConfigException("Drive Alias and type must be unique");
+                }
+
+                var driveKey = new SymmetricKeyEncryptedAes(ref mk);
+
+                var id = Guid.NewGuid();
+                var secret = driveKey.DecryptKeyClone(ref mk);
+
+                (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
+
+                var sdb = new StorageDriveBase()
+                {
+                    Id = id,
+                    Name = name,
+                    Alias = driveAlias,
+                    Type = type,
+                    Metadata = metadata,
+                    MasterKeyEncryptedStorageKey = driveKey,
+                    EncryptedIdIv = encryptedIdIv,
+                    EncryptedIdValue = encryptedIdValue,
+                    AllowAnonymousReads = allowAnonymousReads,
+                };
+
+                secret.Wipe();
+
+                _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
+
+                storageDrive = ToStorageDrive(sdb);
+                storageDrive.EnsureDirectories();
             }
 
-            var driveKey = new SymmetricKeyEncryptedAes(ref mk);
-
-            var id = Guid.NewGuid();
-            var secret = driveKey.DecryptKeyClone(ref mk);
-
-            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
-
-            var sdb = new StorageDriveBase()
-            {
-                Id = id,
-                Name = name,
-                Alias = driveAlias,
-                Type = type,
-                Metadata = metadata,
-                MasterKeyEncryptedStorageKey = driveKey,
-                EncryptedIdIv = encryptedIdIv,
-                EncryptedIdValue = encryptedIdValue,
-                AllowAnonymousReads = allowAnonymousReads,
-            };
-
-            secret.Wipe();
-
-            _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
-
-            var sd = ToStorageDrive(sdb);
-            sd.EnsureDirectories();
-            return Task.FromResult(sd);
+            return Task.FromResult(storageDrive);
         }
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
