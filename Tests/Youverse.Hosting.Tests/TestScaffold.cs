@@ -355,7 +355,7 @@ namespace Youverse.Hosting.Tests
         }
 
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveIdentifier, bool createDrive = false, bool canManageConnections = false)
+        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -366,7 +366,7 @@ namespace Youverse.Hosting.Tests
                     ApplicationId = appId,
                     CreateDrive = createDrive,
                     CanManageConnections = canManageConnections,
-                    DefaultDrivePublicId = appDriveIdentifier
+                    DefaultDrivePublicId = appDriveAlias
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -481,7 +481,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveIdentifier = null,
+                    DriveAlias = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -511,7 +511,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveIdentifier = null,
+                    DriveAlias = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -534,7 +534,7 @@ namespace Youverse.Hosting.Tests
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveIdentifier = null,
+                    DriveAlias = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -628,7 +628,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {
@@ -731,7 +731,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {

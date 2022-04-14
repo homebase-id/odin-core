@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
 using Microsoft.AspNetCore.WebUtilities;
+using Youverse.Core;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -26,11 +27,13 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IAppRegistrationService _appRegistrationService;
+        private readonly IDriveService _driveService;
 
-        public DriveMetadataController(DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService)
+        public DriveMetadataController(DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService, IDriveService driveService)
         {
             _contextAccessor = contextAccessor;
             _appRegistrationService = appRegistrationService;
+            _driveService = driveService;
         }
 
         [HttpGet("metadata")]
@@ -42,24 +45,43 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             {
                 Owned = appContext.OwnedDrives.Select(x => new
                 {
-                    DriveIdentifier = x.DriveIdentifier,
+                    DriveAlias = x.DriveAlias,
                     Permissions = x.Permissions
                 }),
                 Additional = appContext.OwnedDrives.Select(x => new
                 {
-                    DriveIdentifier = x.DriveIdentifier,
+                    DriveAlias = x.DriveAlias,
                     Permissions = x.Permissions
                 })
             });
         }
 
+        [HttpGet("metadata/type")]
+        public async Task<IActionResult> GetDrivesByType(Guid type, int pageNumber, int pageSize)
+        {
+            var drives = await _driveService.GetDrives(type, new PageOptions(pageNumber, pageSize));
+
+            var clientDriveData = drives.Results.Select(drive =>
+                new ClientDriveData()
+                {
+                    Name = drive.Name,
+                    Type = drive.Type,
+                    Alias = drive.Alias
+                }).ToList();
+
+            var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
+            return new JsonResult(page);
+        }
+
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive(Guid driveIdentifier, string name, bool allowAnonymousReads)
+        public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads)
         {
             await _appRegistrationService.CreateOwnedDrive(
                 this._contextAccessor.GetCurrent().AppContext.AppId,
-                driveIdentifier,
+                driveAlias,
                 name,
+                type,
+                metadata,
                 allowAnonymousReads);
 
             return Ok();

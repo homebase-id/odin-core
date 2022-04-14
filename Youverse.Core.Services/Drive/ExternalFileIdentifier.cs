@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Drive
     /// </summary>
     public struct ExternalFileIdentifier
     {
-        public Guid DriveIdentifier { get; set; }
+        public Guid DriveAlias { get; set; }
         public Guid FileId { get; set; }
     }
 }

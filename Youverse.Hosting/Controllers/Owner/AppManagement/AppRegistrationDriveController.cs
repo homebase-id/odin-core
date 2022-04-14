@@ -20,15 +20,15 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpGet("owned")]
         public async Task<IActionResult> GetOwnedDrives([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
-            // await _appRegistrationService.CreateOwnedDrive(appId, publicDriveIdentifier, driveName);
+            // await _appRegistrationService.CreateOwnedDrive(appId, publicDriveAlias, driveName);
 
             throw new NotImplementedException("");
         }
         
         [HttpPost("owned")]
-        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName)
+        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid driveType, string driveMetadata)
         {
-            await _appRegistrationService.CreateOwnedDrive(appId, publicDriveIdentifier, driveName);
+            await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, driveType, driveMetadata);
             return Ok();
         }
 

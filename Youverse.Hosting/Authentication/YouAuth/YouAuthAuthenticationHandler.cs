@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Authentication.YouAuth
         {
             var claims = new[]
             {
-                new Claim(YouAuthDefaults.IdentityClaim, "anonymous"),
+                new Claim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier), //TODO: figure out a better way to communicate this visitor is anonymous
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };

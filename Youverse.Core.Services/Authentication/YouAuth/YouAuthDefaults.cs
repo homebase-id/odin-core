@@ -16,6 +16,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public const string IdentityClaim = ClaimTypes.Name; // SEB:TODO figure out the right claim
 
+        public const string AnonymousIdentifier = "anonymous";
         public static readonly Guid AppId = Guid.Parse("10000000-0000-aaaa-1111-111222333444"); //TODO: should this be fixed here?
     }
 }

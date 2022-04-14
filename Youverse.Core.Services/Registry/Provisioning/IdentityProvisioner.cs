@@ -30,21 +30,27 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppConfigDriveIdentifier,
+                    SystemAppConstants.ProfileAppConfigDriveAlias,
+                    driveType: SystemAppConstants.ProfileDriveType,
+                    driveMetadata: "",
                     createDrive: true,
                     canManageConnections: false,
                     allowAnonymousReadsToDrive: true);
 
                 await _appRegService.CreateOwnedDrive(
                     appReg.ApplicationId,
-                    SystemAppConstants.ProfileAppStandardProfileDriveIdentifier,
+                    SystemAppConstants.ProfileAppStandardProfileDriveAlias,
                     "Standard Profile",
+                    type: SystemAppConstants.ProfileDriveType,
+                    metadata: "",
                     allowAnonymousReads: true);
-                
+
                 await _appRegService.CreateOwnedDrive(
                     appReg.ApplicationId,
-                    SystemAppConstants.ProfileAppFinancialProfileDriveIdentifier,
+                    SystemAppConstants.ProfileAppFinancialProfileDriveAlias,
                     "Financial Profile",
+                    type: SystemAppConstants.ProfileDriveType,
+                    metadata: "",
                     allowAnonymousReads: false);
             }
         }
@@ -59,7 +65,9 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 await _appRegService.RegisterApp(
                     SystemAppConstants.ChatAppId,
                     chatAppName,
-                    SystemAppConstants.ChatAppDefaultDriveIdentifier,
+                    SystemAppConstants.ChatAppDefaultDriveAlias,
+                    driveType: SystemAppConstants.ChatDriveType,
+                    driveMetadata: "",
                     createDrive: true,
                     canManageConnections: true,
                     allowAnonymousReadsToDrive: false);
@@ -75,7 +83,9 @@ namespace Youverse.Core.Services.Registry.Provisioning
                 await _appRegService.RegisterApp(
                     SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
-                    SystemAppConstants.WebHomeDefaultDriveIdentifier,
+                    SystemAppConstants.WebHomeDefaultDriveAlias,
+                    driveType: SystemAppConstants.WebHomeDriveType,
+                    driveMetadata: "",
                     createDrive: true,
                     canManageConnections: false,
                     allowAnonymousReadsToDrive: true);

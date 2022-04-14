@@ -82,6 +82,29 @@ namespace Youverse.Hosting.Middleware
             await _next(httpContext);
         }
 
+        private async Task<AppContextBase> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
+        {
+            //HACK: this method should be removed when correct provisioning is in place
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+
+            if (null == ctxBase)
+            {
+                if (appId == SystemAppConstants.ChatAppId || appId == SystemAppConstants.ProfileAppId || appId == SystemAppConstants.WebHomeAppId)
+                {
+                    var provService = httpContext.RequestServices.GetRequiredService<IIdentityProvisioner>();
+                    await provService.EnsureSystemApps();
+                    ctxBase = await appRegSvc.GetAppContextBase(appId, true);
+                }
+                else
+                {
+                    throw new YouverseSecurityException("App is invalid");
+                }
+            }
+
+            return ctxBase;
+        }
+
         private async Task LoadOwnerContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
@@ -90,12 +113,10 @@ namespace Youverse.Hosting.Middleware
             var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
             var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
 
-            dotYouContext.Caller = new CallerContext(
-                authContext: OwnerAuthConstants.SchemeName,
-                dotYouId: (DotYouIdentity) user.Identity!.Name,
+            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: true,
-                masterKey: masterKey
-            );
+                masterKey: masterKey, authContext: OwnerAuthConstants.SchemeName,
+                isAnonymous: false);
 
             var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
             if (string.IsNullOrEmpty(appIdValue))
@@ -136,29 +157,6 @@ namespace Youverse.Hosting.Middleware
             }
         }
 
-        private async Task<AppContextBase> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
-        {
-            //HACK: this method should be removed when correct provisioning is in place
-            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var ctxBase = await appRegSvc.GetAppContextBase(appId, true);
-
-            if (null == ctxBase)
-            {
-                if (appId == SystemAppConstants.ChatAppId || appId == SystemAppConstants.ProfileAppId || appId == SystemAppConstants.WebHomeAppId)
-                {
-                    var provService = httpContext.RequestServices.GetRequiredService<IIdentityProvisioner>();
-                    await provService.EnsureSystemApps();
-                    ctxBase = await appRegSvc.GetAppContextBase(appId, true);
-                }
-                else
-                {
-                    throw new YouverseSecurityException("App is invalid");
-                }
-            }
-
-            return ctxBase;
-        }
-
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
@@ -167,11 +165,11 @@ namespace Youverse.Hosting.Middleware
             var authResult = DotYouAuthenticationResult.Parse(value);
             var user = httpContext.User;
 
-            dotYouContext.Caller = new CallerContext(
-                authContext: AppAuthConstants.SchemeName,
-                dotYouId: (DotYouIdentity) user.Identity!.Name,
+            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null // Note: we're logged in using an app token so we do not have the master key
+                masterKey: null,
+                authContext: AppAuthConstants.SchemeName, // Note: we're logged in using an app token so we do not have the master key
+                isAnonymous: false
             );
 
             //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
@@ -197,14 +195,16 @@ namespace Youverse.Hosting.Middleware
             Guid.TryParse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "", out var sessionId);
             var session = await youAuthSessionManager.LoadFromId(sessionId);
 
-            bool isInNetwork = session != null;
+            bool isAnonymous = user.HasClaim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier);
+            bool isInNetwork = isAnonymous && session != null; //HACK: used for testing but invalid way to determine if someone is in network
 
             dotYouContext.Caller = new CallerContext(
                 authContext: YouAuthConstants.Scheme,
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: false, //user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),  owner cannot log in via YouAuth
                 masterKey: null,
-                isInYouverseNetwork: isInNetwork
+                isInYouverseNetwork: isInNetwork,
+                isAnonymous: isAnonymous
             );
 
             var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
@@ -260,7 +260,7 @@ namespace Youverse.Hosting.Middleware
                 //load a drive for any drive which matches the app context
                 //foreach (var dg in exchangeRegistration.KeyStoreKeyEncryptedDriveGrants)
                 //{
-                //    var driveId = appCtx.GetDriveId(dg.DriveIdentifier, false);
+                //    var driveId = appCtx.GetDriveId(dg.DriveAlias, false);
                 //    if (driveId != Guid.Empty)
                 //    {
                 //        driveGrants.Add(new PermissionDriveGrant()
@@ -280,11 +280,11 @@ namespace Youverse.Hosting.Middleware
         {
             var user = httpContext.User;
 
-            dotYouContext.Caller = new CallerContext(
-                authContext: TransitPerimeterAuthConstants.TransitAuthScheme,
-                dotYouId: (DotYouIdentity) user.Identity!.Name,
+            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null // Note: we're logged in using a transit certificate so we do not have the master key
+                masterKey: null,
+                authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+                isAnonymous: false
             );
 
             var permissionGrants = new Dictionary<SystemApiPermissionType, int>();

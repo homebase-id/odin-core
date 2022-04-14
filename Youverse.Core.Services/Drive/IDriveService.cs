@@ -16,15 +16,24 @@ namespace Youverse.Core.Services.Drive
         /// Creates a new storage drive
         /// </summary>
         /// <returns></returns>
-        Task<StorageDrive> CreateDrive(string name, bool allowAnonymousReads = false);
+        Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false);
+        
 
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         /// <summary>
-        /// Returns a list of the containers in the system
+        /// Returns a list of the storage drives in the system
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions);
+
+        /// <summary>
+        /// Gets a list of the storage drives by type
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions);
 
         /// <summary>
         /// Creates an Id for storing a file

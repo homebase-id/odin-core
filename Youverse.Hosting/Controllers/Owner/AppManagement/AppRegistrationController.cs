@@ -37,14 +37,20 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpPost]
         public async Task<IActionResult> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistrationService.RegisterApp(appRegistration.ApplicationId, appRegistration.Name, appRegistration.DefaultDrivePublicId, appRegistration.CreateDrive, appRegistration.CanManageConnections);
+            var reg = await _appRegistrationService.RegisterApp(appRegistration.ApplicationId,
+                appRegistration.Name,
+                appRegistration.DefaultDrivePublicId,
+                appRegistration.DriveType,
+                appRegistration.DriveMetadata,
+                appRegistration.CreateDrive,
+                appRegistration.CanManageConnections);
             return new JsonResult(reg);
         }
 
         [HttpPost("drives/owned")]
-        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName)
+        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata)
         {
-            await _appRegistrationService.CreateOwnedDrive(appId, publicDriveIdentifier, driveName);
+            await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, type, metadata);
             return Ok();
         }
 

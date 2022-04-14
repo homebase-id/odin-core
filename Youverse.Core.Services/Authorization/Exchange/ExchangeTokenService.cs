@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
             var rootCircle = _cds.GetRootCircle();
 
             //drives will come from the circle
-            var driveIdList = rootCircle.Grants.SelectMany(x => x.DriveIdentifiers);
+            var driveIdList = rootCircle.Grants.SelectMany(x => x.DriveAliass);
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -64,15 +64,15 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     continue;
                 }
                 
-                foreach (var driveIdentifier in grant.DriveIdentifiers)
+                foreach (var driveAlias in grant.DriveAliass)
                 {
-                    var driveId = appReg.GetDriveId(driveIdentifier);
+                    var driveId = appReg.GetDriveId(driveAlias);
                     var drive = await _driveService.GetDrive(driveId);
                     var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
                     var dk = new ExchangeDriveGrant()
                     {
-                        DriveIdentifier = driveIdentifier,
+                        DriveAlias = driveAlias,
                         XTokenEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref keyStoreKey, ref storageKey)
                     };
 

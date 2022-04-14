@@ -50,10 +50,10 @@ namespace Youverse.Core.Services.Transit.Upload
             Guid driveId;
 
             //Use the drive requested, if set
-            Guid? requestedDriveIdentifier = instructionSet?.StorageOptions?.DriveIdentifier;
-            if (requestedDriveIdentifier.HasValue)
+            Guid? requestedDriveAlias = instructionSet?.StorageOptions?.DriveAlias;
+            if (requestedDriveAlias.HasValue)
             {
-                driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(requestedDriveIdentifier.Value);
+                driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(requestedDriveAlias.Value);
             }
             else
             {

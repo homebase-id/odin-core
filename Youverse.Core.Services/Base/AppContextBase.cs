@@ -37,10 +37,10 @@ namespace Youverse.Core.Services.Base
 
         public List<AppDriveGrant> OwnedDrives { get; init; }
 
-        public Guid GetDriveId(Guid driveIdentifier, bool failIfInvalid = true)
+        public Guid GetDriveId(Guid driveAlias, bool failIfInvalid = true)
         {
             var driveId = this.OwnedDrives
-                .SingleOrDefault(x => x.DriveIdentifier == driveIdentifier)?
+                .SingleOrDefault(x => x.DriveAlias == driveAlias)?
                 .DriveId;
             
             if (!driveId.HasValue && failIfInvalid)
@@ -51,26 +51,26 @@ namespace Youverse.Core.Services.Base
             return driveId.GetValueOrDefault();
         }
         
-        public Guid GetDriveIdentifier(Guid driveId)
+        public Guid GetDriveAlias(Guid driveId)
         {
-            var driveIdentifier = this.OwnedDrives
+            var driveAlias = this.OwnedDrives
                 .SingleOrDefault(x => x.DriveId == driveId)?
-                .DriveIdentifier;
+                .DriveAlias;
             
-            if (!driveIdentifier.HasValue)
+            if (!driveAlias.HasValue)
             {
                 throw new MissingDataException("Invalid public drive identifier");
             }
             
-            return driveIdentifier.Value;
+            return driveAlias.Value;
         }
         
         public ExternalFileIdentifier GetExternalFileIdentifier(InternalDriveFileId file)
         {
-            var driveIdentifier = this.GetDriveIdentifier(file.DriveId);
+            var driveAlias = this.GetDriveAlias(file.DriveId);
             return new ExternalFileIdentifier()
             {
-                DriveIdentifier = driveIdentifier,
+                DriveAlias = driveAlias,
                 FileId = file.FileId
             };
         }

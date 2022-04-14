@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     /// </summary>
     public class AppDriveGrant
     {
-        public Guid DriveIdentifier { get; set; }
+        public Guid DriveAlias { get; set; }
 
         public Guid DriveId { get; set; }
         

@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveIdentifier = null,
+                    DriveAlias = null,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveIdentifier, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
 
                 foreach (var recipient in instructionSet.TransitOptions.Recipients)
                 {
@@ -208,7 +208,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var driveSvc = RestService.For<IDriveStorageHttpClient>(recipientClient);
 
-                var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.DriveIdentifier, inboxItem.File.FileId);
+                var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.DriveAlias, inboxItem.File.FileId);
                 Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileHeaderResponse.Content, Is.Not.Null);
 
@@ -236,7 +236,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveIdentifier,inboxItem.File.FileId);
+                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveAlias,inboxItem.File.FileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

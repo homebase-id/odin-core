@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Authentication.YouAuth;
+using Youverse.Hosting.Controllers.Apps.Drive;
 
 namespace Youverse.Hosting.Controllers.YouAuth.Drive
 {
@@ -32,11 +34,11 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         //
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata(Guid driveIdentifier, Guid fileId)
+        public async Task<IActionResult> GetMetadata(Guid driveAlias, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
@@ -48,11 +50,11 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         }
 
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayload(Guid driveIdentifier, Guid fileId)
+        public async Task<IActionResult> GetPayload(Guid driveAlias, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
@@ -61,7 +63,7 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
-        // [HttpGet("filetype")]
+        // [HttpGet("query/filetype")]
         // public async Task<IActionResult> GetByFileType(int fileType, bool includeContent, int pageNumber, int pageSize)
         // {
         //     var driveId = _context.GetCurrent().AppContext.DriveId.GetValueOrDefault();
@@ -70,28 +72,45 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         // }
 
         [HttpGet("query/alias")]
-        public async Task<IActionResult> GetByAlias(Guid driveIdentifier, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetByAlias(Guid driveAlias, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias);
 
             var page = await _driveQueryService.GetByAlias(driveId, alias, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
         [HttpGet("query/tag")]
-        public async Task<IActionResult> GetByTag(Guid driveIdentifier, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetByTag(Guid driveAlias, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias);
 
             var page = await _driveQueryService.GetByTag(driveId, tag, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
 
         [HttpGet("query/recent")]
-        public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveIdentifier, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveAlias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier);
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias);
             var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
+            return new JsonResult(page);
+        }
+        
+        [HttpGet("metadata/type")]
+        public async Task<IActionResult> GetDrivesByType(Guid type, int pageNumber, int pageSize)
+        {
+            var drives = await _driveService.GetDrives(type, new PageOptions(pageNumber, pageSize));
+
+            var clientDriveData = drives.Results.Select(drive =>
+                new YouAuthClientDriveData()
+                {
+                    Name = drive.Name,
+                    Type = drive.Type,
+                    Alias = drive.Alias
+                }).ToList();
+
+            var page = new PagedResult<YouAuthClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return new JsonResult(page);
         }
     }

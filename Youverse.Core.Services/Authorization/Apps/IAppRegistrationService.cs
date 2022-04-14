@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
         //Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false);
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveIdentifier, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
@@ -91,10 +91,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Creates a new drive to be used with the specified app.  
         /// </summary>
         /// <param name="appId">The app Id</param>
-        /// <param name="publicDriveIdentifier">A key which can be shared publicly to specify when data should be pulled from this drive</param>
+        /// <param name="driveAlias">A key which can be shared publicly to specify when data should be pulled from this drive</param>
         /// <param name="driveName"></param>
+        /// <param name="metadata"></param>
         /// <param name="allowAnonymousReads"></param>
+        /// <param name="type"></param>
         /// <returns></returns>
-        Task CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName, bool allowAnonymousReads = false);
+        Task CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata, bool allowAnonymousReads = false);
     }
 }

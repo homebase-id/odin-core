@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
 {
     public class ExchangeDriveGrant
     {
-        public Guid DriveIdentifier { get; set; }
+        public Guid DriveAlias { get; set; }
         
         public SymmetricKeyEncryptedAes XTokenEncryptedStorageKey { get; set; }
 

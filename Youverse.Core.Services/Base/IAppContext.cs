@@ -28,14 +28,14 @@ namespace Youverse.Core.Services.Base
         /// Gets the drive id which matches the public drive identifier
         /// </summary>
         /// <returns></returns>
-        Guid GetDriveId(Guid driveIdentifier, bool failIfInvalid = true);
+        Guid GetDriveId(Guid driveAlias, bool failIfInvalid = true);
 
         /// <summary>
         /// Returns the public drive identifier for the given DriveId
         /// </summary>
         /// <param name="driveId"></param>
         /// <returns></returns>
-        Guid GetDriveIdentifier(Guid driveId);
+        Guid GetDriveAlias(Guid driveId);
 
         /// <summary>
         /// Maps an internal file to an external file identifier

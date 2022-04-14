@@ -29,11 +29,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata(Guid driveIdentifier, Guid fileId)
+        public async Task<IActionResult> GetMetadata(Guid driveAlias, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -41,11 +41,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayload(Guid driveIdentifier, Guid fileId)
+        public async Task<IActionResult> GetPayload(Guid driveAlias, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
@@ -55,11 +55,11 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpDelete("files")]
-        public async Task DeleteFile(Guid driveIdentifier, Guid fileId)
+        public async Task DeleteFile(Guid driveAlias, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveIdentifier),
+                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
             await _driveService.DeleteLongTermFile(file);
