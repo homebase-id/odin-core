@@ -1,7 +1,7 @@
 using System;
 using Youverse.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authorization.Exchange
+namespace Youverse.Core.Services.Authorization.ExchangeRedux
 {
     //TODO: determine if we can use this instead of an app drive grant for the app registration
     public class ExchangeDriveGrant

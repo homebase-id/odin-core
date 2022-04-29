@@ -46,6 +46,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             {
                 Directory.Delete(_dataStoragePath, true);
             }
+
             if (!string.IsNullOrWhiteSpace(_tempStoragePath))
             {
                 Directory.Delete(_tempStoragePath, true);
@@ -63,16 +64,17 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             var mk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
-            
-            var xtoken = new ChildExchangeRegistration()
+            var ss = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+
+            var xtoken = new XTokenRegistration()
             {
                 Id = Guid.NewGuid(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 RemoteKeyEncryptedKeyStoreKey = hhk,
-                KeyStoreKeyEncryptedSharedSecret = ByteArrayUtil.GetRndByteArray(16),
+                KeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref ss),
                 IsRevoked = false,
             };
-            
+
             var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
 
             youAuthSessionStorage.Save(session);
@@ -82,13 +84,12 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Assert.That(session.CreatedAt, Is.EqualTo(copy!.CreatedAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.That(session.ExpiresAt, Is.EqualTo(copy!.ExpiresAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.AreEqual(session.Subject, copy!.Subject);
-            
-            
-            Assert.That(session.ExchangeRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted, Is.EqualTo(copy.ExchangeRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted));
-            Assert.That(session.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret, Is.EqualTo(copy.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret));
-            Assert.That(session.ExchangeRegistration.Created, Is.EqualTo(copy.ExchangeRegistration.Created));
-            Assert.That(session.ExchangeRegistration.Id, Is.EqualTo(copy.ExchangeRegistration.Id));
-        }
 
+
+            Assert.That(session.XTokenRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted, Is.EqualTo(copy.XTokenRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted));
+            Assert.That(session.XTokenRegistration.KeyStoreKeyEncryptedSharedSecret, Is.EqualTo(copy.XTokenRegistration.KeyStoreKeyEncryptedSharedSecret));
+            Assert.That(session.XTokenRegistration.Created, Is.EqualTo(copy.XTokenRegistration.Created));
+            Assert.That(session.XTokenRegistration.Id, Is.EqualTo(copy.XTokenRegistration.Id));
+        }
     }
 }

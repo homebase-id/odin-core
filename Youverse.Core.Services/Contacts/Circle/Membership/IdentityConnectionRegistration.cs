@@ -4,7 +4,10 @@ using Youverse.Core.Services.Authorization.Exchange;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
-    public class ConnectionInfo : DotYouIdBase
+    /// <summary>
+    /// Specifies that an identity shares a connection with another identity (i.e. friend request)
+    /// </summary>
+    public class IdentityConnectionRegistration : DotYouIdBase
     {
         private ConnectionStatus _status;
 

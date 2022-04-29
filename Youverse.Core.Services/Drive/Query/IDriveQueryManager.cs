@@ -32,6 +32,16 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
+
+        /// <summary>
+        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
+        /// </summary>
+        /// <param name="fileType">The type of file to match</param>
+        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
         /// </summary>
@@ -62,7 +72,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// Updates the current index that is in use.
         /// </summary>
         Task UpdateCurrentIndex(FileMetadata metadata);
-        
+
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>

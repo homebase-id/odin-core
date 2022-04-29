@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Controllers.Apps.Circles
         [HttpGet("status/{dotYouId}")]
         public async Task<IActionResult> GetConnectionInfo(string dotYouId)
         {
-            var result = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId);
             return new JsonResult(result);
         }
 

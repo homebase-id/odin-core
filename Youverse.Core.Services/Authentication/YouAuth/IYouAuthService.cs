@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<(bool, byte[])> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode);
         ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode);
 
-        ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteKey);
+        ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteIdentityConnectionKey);
 
         ValueTask DeleteSession(string subject);
     }

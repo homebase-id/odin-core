@@ -23,13 +23,13 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             _contextAccessor = contextAccessor;
         }
 
-        // [HttpGet("filetype")]
-        // public async Task<IActionResult> GetByFileType(int fileType, bool includeContent, int pageNumber, int pageSize)
-        // {
-        //     var driveId = _context.GetCurrent().AppContext.DriveId.GetValueOrDefault();
-        //     var page = await _driveQueryService.GetByFiletype(driveId, fileType, includeContent, new PageOptions(pageNumber, pageSize));
-        //     return new JsonResult(page);
-        // }
+        [HttpGet("filetype")]
+        public async Task<IActionResult> GetByFileType(Guid driveAlias, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        {
+            var driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias);
+            var page = await _driveQueryService.GetByFileType(driveId, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
+            return new JsonResult(page);
+        }
 
         [HttpGet("alias")]
         public async Task<IActionResult> GetByAlias(Guid driveAlias, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)

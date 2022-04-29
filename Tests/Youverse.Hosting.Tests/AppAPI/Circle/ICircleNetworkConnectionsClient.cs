@@ -22,7 +22,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         Task<ApiResponse<bool>> Disconnect(string dotYouId);
 
         [Get(root_path + "/status/{dotYouId}")]
-        Task<ApiResponse<ConnectionInfo>> GetStatus(string dotYouId);
+        Task<ApiResponse<IdentityConnectionRegistration>> GetStatus(string dotYouId);
         
         [Delete(root_path + "/{dotYouId}")]
         Task<ApiResponse<bool>> Delete(string dotYouId);

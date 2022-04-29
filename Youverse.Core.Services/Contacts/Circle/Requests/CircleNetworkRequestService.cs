@@ -7,6 +7,7 @@ using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
@@ -82,7 +83,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
             var remoteRsaKey = await _pkService.GetOnlinePublicKey();
-            var (xToken, remoteGrantKey, sharedSecret) = await _exchangeTokenService.CreateDefault();
+            var (xToken, remoteGrantKey, sharedSecret) = await _exchangeTokenService.CreateExchangeRegistration();
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -194,7 +195,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var (remoteGrantKey, remoteSharedSecret) = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
-            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _exchangeTokenService.CreateDefault();
+            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _exchangeTokenService.CreateExchangeRegistration();
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -236,8 +237,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
 
             var encryptionKey = originalRequest.PendingExchangeRegistration.KeyStoreKeyEncryptedSharedSecret;
-
-            var (remoteGrantKey, remoteSharedSecret) = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey.ToSensitiveByteArray());
+            
+            var (remoteGrantKey, remoteSharedSecret) = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey);
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingExchangeRegistration, remoteGrantKey, remoteSharedSecret);
 
@@ -289,7 +290,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         }
 
 
-        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyExchangeCredentials(string replyData, SensitiveByteArray encryptionKey)
+        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyExchangeCredentials(string replyData, SymmetricKeyEncryptedAes encryptionKey)
         {
             var combinedBytes = Convert.FromBase64String(replyData);
 

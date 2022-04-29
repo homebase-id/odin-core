@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             get { return this._indexReadyState; }
             set { this._indexReadyState = value; }
         }
-        
+
         public StorageDrive Drive { get; init; }
 
         public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
@@ -66,6 +66,34 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 return filtered;
             }
         }
+
+        public async Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        {
+            AssertValidIndexLoaded();
+
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
+            {
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
+                var unfiltered = _indexStorage.Find(item => item.FileType == fileType,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter()
+                    .GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
+            }
+        }
+
 
         public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
@@ -176,7 +204,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             _indexStorage.Delete(file.FileId);
             return Task.CompletedTask;
         }
-        
+
         public Task PrepareSecondaryIndexForRebuild()
         {
             var backupIndex = _currentIndex.Tier == IndexTier.Primary ? _secondaryIndex : _primaryIndex;

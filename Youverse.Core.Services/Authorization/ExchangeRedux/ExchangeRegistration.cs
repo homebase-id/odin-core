@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authorization.Exchange
+namespace Youverse.Core.Services.Authorization.ExchangeRedux
 {
     /// <summary>
     /// A set of drive grants and keys to exchange data with this identity.  This can be used for connections

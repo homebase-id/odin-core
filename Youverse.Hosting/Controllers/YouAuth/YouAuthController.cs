@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, remoteKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, remoteIdentityConnectionKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var (session, sessionRemoteGrantKey, childSharedSecret) = await _youAuthService.CreateSession(subject, remoteKey?.ToSensitiveByteArray() ?? null);
+            var (session, xToken, childSharedSecret) = await _youAuthService.CreateSession(subject, remoteIdentityConnectionKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -68,14 +68,16 @@ namespace Youverse.Hosting.Controllers.YouAuth
             };
 
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if (null != sessionRemoteGrantKey)
+            if (null != xToken)
             {
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionRemoteGrantKey.GetKey()), options);
+                var key64 = Convert.ToBase64String(xToken.GetKey());
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, key64, options);
             }
 
+            //TODO: RSA Encrypt shared secret
             var shareSecret64 = Convert.ToBase64String(childSharedSecret?.GetKey() ?? Array.Empty<byte>());
 
-            sessionRemoteGrantKey?.Wipe();
+            xToken?.Wipe();
             childSharedSecret?.Wipe();
 
 

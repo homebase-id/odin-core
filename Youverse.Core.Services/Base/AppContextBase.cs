@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Base
             
             if (!driveId.HasValue && failIfInvalid)
             {
-                throw new MissingDataException("Invalid public drive identifier");
+                throw new MissingDataException("Invalid drive alias");
             }
             
             return driveId.GetValueOrDefault();
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Base
             
             if (!driveAlias.HasValue)
             {
-                throw new MissingDataException("Invalid public drive identifier");
+                throw new MissingDataException("No drive alias found for specified driveId");
             }
             
             return driveAlias.Value;

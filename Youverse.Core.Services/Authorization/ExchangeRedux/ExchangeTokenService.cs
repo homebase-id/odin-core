@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
@@ -10,9 +9,9 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Authorization.Exchange
+namespace Youverse.Core.Services.Authorization.ExchangeRedux
 {
-    public class ExchangeTokenService
+    public class ExchangeGrantService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
@@ -20,7 +19,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
         private readonly ICircleDefinitionService _cds;
         private readonly IAppRegistrationService _appRegistration;
 
-        public ExchangeTokenService(DotYouContextAccessor contextAccessor, ILogger<ExchangeTokenService> logger, ISystemStorage systemStorage, IDriveService driveService, ICircleDefinitionService cds, IAppRegistrationService appRegistration)
+        public ExchangeGrantService(DotYouContextAccessor contextAccessor, ILogger<ExchangeGrantService> logger, ISystemStorage systemStorage, IDriveService driveService, ICircleDefinitionService cds, IAppRegistrationService appRegistration)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
@@ -28,7 +27,6 @@ namespace Youverse.Core.Services.Authorization.Exchange
             _cds = cds;
             _appRegistration = appRegistration;
         }
-
 
         /// <summary>
         /// Creates a new Exchange registration and token based on system defaults
@@ -118,6 +116,16 @@ namespace Youverse.Core.Services.Authorization.Exchange
             xTokenRegistrationKeyStoreKey.Wipe();
 
             return Task.FromResult((reg, xToken, sharedSecret));
+        }
+
+        /// <summary>
+        /// Gets an XToken Registration from a given xToken
+        /// </summary>
+        /// <param name="xToken"></param>
+        /// <returns></returns>
+        public async Task<XTokenRegistration> GetXTokenRegistration(SensitiveByteArray xToken)
+        {
+            return null;
         }
     }
 }

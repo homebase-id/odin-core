@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
@@ -43,18 +44,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task DeleteConnection(DotYouIdentity dotYouId)
         {
-            _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Delete(dotYouId));
+            _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Delete(dotYouId));
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            var info = await this.GetConnectionInfo(dotYouId);
+            var info = await this.GetIdentityConnectionRegistration(dotYouId);
             if (info is {Status: ConnectionStatus.Connected})
             {
                 info.Status = ConnectionStatus.None;
-                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
@@ -65,11 +66,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            var info = await this.GetConnectionInfo(dotYouId);
+            var info = await this.GetIdentityConnectionRegistration(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
-                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
@@ -80,34 +81,34 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            var info = await this.GetConnectionInfo(dotYouId);
+            var info = await this.GetIdentityConnectionRegistration(dotYouId);
             if (null != info && info.Status == ConnectionStatus.Blocked)
             {
                 info.Status = ConnectionStatus.Connected;
-                _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(info));
+                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
                 return true;
             }
 
             return false;
         }
 
-        public async Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req)
+        public async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
-            Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
-            PagedResult<ConnectionInfo> results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
+            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
+            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
 
-        public async Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req)
+        public async Task<PagedResult<IdentityConnectionRegistration>> GetBlockedConnections(PageOptions req)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            Expression<Func<ConnectionInfo, string>> sortKeySelector = key => key.DotYouId;
-            Expression<Func<ConnectionInfo, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
-            PagedResult<ConnectionInfo> results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionInfo>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
+            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
+            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
 
@@ -155,38 +156,54 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return results;
         }
 
-        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, bool overrideHack = false)
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false)
         {
             //HACK: DOING THIS WHILE DESIGNING XTOKEN - REMOVE THIS
-            if(!overrideHack)
+            if (!overrideHack)
             {
                 _contextAccessor.GetCurrent().AssertCanManageConnections();
             }
-            
-            return await GetConnectionInfoInternal(dotYouId);
+
+            return await GetIdentityConnectionRegistrationInternal(dotYouId);
         }
 
-        public async Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey)
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey)
         {
-            var connection = await GetConnectionInfoInternal(dotYouId);
+            var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
             if (connection?.ExchangeRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            connection.ExchangeRegistration.AssertValidHalfKey(xTokenHalfKey);
+            connection.ExchangeRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
             return connection;
         }
 
-        private async Task<ConnectionInfo> GetConnectionInfoInternal(DotYouIdentity dotYouId)
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray exchangeRegistrationKsk)
         {
-            var info = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionInfo>(CONNECTIONS, s => s.Get(dotYouId));
+            var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
+
+            if (connection?.ExchangeRegistration == null)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+
+            //TODO: make this an explicit assert
+            //this will fail if the xtoken and exchange registation are incorrect
+            connection.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref exchangeRegistrationKsk);
+
+            return connection;
+        }
+
+        private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
+        {
+            var info = await _systemStorage.WithTenantSystemStorageReturnSingle<IdentityConnectionRegistration>(CONNECTIONS, s => s.Get(dotYouId));
 
             if (null == info)
             {
-                return new ConnectionInfo()
+                return new IdentityConnectionRegistration()
                 {
                     DotYouId = dotYouId,
                     Status = ConnectionStatus.None,
@@ -202,19 +219,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //TODO: this needs to be changed to - can view connections
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            var info = await this.GetConnectionInfo(dotYouId);
+            var info = await this.GetIdentityConnectionRegistration(dotYouId);
             return info.Status == ConnectionStatus.Connected;
         }
 
         public async Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId)
         {
-            var info = await this.GetConnectionInfo(dotYouId);
+            var info = await this.GetIdentityConnectionRegistration(dotYouId);
             this.AssertConnectionIsNoneOrValid(info);
         }
 
-        public void AssertConnectionIsNoneOrValid(ConnectionInfo info)
+        public void AssertConnectionIsNoneOrValid(IdentityConnectionRegistration registration)
         {
-            if (info.Status == ConnectionStatus.Blocked)
+            if (registration.Status == ConnectionStatus.Blocked)
             {
                 throw new SecurityException("DotYouId is blocked");
             }
@@ -227,23 +244,22 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //1. validate current connection state
-            var info = await this.GetConnectionInfoInternal(dotYouId);
-            
+            var info = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
+
             if (info.Status != ConnectionStatus.None)
             {
                 throw new YouverseSecurityException("invalid connection state");
             }
 
             await this.StoreConnection(dotYouId, name, xtoken, remoteGrantKey, remoteSharedSecret);
-
         }
-        
+
         private async Task StoreConnection(string dotYouIdentity, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
             //2. add the record to the list of connections
-            var newConnection = new ConnectionInfo()
+            var newConnection = new IdentityConnectionRegistration()
             {
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
@@ -253,7 +269,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 RemoteSharedSecret = remoteSharedSecret.GetKey()
             };
 
-            _systemStorage.WithTenantSystemStorage<ConnectionInfo>(CONNECTIONS, s => s.Save(newConnection));
+            _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(newConnection));
 
             //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
 

@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<ConnectionInfo>> GetConnections(PageOptions req);
+        Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req);
 
         /// <summary>
         /// Returns a list of <see cref="DotYouProfile"/>s which are connected to this DI
@@ -51,15 +51,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, bool overrideHack = false);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false);
 
         /// <summary>
-        /// Gets the connection info if the specified <param name="xTokenHalfKey">xtoken half key</param> is valid
+        /// Gets the connection info if the specified <param name="remoteIdentityConnectionKey">xtoken half key</param> is valid
         /// </summary>
         /// <param name="dotYouId"></param>
-        /// <param name="xTokenHalfKey"></param>
+        /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
-        Task<ConnectionInfo> GetConnectionInfo(DotYouIdentity dotYouId, SensitiveByteArray xTokenHalfKey);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
+
+        /// <summary>
+        /// Gets the connection info if the specified key store key is valid.
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <param name="keyStoreKey"></param>
+        /// <returns></returns>
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray keyStoreKey);
 
         /// <summary>
         /// Determines if the specified dotYouId is connected 
@@ -78,9 +86,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Throws an exception if the dotYouId is blocked.
         /// </summary>
-        /// <param name="info">The connection info to be checked</param>
+        /// <param name="registration">The connection info to be checked</param>
         /// <returns></returns>
-        void AssertConnectionIsNoneOrValid(ConnectionInfo info);
+        void AssertConnectionIsNoneOrValid(IdentityConnectionRegistration registration);
 
         /// <summary>
         /// Adds the specified dotYouId to your network
@@ -103,7 +111,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<ConnectionInfo>> GetBlockedConnections(PageOptions req);
+        Task<PagedResult<IdentityConnectionRegistration>> GetBlockedConnections(PageOptions req);
 
         /// <summary>
         /// Clears any connection regardless of <see cref="ConnectionStatus"/>.

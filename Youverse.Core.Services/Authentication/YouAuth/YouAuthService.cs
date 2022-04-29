@@ -74,7 +74,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 if (null != response.Content && response.Content.Length > 0)
                 {
-                    return (true, response.Content);
+                    var remoteIdentityConnectionKey = response.Content;
+                    return (true, remoteIdentityConnectionKey);
                 }
 
                 return (true, null)!;
@@ -94,7 +95,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId, isValid);
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt
@@ -107,24 +108,24 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteKey)
+        public async ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteIdentityConnectionKey)
         {
-            ChildExchangeRegistration token = null;
-            SensitiveByteArray childRemoteKey = null;
+            XTokenRegistration tokenRegistration = null;
+            SensitiveByteArray xToken = null;
             SensitiveByteArray childSharedSecret = null;
 
-            if (remoteKey != null)
+            if (remoteIdentityConnectionKey != null)
             {
-                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, remoteKey);
+                var connection = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) subject, remoteIdentityConnectionKey);
                 if (connection.IsConnected())
                 {
-                    var xToken = connection.ExchangeRegistration;
-                    (token, childRemoteKey, childSharedSecret) = await _exchangeTokenService.CreateChildRegistration(xToken, remoteKey);
+                    var reg = connection.ExchangeRegistration;
+                    (tokenRegistration, xToken, childSharedSecret) = await _exchangeTokenService.RegisterXToken(reg, remoteIdentityConnectionKey);
                 }
             }
 
-            var session = await _youSessionManager.CreateSession(subject, token);
-            return (session, childRemoteKey, childSharedSecret);
+            var session = await _youSessionManager.CreateSession(subject, tokenRegistration);
+            return (session, xToken, childSharedSecret);
         }
 
         //
