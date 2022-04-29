@@ -10,8 +10,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var grants = new List<CircleGrantAccessMap>()
             {
-                new() {Appid = SystemAppConstants.ProfileAppId, DriveAliass = new List<Guid>() {SystemAppConstants.ProfileAppStandardProfileDriveAlias}},
-                new() {Appid = SystemAppConstants.WebHomeAppId, DriveAliass = new List<Guid>() {SystemAppConstants.WebHomeDefaultDriveAlias}},
+                new() {Appid = SystemAppConstants.ProfileAppId, DriveAlias = new List<Guid>() {SystemAppConstants.ProfileAppStandardProfileDriveAlias}},
+                new() {Appid = SystemAppConstants.WebHomeAppId, DriveAlias = new List<Guid>() {SystemAppConstants.WebHomeDefaultDriveAlias}},
             };
 
             var defaultCircle = new Circle()

@@ -10,6 +10,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     {
         public Guid Appid { get; set; }
 
-        public List<Guid> DriveAliass { get; set; }
+        public List<Guid> DriveAlias { get; set; }
     }
 }

@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
                     continue;
                 }
 
-                foreach (var driveAlias in grant.DriveAliass)
+                foreach (var driveAlias in grant.DriveAlias)
                 {
                     var driveId = appReg.GetDriveId(driveAlias);
                     var drive = await _driveService.GetDrive(driveId);
@@ -111,7 +111,7 @@ namespace Youverse.Core.Services.Authorization.Exchange
                 RemoteKeyEncryptedKeyStoreKey = xTokenEncryptedKeyStoreKey,
                 KeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref xTokenRegistrationKeyStoreKey, ref sharedSecret),
                 IsRevoked = false,
-                KeyStoreKeyEncryptedExchangeRegistrationKeyStoreKey = new SymmetricKeyEncryptedAes(ref parentKeyStoreKey, ref xTokenRegistrationKeyStoreKey)
+                KeyStoreKeyEncryptedExchangeRegistrationKeyStoreKey = new SymmetricKeyEncryptedAes(ref xTokenRegistrationKeyStoreKey, ref parentKeyStoreKey)
             };
 
             parentKeyStoreKey.Wipe();

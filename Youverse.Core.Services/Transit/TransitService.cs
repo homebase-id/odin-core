@@ -17,6 +17,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Transit.Incoming;
 
 namespace Youverse.Core.Services.Transit
@@ -68,6 +69,11 @@ namespace Youverse.Core.Services.Transit
             //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
             await _driveService.StoreLongTerm(package.InternalFile, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+
+            if (null == metadata.AccessControlList)
+            {
+                throw new MissingDataException("Access control list must be specified");
+            }
             
             var tx = new UploadResult()
             {

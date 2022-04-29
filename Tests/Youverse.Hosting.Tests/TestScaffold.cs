@@ -359,6 +359,7 @@ namespace Youverse.Hosting.Tests
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
+                var dt = Guid.NewGuid();
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
@@ -366,7 +367,10 @@ namespace Youverse.Hosting.Tests
                     ApplicationId = appId,
                     CreateDrive = createDrive,
                     CanManageConnections = canManageConnections,
-                    DefaultDrivePublicId = appDriveAlias
+                    DefaultDrivePublicId = appDriveAlias,
+                    DriveMetadata = "{data:'test metadata'}",
+                    DriveName = $"Test Drive name with type {dt}",
+                    DriveType = dt
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -445,7 +449,7 @@ namespace Youverse.Hosting.Tests
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false)
         {
             //TODO: we might need to let the callers pass this in at some point for testing
-            
+
             //note; this is intentionally not global
             Guid appDriveId = Guid.Parse("99888555-0000-0000-0000-000000004445");
 

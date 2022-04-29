@@ -37,14 +37,15 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpPost]
         public async Task<IActionResult> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistrationService.RegisterApp(appRegistration.ApplicationId,
-                appRegistration.Name,
-                appRegistration.DefaultDrivePublicId,
-                appRegistration.DriveType,
-                appRegistration.DriveName,
-                appRegistration.DriveMetadata,
-                appRegistration.CreateDrive,
-                appRegistration.CanManageConnections);
+            var reg = await _appRegistrationService.RegisterApp(
+                applicationId: appRegistration.ApplicationId,
+                name: appRegistration.Name,
+                driveAlias: appRegistration.DefaultDrivePublicId,
+                driveType: appRegistration.DriveType,
+                driveName: appRegistration.DriveName,
+                driveMetadata: appRegistration.DriveMetadata,
+                createDrive: appRegistration.CreateDrive,
+                canManageConnections: appRegistration.CanManageConnections);
             return new JsonResult(reg);
         }
 

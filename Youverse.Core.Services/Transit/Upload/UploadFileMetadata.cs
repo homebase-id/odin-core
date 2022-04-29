@@ -7,6 +7,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public UploadFileMetadata()
         {
             this.AppData = new();
+            this.AccessControlList = new AccessControlList() {RequiredSecurityGroup = SecurityGroupType.Owner};
         }
 
         public string ContentType { get; set; }
@@ -14,7 +15,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public string SenderDotYouId { get; set; }
 
         public AccessControlList AccessControlList { get; set; }
-        
+
         public UploadAppFileMetaData AppData { get; set; }
     }
 }

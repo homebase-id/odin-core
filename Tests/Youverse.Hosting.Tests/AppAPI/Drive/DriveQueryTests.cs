@@ -12,6 +12,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -67,7 +68,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     Tags = tags,
-                }
+                },
             };
 
             var uploadContext = await _scaffold.Upload(identity, metadata);
