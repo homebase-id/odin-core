@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var (session, xToken, childSharedSecret) = await _youAuthService.CreateSession(subject, remoteIdentityConnectionKey?.ToSensitiveByteArray() ?? null);
+            var (session, clientAccessToken) = await _youAuthService.CreateSession(subject, remoteIdentityConnectionKey?.ToSensitiveByteArray() ?? null);
 
             var options = new CookieOptions()
             {
@@ -68,18 +68,17 @@ namespace Youverse.Hosting.Controllers.YouAuth
             };
 
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if (null != xToken)
+            if (null != clientAccessToken)
             {
-                var key64 = Convert.ToBase64String(xToken.GetKey());
+                var combined = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey());
+                var key64 = Convert.ToBase64String(combined);
+                combined.ToSensitiveByteArray().Wipe();
                 Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, key64, options);
             }
 
             //TODO: RSA Encrypt shared secret
-            var shareSecret64 = Convert.ToBase64String(childSharedSecret?.GetKey() ?? Array.Empty<byte>());
-
-            xToken?.Wipe();
-            childSharedSecret?.Wipe();
-
+            var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
+            clientAccessToken?.Wipe();
 
             var handlerUrl = $"/home/youauth/finalize?ss64={shareSecret64}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);

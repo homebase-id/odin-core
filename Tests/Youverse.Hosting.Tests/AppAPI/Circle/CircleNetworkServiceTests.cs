@@ -210,7 +210,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {frodo.Identity} still exists");
 
                 //
-                // Frodo should be in Sams's contacts network.
+                // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RestService.For<ICircleNetworkConnectionsClient>(client);
                 var response = await samsConnetions.GetStatus(frodo.Identity);

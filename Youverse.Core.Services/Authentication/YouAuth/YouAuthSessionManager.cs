@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<YouAuthSession> CreateSession(string subject, XTokenRegistration tokenRegistration)
+        public ValueTask<YouAuthSession> CreateSession(string subject, Guid? accessRegistrationId)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 }
 
                 var sessionId = Guid.NewGuid();
-                session = new YouAuthSession(sessionId, subject, _sessionlifetime, tokenRegistration);
+                session = new YouAuthSession(sessionId, subject, _sessionlifetime, accessRegistrationId);
                 _youAuthSessionStorage.Save(session);
 
                 return new ValueTask<YouAuthSession>(session);

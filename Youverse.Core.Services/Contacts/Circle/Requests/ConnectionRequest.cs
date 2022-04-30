@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -31,7 +32,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public string RSAEncryptedExchangeCredentials { get; set; }
 
-        public ExchangeRegistration PendingExchangeRegistration { get; set; }
+        /// <summary>
+        /// The Id to the <see cref="AccessRegistration"/> which will be used to give the recipient access if the recipient accepts the connection request
+        /// </summary>
+        public Guid PendingAccessRegistrationId { get; set; }
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.

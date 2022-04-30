@@ -1,8 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -95,8 +97,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="name">The initial name information used at the time the request was accepted</param>
+        /// <param name="accessRegistrationId">The id of the <see cref="AccessRegistration"/> that connects to the access this connection will have</param>
+        /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
         /// <returns></returns>
-        Task Connect(string dotYouId, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteHalfKey, SensitiveByteArray remoteSharedSecret);
+        Task Connect(string dotYouId, NameAttribute name, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken);
 
 
         /// <summary>
@@ -119,5 +123,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="dotYouId"></param>
         /// <returns></returns>
         Task DeleteConnection(DotYouIdentity dotYouId);
+
+        /// <summary>
+        /// Gets the access registration granted to the <param name="dotYouId"></param>
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <param name="remoteIdentityConnectionKey"></param>
+        /// <returns></returns>
+        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
     }
 }

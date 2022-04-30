@@ -7,7 +7,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     //TODO: determine if we can use this instead of an app drive grant for the app registration
     public class DriveGrant
     {
-        public Guid DriveAlias { get; set; }
+        /// <summary>
+        /// The internal drive id being granted access
+        /// </summary>
+        public Guid DriveId { get; set; }
         
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
 

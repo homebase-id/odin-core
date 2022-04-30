@@ -1,18 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Profile;
@@ -30,13 +34,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly IProfileAttributeManagementService _mgts;
         private readonly ISystemStorage _systemStorage;
-        private readonly ExchangeTokenService _exchangeTokenService;
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
         private readonly IPublicKeyService _pkService;
 
-        public CircleNetworkRequestService(IAppRegistrationService appReg, ExchangeTokenService exchangeTokenService, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext, IPublicKeyService pkService)
+        private readonly IDriveService _driveService;
+        private readonly ExchangeGrantService _exchangeGrantService;
+
+        public CircleNetworkRequestService(IAppRegistrationService appReg, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext, IPublicKeyService pkService, ExchangeGrantService exchangeGrantService, IDriveService driveService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -47,8 +53,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _mediator = mediator;
             _tenantContext = tenantContext;
             _pkService = pkService;
+            _exchangeGrantService = exchangeGrantService;
+            _driveService = driveService;
             _contextAccessor = contextAccessor;
-            _exchangeTokenService = exchangeTokenService;
             _appReg = appReg;
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
@@ -83,7 +90,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
             var remoteRsaKey = await _pkService.GetOnlinePublicKey();
-            var (xToken, remoteGrantKey, sharedSecret) = await _exchangeTokenService.CreateExchangeRegistration();
+
+            //HACK: get list of drives from the header (requires UI updates)
+            var drives = await _driveService.GetDrives(PageOptions.All);
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(drives.Results.ToList());
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -93,7 +103,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
-                RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials(header.Recipient, remoteGrantKey, sharedSecret)
+                RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials(header.Recipient, clientAccessToken)
             };
 
             var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -114,16 +124,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 throw new Exception("Failed to establish connection request");
             }
 
-            sharedSecret.Wipe();
-            remoteGrantKey.Wipe();
+            clientAccessToken.SharedSecret.Wipe();
+            clientAccessToken.AccessTokenHalfKey.Wipe();
 
-            //Note: the pending Xtoken attached only AFTER we send the request
+            //Note: the pending access reg id attached only AFTER we send the request
             request.RSAEncryptedExchangeCredentials = "";
-            request.PendingExchangeRegistration = xToken;
-
+            request.PendingAccessRegistrationId = accessRegistration.Id;
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
-
 
         //TODO: this needs to be moved to a transit-specific service
         public Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -177,7 +185,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             return Task.CompletedTask;
         }
 
-
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
@@ -193,9 +200,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
 
-            var (remoteGrantKey, remoteSharedSecret) = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
+            var remoteClientAccessToken = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
-            var (xToken, remoteGrantKeyReply, remoteSharedSecretReply) = await _exchangeTokenService.CreateExchangeRegistration();
+            //HACK: USE ALL DRIVES FOR THE MOMENT, will need to get a list from the UI
+            var drives = await _driveService.GetDrives(PageOptions.All);
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(drives.Results.ToList());
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
@@ -204,7 +213,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             {
                 Name = p.Name,
                 ProfilePic = p.Photo,
-                SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(remoteGrantKeyReply, remoteSharedSecretReply, remoteSharedSecret)
+                SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.SenderDotYouId).EstablishConnection(acceptedReq);
@@ -214,10 +223,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            await _cns.Connect(request.SenderDotYouId, request.Name, xToken, remoteGrantKey, remoteSharedSecret);
+            await _cns.Connect(request.SenderDotYouId, request.Name, accessRegistration.Id, remoteClientAccessToken);
 
-            remoteSharedSecret.Wipe();
-            remoteGrantKey.Wipe();
+            remoteClientAccessToken.AccessTokenHalfKey.Wipe();
+            remoteClientAccessToken.SharedSecret.Wipe();
 
             await this.DeletePendingRequest(request.SenderDotYouId);
             await this.DeleteSentRequest(request.SenderDotYouId);
@@ -235,12 +244,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
+            var accessReg = await _exchangeGrantService.GetAccessRegistration(originalRequest.PendingAccessRegistrationId);
 
-            var encryptionKey = originalRequest.PendingExchangeRegistration.KeyStoreKeyEncryptedSharedSecret;
-            
-            var (remoteGrantKey, remoteSharedSecret) = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, encryptionKey);
+            //TODO: need to decrypt this AccessKeyStoreKeyEncryptedSharedSecret
+            var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret;
 
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingExchangeRegistration, remoteGrantKey, remoteSharedSecret);
+            var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
+
+            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
 
             await this.DeleteSentRequestInternal(originalRequest.Recipient);
 
@@ -276,9 +287,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             return result;
         }
 
-        private string EncryptReplyExchangeCredentials(SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret, SensitiveByteArray encryptionKey)
+        private string EncryptReplyExchangeCredentials(ClientAccessToken clientAccessToken, SensitiveByteArray encryptionKey)
         {
-            var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
+            var combinedBytes = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey(), clientAccessToken.SharedSecret.GetKey());
 
             //TODO: encrypt using encryptionKey
 
@@ -289,38 +300,46 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             return data;
         }
 
-
-        private (SensitiveByteArray, SensitiveByteArray) DecryptReplyExchangeCredentials(string replyData, SymmetricKeyEncryptedAes encryptionKey)
+        private ClientAccessToken DecryptReplyExchangeCredentials(string replyData, SymmetricKeyEncryptedAes encryptionKey)
         {
             var combinedBytes = Convert.FromBase64String(replyData);
 
             //TODO: AES decrypt
-            var (remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16);
-            return (remoteGrantKey.ToSensitiveByteArray(), sharedSecret.ToSensitiveByteArray());
+            var (remoteAccessRegistrationId, remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
+
+            return new ClientAccessToken()
+            {
+                Id = new Guid(remoteAccessRegistrationId),
+                AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
+                SharedSecret = sharedSecret.ToSensitiveByteArray()
+            };
         }
 
-        private string EncryptRequestExchangeCredentials(DotYouIdentity recipient, SensitiveByteArray remoteGrantKey, SensitiveByteArray sharedSecret)
+        private string EncryptRequestExchangeCredentials(DotYouIdentity recipient, ClientAccessToken clientAccessToken)
         {
-            var combinedBytes = ByteArrayUtil.Combine(remoteGrantKey.GetKey(), sharedSecret.GetKey());
+            var combinedBytes = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey(), clientAccessToken.SharedSecret.GetKey());
 
             //TODO: Now RSA Encrypt
 
             var data = Convert.ToBase64String(combinedBytes);
-
             combinedBytes.ToSensitiveByteArray().Wipe();
 
             return data;
         }
 
-        private (SensitiveByteArray, SensitiveByteArray) DecryptRequestExchangeCredentials(string rsaEncryptedCredentials)
+        private ClientAccessToken DecryptRequestExchangeCredentials(string rsaEncryptedCredentials)
         {
             //TODO look up private key from ??
-
             var combinedBytes = Convert.FromBase64String(rsaEncryptedCredentials);
 
             //TODO: rsa decrypt
-            var (remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16);
-            return (remoteGrantKey.ToSensitiveByteArray(), sharedSecret.ToSensitiveByteArray());
+            var (remoteAccessRegistrationIdBytes, remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
+            return new ClientAccessToken()
+            {
+                Id = new Guid(remoteAccessRegistrationIdBytes),
+                AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
+                SharedSecret = sharedSecret.ToSensitiveByteArray()
+            };
         }
     }
 }

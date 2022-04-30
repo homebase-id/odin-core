@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -20,7 +21,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         private readonly ICircleNetworkService _circleNetwork;
 
-        private readonly ExchangeTokenService _exchangeTokenService;
+        private readonly ExchangeGrantService _exchangeGrantService;
         //
 
         public YouAuthService(
@@ -28,14 +29,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IYouAuthSessionManager youSessionManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, ExchangeTokenService exchangeTokenService)
+            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _exchangeTokenService = exchangeTokenService;
+            _exchangeGrantService = exchangeGrantService;
         }
 
         //
@@ -98,8 +99,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
-                    //TODO: RSA Encrypt
-                    remoteGrantKey = info.RemoteGrantKey;
+                    //TODO: RSA Encrypt or used shared secret?
+                    remoteGrantKey = info.ClientAccessTokenHalfKey;
                 }
             }
 
@@ -108,24 +109,20 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(YouAuthSession, SensitiveByteArray?, SensitiveByteArray?)> CreateSession(string subject, SensitiveByteArray? remoteIdentityConnectionKey)
+        public async ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, SensitiveByteArray? remoteIdentityConnectionKey)
         {
-            XTokenRegistration tokenRegistration = null;
-            SensitiveByteArray xToken = null;
-            SensitiveByteArray childSharedSecret = null;
+            AccessRegistration? browserAccessRegistration = null;
+            ClientAccessToken? browserClientAccessToken = null;
 
             if (remoteIdentityConnectionKey != null)
             {
-                var connection = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) subject, remoteIdentityConnectionKey);
-                if (connection.IsConnected())
-                {
-                    var reg = connection.ExchangeRegistration;
-                    (tokenRegistration, xToken, childSharedSecret) = await _exchangeTokenService.RegisterXToken(reg, remoteIdentityConnectionKey);
-                }
+                //look up the EGR key using the remoteIdentityConnectionKey
+                var accessReg = await _circleNetwork.GetIdentityConnectionAccessRegistration((DotYouIdentity) subject, remoteIdentityConnectionKey);
+                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.CreateClientAccessTokenFromAccessGrant(accessReg.Id, remoteIdentityConnectionKey);
             }
 
-            var session = await _youSessionManager.CreateSession(subject, tokenRegistration);
-            return (session, xToken, childSharedSecret);
+            var session = await _youSessionManager.CreateSession(subject, browserAccessRegistration?.Id);
+            return (session, browserClientAccessToken);
         }
 
         //

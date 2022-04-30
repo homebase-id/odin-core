@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -111,7 +112,8 @@ namespace Youverse.Hosting
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             //TODO breakout interface
-            cb.RegisterType<ExchangeTokenService>().AsSelf().SingleInstance();
+            cb.RegisterType<ExchangeTokenService>().AsSelf().SingleInstance(); //todo: remove this
+            cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
 

@@ -23,9 +23,5 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
 
-        public void AssertValidRemoteKey(SensitiveByteArray halfKey)
-        {
-            throw new NotImplementedException("what to do here?");
-        }
     }
 }

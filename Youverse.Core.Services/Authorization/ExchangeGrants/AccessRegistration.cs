@@ -21,6 +21,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeRegistrationKeyStoreKey { get; set; }
 
+        public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
+        {
+            this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref remoteKey);
+        }
     }
 
     public class ClientAccessToken
@@ -28,5 +32,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public Guid Id { get; set; }
         public SensitiveByteArray AccessTokenHalfKey { get; set; }
         public SensitiveByteArray SharedSecret { get; set; }
+
+        public void Wipe()
+        {
+            this.AccessTokenHalfKey?.Wipe();
+            this.SharedSecret?.Wipe();
+        }
     }
 }

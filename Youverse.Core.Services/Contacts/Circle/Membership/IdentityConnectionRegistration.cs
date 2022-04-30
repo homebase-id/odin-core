@@ -1,6 +1,6 @@
 using System;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -25,13 +25,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             return this._status == ConnectionStatus.Connected;
         }
-
-        public ExchangeRegistration ExchangeRegistration { get; set; }
         
-        public byte[] RemoteGrantKey { get; set; }
+        /// <summary>
+        /// The Id to the access registration which defines this connection's access levels
+        /// </summary>
+        public Guid AccessRegistrationId { get; set; }
 
-        public byte[] RemoteSharedSecret { get; set; }
-
+        public byte[] ClientAccessTokenHalfKey { get; set; }
+        
+        public byte[] ClientAccessTokenSharedSecret { get; set; }
+        
         public long LastUpdated { get; set; }
     }
 }

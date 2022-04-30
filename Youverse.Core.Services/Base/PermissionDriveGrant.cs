@@ -4,6 +4,8 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
 {
+    
+    //TODO: this is now a duplciate of DriveGrant.  need to remove this when we refactor everyting into the ExchangeDriveGrant
     public class PermissionDriveGrant
     {
         public Guid DriveId { get; set; }

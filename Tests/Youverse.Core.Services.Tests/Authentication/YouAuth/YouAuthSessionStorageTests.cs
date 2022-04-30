@@ -61,11 +61,12 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             var sessionlifetime = TimeSpan.FromDays(1);
             var sessionId = Guid.NewGuid();
 
-            var mk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
             var ss = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
+            var accessRegistrationId = Guid.Empty;
+            
             var xtoken = new XTokenRegistration()
             {
                 Id = Guid.NewGuid(),
@@ -75,7 +76,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
                 IsRevoked = false,
             };
 
-            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
+            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, accessRegistrationId);
 
             youAuthSessionStorage.Save(session);
             var copy = youAuthSessionStorage.LoadFromId(session.Id);
@@ -85,11 +86,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Assert.That(session.ExpiresAt, Is.EqualTo(copy!.ExpiresAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.AreEqual(session.Subject, copy!.Subject);
 
-
-            Assert.That(session.XTokenRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted, Is.EqualTo(copy.XTokenRegistration.RemoteKeyEncryptedKeyStoreKey.KeyEncrypted));
-            Assert.That(session.XTokenRegistration.KeyStoreKeyEncryptedSharedSecret, Is.EqualTo(copy.XTokenRegistration.KeyStoreKeyEncryptedSharedSecret));
-            Assert.That(session.XTokenRegistration.Created, Is.EqualTo(copy.XTokenRegistration.Created));
-            Assert.That(session.XTokenRegistration.Id, Is.EqualTo(copy.XTokenRegistration.Id));
+            Assert.That(session.AccessRegistrationId, Is.EqualTo(copy.AccessRegistrationId));
         }
     }
 }

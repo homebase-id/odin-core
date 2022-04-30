@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
@@ -10,7 +9,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
-using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
 
@@ -34,12 +33,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly IProfileService _profileService;
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, IProfileService profileService, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage)
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, IProfileService profileService, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _profileService = profileService;
             _systemStorage = systemStorage;
+            _exchangeGrantService = exchangeGrantService;
         }
 
         public async Task DeleteConnection(DotYouIdentity dotYouId)
@@ -171,30 +172,58 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            if (connection?.ExchangeRegistration == null)
+            if (connection?.AccessRegistrationId == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            connection.ExchangeRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
+            var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
+            if (null == accessReg)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+
+            accessReg.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
             return connection;
         }
 
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray exchangeRegistrationKsk)
+        public async Task<AccessRegistration> GetIdentityConnectionAccessRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey)
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
-
-            if (connection?.ExchangeRegistration == null)
+            
+            if (connection?.AccessRegistrationId == null || connection?.IsConnected() == false)
+            {
+                throw new YouverseSecurityException("Unauthorized Action");
+            }
+            
+            var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
+            if (null == accessReg)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            //TODO: make this an explicit assert
-            //this will fail if the xtoken and exchange registation are incorrect
-            connection.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref exchangeRegistrationKsk);
+            accessReg.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
-            return connection;
+            return accessReg;
+        }
+
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray exchangeRegistrationKsk)
+        {
+            throw new NotImplementedException();
+            //
+            // var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
+            //
+            // if (connection?.ExchangeRegistration == null)
+            // {
+            //     throw new YouverseSecurityException("Unauthorized Action");
+            // }
+            //
+            // //TODO: make this an explicit assert
+            // //this will fail if the xtoken and exchange registation are incorrect
+            // connection.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref exchangeRegistrationKsk);
+            //
+            // return connection;
         }
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
@@ -237,9 +266,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
+        public async Task Connect(string dotYouIdentity, NameAttribute name, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken)
         {
-            //TODO: need to add securitry that this method can be called
+            //TODO: need to add security that this method can be called
 
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -251,10 +280,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("invalid connection state");
             }
 
-            await this.StoreConnection(dotYouId, name, xtoken, remoteGrantKey, remoteSharedSecret);
+            await this.StoreConnection(dotYouId, name, accessRegistrationId, remoteClientAccessToken);
         }
 
-        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, ExchangeRegistration xtoken, SensitiveByteArray remoteGrantKey, SensitiveByteArray remoteSharedSecret)
+        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, Guid accessRegId, ClientAccessToken remoteClientAccessToken)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -264,9 +293,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                ExchangeRegistration = xtoken,
-                RemoteGrantKey = remoteGrantKey.GetKey(),
-                RemoteSharedSecret = remoteSharedSecret.GetKey()
+                AccessRegistrationId = accessRegId,
+                ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
+                ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
             };
 
             _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(newConnection));

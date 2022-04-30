@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthSessionManager
     {
-        ValueTask<YouAuthSession> CreateSession(string subject, XTokenRegistration? token);
+        ValueTask<YouAuthSession> CreateSession(string subject, Guid? accessRegistrationId);
         ValueTask<YouAuthSession?> LoadFromId(Guid id);
         ValueTask<YouAuthSession?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);

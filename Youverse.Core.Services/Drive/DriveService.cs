@@ -60,7 +60,7 @@ namespace Youverse.Core.Services.Drive
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
             StorageDrive storageDrive;
-            
+
             lock (_createDriveLock)
             {
                 //driveAlias and type must be unique
@@ -119,6 +119,20 @@ namespace Youverse.Core.Services.Drive
 
             var drive = ToStorageDrive(sdb);
             return drive;
+        }
+
+        public async Task<Guid?> GetDriveIdByAlias(Guid driveAlias, bool failIfInvalid = false)
+        {
+            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.FindOne(d => d.Alias == driveAlias));
+            if (null == sdb)
+            {
+                if (failIfInvalid)
+                {
+                    throw new InvalidDriveException(driveAlias);
+                }
+            }
+
+            return sdb?.Id;
         }
 
         public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
