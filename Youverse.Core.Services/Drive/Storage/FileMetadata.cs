@@ -31,11 +31,17 @@ namespace Youverse.Core.Services.Drive.Storage
         public UInt64 Updated { get; set; }
         public string ContentType { get; set; }
 
-
+        /// <summary>
+        /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
+        /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
+        /// </summary>
+        public bool PayloadIsEncrypted { get; set; }
+        
         /// <summary>
         /// The DotYouId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
         public string SenderDotYouId { get; set; }
+
 
         public AccessControlList AccessControlList { get; set; }
         

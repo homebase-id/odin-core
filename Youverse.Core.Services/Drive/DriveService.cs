@@ -139,7 +139,32 @@ namespace Youverse.Core.Services.Drive
         {
             return await this.GetDrivesInternal(true, pageOptions);
         }
+        
+        public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
+        {
+            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.Type == type;
 
+            if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
+            {
+                predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
+            }
+
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
+            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
+            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
+            return converted;
+        }
+        
+        public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
+        {
+            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.AllowAnonymousReads == true; 
+
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
+            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
+            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
+            return converted;
+        }
+        
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
             Expression<Func<StorageDriveBase, bool>> predicate = drive => true;
@@ -158,20 +183,6 @@ namespace Youverse.Core.Services.Drive
             return converted;
         }
 
-        public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
-        {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.Type == type;
-
-            if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
-            {
-                predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
-            }
-
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
-        }
 
         public InternalDriveFileId CreateFileId(Guid driveId)
         {

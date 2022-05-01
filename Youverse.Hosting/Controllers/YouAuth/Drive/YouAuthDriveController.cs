@@ -8,7 +8,6 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Authentication.YouAuth;
-using Youverse.Hosting.Controllers.Apps.Drive;
 
 namespace Youverse.Hosting.Controllers.YouAuth.Drive
 {

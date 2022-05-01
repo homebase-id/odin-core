@@ -36,6 +36,8 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions);
 
+        Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions);
+
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>

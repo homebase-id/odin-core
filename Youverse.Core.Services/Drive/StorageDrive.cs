@@ -145,5 +145,7 @@ namespace Youverse.Core.Services.Drive
         /// Specifies if anonymous callers can read this drive.
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
+        
+        public virtual byte[] AnonEncryptedStorageKey { get; set; }
     }
 }

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -214,58 +215,26 @@ namespace Youverse.Hosting.Middleware
                 isAnonymous: isAnonymous
             );
 
-            // Note: removing appid since we have the exchange drive grant
-            // var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
-            // if (string.IsNullOrEmpty(appIdValue))
-            // {
-            //     //grant nothing extra if no app is specified
-            //     return;
-            // }
-            //
-            // var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            // var appId = Guid.Parse(appIdValue);
-            // var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
-            //
-            // if (appCtx == null)
-            // {
-            //     throw new YouverseSecurityException("Invalid App");
-            // }
-
             dotYouContext.AppContext = null;
-            // var allGrants = MapAppDriveGrants(appCtx.OwnedDrives);
-            //
-            // var anonDriveGrants = allGrants.Where(grant =>
-            //     {
-            //         var drive = driveService.GetDrive(grant.DriveId, true).GetAwaiter().GetResult();
-            //         return drive.AllowAnonymousReads;
-            //     })
-            //     .Select(pdg => //reduce to read only
-            //     {
-            //         pdg.Permissions = DrivePermissions.Read;
-            //         return pdg;
-            //     }).ToList();
 
-            // dotYouContext.SetPermissionContext(new PermissionContext(anonDriveGrants, null, null));
+            List<PermissionDriveGrant> permissionDriveGrants = new List<PermissionDriveGrant>();
 
-            //here, we need to determine if the caller has additional access via an ExchangeGrant.  This will be stored on the session
-            // we need back the drives (and later permissions) to which the caller has access
-            var (keyStoreKey, drives) = await GetExchangeGrantRegistration(httpContext, youAuthSessionManager, exchangeGrantService);
-            
-            //     //TODO: hit the circle membership service to validate the circle still has the app AND the user is a member of it?
-            //     //here we can load the actual drive id for now but really should move these to the drive service, deep inside
-            List<PermissionDriveGrant> driveGrants = new List<PermissionDriveGrant>();
-            
-            foreach (var dg in drives)
+            var anonymousDriveGrants = await GetAnonymousDriveGrants(driveService);
+            permissionDriveGrants.AddRange(anonymousDriveGrants);
+
+            var (keyStoreKey, exchangeDriveGrants) = await GetExchangeGrantRegistration(httpContext, youAuthSessionManager, exchangeGrantService);
+
+            if(exchangeDriveGrants !=null)
             {
-                driveGrants.Add(new PermissionDriveGrant()
+                permissionDriveGrants.AddRange(exchangeDriveGrants.Select(dg => new PermissionDriveGrant()
                 {
                     DriveId = dg.DriveId,
                     EncryptedStorageKey = dg.KeyStoreKeyEncryptedStorageKey,
                     Permissions = dg.Permissions
-                });
+                }));
             }
 
-            dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, null, keyStoreKey));
+            dotYouContext.SetPermissionContext(new PermissionContext(permissionDriveGrants, null, keyStoreKey));
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -291,7 +260,6 @@ namespace Youverse.Hosting.Middleware
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
                 var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
 
-
                 dotYouContext.AppContext = appCtx;
 
                 driveGrants = MapAppDriveGrants(appCtx.OwnedDrives);
@@ -316,13 +284,26 @@ namespace Youverse.Hosting.Middleware
                 {
                     var (accessRegistrationIdBytes, accessTokenHalfKey) = ByteArrayUtil.Split(combined, 16, 16);
                     var accessRegistrationId = new Guid(accessRegistrationIdBytes);
-                    
+
                     var (keyStoreKey, drives) = await exchangeGrantService.GetDrivesFromValidatedAccessRegistration(accessRegistrationId, accessTokenHalfKey.ToSensitiveByteArray());
                     return (keyStoreKey, drives);
                 }
             }
 
             return (null, null);
+        }
+
+        private async Task<List<PermissionDriveGrant>> GetAnonymousDriveGrants(IDriveService driveService)
+        {
+            var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+            var anonDriveGrants = anonymousDrives.Results.Select(drive => new PermissionDriveGrant()
+            {
+                DriveId = drive.Id,
+                EncryptedStorageKey = null,
+                Permissions = DrivePermissions.Read
+            }).ToList();
+
+            return anonDriveGrants;
         }
 
         private IEnumerable<PermissionDriveGrant> MapAppDriveGrants(IEnumerable<AppDriveGrant> appDriveGrants)

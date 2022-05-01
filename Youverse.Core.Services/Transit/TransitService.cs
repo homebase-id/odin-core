@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Transit
             {
                 throw new MissingDataException("Access control list must be specified");
             }
-            
+
             var tx = new UploadResult()
             {
                 File = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(package.InternalFile)
@@ -124,8 +124,7 @@ namespace Youverse.Core.Services.Transit
             }
 
             var sharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
-            var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-
+            KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret) : KeyHeader.Empty();
             var metadata = new FileMetadata(package.InternalFile)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
@@ -137,10 +136,10 @@ namespace Youverse.Core.Services.Transit
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
-                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted,
                     Alias = uploadDescriptor.FileMetadata.AppData.Alias
                 },
 
+                PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
                 SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
                 AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };

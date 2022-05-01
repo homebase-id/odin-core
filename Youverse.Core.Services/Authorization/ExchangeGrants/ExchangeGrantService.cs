@@ -5,10 +5,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
@@ -99,7 +96,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a new <see cref="AccessRegistration"/> from an existing <see cref="AccessRegistration"/>
         /// </summary>
-        /// <returns></returns>
         public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenFromAccessGrant(Guid accessRegId, SensitiveByteArray sourceAccessRegistrationHalfKey)
         {
             var sourceAccessRegistration = await this.GetAccessRegistration(accessRegId);

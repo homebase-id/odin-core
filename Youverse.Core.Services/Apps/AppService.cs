@@ -17,17 +17,25 @@ namespace Youverse.Core.Services.Apps
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
         }
- 
+
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var ekh = await _driveService.GetEncryptedKeyHeader(file);
-            var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-            
-            var keyHeader = ekh.DecryptAesToKeyHeader(ref storageKey);
+            var md = await _driveService.GetMetadata(file);
+
+            KeyHeader keyHeader;
+            if (md.PayloadIsEncrypted)
+            {
+                var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
+                keyHeader = ekh.DecryptAesToKeyHeader(ref storageKey);
+            }
+            else
+            {
+                keyHeader = KeyHeader.Empty();
+            }
+
             var clientSharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
             var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, ref clientSharedSecret);
-
-            var md = await _driveService.GetMetadata(file);
 
             return new ClientFileHeader()
             {

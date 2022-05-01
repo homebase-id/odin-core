@@ -308,7 +308,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 JsonContent = metadata.AppData.JsonContent,
                 AccessControlList = metadata.AccessControlList,
                 Alias = metadata.AppData.Alias,
-                PayloadIsEncrypted = metadata.AppData.PayloadIsEncrypted,
+                PayloadIsEncrypted = metadata.PayloadIsEncrypted,
             };
         }
 

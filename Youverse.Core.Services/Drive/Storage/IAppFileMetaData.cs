@@ -21,12 +21,6 @@ namespace Youverse.Core.Services.Drive.Storage
         bool ContentIsComplete { get; set; }
 
         /// <summary>
-        /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
-        /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
-        /// </summary>
-        bool PayloadIsEncrypted { get; set; }
-
-        /// <summary>
         /// The JsonPayload to be included in the index.  This is not searchable but rather available to be returned
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
