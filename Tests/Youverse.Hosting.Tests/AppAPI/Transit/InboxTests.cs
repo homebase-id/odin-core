@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.Id}");
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.Id}");
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.SessionToken}");
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.AuthResult.Id}");
             using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.AuthResult))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);

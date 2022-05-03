@@ -20,5 +20,4 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public DrivePermissions Permissions { get; set; }
     }
-    
 }

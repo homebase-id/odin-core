@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authorization.Permissions;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
@@ -22,6 +22,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public bool IsRevoked { get; set; }
 
         public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
+        
+        /// <summary>
+        /// Permissions indicating what the app can do
+        /// </summary>
+        public PermissionSet PermissionSet { get; set; }
 
     }
 }

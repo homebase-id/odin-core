@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core.Services.Authorization.Permissions;
 
 namespace Youverse.Hosting.Controllers.Owner.AppManagement
 {
@@ -10,10 +11,12 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         
         public bool CreateDrive { get; set; }
 
-        public bool CanManageConnections { get; set; }
+        public PermissionSet PermissionSet { get; set; }
         
         public Guid DefaultDrivePublicId { get; set; }
         public string DriveMetadata { get; set; }
+        
+        public bool DriveAllowAnonymousReads { get; set; }
         public Guid DriveType { get; set; }
         public string DriveName { get; set; }
     }

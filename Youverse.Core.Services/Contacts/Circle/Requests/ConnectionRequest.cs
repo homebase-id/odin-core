@@ -3,7 +3,6 @@ using Dawn;
 using Newtonsoft.Json;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests

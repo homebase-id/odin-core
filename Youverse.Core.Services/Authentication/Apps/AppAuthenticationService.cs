@@ -1,30 +1,31 @@
 using System;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Authentication.Apps
 {
     public class AppAuthenticationService : IAppAuthenticationService
     {
-        private readonly IAppRegistrationService _appService;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
-        public AppAuthenticationService(IAppRegistrationService appService)
+        public AppAuthenticationService(ExchangeGrantService exchangeGrantService)
         {
-            _appService = appService;
+            _exchangeGrantService = exchangeGrantService;
         }
 
-        public async Task<AppTokenValidationResult> ValidateClientToken(Guid token)
+        public async Task<AppTokenValidationResult> ValidateClientToken(Guid accessRegistrationId)
         {
-            var clientReg = await _appService.GetClientRegistration(token);
-            var isValid = clientReg != null && clientReg.IsRevoked == false;
-            
-            // check the app
+            //TODO: Move validation to exchange grant service
+            var accessRegistration = await _exchangeGrantService.GetAccessRegistration(accessRegistrationId);
+            var isValid = accessRegistration != null && accessRegistration.IsRevoked == false;
+
             if (isValid)
             {
-                var appReg = await _appService.GetAppRegistration(clientReg.ApplicationId);
-                isValid = appReg != null && appReg.IsRevoked == false;
+                var exchangeGrant = await _exchangeGrantService.GetExchangeGrant(accessRegistration.GrantId);
+                isValid = exchangeGrant != null && exchangeGrant.IsRevoked == false;
             }
-            
+
             return new AppTokenValidationResult()
             {
                 IsValid = isValid

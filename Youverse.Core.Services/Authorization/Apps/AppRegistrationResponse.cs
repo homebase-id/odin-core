@@ -8,11 +8,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public string Name { get; set; }
 
+        [Obsolete]
         public bool IsRevoked { get; set; }
         
-        /// <summary>
-        /// The drive associated with this app.
-        /// </summary>
-        public Guid? DefaultDriveId { get; set; }
     }
 }

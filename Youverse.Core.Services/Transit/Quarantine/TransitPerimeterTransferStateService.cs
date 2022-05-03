@@ -28,17 +28,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             Guid id = Guid.NewGuid();
 
-            var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault());
-            var item = new IncomingTransferStateItem(id, file);
-
-            await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
-            await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
-
-            item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
-
-            this.Save(item);
-
-            return id;
+            throw new NotImplementedException("need to uptade to read drive alias and use shared secret from connection.");
+            // look up the apps target drivealias
+            // var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault());
+            // var item = new IncomingTransferStateItem(id, file);
+            //
+            // await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
+            // await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
+            //
+            // item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
+            //
+            // this.Save(item);
+            //
+            // return id;
         }
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)

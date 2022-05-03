@@ -126,8 +126,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
+                    ApplicationId = applicationId,
                     Name = name,
-                    ApplicationId = applicationId
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -139,7 +139,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var savedApp = await GetSampleApp(applicationId);
                 Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
                 Assert.IsTrue(savedApp.Name == request.Name);
-                Assert.IsTrue(savedApp.DefaultDriveId == null);
 
                 return appReg;
             }

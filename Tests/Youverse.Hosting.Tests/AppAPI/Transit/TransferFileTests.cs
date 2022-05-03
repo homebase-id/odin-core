@@ -50,6 +50,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 recipientContexts.Add(recipient, ctx);
             }
 
+            var driveAlias = Guid.NewGuid();
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
@@ -58,7 +59,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = null,
+                    DriveAlias = driveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -254,7 +255,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var driveQueryClient = RestService.For<IDriveQueryClient>(recipientClient);
 
-                var response = await driveQueryClient.GetByTag(recipientContext.DefaultDrivePublicId, categoryId, true, 1, 100);
+                var response = await driveQueryClient.GetByTag(recipientContext.DriveAlias, categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);

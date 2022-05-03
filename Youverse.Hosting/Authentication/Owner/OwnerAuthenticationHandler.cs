@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Authentication.Owner
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
 
-                if (await authService.IsValidToken(authResult.SessionToken))
+                if (await authService.IsValidToken(authResult.Id))
                 {
                     var deviceUid = Context.Request.Cookies[DotYouHeaderNames.DeviceUid] ?? "";
 
@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
 
                     var ticket = new AuthenticationTicket(principal, authProperties, OwnerAuthConstants.SchemeName);
-                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.SessionToken);
+                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);
                     return AuthenticateResult.Success(ticket);
                 }
             }
@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Authentication.Owner
             if (GetToken(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-                authService.ExpireToken(result.SessionToken);
+                authService.ExpireToken(result.Id);
             }
 
             return Task.CompletedTask;
@@ -107,11 +107,11 @@ namespace Youverse.Hosting.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        private bool GetToken(out DotYouAuthenticationResult authResult)
+        private bool GetToken(out ClientAuthToken authResult)
         {
             //TODO: can we remove some of the sensitive cookie values from memory
             var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];
-            if (DotYouAuthenticationResult.TryParse(value, out var result))
+            if (ClientAuthToken.TryParse(value, out var result))
             {
                 authResult = result;
                 return true;

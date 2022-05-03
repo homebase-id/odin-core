@@ -14,12 +14,10 @@ namespace Youverse.Core.Services.Authorization.Acl
     public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ICircleNetworkService _circleNetwork;
 
-        public DriveAclAuthorizationService(DotYouContextAccessor contextAccessor, ICircleNetworkService circleNetwork, IHttpContextAccessor httpContext)
+        public DriveAclAuthorizationService(DotYouContextAccessor contextAccessor)
         {
             _contextAccessor = contextAccessor;
-            _circleNetwork = circleNetwork;
         }
 
         public Task AssertCallerHasPermission(AccessControlList acl)
@@ -69,8 +67,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         public async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            var isConnected = await _circleNetwork.IsConnected(_contextAccessor.GetCurrent().Caller.DotYouId);
-            return isConnected;
+            return _contextAccessor.GetCurrent().Caller.IsConnected;
         }
 
         public Task<bool> CallerIsInYouverseNetwork()

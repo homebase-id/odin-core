@@ -1,17 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Registry.Provisioning
 {
     public class IdentityProvisioner : IIdentityProvisioner
     {
         private readonly IAppRegistrationService _appRegService;
+        private readonly IDriveService _driveService;
 
-        public IdentityProvisioner(IAppRegistrationService appRegService)
+        public IdentityProvisioner(IAppRegistrationService appRegService, IDriveService driveService)
         {
             _appRegService = appRegService;
+            _driveService = driveService;
         }
 
         public async Task EnsureSystemApps()
@@ -27,32 +31,14 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
+                var drive = await _driveService.CreateDrive("Standard Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppStandardProfileDriveAlias, "", true);
+                var drive2 = await _driveService.CreateDrive("Financial Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppFinancialProfileDriveAlias, "", false);
+
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    SystemAppConstants.ProfileAppStandardProfileDriveAlias,
-                    driveType: SystemAppConstants.ProfileDriveType,
-                    driveName: "Standard Profile",
-                    driveMetadata: "",
-                    createDrive: true,
-                    canManageConnections: false,
-                    allowAnonymousReadsToDrive: true);
-
-                // await _appRegService.CreateOwnedDrive(
-                //     appReg.ApplicationId,
-                //     SystemAppConstants.ProfileAppStandardProfileDriveAlias,
-                //     "Standard Profile",
-                //     type: SystemAppConstants.ProfileDriveType,
-                //     metadata: "",
-                //     allowAnonymousReads: true);
-
-                await _appRegService.CreateOwnedDrive(
-                    appReg.ApplicationId,
-                    SystemAppConstants.ProfileAppFinancialProfileDriveAlias,
-                    "Financial Profile",
-                    type: SystemAppConstants.ProfileDriveType,
-                    metadata: "",
-                    allowAnonymousReads: false);
+                    permissions:null,
+                    new List<Guid>() {drive.Id, drive2.Id});
             }
         }
 
@@ -63,16 +49,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
             if (null == existingApp)
             {
+                var drive = await _driveService.CreateDrive("Default Chat Drive", SystemAppConstants.ChatDriveType, SystemAppConstants.ChatAppDefaultDriveAlias, "", true);
                 await _appRegService.RegisterApp(
                     SystemAppConstants.ChatAppId,
                     chatAppName,
-                    SystemAppConstants.ChatAppDefaultDriveAlias,
-                    driveType: SystemAppConstants.ChatDriveType,
-                    driveName:"Default Chat Drive",
-                    driveMetadata: "",
-                    createDrive: true,
-                    canManageConnections: true,
-                    allowAnonymousReadsToDrive: false);
+                    permissions: null,
+                    new List<Guid>() {drive.Id});
             }
         }
 
@@ -82,16 +64,12 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
             if (null == existingApp)
             {
+                var drive = await _driveService.CreateDrive("Web Home Default Drive", SystemAppConstants.WebHomeDriveType, SystemAppConstants.WebHomeDefaultDriveAlias, "", true);
                 await _appRegService.RegisterApp(
                     SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
-                    SystemAppConstants.WebHomeDefaultDriveAlias,
-                    driveType: SystemAppConstants.WebHomeDriveType,
-                    driveName:"Web Home Default Drive",
-                    driveMetadata: "",
-                    createDrive: true,
-                    canManageConnections: false,
-                    allowAnonymousReadsToDrive: true);
+                    permissions: null,
+                    new List<Guid>() {drive.Id});
             }
         }
     }

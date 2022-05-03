@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
                 Assert.That(validateResponse.Content.IsValid, Is.True);
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
 
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
 
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await appAuthSvc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
                 Assert.That(validateResponse.Content.IsValid, Is.True);
@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await svc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await svc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
                 var result = validateResponse.Content;
@@ -121,7 +121,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await svc.ValidateClientToken(authResult.SessionToken);
+                var validateResponse = await svc.ValidateClientToken(authResult.Id);
                 Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(validateResponse.Content, Is.Not.Null);
                 var result = validateResponse.Content;

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Youverse.Core.Services.Authentication.YouAuth;
@@ -9,7 +8,6 @@ using Youverse.Core.Services.Base;
 using NSubstitute;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Registry;
 
 #nullable enable
@@ -60,21 +58,8 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
 
             var sessionlifetime = TimeSpan.FromDays(1);
             var sessionId = Guid.NewGuid();
-
-            var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
-            var ss = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-
-            var accessRegistrationId = Guid.Empty;
             
-            var xtoken = new XTokenRegistration()
-            {
-                Id = Guid.NewGuid(),
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                RemoteKeyEncryptedKeyStoreKey = hhk,
-                KeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref ss),
-                IsRevoked = false,
-            };
+            var accessRegistrationId = Guid.Empty;
 
             var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, accessRegistrationId);
 

@@ -28,7 +28,8 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpPost("owned")]
         public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid driveType, string driveMetadata)
         {
-            await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, driveType, driveMetadata);
+            throw new NotImplementedException("TODO update to exchange grant service");
+            // await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, driveType, driveMetadata);
             return Ok();
         }
 

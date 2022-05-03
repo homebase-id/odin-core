@@ -1,19 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
-using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Controllers.Owner;
 
 
@@ -26,34 +19,14 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
     public class DriveMetadataController : ControllerBase
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IAppRegistrationService _appRegistrationService;
         private readonly IDriveService _driveService;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
-        public DriveMetadataController(DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService, IDriveService driveService)
+        public DriveMetadataController(DotYouContextAccessor contextAccessor, IDriveService driveService, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
-            _appRegistrationService = appRegistrationService;
             _driveService = driveService;
-        }
-
-        [HttpGet("metadata")]
-        public IActionResult GetMetadata()
-        {
-            var appContext = _contextAccessor.GetCurrent().AppContext;
-
-            return new JsonResult(new
-            {
-                Owned = appContext.OwnedDrives.Select(x => new
-                {
-                    DriveAlias = x.DriveAlias,
-                    Permissions = x.Permissions
-                }),
-                Additional = appContext.OwnedDrives.Select(x => new
-                {
-                    DriveAlias = x.DriveAlias,
-                    Permissions = x.Permissions
-                })
-            });
+            _exchangeGrantService = exchangeGrantService;
         }
 
         [HttpGet("metadata/type")]
@@ -75,15 +48,15 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads)
+        public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads, DrivePermissions drivePermissions)
         {
-            await _appRegistrationService.CreateOwnedDrive(
-                this._contextAccessor.GetCurrent().AppContext.AppId,
-                driveAlias,
-                name,
-                type,
-                metadata,
-                allowAnonymousReads);
+            //create a drive on the drive service
+            var drive = await _driveService.CreateDrive(name, type, driveAlias, metadata, allowAnonymousReads);
+
+            await _exchangeGrantService.GrantDrive(
+                this._contextAccessor.GetCurrent().PermissionsContext.ExchangeGrantId,
+                drive,
+                drivePermissions);
 
             return Ok();
         }

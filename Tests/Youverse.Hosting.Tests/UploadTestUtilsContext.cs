@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Tests
     {
         public Guid AppId { get; set; }
         public byte[] DeviceUid { get; set; }
-        public DotYouAuthenticationResult AuthResult { get; set; }
+        public ClientAuthToken AuthResult { get; set; }
         public SensitiveByteArray AppSharedSecretKey { get; set; }
 
         /// <summary>

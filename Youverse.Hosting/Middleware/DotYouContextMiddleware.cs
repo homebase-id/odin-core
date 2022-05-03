@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography.Xml;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http;
@@ -28,6 +27,7 @@ using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.TransitPerimeter;
 using Youverse.Hosting.Authentication.YouAuth;
+using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -37,7 +37,6 @@ namespace Youverse.Hosting.Middleware
         private readonly IIdentityContextRegistry _registry;
         private readonly ITenantProvider _tenantProvider;
 
-
         public DotYouContextMiddleware(RequestDelegate next, IIdentityContextRegistry registry, ITenantProvider tenantProvider)
         {
             _next = next;
@@ -45,7 +44,7 @@ namespace Youverse.Hosting.Middleware
             _tenantProvider = tenantProvider;
         }
 
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService, ICircleNetworkService circleNetworkService, ExchangeGrantService exchangeGrantService)
+        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService, ICircleNetworkService circleNetworkService, ExchangeGrantService exchangeGrantService, ExchangeGrantContextService exchangeGrantContextService)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -72,7 +71,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == YouAuthConstants.Scheme)
             {
-                await LoadYouAuthContext(httpContext, dotYouContext, youAuthSessionManager, driveService, circleNetworkService, exchangeGrantService);
+                await LoadYouAuthContext(httpContext, dotYouContext);
                 await _next(httpContext);
                 return;
             }
@@ -87,21 +86,22 @@ namespace Youverse.Hosting.Middleware
 
         private static object _sysapps = new object();
 
-        private async Task<AppContextBase> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
+        private Task<AppRegistrationResponse> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
         {
             lock (_sysapps)
             {
                 //HACK: this method should be removed when correct provisioning is in place
                 var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                var ctxBase = appRegSvc.GetAppContextBase(appId, true).GetAwaiter().GetResult();
 
-                if (null == ctxBase)
+                var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
+
+                if (null == appReg)
                 {
                     if (appId == SystemAppConstants.ChatAppId || appId == SystemAppConstants.ProfileAppId || appId == SystemAppConstants.WebHomeAppId)
                     {
                         var provService = httpContext.RequestServices.GetRequiredService<IIdentityProvisioner>();
                         provService.EnsureSystemApps().GetAwaiter().GetResult();
-                        ctxBase = appRegSvc.GetAppContextBase(appId, true).GetAwaiter().GetResult();
+                        appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
                     }
                     else
                     {
@@ -109,7 +109,7 @@ namespace Youverse.Hosting.Middleware
                     }
                 }
 
-                return ctxBase;
+                return Task.FromResult(appReg);
             }
         }
 
@@ -117,60 +117,52 @@ namespace Youverse.Hosting.Middleware
         {
             var user = httpContext.User;
 
+            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
+            var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            var authResult = DotYouAuthenticationResult.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
-            var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.SessionToken, authResult.ClientHalfKek);
+            var authResult = ClientAuthToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
+            var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.Id, authResult.AccessTokenHalfKey);
 
-            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: true,
                 masterKey: masterKey, authContext: OwnerAuthConstants.SchemeName,
                 isAnonymous: false);
 
-            var appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
-            if (string.IsNullOrEmpty(appIdValue))
+            var permissionSet = new PermissionSet();
+            permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+            permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+
+            var allDrives = await driveService.GetDrives(PageOptions.All);
+            var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
-                //TODO: Need to sort out owner permissions?  is this just everything?
-                var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                DriveId = d.Id,
+                KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                Permissions = DrivePermissions.All
+            });
 
-                dotYouContext.SetPermissionContext(new PermissionContext(null, permissionGrants, null));
-            }
-            else
-            {
-                Guard.Argument(appIdValue, DotYouHeaderNames.AppId).Require(Guid.TryParse(appIdValue, out var appId), v => "If appId specified, it must be a valid Guid");
-                var ctxBase = await this.EnsureSystemAppsOrFail(appId, httpContext);
+            //HACK: giving this the master key makes my hairs raise >:-[
+            dotYouContext.SetPermissionContext(
+                new PermissionContext(
+                    driveGrants: allDriveGrants,
+                    permissionSet: permissionSet,
+                    driveDecryptionKey: masterKey,
+                    sharedSecretKey: null,
+                    exchangeGrantId: Guid.Empty,
+                    accessRegistrationId: Guid.Empty,
+                    isOwner: true
+                ));
 
-                var appCtx = new OwnerAppContext(
-                    appId: appId,
-                    appClientId: authResult.SessionToken,
-                    clientSharedSecret: clientSharedSecret,
-                    defaultDriveId: ctxBase.DefaultDriveId.GetValueOrDefault(),
-                    masterKeyEncryptedAppKey: ctxBase.MasterKeyEncryptedAppKey,
-                    ownedDrives: ctxBase.OwnedDrives,
-                    canManageConnections: true,
-                    masterKey: masterKey);
-
-                dotYouContext.AppContext = appCtx;
-
-                var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-                if (appCtx.CanManageConnections)
-                {
-                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                    permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
-                }
-
-                var driveGrants = MapAppDriveGrants(appCtx.OwnedDrives);
-                dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, dotYouContext.AppContext.GetAppKey()));
-            }
+            dotYouContext.AppContext = new OwnerAppContext(Guid.Empty, "", masterKey, dotYouContext.PermissionsContext.SharedSecretKey);
         }
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
 
-            var value = httpContext.Request.Cookies[AppAuthConstants.CookieName];
-            var authResult = DotYouAuthenticationResult.Parse(value);
+            var value = httpContext.Request.Cookies[AppAuthConstants.ClientAuthTokenCookieName];
+            var authToken = ClientAuthToken.Parse(value);
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
@@ -180,24 +172,19 @@ namespace Youverse.Hosting.Middleware
                 isAnonymous: false
             );
 
-            //**** HERE I DO NOT HAVE THE MASTER KEY - because we are logged in using an app token ****
-            var appCtx = await appRegSvc.GetAppContext(authResult.SessionToken, authResult.ClientHalfKek, true);
-            dotYouContext.AppContext = appCtx;
+            var permissionContext = await exchangeGrantContextService.GetContext(authToken);
+            dotYouContext.SetPermissionContext(permissionContext);
 
-            var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-
-            if (appCtx.CanManageConnections)
-            {
-                permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                permissionGrants.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
-            }
-
-            dotYouContext.SetPermissionContext(new PermissionContext(MapAppDriveGrants(appCtx.OwnedDrives), permissionGrants, dotYouContext.AppContext.GetAppKey()));
+            var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
+            dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
         }
 
-        private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService, ICircleNetworkService circleNetworkService, ExchangeGrantService exchangeGrantService)
+        private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var youAuthSessionManager = httpContext.RequestServices.GetRequiredService<IYouAuthSessionManager>();
+            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
 
             //HACK: need to determine how we can see if the subject of the session is in the youverse network
             Guid.TryParse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "", out var sessionId);
@@ -212,110 +199,56 @@ namespace Youverse.Hosting.Middleware
                 isOwner: false, //NOTE: owner can never login as the owner via YouAuth
                 masterKey: null,
                 isInYouverseNetwork: isInNetwork,
-                isAnonymous: isAnonymous
+                isAnonymous: isAnonymous,
+                isConnected:false //TODO: look this up
             );
 
-            dotYouContext.AppContext = null;
+            var authToken = GetClientAuthToken(httpContext);
+            var permissionContext = await exchangeGrantContextService.GetContext(authToken);
+            dotYouContext.SetPermissionContext(permissionContext);
 
-            List<PermissionDriveGrant> permissionDriveGrants = new List<PermissionDriveGrant>();
-
-            var anonymousDriveGrants = await GetAnonymousDriveGrants(driveService);
-            permissionDriveGrants.AddRange(anonymousDriveGrants);
-
-            var (keyStoreKey, exchangeDriveGrants) = await GetExchangeGrantRegistration(httpContext, youAuthSessionManager, exchangeGrantService);
-
-            if(exchangeDriveGrants !=null)
-            {
-                permissionDriveGrants.AddRange(exchangeDriveGrants.Select(dg => new PermissionDriveGrant()
-                {
-                    DriveId = dg.DriveId,
-                    EncryptedStorageKey = dg.KeyStoreKeyEncryptedStorageKey,
-                    Permissions = dg.Permissions
-                }));
-            }
-
-            dotYouContext.SetPermissionContext(new PermissionContext(permissionDriveGrants, null, keyStoreKey));
+            var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
+            dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            var user = httpContext.User;
+            throw new NotImplementedException("need to upgrade to new context service");
 
-            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
-                isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-                masterKey: null,
-                authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
-                isAnonymous: false
-            );
-
-            var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-
-            IEnumerable<PermissionDriveGrant> driveGrants = null;
-            SensitiveByteArray driveDecryptionKey = null;
-
-            //Note: transit context may or may not have an app.  The need for an app is
-            //enforced by auth policy on the endpoint as well as the calling code
-            if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
-            {
-                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
-
-                dotYouContext.AppContext = appCtx;
-
-                driveGrants = MapAppDriveGrants(appCtx.OwnedDrives);
-                driveDecryptionKey = appCtx.GetAppKey();
-                if (appCtx.CanManageConnections)
-                {
-                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                    permissionGrants.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkRequestPermissions.Manage);
-                }
-            }
-
-            dotYouContext.SetPermissionContext(new PermissionContext(driveGrants, permissionGrants, driveDecryptionKey));
+            // var user = httpContext.User;
+            //
+            // dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
+            //     isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+            //     masterKey: null,
+            //     authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+            //     isAnonymous: false
+            // );
+            //
+            // var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
+            //
+            // IEnumerable<PermissionDriveGrant> driveGrants = null;
+            // SensitiveByteArray driveDecryptionKey = null;
+            //
+            // //transit context must have an app id and a target drive alias
+            //
+            // //Note: transit context may or may not have an app.  The need for an app is
+            // //enforced by auth policy on the endpoint as well as the calling code
+            // if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
+            // {
+            //     var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            //     var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
+            //
+            //     dotYouContext.AppContext = appCtx;
+            //
+            //     driveDecryptionKey = appCtx.GetAppKey();
+            //     dotYouContext.SetPermissionContext(new PermissionContext(appCtx.DriveGrants, appCtx.PermissionSet, driveDecryptionKey));
+            // }
         }
 
-        private async Task<(SensitiveByteArray, List<DriveGrant>)> GetExchangeGrantRegistration(HttpContext httpContext, IYouAuthSessionManager youAuthSessionManager, ExchangeGrantService exchangeGrantService)
+        private ClientAuthToken GetClientAuthToken(HttpContext httpContext)
         {
             var clientAccessTokenValue64 = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
-            if (!string.IsNullOrWhiteSpace(clientAccessTokenValue64))
-            {
-                var combined = Convert.FromBase64String(clientAccessTokenValue64);
-                if (combined?.Length > 0)
-                {
-                    var (accessRegistrationIdBytes, accessTokenHalfKey) = ByteArrayUtil.Split(combined, 16, 16);
-                    var accessRegistrationId = new Guid(accessRegistrationIdBytes);
-
-                    var (keyStoreKey, drives) = await exchangeGrantService.GetDrivesFromValidatedAccessRegistration(accessRegistrationId, accessTokenHalfKey.ToSensitiveByteArray());
-                    return (keyStoreKey, drives);
-                }
-            }
-
-            return (null, null);
-        }
-
-        private async Task<List<PermissionDriveGrant>> GetAnonymousDriveGrants(IDriveService driveService)
-        {
-            var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
-            var anonDriveGrants = anonymousDrives.Results.Select(drive => new PermissionDriveGrant()
-            {
-                DriveId = drive.Id,
-                EncryptedStorageKey = null,
-                Permissions = DrivePermissions.Read
-            }).ToList();
-
-            return anonDriveGrants;
-        }
-
-        private IEnumerable<PermissionDriveGrant> MapAppDriveGrants(IEnumerable<AppDriveGrant> appDriveGrants)
-        {
-            var driveGrants = appDriveGrants.Select(dg => new PermissionDriveGrant()
-            {
-                DriveId = dg.DriveId,
-                EncryptedStorageKey = dg.AppKeyEncryptedStorageKey,
-                Permissions = dg.Permissions
-            }).ToList();
-
-            return driveGrants;
+            return ClientAuthToken.Parse(clientAccessTokenValue64);
         }
     }
 }

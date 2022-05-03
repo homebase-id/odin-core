@@ -1,18 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -93,7 +90,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             //HACK: get list of drives from the header (requires UI updates)
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(drives.Results.ToList());
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d=>d.Id).ToList());
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -204,7 +201,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             //HACK: USE ALL DRIVES FOR THE MOMENT, will need to get a list from the UI
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(drives.Results.ToList());
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d=>d.Id).ToList());
 
             //Send an acknowledgement by establishing a connection
             var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);

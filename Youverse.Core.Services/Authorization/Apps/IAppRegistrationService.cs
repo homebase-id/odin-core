@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using AppContext = Youverse.Core.Services.Base.AppContext;
@@ -13,16 +16,13 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        //Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false);
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
+        // Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
+
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<Guid> driveIds);
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
-        /// <summary>
-        /// Creates the AppContext for a given client registration
-        /// </summary>
-        /// <returns></returns>
-        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek, bool failIfRevoked = false);
+        Task<AppRegistrationResponse> GetAppRegistrationByGrant(Guid grantId);
 
         /// <summary>
         /// Gets all registered apps
@@ -81,11 +81,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
-        /// <summary>
-        /// Creates app context specifically for the transit system
-        /// </summary>
-        /// <returns></returns>
-        Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false, bool failIfRevoked = false);
 
         /// <summary>
         /// Creates a new drive to be used with the specified app.  
@@ -97,6 +92,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="allowAnonymousReads"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        Task CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata, bool allowAnonymousReads = false);
+        // Task CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata, bool allowAnonymousReads = false);
     }
 }

@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             var (authResult, sharedSecret) = await _scaffold.LoginToOwnerConsole(TestIdentities.Frodo, password);
             using var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
-            var isValidResponse = await svc.IsValid(authResult.SessionToken);
+            var isValidResponse = await svc.IsValid(authResult.Id);
             Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
             Assert.IsTrue(isValidResponse.Content);
         }
@@ -50,13 +50,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             using var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
-            var isValidResponse = await svc.IsValid(authResult.SessionToken);
+            var isValidResponse = await svc.IsValid(authResult.Id);
             Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
             Assert.IsTrue(isValidResponse.Content);
 
-            await svc.Expire(authResult.SessionToken);
+            await svc.Expire(authResult.Id);
 
-            var isValidResponse2 = await svc.IsValid(authResult.SessionToken);
+            var isValidResponse2 = await svc.IsValid(authResult.Id);
             Assert.IsTrue(isValidResponse2.IsSuccessStatusCode);
             Assert.IsFalse(isValidResponse2.Content);
         }
@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             client.DefaultRequestHeaders.Remove(DotYouHeaderNames.DeviceUid);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(client);
-            var isValidResponse = await svc.IsValid(authResult.SessionToken);
+            var isValidResponse = await svc.IsValid(authResult.Id);
             Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
             Assert.IsTrue(isValidResponse.Content);
         }

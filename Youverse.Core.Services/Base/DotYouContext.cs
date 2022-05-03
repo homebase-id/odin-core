@@ -10,6 +10,8 @@ namespace Youverse.Core.Services.Base
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }
+        
+        
 
         public PermissionContext PermissionsContext
         {

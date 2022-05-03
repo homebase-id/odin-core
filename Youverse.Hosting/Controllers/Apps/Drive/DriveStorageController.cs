@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
+                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
+                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
                 FileId = fileId
             };
 
@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(driveAlias),
+                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
                 FileId = fileId
             };
             await _driveService.DeleteLongTermFile(file);

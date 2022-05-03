@@ -17,13 +17,15 @@ namespace Youverse.Core.Services.Transit.Incoming
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IDriveService _driveService;
 
 
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor)
+        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
             _contextAccessor = contextAccessor;
+            _driveService = driveService;
         }
 
         public Task Add(TransferBoxItem item)
@@ -31,12 +33,18 @@ namespace Youverse.Core.Services.Transit.Incoming
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(item.AppId), s => s.Save(item));
 
+            var ext =  new ExternalFileIdentifier()
+            {
+                DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                FileId = item.TempFile.FileId
+            };
+            
             _mediator.Publish(new NewInboxItemNotification()
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
                 AppId = item.AppId,
-                TempFile = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(item.TempFile)
+                TempFile = ext
             });
 
             return Task.CompletedTask;

@@ -3,10 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 
 #nullable enable
@@ -118,7 +116,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 //look up the EGR key using the remoteIdentityConnectionKey
                 var accessReg = await _circleNetwork.GetIdentityConnectionAccessRegistration((DotYouIdentity) subject, remoteIdentityConnectionKey);
-                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.CreateClientAccessTokenFromAccessGrant(accessReg.Id, remoteIdentityConnectionKey);
+                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.CreateClientAccessTokenFromExistingAccessRegistration(accessReg.Id, remoteIdentityConnectionKey);
             }
 
             var session = await _youSessionManager.CreateSession(subject, browserAccessRegistration?.Id);

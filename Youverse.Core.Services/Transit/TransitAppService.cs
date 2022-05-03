@@ -70,7 +70,13 @@ namespace Youverse.Core.Services.Transit
             foreach (var item in items.Results)
             {
                 await StoreLongTerm(item.TempFile);
-                var externalFileIdentifier = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(item.TempFile);
+                
+                var externalFileIdentifier =  new ExternalFileIdentifier()
+                {
+                    DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                    FileId = item.TempFile.FileId
+                };
+                
                 await _inboxService.Add(new InboxItem()
                 {
                     Sender = item.Sender,

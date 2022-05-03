@@ -47,20 +47,15 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
 
-            Guid driveId;
+            Guid driveId = Guid.Empty;
 
             //Use the drive requested, if set
             Guid? requestedDriveAlias = instructionSet?.StorageOptions?.DriveAlias;
             if (requestedDriveAlias.HasValue)
             {
-                driveId = _contextAccessor.GetCurrent().AppContext.GetDriveId(requestedDriveAlias.Value);
+                driveId = _driveService.GetDriveIdByAlias(requestedDriveAlias.Value).Result.GetValueOrDefault();
             }
             else
-            {
-                driveId = _contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault();
-            }
-
-            if (driveId == Guid.Empty)
             {
                 throw new UploadException("Missing or invalid driveId");
             }

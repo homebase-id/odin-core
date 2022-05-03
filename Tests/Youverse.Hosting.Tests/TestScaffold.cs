@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -16,6 +17,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Transit;
@@ -178,7 +180,7 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
-        public async Task<(DotYouAuthenticationResult, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
+        public async Task<(ClientAuthToken, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -212,11 +214,11 @@ namespace Youverse.Hosting.Tests
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
 
-            Assert.IsTrue(DotYouAuthenticationResult.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
+            Assert.IsTrue(ClientAuthToken.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
-            var newToken = result.SessionToken;
+            var newToken = result.Id;
             Assert.IsTrue(newToken != Guid.Empty);
-            Assert.IsTrue(result.ClientHalfKek.IsSet());
+            Assert.IsTrue(result.AccessTokenHalfKey.IsSet());
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
@@ -267,7 +269,7 @@ namespace Youverse.Hosting.Tests
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token, Guid? appId = null)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthToken token, Guid? appId = null)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -310,10 +312,10 @@ namespace Youverse.Hosting.Tests
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, DotYouAuthenticationResult token)
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthToken token)
         {
             var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(AppAuthConstants.CookieName, token.ToString(), null, identity));
+            cookieJar.Add(new Cookie(AppAuthConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
             HttpMessageHandler handler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar
@@ -357,6 +359,13 @@ namespace Youverse.Hosting.Tests
 
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false)
         {
+            var permissionSet = new PermissionSet();
+            if (canManageConnections)
+            {
+                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+            }
+
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var dt = Guid.NewGuid();
@@ -366,7 +375,7 @@ namespace Youverse.Hosting.Tests
                     Name = $"Test_{appId}",
                     ApplicationId = appId,
                     CreateDrive = createDrive,
-                    CanManageConnections = canManageConnections,
+                    PermissionSet = permissionSet,
                     DefaultDrivePublicId = appDriveAlias,
                     DriveMetadata = "{data:'test metadata'}",
                     DriveName = $"Test Drive name with type {dt}",
@@ -379,11 +388,6 @@ namespace Youverse.Hosting.Tests
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
-                if (createDrive)
-                {
-                    Assert.That(appReg.DefaultDriveId.HasValue, Is.True);
-                    Assert.That(appReg.DefaultDriveId.GetValueOrDefault(), Is.Not.EqualTo(Guid.Empty));
-                }
 
                 var updatedAppResponse = await svc.GetRegisteredApp(appId);
                 Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
@@ -393,7 +397,7 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<(DotYouAuthenticationResult authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
+        public async Task<(ClientAuthToken authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
@@ -427,10 +431,10 @@ namespace Youverse.Hosting.Tests
                 Assert.That(clientKek.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
-                DotYouAuthenticationResult authResult = new DotYouAuthenticationResult()
+                ClientAuthToken authResult = new ClientAuthToken()
                 {
-                    SessionToken = reply.Token,
-                    ClientHalfKek = clientKek.ToSensitiveByteArray()
+                    Id = reply.Token,
+                    AccessTokenHalfKey = clientKek.ToSensitiveByteArray()
                 };
 
                 return (authResult, sharedSecret);
@@ -446,25 +450,6 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false)
-        {
-            //TODO: we might need to let the callers pass this in at some point for testing
-
-            //note; this is intentionally not global
-            Guid appDriveId = Guid.Parse("99888555-0000-0000-0000-000000004445");
-
-            this.AddApp(identity, appId, appDriveId, true, canManageConnections).GetAwaiter().GetResult();
-
-            var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
-            return new TestSampleAppContext()
-            {
-                Identity = identity,
-                AppId = appId,
-                AuthResult = authResult,
-                AppSharedSecretKey = sharedSecret,
-                DefaultDrivePublicId = appDriveId
-            };
-        }
 
         /// <summary>
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
@@ -476,16 +461,35 @@ namespace Youverse.Hosting.Tests
             return await this.SetupTestSampleApp(appId, identity);
         }
 
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, Guid appDriveAlias = default)
+        {
+            //TODO: we might need to let the callers pass this in at some point for testing
+
+            //note; this is intentionally not global
+
+            this.AddApp(identity, appId, appDriveAlias, true, canManageConnections).GetAwaiter().GetResult();
+
+            var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
+            return new TestSampleAppContext()
+            {
+                Identity = identity,
+                AppId = appId,
+                AuthResult = authResult,
+                AppSharedSecretKey = sharedSecret,
+                DriveAlias = appDriveAlias
+            };
+        }
+
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
+            var driveAlias = Guid.NewGuid();
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = null,
+                    DriveAlias = driveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -502,20 +506,19 @@ namespace Youverse.Hosting.Tests
                 }
             };
 
-
             return (UploadTestUtilsContext) await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
+            Guid appDriveAlias = Guid.Parse("99888555-0000-0000-0000-000000004445");
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = null,
+                    DriveAlias = appDriveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -532,13 +535,14 @@ namespace Youverse.Hosting.Tests
         public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
+            var driveAlias = Guid.NewGuid();
+            
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = null,
+                    DriveAlias = driveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -589,14 +593,15 @@ namespace Youverse.Hosting.Tests
                 throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
-            var testAppContext = await this.SetupTestSampleApp(identity);
+            var appId = Guid.NewGuid();
+            var testAppContext = await this.SetupTestSampleApp(appId, identity, false, instructionSet.StorageOptions.DriveAlias);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity) r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient);
+                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
             }
 
@@ -691,14 +696,15 @@ namespace Youverse.Hosting.Tests
                 throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
-            var testAppContext = await this.SetupTestSampleApp(identity);
+            Guid appId = Guid.NewGuid();
+            var testAppContext = await this.SetupTestSampleApp(appId, identity, false, instructionSet.StorageOptions.DriveAlias);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity) r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient);
+                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
             }
 

@@ -5,11 +5,9 @@ using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
 
@@ -70,10 +68,12 @@ namespace Youverse.Hosting.Controllers.YouAuth
             Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
             if (null != clientAccessToken)
             {
-                var combined = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey());
-                var key64 = Convert.ToBase64String(combined);
-                combined.ToSensitiveByteArray().Wipe();
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, key64, options);
+                ClientAuthToken authToken = new ClientAuthToken()
+                {
+                    Id = clientAccessToken.Id,
+                    AccessTokenHalfKey = clientAccessToken.AccessTokenHalfKey
+                };
+                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, authToken.ToString(), options);
             }
 
             //TODO: RSA Encrypt shared secret

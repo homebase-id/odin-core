@@ -74,10 +74,16 @@ namespace Youverse.Core.Services.Transit
             {
                 throw new MissingDataException("Access control list must be specified");
             }
+            
+            var ext =  new ExternalFileIdentifier()
+            {
+                DriveAlias = _driveService.GetDrive(package.InternalFile.DriveId).Result.Alias,
+                FileId = package.InternalFile.FileId
+            };
 
             var tx = new UploadResult()
             {
-                File = _contextAccessor.GetCurrent().AppContext.GetExternalFileIdentifier(package.InternalFile)
+                File = ext
             };
 
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
@@ -163,7 +169,7 @@ namespace Youverse.Core.Services.Transit
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity) r,
                 AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
-                AppClientId = this._contextAccessor.GetCurrent().AppContext.AppClientId
+                AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
             }));
 
             return keyStatus;

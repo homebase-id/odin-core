@@ -10,7 +10,7 @@
         /// <summary>
         /// The name of the key used to store the token in cookies.
         /// </summary>
-        public static string CookieName = "BX0900";
+        public static string ClientAuthTokenCookieName = "BX0900";
 
         /// <summary>
         /// The name of the key used to store the device id

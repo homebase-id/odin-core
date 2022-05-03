@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         public bool IsRevoked { get; set; }
         
-        public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeRegistrationKeyStoreKey { get; set; }
+        public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey { get; set; }
 
         public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
         {

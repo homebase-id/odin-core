@@ -5,7 +5,7 @@ namespace Youverse.Hosting.Tests
 {
     public class OwnerAuthTokenContext
     {
-        public DotYouAuthenticationResult AuthResult { get; set; }
+        public ClientAuthToken AuthResult { get; set; }
         public SensitiveByteArray SharedSecret { get; set; }
     }
 }
