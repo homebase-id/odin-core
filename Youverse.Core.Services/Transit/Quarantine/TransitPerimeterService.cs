@@ -33,18 +33,19 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
+        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
-            Guard.Argument(rsaKeyHeader, nameof(rsaKeyHeader)).NotNull();
-            Guard.Argument(rsaKeyHeader!.PublicKeyCrc, nameof(rsaKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
-            Guard.Argument(rsaKeyHeader.EncryptedAesKey.Length, nameof(rsaKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
+            Guard.Argument(transferInstructionSet, nameof(transferInstructionSet)).NotNull();
+            Guard.Argument(transferInstructionSet!.PublicKeyCrc, nameof(transferInstructionSet.PublicKeyCrc)).NotEqual<uint>(0);
+            Guard.Argument(transferInstructionSet.EncryptedAesKeyHeader.Length, nameof(transferInstructionSet.EncryptedAesKeyHeader)).NotEqual(0);
+            Guard.Argument(transferInstructionSet.EncryptedClientAuthToken.Length, nameof(transferInstructionSet.EncryptedClientAuthToken)).NotEqual(0);
 
-            if (!await _appRegService.IsValidPublicKey(_contextAccessor.GetCurrent().AppContext.AppId, rsaKeyHeader.PublicKeyCrc))
+            if (!await _appRegService.IsValidPublicKey(_contextAccessor.GetCurrent().AppContext.AppId, transferInstructionSet.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");
             }
 
-            return await _transitPerimeterTransferStateService.CreateTransferStateItem(rsaKeyHeader);
+            return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
         }
 
         public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)

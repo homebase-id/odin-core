@@ -22,19 +22,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         public NameAttribute Name { get; set; }
         
-        /// <summary>
-        /// The profile
-        /// </summary>
-        [Obsolete]
-        public ProfilePicAttribute ProfilePic { get; set; }
-
         public string SharedSecretEncryptedCredentials { get; set; }
         
         public string RecipientGivenName { get; set; }
         
         public string RecipientSurname { get; set; }
-        
-        //public string SenderPublicKeyCertificate { get; set; }
         
         public DotYouIdentity SenderDotYouId { get; set; }
         

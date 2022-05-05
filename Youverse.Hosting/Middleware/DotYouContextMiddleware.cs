@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Middleware
             _tenantProvider = tenantProvider;
         }
 
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext, IYouAuthSessionManager youAuthSessionManager, IDriveService driveService, ICircleNetworkService circleNetworkService, ExchangeGrantService exchangeGrantService, ExchangeGrantContextService exchangeGrantContextService)
+        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -58,6 +58,8 @@ namespace Youverse.Hosting.Middleware
             if (authType == OwnerAuthConstants.SchemeName)
             {
                 await LoadOwnerContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
+
                 await _next(httpContext);
                 return;
             }
@@ -65,6 +67,8 @@ namespace Youverse.Hosting.Middleware
             if (authType == AppAuthConstants.SchemeName)
             {
                 await LoadAppContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = AppAuthConstants.SchemeName;
+
                 await _next(httpContext);
                 return;
             }
@@ -72,6 +76,8 @@ namespace Youverse.Hosting.Middleware
             if (authType == YouAuthConstants.Scheme)
             {
                 await LoadYouAuthContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = YouAuthConstants.Scheme;
+
                 await _next(httpContext);
                 return;
             }
@@ -79,6 +85,7 @@ namespace Youverse.Hosting.Middleware
             if (authType == TransitPerimeterAuthConstants.TransitAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = TransitPerimeterAuthConstants.TransitAuthScheme;
             }
 
             await _next(httpContext);
@@ -117,7 +124,6 @@ namespace Youverse.Hosting.Middleware
         {
             var user = httpContext.User;
 
-            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
             var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = ClientAuthToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
@@ -126,7 +132,8 @@ namespace Youverse.Hosting.Middleware
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: true,
-                masterKey: masterKey, authContext: OwnerAuthConstants.SchemeName,
+                masterKey: masterKey,
+                authContext: OwnerAuthConstants.SchemeName,
                 isAnonymous: false);
 
             var permissionSet = new PermissionSet();
@@ -153,7 +160,11 @@ namespace Youverse.Hosting.Middleware
                     isOwner: true
                 ));
 
-            dotYouContext.AppContext = new OwnerAppContext(Guid.Empty, "", masterKey, dotYouContext.PermissionsContext.SharedSecretKey);
+            //TODO: we need to decide on how appid works for owner console
+            string appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
+            Guid.TryParse(appIdValue, out var appId);
+
+            dotYouContext.AppContext = new OwnerAppContext(appId, "", masterKey, dotYouContext.PermissionsContext.SharedSecretKey);
         }
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -200,7 +211,7 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null,
                 isInYouverseNetwork: isInNetwork,
                 isAnonymous: isAnonymous,
-                isConnected:false //TODO: look this up
+                isConnected: false //TODO: look this up
             );
 
             var authToken = GetClientAuthToken(httpContext);
@@ -213,36 +224,96 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            throw new NotImplementedException("need to upgrade to new context service");
+            /*
+             * Incoming request types:
+             *
+            
+             * connected therefore has a client access token
+             *  use the ICR access token
+                 *  tells us drive access
+                 *  tells  us permissions
+                 * does NOT tell us which app
+             * 
+             */
+            var user = httpContext.User;
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
+            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
 
-            // var user = httpContext.User;
-            //
-            // dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
-            //     isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
-            //     masterKey: null,
-            //     authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
-            //     isAnonymous: false
-            // );
-            //
-            // var permissionGrants = new Dictionary<SystemApiPermissionType, int>();
-            //
-            // IEnumerable<PermissionDriveGrant> driveGrants = null;
-            // SensitiveByteArray driveDecryptionKey = null;
-            //
-            // //transit context must have an app id and a target drive alias
-            //
-            // //Note: transit context may or may not have an app.  The need for an app is
-            // //enforced by auth policy on the endpoint as well as the calling code
-            // if (Guid.TryParse(user.FindFirstValue(DotYouClaimTypes.AppId), out var appId))
-            // {
-            //     var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            //     var appCtx = await appRegSvc.GetAppContextBase(appId, false, true);
-            //
-            //     dotYouContext.AppContext = appCtx;
-            //
-            //     driveDecryptionKey = appCtx.GetAppKey();
-            //     dotYouContext.SetPermissionContext(new PermissionContext(appCtx.DriveGrants, appCtx.PermissionSet, driveDecryptionKey));
-            // }
+            var callerDotYouId = (DotYouIdentity) user.Identity!.Name;
+
+            //todo: the appid is coming in from a header which is set on a claim.  you might have this app id but not the client auth token
+
+            //actually, you need both the client auth token and app 
+
+            //so in the case of requesting an transit public key, there is not client auth token but there is an app id.  this means 
+            // I can request a transit public key w/o being connected?  i guess that makes sense 
+
+            var appIdClaim = user.FindFirst(DotYouClaimTypes.AppId)?.Value;
+            if (null == appIdClaim)
+            {
+                /*
+                 * if no app is specified then we're looking at one of the special requests
+                 *  Specials -
+                    *      Connection Requests Management
+                    *          give one permission to add a request
+                    *          give no drive permission
+                    *      Indirect introduction
+                */
+            }
+            else
+            {
+                var failMessage = "Missing or revoked appId specified";
+                //there is an app id.  it must be valid
+                if (!Guid.TryParse(appIdClaim.ToString(), out var appId) || appId == Guid.Empty)
+                {
+                    throw new YouverseSecurityException(failMessage);
+                }
+
+                var appReg = await appRegSvc.GetAppRegistration(appId);
+                if (appReg is {IsRevoked: true})
+                {
+                    throw new YouverseSecurityException(failMessage);
+                }
+
+                SensitiveByteArray sharedSecret = null;
+
+                //the client auth token is coming from one of the following:
+                //  1. an Identity Connection Registration; in this case there is no app associated with the CAT.
+                //  2. a 3rd party connection; in this case there is an app? (TODO: confirm)
+                if (ClientAuthToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+                {
+                    //connection must be valid
+                    var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken.AccessTokenHalfKey);
+                    if (icr.IsConnected() == false)
+                    {
+                        throw new YouverseSecurityException("Invalid connection");
+                    }
+
+                    dotYouContext.Caller = new CallerContext(dotYouId: callerDotYouId,
+                        isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                        masterKey: null,
+                        authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+                        isAnonymous: false,
+                        isConnected: true,
+                        isInYouverseNetwork: true
+                    );
+
+                    // if they are connected, we can load the permissions from there.
+                    var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
+                    dotYouContext.SetPermissionContext(permissionContext);
+
+                    sharedSecret = permissionContext.SharedSecretKey;
+                }
+
+                dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, sharedSecret);
+            }
+
+            //From here: if they are not connected then we must examine if this is a special case
+            // - incoming connection request
+            // - incoming message request
+            // - getting app transit key
+            // - or??
         }
 
         private ClientAuthToken GetClientAuthToken(HttpContext httpContext)

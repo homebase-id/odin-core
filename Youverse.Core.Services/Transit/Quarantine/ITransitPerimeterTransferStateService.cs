@@ -14,9 +14,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Creates a tracker for an coming file
         /// </summary>
-        /// <param name="rsaEncryptedRecipientTransferKeyHeader"></param>
+        /// <param name="transferInstructionSet"></param>
         /// <returns></returns>
-        Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferKeyHeader rsaEncryptedRecipientTransferKeyHeader);
+        Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet);
 
         /// <summary>
         /// Gets a state item used to hold incoming transfers

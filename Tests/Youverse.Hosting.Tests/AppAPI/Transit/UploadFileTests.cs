@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.ClientAuthToken))
             {
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(

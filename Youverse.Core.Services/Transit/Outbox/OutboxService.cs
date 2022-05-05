@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         private readonly TenantContext _tenantContext;
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, AppNotificationHandler appNotificationHub, IDotYouHttpClientFactory dotYouHttpClientFactory, ISystemStorage systemStorage, TenantContext tenantContext)
+        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ISystemStorage systemStorage, TenantContext tenantContext)
         {
             _contextAccessorAccessor = contextAccessor;
             _pendingTransfers = pendingTransfers;

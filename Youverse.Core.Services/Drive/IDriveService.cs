@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Drive
         /// Creates an Id for storing a file
         /// </summary>
         /// <returns></returns>
-        InternalDriveFileId CreateFileId(Guid driveId);
+        InternalDriveFileId CreateInternalFileId(Guid driveId);
 
         Task WriteMetaData(InternalDriveFileId file, FileMetadata metadata);
 

@@ -1,9 +1,15 @@
 ﻿using System;
+using System.Security.Cryptography;
 
 namespace Youverse.Core.Cryptography
 {
     public static class ArrayExtensions
     {
+        public static string StringFromUTF8Bytes(this Byte[] bytes)
+        {
+            return System.Text.Encoding.UTF8.GetString(bytes);
+        }
+        
         public static SensitiveByteArray ToSensitiveByteArray(this Byte[] array)
         {
             return new SensitiveByteArray(array);

@@ -19,6 +19,8 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -28,6 +30,7 @@ using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.Owner.AppManagement;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
@@ -199,7 +202,7 @@ namespace Youverse.Hosting.Tests
             var clientNonce = nonceResponse.Content;
 
             //HACK: need to refactor types and drop the clientnoncepackage
-            var nonce = new NonceData(clientNonce.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
             {
                 Nonce64 = clientNonce.Nonce64
             };
@@ -330,7 +333,7 @@ namespace Youverse.Hosting.Tests
 
         public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
         {
-            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.AuthResult);
+            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthToken);
         }
 
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
@@ -474,7 +477,7 @@ namespace Youverse.Hosting.Tests
             {
                 Identity = identity,
                 AppId = appId,
-                AuthResult = authResult,
+                ClientAuthToken = authResult,
                 AppSharedSecretKey = sharedSecret,
                 DriveAlias = appDriveAlias
             };
@@ -536,7 +539,7 @@ namespace Youverse.Hosting.Tests
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var driveAlias = Guid.NewGuid();
-            
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -584,7 +587,7 @@ namespace Youverse.Hosting.Tests
             return await TransferFileAsApp(identity, instructionSet, fileMetadata, options);
         }
 
-        private async Task<TransitTestUtilsContext> TransferFileAsApp(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<TransitTestUtilsContext> TransferFileAsApp(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -594,7 +597,7 @@ namespace Youverse.Hosting.Tests
             }
 
             var appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, identity, false, instructionSet.StorageOptions.DriveAlias);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
@@ -603,7 +606,11 @@ namespace Youverse.Hosting.Tests
                 var recipient = (DotYouIdentity) r;
                 var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
+                
+                await this.CreateConnection(sender, recipient);
             }
+
+            //make a connection request to the recipients
 
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;
@@ -611,19 +618,19 @@ namespace Youverse.Hosting.Tests
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var appsharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray();
+            var appSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray();
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref appsharedSecretKey),
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref appSharedSecretKey),
                 FileMetadata = fileMetadata
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref appsharedSecretKey);
+            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref appSharedSecretKey);
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = this.CreateAppApiHttpClient(identity, testAppContext.AuthResult))
+            using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthToken))
             {
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
@@ -663,7 +670,7 @@ namespace Youverse.Hosting.Tests
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             await transitAppSvc.ProcessTransfers();
@@ -677,8 +684,8 @@ namespace Youverse.Hosting.Tests
             return new TransitTestUtilsContext()
             {
                 AppId = testAppContext.AppId,
-                AuthResult = testAppContext.AuthResult,
-                AppSharedSecretKey = appsharedSecretKey,
+                AuthResult = testAppContext.ClientAuthToken,
+                AppSharedSecretKey = appSharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
                 RecipientContexts = recipientContexts,
@@ -687,7 +694,7 @@ namespace Youverse.Hosting.Tests
             };
         }
 
-        private async Task<TransitTestUtilsContext> TransferFileAsOwner(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<TransitTestUtilsContext> TransferFileAsOwner(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -697,7 +704,7 @@ namespace Youverse.Hosting.Tests
             }
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, identity, false, instructionSet.StorageOptions.DriveAlias);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
@@ -706,11 +713,13 @@ namespace Youverse.Hosting.Tests
                 var recipient = (DotYouIdentity) r;
                 var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
+
+                await this.CreateConnection(sender, recipient);
             }
 
             var payloadData = "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, testAppContext.AppId))
+            using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret, testAppContext.AppId))
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
@@ -768,7 +777,7 @@ namespace Youverse.Hosting.Tests
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.AuthResult))
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessTransfers();
@@ -783,7 +792,7 @@ namespace Youverse.Hosting.Tests
             return new TransitTestUtilsContext()
             {
                 AppId = testAppContext.AppId,
-                AuthResult = testAppContext.AuthResult,
+                AuthResult = testAppContext.ClientAuthToken,
                 AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
@@ -791,6 +800,36 @@ namespace Youverse.Hosting.Tests
                 PayloadData = payloadData,
                 TestAppContext = testAppContext
             };
+        }
+
+        private async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
+        {
+            //have frodo send it
+            using (var client = this.CreateOwnerApiHttpClient(sender))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+
+                var id = Guid.NewGuid();
+                var requestHeader = new ConnectionRequestHeader()
+                {
+                    Id = id,
+                    Recipient = recipient,
+                    Message = "Please add me"
+                };
+
+                var response = await svc.SendConnectionRequest(requestHeader);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                Assert.IsTrue(response!.Content!.Success, "Failed sending the request");
+            }
+
+            //accept the request
+            using (var client = this.CreateOwnerApiHttpClient(recipient))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var acceptResponse = await svc.AcceptConnectionRequest(sender);
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+            }
         }
     }
 }

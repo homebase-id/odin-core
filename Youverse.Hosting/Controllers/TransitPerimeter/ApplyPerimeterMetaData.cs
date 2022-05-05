@@ -24,13 +24,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             var instances = context.ActionArguments.Values.Where(o => (o.GetType().IsClass) && o is IIncomingCertificateMetaData).ToList();
             if (instances.Any())
             {
-                var cert = context.HttpContext.User.FindFirstValue(DotYouClaimTypes.PublicKeyCertificate);
-
                 foreach (var rc in instances)
                 {
                     var rsc = (IIncomingCertificateMetaData) rc;
-                    //rsc.SenderPublicKeyCertificate = cert;
-
                     //No null check here because the identity must be set at authentication.
                     rsc.SenderDotYouId = (DotYouIdentity) context.HttpContext.User.Identity.Name;
 

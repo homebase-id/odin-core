@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.Tests
 
         public void CreateAuthorizationService()
         {
-            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context, null, null);
+            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context);
         }
 
         public void LogDataPath()

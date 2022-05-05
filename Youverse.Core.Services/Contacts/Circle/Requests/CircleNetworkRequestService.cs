@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
+using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
@@ -16,7 +17,6 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator.ClientNotifications;
-using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly ICircleNetworkService _cns;
         private readonly ILogger<ICircleNetworkRequestService> _logger;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        private readonly IProfileAttributeManagementService _mgts;
+
         private readonly ISystemStorage _systemStorage;
         private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
@@ -39,13 +39,22 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly IDriveService _driveService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
-        public CircleNetworkRequestService(IAppRegistrationService appReg, DotYouContextAccessor contextAccessor, ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger, IDotYouHttpClientFactory dotYouHttpClientFactory, IProfileAttributeManagementService mgts, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext, IPublicKeyService pkService, ExchangeGrantService exchangeGrantService, IDriveService driveService)
+        public CircleNetworkRequestService(
+            IAppRegistrationService appReg,
+            DotYouContextAccessor contextAccessor,
+            ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger,
+            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            ISystemStorage systemStorage,
+            IMediator mediator,
+            TenantContext tenantContext,
+            IPublicKeyService pkService,
+            ExchangeGrantService exchangeGrantService,
+            IDriveService driveService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
             _logger = logger;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
-            _mgts = mgts;
             _systemStorage = systemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
@@ -90,12 +99,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             //HACK: get list of drives from the header (requires UI updates)
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d=>d.Id).ToList());
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
             {
                 Id = header.Id,
+                Name = new NameAttribute() //todo: remove this attribute field
+                {
+                    Personal = "",
+                    Surname = ""
+                },
                 Recipient = header.Recipient,
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
@@ -103,14 +117,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials(header.Recipient, clientAccessToken)
             };
 
-            var profile = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
-
-            //TODO removed so I can test sending friend requests
-            //Guard.Argument(profile, nameof(profile)).NotNull("The DI owner's primary name is not correctly configured");
-            //Guard.Argument(profile.Name.Personal, nameof(profile.Name.Personal)).NotNull("The DI owner's primary name is not correctly configured");
-            //Guard.Argument(profile.Name.Surname, nameof(profile.Name.Surname)).NotNull("The DI owner's primary name is not correctly configured");
-
-            request.Name = profile.Name;
             _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
 
             var response = await _dotYouHttpClientFactory.CreateClient(request.Recipient).DeliverConnectionRequest(request);
@@ -201,15 +207,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             //HACK: USE ALL DRIVES FOR THE MOMENT, will need to get a list from the UI
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d=>d.Id).ToList());
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
 
-            //Send an acknowledgement by establishing a connection
-            var p = await _mgts.GetBasicConnectedProfile(fallbackToEmpty: true);
 
             ConnectionRequestReply acceptedReq = new()
             {
-                Name = p.Name,
-                ProfilePic = p.Photo,
+                Name = new NameAttribute() //todo: remove this attribute field
+                {
+                    Personal = "",
+                    Surname = ""
+                },
                 SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
 

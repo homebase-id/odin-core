@@ -7,8 +7,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         public Guid ApplicationId { get; set; }
         
         public string Name { get; set; }
-
-        [Obsolete]
         public bool IsRevoked { get; set; }
         
     }

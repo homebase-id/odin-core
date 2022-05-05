@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit.Encryption
         {
             var key = this.AesKey;
             var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
-                data: System.Text.Encoding.UTF8.GetBytes(data),
+                data: data.ToUtf8ByteArray(),
                 key: ref key,
                 iv: this.Iv);
 

@@ -59,9 +59,6 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
             //add system circle claim based on my relationship to this person
             //lookup name for the individual and add to the claims
 
-            var bytes = context.ClientCertificate.Export(X509ContentType.Pkcs12);
-            string clientCertificatePortable = Convert.ToBase64String(bytes);
-
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
 
@@ -71,18 +68,14 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-
-                //HACK: I don't know if this is a good idea to put this whole thing in the claims
-                //TODO: I don't think this is required any longer
-                new Claim(DotYouClaimTypes.PublicKeyCertificate, clientCertificatePortable, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
             };
             
+            //TODO: need to app permission negations at the app level, meaning that while sam can form operations; he cannot perform those operations when using a specific app
             string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
-            if (!string.IsNullOrEmpty(appIdValue))
+            
+            if (Guid.TryParse(appIdValue, out var appId) && appId != Guid.Empty)
             {
-                Guard.Argument(appIdValue, nameof(appIdValue)).Require(Guid.TryParse(appIdValue, out var appId));
-
                 var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
                 var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
 
@@ -97,8 +90,7 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
                 claims.Add(c1);
                 claims.Add(c2);
             }
-            
-            
+
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
             context.Success();
             return Task.CompletedTask;

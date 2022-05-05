@@ -30,15 +30,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     {
         const string CONNECTIONS = "cnncts";
 
-        private readonly IProfileService _profileService;
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, IProfileService profileService, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
-            _profileService = profileService;
             _systemStorage = systemStorage;
             _exchangeGrantService = exchangeGrantService;
         }
@@ -117,48 +115,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
-            var connections = await GetBlockedConnections(req);
+            throw new NotImplementedException("");
 
-            var list = new List<DotYouProfile>();
-            foreach (var conn in connections.Results)
-            {
-                var profile = await _profileService.Get(conn.DotYouId);
-                if (null != profile)
-                {
-                    list.Add(profile);
-                }
-            }
-
-            var results = new PagedResult<DotYouProfile>(req, connections.TotalPages, list);
-
-            return results;
+            // var connections = await GetBlockedConnections(req);
         }
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            //HACK: this method of joining the connection info class to the profiles is very error prone.  Need to rewrite when I pull a sql db
+            throw new NotImplementedException("");
             var connections = await GetConnections(req);
-
-            var list = new List<DotYouProfile>();
-            foreach (var conn in connections.Results)
-            {
-                var profile = await _profileService.Get(conn.DotYouId);
-                if (null != profile)
-                {
-                    list.Add(profile);
-                }
-            }
-
-            var results = new PagedResult<DotYouProfile>(req, connections.TotalPages, list);
-
-            return results;
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false)
         {
+            //TODO: need to cache here?
             //HACK: DOING THIS WHILE DESIGNING XTOKEN - REMOVE THIS
             if (!overrideHack)
             {
@@ -191,12 +162,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         public async Task<AccessRegistration> GetIdentityConnectionAccessRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey)
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
-            
+
             if (connection?.AccessRegistrationId == null || connection?.IsConnected() == false)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
-            
+
             var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
             if (null == accessReg)
             {
@@ -293,23 +264,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                AccessRegistrationId = accessRegId,
+                // AccessRegistrationId = accessRegId,
+                AccessRegistrationId = remoteClientAccessToken.Id,
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
             };
 
             _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(newConnection));
 
-            //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
-
-            var contact = new DotYouProfile()
-            {
-                Name = name,
-                DotYouId = dotYouId,
-                SslPublicKeyCertificate = dotYouId, //using Sender here because it will be the original person to which I sent the request.
-            };
-
-            await _profileService.Save(contact);
+            // //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
+            //
+            // var contact = new DotYouProfile()
+            // {
+            //     Name = name,
+            //     DotYouId = dotYouId,
+            //     SslPublicKeyCertificate = dotYouId, //using Sender here because it will be the original person to which I sent the request.
+            // };
+            //
+            // await _profileService.Save(contact);
 
             //TODO: the following is a good place for the mediatr pattern
             //tell the profile service to refresh the attributes?

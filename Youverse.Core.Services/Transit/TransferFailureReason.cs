@@ -26,7 +26,7 @@
         /// <summary>
         /// Indicates there was not an encrypted transfer key available in the cache.
         /// </summary>
-        EncryptedTransferKeyNotAvailable = 700,
+        EncryptedTransferInstructionSetNotAvailable = 700,
         
         /// <summary>
         /// Thrown we a transfer fails but the reason is not known :)

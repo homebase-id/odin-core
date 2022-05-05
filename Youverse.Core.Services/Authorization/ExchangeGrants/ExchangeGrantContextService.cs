@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
             var grantKeyStoreKey = accessReg.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey.DecryptKeyClone(ref accessKey);
             accessKey.Wipe();
-                
+
             return new PermissionContext(
                 driveGrants: grant.KeyStoreKeyEncryptedDriveGrants,
                 permissionSet: grant.PermissionSet,
@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 sharedSecretKey: sharedSecret,
                 exchangeGrantId: accessReg.GrantId,
                 accessRegistrationId: accessReg.Id,
-                _contextAccessor.GetCurrent().Caller.IsOwner
+                isOwner: _contextAccessor.GetCurrent().Caller.IsOwner
             );
         }
     }

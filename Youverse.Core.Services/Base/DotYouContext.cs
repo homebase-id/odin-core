@@ -7,17 +7,17 @@ namespace Youverse.Core.Services.Base
     {
         private PermissionContext _permissionsContext;
         
+        public string AuthContext { get; set; }
+
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }
         
-        
-
         public PermissionContext PermissionsContext
         {
             get { return _permissionsContext; }
         }
-
+        
         public void SetPermissionContext(PermissionContext pc)
         {
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware

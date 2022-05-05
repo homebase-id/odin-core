@@ -44,9 +44,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
             // Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
-            Guard.Argument(Name, nameof(Name)).NotNull();
-            Guard.Argument(this.Name.Personal, nameof(this.Name.Personal)).NotEmpty().NotNull();
-            Guard.Argument(this.Name.Surname, nameof(this.Name.Surname)).NotEmpty().NotNull();
+            // Guard.Argument(Name, nameof(Name)).NotNull();
+            // Guard.Argument(this.Name.Personal, nameof(this.Name.Personal)).NotEmpty().NotNull();
+            // Guard.Argument(this.Name.Surname, nameof(this.Name.Surname)).NotEmpty().NotNull();
 
             Guard.Argument(Recipient.ToString(), nameof(Recipient)).NotEmpty().NotNull();
 

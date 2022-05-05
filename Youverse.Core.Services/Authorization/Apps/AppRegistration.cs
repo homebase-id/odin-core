@@ -1,14 +1,14 @@
 ﻿using System;
 using LiteDB;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistration
     {
-        public AppRegistration()
-        {
-        }
+        public AppRegistration() { }
 
         [BsonId]
         public Guid ApplicationId { get; set; }
@@ -16,12 +16,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         public string Name { get; set; }
 
         /// <summary>
-        /// The value use used to decrypt storage keys within DriveGrants
+        /// Defines the permission set this app perform, even if the caller has access (this includes the owner).
         /// </summary>
-        [Obsolete]
-        public SymmetricKeyEncryptedAes MasterKeyEncryptedAppKey { get; set; }
-
-        [Obsolete]
+        public PermissionSet NegatedPermissionSet { get; set; }
+        
         public bool IsRevoked { get; set; }
         
         /// <summary>

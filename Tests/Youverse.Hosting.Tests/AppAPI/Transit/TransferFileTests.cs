@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.ClientAuthToken))
             {
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
@@ -190,7 +190,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             });
 
             var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.AuthResult))
+            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.ClientAuthToken))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
                 var itemsResponse = await svc.GetInboxItems(1, 100);

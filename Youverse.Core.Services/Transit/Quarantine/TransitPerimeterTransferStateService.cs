@@ -24,23 +24,21 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _contextAccessor = contextAccessor;
         }
 
-        public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
+        public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guid id = Guid.NewGuid();
 
-            throw new NotImplementedException("need to uptade to read drive alias and use shared secret from connection.");
-            // look up the apps target drivealias
-            // var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DefaultDriveId.GetValueOrDefault());
-            // var item = new IncomingTransferStateItem(id, file);
-            //
-            // await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
-            // await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
-            //
-            // item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
-            //
-            // this.Save(item);
-            //
-            // return id;
+            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.DriveAlias, true))!.Value;
+            var file = _driveService.CreateInternalFileId(driveId);
+            var item = new IncomingTransferStateItem(id, file);
+
+            await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());
+            await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
+
+            item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
+
+            this.Save(item);
+            return id;
         }
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)

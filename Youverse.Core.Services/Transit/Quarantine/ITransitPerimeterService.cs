@@ -16,9 +16,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Prepares a holder for an incoming file and returns the Id.  You should use this Id on calls to <see cref="ApplyFirstStageFiltering"/>
         /// </summary>
-        /// <param name="rsaKeyHeader"></param>
+        /// <param name="transferInstructionSet"></param>
         /// <returns></returns>
-        Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader);
+        Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet);
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler

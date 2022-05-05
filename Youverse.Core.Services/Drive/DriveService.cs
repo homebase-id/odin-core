@@ -184,7 +184,7 @@ namespace Youverse.Core.Services.Drive
         }
 
 
-        public InternalDriveFileId CreateFileId(Guid driveId)
+        public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 

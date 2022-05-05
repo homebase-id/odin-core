@@ -22,7 +22,6 @@ using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
-using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
@@ -32,7 +31,6 @@ using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Owner.Demo;
 
 namespace Youverse.Hosting
 {
@@ -84,10 +82,8 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .SingleInstance();
 
-            cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
-            cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
@@ -102,9 +98,7 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
 
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
-
-            cb.RegisterType<DemoDataGenerator>().SingleInstance();
-
+            
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
