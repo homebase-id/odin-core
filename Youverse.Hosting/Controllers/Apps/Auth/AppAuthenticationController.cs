@@ -11,16 +11,21 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
     public class AppAuthenticationController : Controller
     {
         private readonly ExchangeGrantContextService _exchangeGrantContext;
-        
-        public AppAuthenticationController( ExchangeGrantContextService exchangeGrantContext)
+
+        public AppAuthenticationController(ExchangeGrantContextService exchangeGrantContext)
         {
             _exchangeGrantContext = exchangeGrantContext;
         }
 
         [HttpGet("validate")]
-        public async Task<IActionResult> ValidateClientToken(Guid token)
+        public async Task<IActionResult> ValidateClientToken(string ssCat64)
         {
-            throw new NotImplementedException("is this needed anymore?");
+            var (isValid, _, __) = await _exchangeGrantContext.ValidateClientAuthToken(ssCat64);
+            var result = new AppTokenValidationResult()
+            {
+                IsValid = isValid
+            };
+            return new JsonResult(result);
         }
     }
 }

@@ -80,18 +80,17 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.ExchangeGrantId);
 
-            using (var data = ByteArrayUtil.Combine(cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray())
-            {
-                var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-                var encryptedData = publicKey.Encrypt(data.GetKey());
+            var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
+            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+            var encryptedData = publicKey.Encrypt(data.GetKey());
+            data.Wipe();
 
-                return new AppClientRegistrationResponse()
-                {
-                    EncryptionVersion = 1,
-                    Token = cat.Id,
-                    Data = encryptedData
-                };
-            }
+            return new AppClientRegistrationResponse()
+            {
+                EncryptionVersion = 1,
+                Token = cat.Id,
+                Data = encryptedData
+            };
         }
 
         public Task RefreshAppKeys()
@@ -107,7 +106,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var result = await GetAppRegistrationInternal(applicationId);
             return ToAppRegistrationResponse(result);
         }
-        
+
         public async Task<AppRegistrationResponse> GetAppRegistrationByGrant(Guid grantId)
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ExchangeGrantId == grantId));
@@ -119,7 +118,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ExchangeGrantId == grantId));
             return result;
         }
-        
+
 
         public async Task RevokeApp(Guid applicationId)
         {
@@ -146,18 +145,12 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //TODO: Send notification?
         }
-        
+
         public async Task GetAppKeyStore()
         {
             throw new NotImplementedException();
         }
 
-        [Obsolete]
-        public async Task<AppClientRegistration> GetClientRegistration(Guid id)
-        {
-            var clientReg = await _systemStorage.WithTenantSystemStorageReturnSingle<AppClientRegistration>(AppClientRegistrationStorageName, s => s.Get(id));
-            return clientReg;
-        }
 
         public async Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions)
         {
@@ -216,7 +209,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
-                Name = appReg.Name
+                Name = appReg.Name,
+                IsRevoked = appReg.IsRevoked
             };
         }
 

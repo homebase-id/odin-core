@@ -185,7 +185,7 @@ namespace Youverse.Core.Services.Transit
             var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(package.InternalFile.DriveId);
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
-            
+
             foreach (var r in package.InstructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity) r;
@@ -213,9 +213,9 @@ namespace Youverse.Core.Services.Transit
                         Id = identityReg.AccessRegistrationId,
                         AccessTokenHalfKey = identityReg.ClientAccessTokenHalfKey.ToSensitiveByteArray()
                     };
-                    
 
-                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(recipientPublicKey.PublicKeyData.publicKey, keyHeader, clientAuthToken,  package.InstructionSet.StorageOptions.DriveAlias);
+
+                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(recipientPublicKey.PublicKeyData.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
 
                     var item = new RecipientTransferInstructionSetItem()
                     {
@@ -241,10 +241,12 @@ namespace Youverse.Core.Services.Transit
 
         private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthToken clientAuthToken, Guid driveAlias)
         {
+            //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
-            var secureKeyHeader = keyHeader.Combine();
-            var rsaEncryptedKeyHeader = publicKey.Encrypt(secureKeyHeader.GetKey());
-            secureKeyHeader.Wipe();
+            // var secureKeyHeader = keyHeader.Combine();
+            // var rsaEncryptedKeyHeader = publicKey.Encrypt(secureKeyHeader.GetKey());
+            // secureKeyHeader.Wipe();
+            var rsaEncryptedKeyHeader = keyHeader.Combine().GetKey();
 
             //TODO: need to encrypt the client access token here with something on my server side
             // var rsaEncryptedClientAccessToken = publicKey.Encrypt(clientAuthToken.ToString().ToUtf8ByteArray());

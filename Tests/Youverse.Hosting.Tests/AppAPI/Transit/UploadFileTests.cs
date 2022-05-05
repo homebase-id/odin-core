@@ -46,6 +46,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    DriveAlias = testContext.DriveAlias,
+                }
             };
 
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
@@ -120,7 +124,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref key);

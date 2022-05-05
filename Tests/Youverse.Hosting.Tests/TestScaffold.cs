@@ -359,7 +359,6 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false)
         {
             var permissionSet = new PermissionSet();
@@ -371,7 +370,7 @@ namespace Youverse.Hosting.Tests
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var dt = Guid.NewGuid();
+                var driveType = Guid.NewGuid();
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
@@ -381,8 +380,8 @@ namespace Youverse.Hosting.Tests
                     PermissionSet = permissionSet,
                     DefaultDrivePublicId = appDriveAlias,
                     DriveMetadata = "{data:'test metadata'}",
-                    DriveName = $"Test Drive name with type {dt}",
-                    DriveType = dt
+                    DriveName = $"Test Drive name with type {driveType}",
+                    DriveType = driveType
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -400,7 +399,7 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<(ClientAuthToken authResult, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
+        public async Task<(ClientAuthToken clientAuthToken, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
@@ -425,19 +424,20 @@ namespace Youverse.Hosting.Tests
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(decryptedData, Is.Not.Null);
-                Assert.That(decryptedData.Length, Is.EqualTo(32));
+                Assert.That(decryptedData.Length, Is.EqualTo(48));
 
-                var (clientKek, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16);
+                var (idBytes, clientAccessHalfKey, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16, 16);
 
-                Assert.IsNotNull(clientKek);
+                Assert.False(new Guid(idBytes) == Guid.Empty);
+                Assert.IsNotNull(clientAccessHalfKey);
                 Assert.IsNotNull(sharedSecret);
-                Assert.That(clientKek.Length, Is.EqualTo(16));
+                Assert.That(clientAccessHalfKey.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
                 ClientAuthToken authResult = new ClientAuthToken()
                 {
                     Id = reply.Token,
-                    AccessTokenHalfKey = clientKek.ToSensitiveByteArray()
+                    AccessTokenHalfKey = clientAccessHalfKey.ToSensitiveByteArray()
                 };
 
                 return (authResult, sharedSecret);
@@ -461,7 +461,8 @@ namespace Youverse.Hosting.Tests
         public async Task<TestSampleAppContext> SetupTestSampleApp(DotYouIdentity identity)
         {
             Guid appId = Guid.NewGuid();
-            return await this.SetupTestSampleApp(appId, identity);
+            Guid driveAlias = Guid.NewGuid();
+            return await this.SetupTestSampleApp(appId, identity, false, driveAlias);
         }
 
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, Guid appDriveAlias = default)
@@ -576,6 +577,38 @@ namespace Youverse.Hosting.Tests
             return await TransferFile(sender, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
+        public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
+        {
+            //have frodo send it
+            using (var client = this.CreateOwnerApiHttpClient(sender))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+
+                var id = Guid.NewGuid();
+                var requestHeader = new ConnectionRequestHeader()
+                {
+                    Id = id,
+                    Recipient = recipient,
+                    Message = "Please add me"
+                };
+
+                var response = await svc.SendConnectionRequest(requestHeader);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                Assert.IsTrue(response!.Content!.Success, "Failed sending the request");
+            }
+
+            //accept the request
+            using (var client = this.CreateOwnerApiHttpClient(recipient))
+            {
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var acceptResponse = await svc.AcceptConnectionRequest(sender);
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+            }
+        }
+
+
+        /// 
         private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             //TODO: so f'kin hacky.
@@ -606,7 +639,7 @@ namespace Youverse.Hosting.Tests
                 var recipient = (DotYouIdentity) r;
                 var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
-                
+
                 await this.CreateConnection(sender, recipient);
             }
 
@@ -800,36 +833,6 @@ namespace Youverse.Hosting.Tests
                 PayloadData = payloadData,
                 TestAppContext = testAppContext
             };
-        }
-
-        private async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
-        {
-            //have frodo send it
-            using (var client = this.CreateOwnerApiHttpClient(sender))
-            {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-
-                var id = Guid.NewGuid();
-                var requestHeader = new ConnectionRequestHeader()
-                {
-                    Id = id,
-                    Recipient = recipient,
-                    Message = "Please add me"
-                };
-
-                var response = await svc.SendConnectionRequest(requestHeader);
-
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response!.Content!.Success, "Failed sending the request");
-            }
-
-            //accept the request
-            using (var client = this.CreateOwnerApiHttpClient(recipient))
-            {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-                var acceptResponse = await svc.AcceptConnectionRequest(sender);
-                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
-            }
         }
     }
 }

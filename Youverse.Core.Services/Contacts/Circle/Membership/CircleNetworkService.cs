@@ -9,6 +9,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Profile;
@@ -139,7 +140,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return await GetIdentityConnectionRegistrationInternal(dotYouId);
         }
 
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey)
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthToken remoteClientAuthToken)
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
@@ -148,13 +149,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
+            // var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
+            var accessReg = await _exchangeGrantService.GetAccessRegistration(remoteClientAuthToken.Id);
             if (null == accessReg)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            accessReg.AssertValidRemoteKey(remoteIdentityConnectionKey);
+            accessReg.AssertValidRemoteKey(remoteClientAuthToken.AccessTokenHalfKey);
 
             return connection;
         }

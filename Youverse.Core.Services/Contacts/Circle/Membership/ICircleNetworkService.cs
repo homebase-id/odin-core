@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -60,7 +61,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="dotYouId"></param>
         /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthToken remoteClientAuthToken);
 
         /// <summary>
         /// Gets the connection info if the specified key store key is valid.

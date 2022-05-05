@@ -284,7 +284,7 @@ namespace Youverse.Hosting.Middleware
                 if (ClientAuthToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
                 {
                     //connection must be valid
-                    var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken.AccessTokenHalfKey);
+                    var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
                     if (icr.IsConnected() == false)
                     {
                         throw new YouverseSecurityException("Invalid connection");

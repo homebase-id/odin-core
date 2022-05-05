@@ -186,7 +186,8 @@ namespace Youverse.Core.Services.Drive
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var df = new InternalDriveFileId()
             {
@@ -274,7 +275,8 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }

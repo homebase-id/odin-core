@@ -62,36 +62,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey);
 
-        /// <summary>
-        /// Returns the specified app device registration
-        /// </summary>
-        /// <returns></returns>
-        Task<AppClientRegistration> GetClientRegistration(Guid id);
-
-        /// <summary>
-        /// Gets the list of devices on which an app is registered.
-        /// </summary>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions);
-
         Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
 
         Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
 
         Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
-
-        /// <summary>
-        /// Creates a new drive to be used with the specified app.  
-        /// </summary>
-        /// <param name="appId">The app Id</param>
-        /// <param name="driveAlias">A key which can be shared publicly to specify when data should be pulled from this drive</param>
-        /// <param name="driveName"></param>
-        /// <param name="metadata"></param>
-        /// <param name="allowAnonymousReads"></param>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        // Task CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata, bool allowAnonymousReads = false);
     }
 }

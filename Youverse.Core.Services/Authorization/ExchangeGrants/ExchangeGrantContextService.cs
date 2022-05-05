@@ -1,8 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
@@ -21,6 +19,16 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             _exchangeGrantService = exchangeGrantService;
             _driveService = driveService;
             _contextAccessor = contextAccessor;
+        }
+
+        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrant grant)> ValidateClientAuthToken(string sharedSecretEncryptedClientAuthToken64)
+        {
+            //TODO: decrypt using  _contextAccessor.GetCurrent().AppContext.ClientSharedSecret and IV?
+            var decryptedCat = sharedSecretEncryptedClientAuthToken64;
+            // byte[] data = sharedSecretEncryptedClientAuthToken64.ToUtf8ByteArray();
+            // AesCbc.Decrypt()
+            var cat = ClientAuthToken.Parse(decryptedCat);
+            return await this.ValidateClientAuthToken(cat);
         }
 
         public async Task<(bool isValid, AccessRegistration registration, ExchangeGrant grant)> ValidateClientAuthToken(ClientAuthToken authToken)

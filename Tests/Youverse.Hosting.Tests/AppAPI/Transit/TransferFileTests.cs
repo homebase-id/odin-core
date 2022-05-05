@@ -40,17 +40,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var sender = TestIdentities.Frodo;
             var recipients = new List<string>() {TestIdentities.Samwise};
 
-            var testContext = await _scaffold.SetupTestSampleApp(sender);
+            Guid appId = Guid.NewGuid();
+            Guid driveAlias = Guid.NewGuid();
+            var testContext = await _scaffold.SetupTestSampleApp(appId, sender, false, driveAlias);
 
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity) r;
-                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient);
+                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
+
+                await _scaffold.CreateConnection(sender, recipient);
             }
 
-            var driveAlias = Guid.NewGuid();
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
@@ -59,7 +62,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = driveAlias,
+                    DriveAlias = testContext.DriveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -226,7 +229,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv byte array was all zeros");
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 var key = recipientContext.AppSharedSecretKey.ToSensitiveByteArray();
@@ -237,7 +240,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveAlias,inboxItem.File.FileId);
+                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveAlias, inboxItem.File.FileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

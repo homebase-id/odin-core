@@ -27,21 +27,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
             var reg = await _appRegistration.RegisterClient(request.ApplicationId, clientPublicKey);
             return new JsonResult(reg);
         }
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetAppClientRegistration(Guid id)
-        {
-            var reg = await _appRegistration.GetClientRegistration(id);
-            return new JsonResult(reg);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetRegisteredAppDeviceList([FromQuery] int pageNumber, [FromQuery] int pageSize)
-        {
-            var reg = await _appRegistration.GetClientRegistrationList(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(reg);
-        }
-
+        
         [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeAppClient([FromQuery] Guid appId, [FromQuery] string deviceId64)
         {
