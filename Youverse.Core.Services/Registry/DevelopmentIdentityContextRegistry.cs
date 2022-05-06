@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Registry
 
             if (key == Guid.Empty)
             {
-                throw new InvalidTenantException($"Not tenant with domain [{domainName}]");
+                throw new InvalidTenantException($"No tenant with domain [{domainName}]");
             }
 
             return key;

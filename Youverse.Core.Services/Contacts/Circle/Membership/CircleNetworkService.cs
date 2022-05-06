@@ -218,11 +218,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
-            //TODO: this needs to be changed to - can view connections
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
-
+            //allow the caller to see if s/he is connected, otherwise 
+            if (_contextAccessor.GetCurrent().Caller.DotYouId != dotYouId)
+            {
+                //TODO: this needs to be changed to - can view connections
+                _contextAccessor.GetCurrent().AssertCanManageConnections();
+            }
+            
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
             return info.Status == ConnectionStatus.Connected;
+
         }
 
         public async Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId)

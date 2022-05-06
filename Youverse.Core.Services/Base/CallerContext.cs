@@ -42,8 +42,13 @@ namespace Youverse.Core.Services.Base
         public bool IsInYouverseNetwork { get; }
         public bool IsAnonymous { get; }
 
-        public bool IsConnected { get; }
+        public bool IsConnected { get; private set; }
 
+        public void SetIsConnected()
+        {
+            //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
+            this.IsConnected = true;
+        }
 
         public void AssertHasMasterKey()
         {

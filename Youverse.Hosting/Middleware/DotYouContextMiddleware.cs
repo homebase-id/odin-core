@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core;
@@ -154,7 +152,7 @@ namespace Youverse.Hosting.Middleware
                     driveGrants: allDriveGrants,
                     permissionSet: permissionSet,
                     driveDecryptionKey: masterKey,
-                    sharedSecretKey: null,
+                    sharedSecretKey: clientSharedSecret,
                     exchangeGrantId: Guid.Empty,
                     accessRegistrationId: Guid.Empty,
                     isOwner: true
@@ -164,7 +162,7 @@ namespace Youverse.Hosting.Middleware
             string appIdValue = httpContext.Request.Headers[DotYouHeaderNames.AppId];
             Guid.TryParse(appIdValue, out var appId);
 
-            dotYouContext.AppContext = new OwnerAppContext(appId, "", masterKey, dotYouContext.PermissionsContext.SharedSecretKey);
+            dotYouContext.AppContext = new OwnerAppContext(appId, "", masterKey, clientSharedSecret);
         }
 
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -176,7 +174,8 @@ namespace Youverse.Hosting.Middleware
             var authToken = ClientAuthToken.Parse(value);
             var user = httpContext.User;
 
-            dotYouContext.Caller = new CallerContext(dotYouId: (DotYouIdentity) user.Identity!.Name,
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity) user.Identity!.Name,
                 isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                 masterKey: null,
                 authContext: AppAuthConstants.SchemeName, // Note: we're logged in using an app token so we do not have the master key
@@ -197,6 +196,8 @@ namespace Youverse.Hosting.Middleware
             var youAuthSessionManager = httpContext.RequestServices.GetRequiredService<IYouAuthSessionManager>();
             var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
 
+            var callerDotYouId = (DotYouIdentity) user.Identity!.Name;
+
             //HACK: need to determine how we can see if the subject of the session is in the youverse network
             Guid.TryParse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "", out var sessionId);
             var session = await youAuthSessionManager.LoadFromId(sessionId);
@@ -205,21 +206,44 @@ namespace Youverse.Hosting.Middleware
             bool isInNetwork = isAnonymous == false && session != null; //HACK: used for testing but invalid way to determine if someone is in network
 
             dotYouContext.Caller = new CallerContext(
-                authContext: YouAuthConstants.Scheme,
-                dotYouId: (DotYouIdentity) user.Identity!.Name,
-                isOwner: false, //NOTE: owner can never login as the owner via YouAuth
+                dotYouId: callerDotYouId,
+                isOwner: false, //NOTE: owner can NEVER login as the owner via YouAuth
                 masterKey: null,
+                authContext: YouAuthConstants.Scheme,
                 isInYouverseNetwork: isInNetwork,
                 isAnonymous: isAnonymous,
-                isConnected: false //TODO: look this up
+                isConnected: false
             );
 
-            var authToken = GetClientAuthToken(httpContext);
-            var permissionContext = await exchangeGrantContextService.GetContext(authToken);
-            dotYouContext.SetPermissionContext(permissionContext);
+            if (isAnonymous)
+            {
+                //TODO: Handle scenarios where
+                return;
+            }
+            
+            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
 
-            var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
-            dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
+            //TODO: if we switch session to being and exchange grant then I can use this overload
+            // var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
+            var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
+            if (icr.IsConnected())
+            {
+                dotYouContext.Caller.SetIsConnected();
+            }
+            
+            //if there's a client auth token, let's add the permissions it grants
+            var clientAuthToken = GetClientAuthToken(httpContext);
+            if (null != clientAuthToken)
+            {
+                var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
+                dotYouContext.SetPermissionContext(permissionContext);
+                
+                //this part gets weird.  what if they're coming via a specific app. do i load that app or do i
+                //load the one associated with the exchange grant?
+                // and what if the exchange grant has no appid?   which takes priority
+                var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
+                dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
+            }
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -264,8 +288,7 @@ namespace Youverse.Hosting.Middleware
             else
             {
                 var failMessage = "Missing or revoked appId specified";
-                //there is an app id.  it must be valid
-                if (!Guid.TryParse(appIdClaim.ToString(), out var appId) || appId == Guid.Empty)
+                if (!Guid.TryParse(appIdClaim, out var appId) || appId == Guid.Empty)
                 {
                     throw new YouverseSecurityException(failMessage);
                 }
@@ -290,7 +313,8 @@ namespace Youverse.Hosting.Middleware
                         throw new YouverseSecurityException("Invalid connection");
                     }
 
-                    dotYouContext.Caller = new CallerContext(dotYouId: callerDotYouId,
+                    dotYouContext.Caller = new CallerContext(
+                        dotYouId: callerDotYouId,
                         isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
                         masterKey: null,
                         authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
@@ -302,7 +326,6 @@ namespace Youverse.Hosting.Middleware
                     // if they are connected, we can load the permissions from there.
                     var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
                     dotYouContext.SetPermissionContext(permissionContext);
-
                     sharedSecret = permissionContext.SharedSecretKey;
                 }
 
@@ -319,7 +342,12 @@ namespace Youverse.Hosting.Middleware
         private ClientAuthToken GetClientAuthToken(HttpContext httpContext)
         {
             var clientAccessTokenValue64 = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
-            return ClientAuthToken.Parse(clientAccessTokenValue64);
+            if (ClientAuthToken.TryParse(clientAccessTokenValue64, out var token))
+            {
+                return token;
+            }
+
+            return null;
         }
     }
 }

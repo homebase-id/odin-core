@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Tests
 
             Directory.CreateDirectory(DataStoragePath);
             Directory.CreateDirectory(_tempStoragePath);
-            
+
             var tcontext = new TenantContext();
             tcontext.StorageConfig = new TenantStorageConfig(_dataStoragePath, _tempStoragePath);
             Context = Substitute.For<DotYouContextAccessor>(tcontext, null);

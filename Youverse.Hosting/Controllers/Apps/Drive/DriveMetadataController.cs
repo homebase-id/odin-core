@@ -48,16 +48,16 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads, DrivePermissions drivePermissions)
+        public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads)
         {
-            //create a drive on the drive service
-            var drive = await _driveService.CreateDrive(name, type, driveAlias, metadata, allowAnonymousReads);
-
-            await _exchangeGrantService.GrantDrive(
-                this._contextAccessor.GetCurrent().PermissionsContext.ExchangeGrantId,
-                drive,
-                drivePermissions);
-
+            var existingDrive = _driveService.GetDriveIdByAlias(driveAlias, false);
+            
+            if(null == existingDrive)
+            {
+                //create a drive on the drive service
+                var drive = await _driveService.CreateDrive(name, type, driveAlias, metadata, allowAnonymousReads);
+            }
+            
             return Ok();
         }
     }
