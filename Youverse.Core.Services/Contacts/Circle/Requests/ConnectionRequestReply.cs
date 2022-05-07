@@ -1,6 +1,4 @@
-﻿using System;
-using Dawn;
-using Youverse.Core.Identity;
+﻿using Dawn;
 using Youverse.Core.Identity.DataAttribute;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
@@ -9,14 +7,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 
     /// to establish a connection
     /// </summary>
-    
     public class ConnectionRequestReply
     {
-        // /// <summary>
-        // /// The Id of the original connection request
-        // /// </summary>
-        // public Guid ConnectionRequestId { get; set; }
-        
         /// <summary>
         /// The name to be shown the recipient on the request
         /// </summary>
@@ -28,15 +20,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         
         public string RecipientSurname { get; set; }
         
-        // public DotYouIdentity SenderDotYouId { get; set; }
         public string SenderDotYouId { get; set; }
         
         public long ReceivedTimestampMilliseconds { get; set; }
         
         public void Validate()
         {
-            //Guard.Argument(ConnectionRequestId, nameof(ConnectionRequestId)).NotEqual(Guid.Empty);
-            //Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
             Guard.Argument(RecipientGivenName, nameof(RecipientGivenName)).NotEmpty().NotNull();
             Guard.Argument(RecipientSurname, nameof(RecipientSurname)).NotEmpty().NotNull();
