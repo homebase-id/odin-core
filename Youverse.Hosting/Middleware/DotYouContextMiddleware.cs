@@ -181,6 +181,8 @@ namespace Youverse.Hosting.Middleware
                 authContext: AppAuthConstants.SchemeName, // Note: we're logged in using an app token so we do not have the master key
                 isAnonymous: false
             );
+            
+            //TODO: need to check the app reg negated permission set
 
             var permissionContext = await exchangeGrantContextService.GetContext(authToken);
             dotYouContext.SetPermissionContext(permissionContext);
@@ -248,17 +250,6 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            /*
-             * Incoming request types:
-             *
-            
-             * connected therefore has a client access token
-             *  use the ICR access token
-                 *  tells us drive access
-                 *  tells  us permissions
-                 * does NOT tell us which app
-             * 
-             */
             var user = httpContext.User;
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
@@ -283,6 +274,7 @@ namespace Youverse.Hosting.Middleware
                     *          give one permission to add a request
                     *          give no drive permission
                     *      Indirect introduction
+                 * * transit public key request (offline)
                 */
             }
             else
@@ -299,6 +291,8 @@ namespace Youverse.Hosting.Middleware
                     throw new YouverseSecurityException(failMessage);
                 }
 
+                //TODO: reduce the permissions based on the app registration's negated permission set
+                
                 SensitiveByteArray sharedSecret = null;
 
                 //the client auth token is coming from one of the following:
@@ -315,12 +309,12 @@ namespace Youverse.Hosting.Middleware
 
                     dotYouContext.Caller = new CallerContext(
                         dotYouId: callerDotYouId,
-                        isOwner: user.HasClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower()),
+                        isOwner: false,
                         masterKey: null,
                         authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
                         isAnonymous: false,
                         isConnected: true,
-                        isInYouverseNetwork: true
+                        isInYouverseNetwork: true //note: this will need to come from a claim: re: best buy/3rd party scenario
                     );
 
                     // if they are connected, we can load the permissions from there.

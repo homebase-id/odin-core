@@ -7,6 +7,14 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
+    public class EncryptedConnectionRequest
+    {
+        public byte[] RsaEncryptedKeyHeader { get; set; }
+        public byte[] Request { get; set; }
+        public uint Crc32 { get; set; }
+    }
+    
+    
     public class ConnectionRequest: ConnectionRequestHeader, IIncomingCertificateMetaData
     {
         [JsonConstructor]
@@ -15,7 +23,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// Individual who sent the invite
         /// </summary>
-        public DotYouIdentity SenderDotYouId { get; set; }
+        // public DotYouIdentity SenderDotYouId { get; set; }
+        public string SenderDotYouId { get; set; }
         
         /// <summary>
         /// The name to be shown the recipient on the request

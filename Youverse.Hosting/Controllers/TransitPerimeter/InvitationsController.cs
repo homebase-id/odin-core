@@ -29,8 +29,9 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         }
 
         [HttpPost("connect")]
-        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] ConnectionRequest request)
+        public async Task<IActionResult> ReceiveConnectionRequest([FromBody] EncryptedConnectionRequest request)
         {
+            
             await _circleNetworkRequestService.ReceiveConnectionRequest(request);
             return new JsonResult(new NoResultResponse(true));
         }

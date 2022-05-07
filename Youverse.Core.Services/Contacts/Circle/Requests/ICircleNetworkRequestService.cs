@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        Task ReceiveConnectionRequest(ConnectionRequest request);
+        Task ReceiveConnectionRequest(EncryptedConnectionRequest request);
 
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.

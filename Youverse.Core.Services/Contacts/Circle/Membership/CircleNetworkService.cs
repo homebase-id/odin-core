@@ -271,8 +271,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                // AccessRegistrationId = accessRegId,
-                AccessRegistrationId = remoteClientAccessToken.Id,
+                AccessRegistrationId = accessRegId,
+                ClientAccessTokenId = remoteClientAccessToken.Id,
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
             };

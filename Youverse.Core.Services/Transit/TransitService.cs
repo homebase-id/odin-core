@@ -204,17 +204,11 @@ namespace Youverse.Core.Services.Transit
                     var identityReg = _circleNetworkService.GetIdentityConnectionRegistration(recipient, true).GetAwaiter().GetResult();
                     if (!identityReg.IsConnected())
                     {
-                        //TODO: change this exception to something else
+                        //TODO: throwing an exception here would result in a partial send.  need to return an error code and status instead
                         throw new MissingDataException("Cannot send transfer a recipient to which you're not connected.");
                     }
-
-                    var clientAuthToken = new ClientAuthToken()
-                    {
-                        Id = identityReg.AccessRegistrationId,
-                        AccessTokenHalfKey = identityReg.ClientAccessTokenHalfKey.ToSensitiveByteArray()
-                    };
-
-
+                    
+                    var clientAuthToken = identityReg.CreateClientAuthToken();
                     var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(recipientPublicKey.PublicKeyData.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
 
                     var item = new RecipientTransferInstructionSetItem()
@@ -418,25 +412,7 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
         {
-            //TODO: optimize by reading a dictionary cache
-            var tpk = await _systemStorage.WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
-
-            if ((tpk == null || !tpk.IsValid()) && lookupIfInvalid)
-            {
-                var svc = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, null, false);
-                var tpkResponse = await svc.GetTransitPublicKey();
-
-                if (tpkResponse.Content != null && (!tpkResponse.IsSuccessStatusCode || !tpkResponse.Content.IsValid()))
-                {
-                    this._logger.LogWarning("Transit public key is invalid");
-                    return null;
-                }
-
-                tpk = tpkResponse.Content;
-                _systemStorage.WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Save(tpk));
-            }
-
-            return tpk;
+            throw new NotImplementedException("use public key service");
         }
     }
 }

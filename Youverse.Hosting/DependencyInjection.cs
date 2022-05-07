@@ -109,7 +109,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
 
-            cb.RegisterType<PublicKeyService>().As<IPublicKeyService>().SingleInstance();
+            cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

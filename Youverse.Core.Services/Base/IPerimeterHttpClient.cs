@@ -19,7 +19,8 @@ namespace Youverse.Core.Services.Base
         private const string RootPath = "/api/perimeter";
 
         [Post(RootPath + "/invitations/connect")]
-        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] ConnectionRequest request);
+        // Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] ConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] EncryptedConnectionRequest request);
 
         [Post(RootPath + "/invitations/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] ConnectionRequestReply requestReply);

@@ -46,13 +46,7 @@ namespace Youverse.Core.Services.Base
                 var identityReg = _circleNetworkService.GetIdentityConnectionRegistration(dotYouId, true).GetAwaiter().GetResult();
                 if (identityReg.IsConnected())
                 {
-                    var clientAuthToken = new ClientAuthToken()
-                    {
-                        Id = identityReg.AccessRegistrationId,
-                        AccessTokenHalfKey = identityReg.ClientAccessTokenHalfKey.ToSensitiveByteArray()
-                    };
-
-                    return this.CreateClientInternal<T>(dotYouId, clientAuthToken, true, appIdOverride);
+                    return this.CreateClientInternal<T>(dotYouId, identityReg.CreateClientAuthToken(), true, appIdOverride);
                 }
 
                 throw new MissingDataException("Client Access token required to create DotYouHttpClient");

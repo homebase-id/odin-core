@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Transit
 
             //TODO: should we use the context app id here??
             var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            // var appKey = _contextAccessor.GetCurrent().AppContext.GetAppKey();
+            var appKey = _contextAccessor.GetCurrent().AppContext.GetAppKey();
 
             var keys = await _appRegistrationService.GetRsaKeyList(appId);
             var pk = RsaKeyListManagement.FindKey(keys, transferInstructionSet.PublicKeyCrc);
@@ -52,11 +52,11 @@ namespace Youverse.Core.Services.Transit
             }
 
             //TODO: need to figure out how we're going to decrypt the private key
-            // var decryptedAesKeyHeaderBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedAesKeyHeader).ToSensitiveByteArray();
-            // var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes.GetKey(), 16, 16);
-            // decryptedAesKeyHeaderBytes.Wipe();
+            var decryptedAesKeyHeaderBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedAesKeyHeader).ToSensitiveByteArray();
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes.GetKey(), 16, 16);
+            decryptedAesKeyHeaderBytes.Wipe();
 
-            var keyHeader = KeyHeader.FromCombinedBytes(transferInstructionSet.EncryptedAesKeyHeader, 16, 16);
+            // var keyHeader = KeyHeader.FromCombinedBytes(transferInstructionSet.EncryptedAesKeyHeader, 16, 16);
             
             // var decryptedClientAuthTokenBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedClientAuthToken).ToSensitiveByteArray();
             // var clientAuthToken = ClientAuthToken.Parse(decryptedClientAuthTokenBytes.GetKey().StringFromUTF8Bytes());

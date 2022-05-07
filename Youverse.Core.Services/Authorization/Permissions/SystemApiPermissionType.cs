@@ -9,6 +9,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
         }
 
         public Dictionary<SystemApiPermissionType, int> Permissions { get; } = new Dictionary<SystemApiPermissionType, int>();
+        
     }
 
     public enum SystemApiPermissionType

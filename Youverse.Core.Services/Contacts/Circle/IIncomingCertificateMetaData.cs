@@ -11,7 +11,8 @@ namespace Youverse.Core.Services.Contacts.Circle
         /// <summary>
         /// The sender's <see cref="DotYouIdentity"/>.
         /// </summary>
-        DotYouIdentity SenderDotYouId { get; set; }
+        // DotYouIdentity SenderDotYouId { get; set; }
+        string SenderDotYouId { get; set; }
 
         /// <summary>
         /// Epoc timestamp when the message was received

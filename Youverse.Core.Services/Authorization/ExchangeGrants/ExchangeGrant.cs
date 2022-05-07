@@ -28,5 +28,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         public PermissionSet PermissionSet { get; set; }
 
+        //TODO: add app grants
+
     }
 }

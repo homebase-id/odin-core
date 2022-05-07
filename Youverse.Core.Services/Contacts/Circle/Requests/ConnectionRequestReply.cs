@@ -28,7 +28,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         
         public string RecipientSurname { get; set; }
         
-        public DotYouIdentity SenderDotYouId { get; set; }
+        // public DotYouIdentity SenderDotYouId { get; set; }
+        public string SenderDotYouId { get; set; }
         
         public long ReceivedTimestampMilliseconds { get; set; }
         

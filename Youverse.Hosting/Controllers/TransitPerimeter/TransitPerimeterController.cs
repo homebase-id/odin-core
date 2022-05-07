@@ -30,13 +30,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             _perimeterService = perimeterService;
         }
 
-        [HttpGet("tpk")]
-        public async Task<JsonResult> GetTransitPublicKey()
-        {
-            var key = await _perimeterService.GetTransitPublicKey();
-            return new JsonResult(key);
-        }
-
+        
         [HttpPost("stream")]
         public async Task<IActionResult> AcceptHostToHostTransfer()
         {

@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Transit.Encryption
         {
             return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
         }
-        
+
         public Stream GetEncryptedStreamAes(string data)
         {
             var key = this.AesKey;
@@ -25,8 +25,9 @@ namespace Youverse.Core.Services.Transit.Encryption
 
             return new MemoryStream(cipher);
         }
-        
-        public static KeyHeader FromCombinedBytes(byte[] data, int ivLength, int keyLength)
+
+
+        public static KeyHeader FromCombinedBytes(byte[] data, int ivLength = 16, int keyLength = 16)
         {
             var (p1, p2) = ByteArrayUtil.Split(data, ivLength, keyLength);
             return new KeyHeader()
@@ -48,7 +49,7 @@ namespace Youverse.Core.Services.Transit.Encryption
                 AesKey = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16))
             };
         }
-        
+
         public static KeyHeader Empty()
         {
             return new KeyHeader()
@@ -56,8 +57,6 @@ namespace Youverse.Core.Services.Transit.Encryption
                 Iv = Guid.Empty.ToByteArray(),
                 AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray()
             };
-
         }
-        
     }
 }

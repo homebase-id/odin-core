@@ -62,6 +62,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey);
 
+        [Obsolete]
         Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
 
         Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);

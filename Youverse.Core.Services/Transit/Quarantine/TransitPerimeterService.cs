@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 
 namespace Youverse.Core.Services.Transit.Quarantine
@@ -18,6 +19,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ITransitService _transitService;
         private readonly IAppRegistrationService _appRegService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
+        private readonly IPublicKeyService _publicKeyService;
 
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
@@ -25,12 +27,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             IAppRegistrationService appRegService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService) : base(auditWriter)
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base(auditWriter)
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
             _appRegService = appRegService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
+            _publicKeyService = publicKeyService;
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -118,12 +121,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             throw new HostToHostTransferException("Unhandled error");
-        }
-
-        public async Task<TransitPublicKey> GetTransitPublicKey()
-        {
-            var tpk = await _appRegService.GetTransitPublicKey(_contextAccessor.GetCurrent().AppContext.AppId);
-            return tpk;
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

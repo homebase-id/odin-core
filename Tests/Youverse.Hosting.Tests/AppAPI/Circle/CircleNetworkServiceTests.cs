@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -223,7 +224,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 //
-                // Frodo should be in sam's contacts network
+                // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
                 var response = await frodoConnections.GetStatus(sam.Identity);
@@ -231,6 +232,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
+                
+                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var getResponse = await svc.GetSentRequest(sam.Identity);
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -292,7 +297,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         }
 
         [Test]
-        [Ignore("this is causing other tests to fail, need to fix")]
         public async Task CanDisconnect()
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
@@ -313,6 +317,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.None);
             }
             
+            using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
+            {
+                var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
+                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
+                Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
+            }
+
         }
 
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)

@@ -1,15 +1,16 @@
 ﻿using System;
+using Newtonsoft.Json;
 using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class ConnectionRequestHeader
     {
-        private DotYouIdentity _recipient;
+        private string _recipient;
 
         public Guid Id
         {
-            get => _recipient;
+            get => (DotYouIdentity)_recipient;
             set
             {
                 //TODO: review
@@ -20,12 +21,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// Individual receiving the invite
         /// </summary>
-        public DotYouIdentity Recipient
+        // public DotYouIdentity Recipient
+        // {
+        //     get => _recipient;
+        //     set => _recipient = value;
+        // }
+        public string Recipient
         {
             get => _recipient;
             set => _recipient = value;
         }
-
+        
         /// <summary>
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>

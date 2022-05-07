@@ -36,12 +36,5 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
         Task<HostTransferResponse> FinalizeTransfer(Guid transferStateItemId);
-
-
-        /// <summary>
-        /// Returns the public key to be used for encrypting the <see cref="EncryptedKeyHeader"/> during data transfer
-        /// </summary>
-        /// <returns></returns>
-        Task<TransitPublicKey> GetTransitPublicKey();
     }
 }
