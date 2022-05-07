@@ -171,8 +171,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-
-
+        
         [Test]
         public async Task CanGetSentConnectionRequest()
         {
@@ -240,8 +239,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-
-
+        
         [Test]
         public async Task CanBlock()
         {

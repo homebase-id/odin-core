@@ -26,9 +26,6 @@ namespace Youverse.Core.Services.Base
         [Post(RootPath + "/invitations/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] RsaEncryptedPayload requestReply);
 
-        [Get(RootPath + "/profile")]
-        Task<ApiResponse<DotYouProfile>> GetProfile();
-
         [Get(RootPath + "/youauth/validate-ac-res")]
         Task<ApiResponse<byte[]>> ValidateAuthorizationCodeResponse(string initiator, string ac);
     }

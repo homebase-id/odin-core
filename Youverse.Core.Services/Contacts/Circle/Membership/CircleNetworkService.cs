@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
@@ -8,11 +8,9 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Profile;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -92,40 +90,34 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return false;
         }
 
-        public async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req)
-        {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
-            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == ConnectionStatus.Connected;
-            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
-            return results;
-        }
-
-        public async Task<PagedResult<IdentityConnectionRegistration>> GetBlockedConnections(PageOptions req)
-        {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
-            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == ConnectionStatus.Blocked;
-            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
-            return results;
-        }
-
         public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
+            var connectionsPage = await this.GetConnections(req, ConnectionStatus.Blocked);
+            var page = new PagedResult<DotYouProfile>(
+                connectionsPage.Request,
+                connectionsPage.TotalPages,
+                connectionsPage.Results.Select(c => new DotYouProfile()
+                {
+                    DotYouId = c.DotYouId,
+                }).ToList());
 
-            throw new NotImplementedException("");
-
-            // var connections = await GetBlockedConnections(req);
+            return page;
         }
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            throw new NotImplementedException("");
-            var connections = await GetConnections(req);
+            var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
+            var page = new PagedResult<DotYouProfile>(
+                connectionsPage.Request,
+                connectionsPage.TotalPages,
+                connectionsPage.Results.Select(c => new DotYouProfile()
+                {
+                    DotYouId = c.DotYouId,
+                }).ToList());
+
+            return page;
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false)
@@ -224,10 +216,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 //TODO: this needs to be changed to - can view connections
                 _contextAccessor.GetCurrent().AssertCanManageConnections();
             }
-            
+
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
             return info.Status == ConnectionStatus.Connected;
-
         }
 
         public async Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId)
@@ -244,7 +235,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string dotYouIdentity, NameAttribute name, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken)
+        public async Task Connect(string dotYouIdentity, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken)
         {
             //TODO: need to add security that this method can be called
 
@@ -258,10 +249,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("invalid connection state");
             }
 
-            await this.StoreConnection(dotYouId, name, accessRegistrationId, remoteClientAccessToken);
+            await this.StoreConnection(dotYouId, accessRegistrationId, remoteClientAccessToken);
         }
 
-        private async Task StoreConnection(string dotYouIdentity, NameAttribute name, Guid accessRegId, ClientAccessToken remoteClientAccessToken)
+        private async Task StoreConnection(string dotYouIdentity, Guid accessRegId, ClientAccessToken remoteClientAccessToken)
         {
             var dotYouId = (DotYouIdentity) dotYouIdentity;
 
@@ -279,20 +270,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(newConnection));
 
-            // //3. upsert any record in the profile service (we upsert just in case there was previously a connection)
-            //
-            // var contact = new DotYouProfile()
-            // {
-            //     Name = name,
-            //     DotYouId = dotYouId,
-            //     SslPublicKeyCertificate = dotYouId, //using Sender here because it will be the original person to which I sent the request.
-            // };
-            //
-            // await _profileService.Save(contact);
-
             //TODO: the following is a good place for the mediatr pattern
             //tell the profile service to refresh the attributes?
             //send notification to clients
+        }
+
+        private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
+        {
+            _contextAccessor.GetCurrent().AssertCanManageConnections();
+
+            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
+            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == status;
+            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            return results;
         }
     }
 }

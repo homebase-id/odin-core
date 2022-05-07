@@ -1,7 +1,6 @@
 ﻿using System;
 using Dawn;
 using Newtonsoft.Json;
-using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
@@ -22,15 +21,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// The name to be shown the recipient on the request
         /// </summary>
-        public NameAttribute Name { get; set; }
+        public string Name { get; set; }
 
         public Int64 ReceivedTimestampMilliseconds { get; set; }
-
-        public string GetSenderDisplayName()
-        {
-            return $"{SenderDotYouId} ({this.Name.Personal} {this.Name.Surname})";
-        }
-
+        
         public string RSAEncryptedExchangeCredentials { get; set; }
 
         /// <summary>

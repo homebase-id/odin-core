@@ -10,11 +10,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
     public interface ICircleNetworkConnectionsClient
     {
-        private const string root_path =  AppApiPathConstants.CirclesV1 + "/connections";
-        
+        private const string root_path = AppApiPathConstants.CirclesV1 + "/connections";
+
         [Get(root_path + "/unblock/{dotYouId}")]
         Task<ApiResponse<bool>> Unblock(string dotYouId);
-        
+
         [Get(root_path + "/block/{dotYouId}")]
         Task<ApiResponse<bool>> Block(string dotYouId);
 
@@ -23,15 +23,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
         [Get(root_path + "/status/{dotYouId}")]
         Task<ApiResponse<IdentityConnectionRegistration>> GetStatus(string dotYouId);
-        
+
         [Delete(root_path + "/{dotYouId}")]
         Task<ApiResponse<bool>> Delete(string dotYouId);
 
         [Get(root_path + "/connected")]
-        Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(PageOptions pageRequest, bool connectedContactsOnly);
+        Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(int pageNumber, int pageSize);
 
         [Get(root_path + "/blocked")]
-        Task<ApiResponse<PagedResult<DotYouProfile>>> GetBlockedProfiles(PageOptions pageRequest, bool connectedContactsOnly);
-        
+        Task<ApiResponse<PagedResult<DotYouProfile>>> GetBlockedProfiles(int pageNumber, int pageSize);
     }
 }

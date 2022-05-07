@@ -1,5 +1,4 @@
 ﻿using Dawn;
-using Youverse.Core.Identity.DataAttribute;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -9,11 +8,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
     /// </summary>
     public class ConnectionRequestReply
     {
-        /// <summary>
-        /// The name to be shown the recipient on the request
-        /// </summary>
-        public NameAttribute Name { get; set; }
-        
         public string SharedSecretEncryptedCredentials { get; set; }
         
         public string RecipientGivenName { get; set; }

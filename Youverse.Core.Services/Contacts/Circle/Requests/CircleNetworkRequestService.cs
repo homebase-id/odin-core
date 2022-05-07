@@ -10,8 +10,6 @@ using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
-using Youverse.Core.Identity.DataAttribute;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -70,7 +68,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
-            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.Name.Personal;
+            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.SenderDotYouId;
             Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
             var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
 
@@ -101,11 +99,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var request = new ConnectionRequest
             {
                 Id = header.Id,
-                Name = new NameAttribute() //todo: remove this attribute field
-                {
-                    Personal = "",
-                    Surname = ""
-                },
+                Name = header.Name,
                 Recipient = header.Recipient,
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
@@ -208,11 +202,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             ConnectionRequestReply acceptedReq = new()
             {
-                Name = new NameAttribute() //todo: remove this attribute field
-                {
-                    Personal = "",
-                    Surname = ""
-                },
                 SenderDotYouId = _tenantContext.HostDotYouId,
                 SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
@@ -226,7 +215,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
             }
 
-            await _cns.Connect(request.SenderDotYouId, request.Name, accessRegistration.Id, remoteClientAccessToken);
+            await _cns.Connect(request.SenderDotYouId, accessRegistration.Id, remoteClientAccessToken);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -254,7 +243,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
 
-            await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
+            await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
 
             await this.DeleteSentRequestInternal((DotYouIdentity) originalRequest.Recipient);
 

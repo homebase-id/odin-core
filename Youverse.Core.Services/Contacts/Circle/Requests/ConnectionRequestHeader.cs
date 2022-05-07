@@ -1,5 +1,4 @@
 ﻿using System;
-using Newtonsoft.Json;
 using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
@@ -17,15 +16,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 //no-op as the Id is based on the dotYouId of the recpient.  this is wierd
             }
         }
+        
+        /// <summary>
+        /// The display name to be shown to the recipient
+        /// </summary>
+        public string Name { get; set; }
 
         /// <summary>
         /// Individual receiving the invite
         /// </summary>
-        // public DotYouIdentity Recipient
-        // {
-        //     get => _recipient;
-        //     set => _recipient = value;
-        // }
         public string Recipient
         {
             get => _recipient;
