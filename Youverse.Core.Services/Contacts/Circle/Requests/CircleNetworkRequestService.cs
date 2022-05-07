@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.Apps;
@@ -19,7 +18,6 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator.ClientNotifications;
-using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -34,23 +32,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
         private readonly ISystemStorage _systemStorage;
-        private readonly IAppRegistrationService _appReg;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
-        private readonly IPublicKeyService _pkService;
+        private readonly IPublicKeyService _rsaPublicKeyService;
 
         private readonly IDriveService _driveService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
         public CircleNetworkRequestService(
-            IAppRegistrationService appReg,
             DotYouContextAccessor contextAccessor,
             ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
             ISystemStorage systemStorage,
             IMediator mediator,
             TenantContext tenantContext,
-            IPublicKeyService pkService,
+            IPublicKeyService rsaPublicKeyService,
             ExchangeGrantService exchangeGrantService,
             IDriveService driveService)
         {
@@ -61,11 +57,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _systemStorage = systemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
-            _pkService = pkService;
+            _rsaPublicKeyService = rsaPublicKeyService;
             _exchangeGrantService = exchangeGrantService;
             _driveService = driveService;
             _contextAccessor = contextAccessor;
-            _appReg = appReg;
 
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
             _systemStorage.WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
@@ -95,16 +90,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument((string) header.Recipient, nameof(header.Recipient)).NotNull();
+            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
-
-            var recipientOfflinePublicKey = await _pkService.GetRecipientOfflinePublicKey((DotYouIdentity)header.Recipient);
 
             //HACK: get list of drives from the header (requires UI updates)
             var drives = await _driveService.GetDrives(PageOptions.All);
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
-
-            var keyHeader = KeyHeader.NewRandom16();
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -119,23 +110,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end
                 ReceivedTimestampMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), //this should not be required since it's set on the receiving end
-                RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials((DotYouIdentity)header.Recipient, clientAccessToken)
+                RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials((DotYouIdentity) header.Recipient, clientAccessToken)
             };
 
-            var rsaEncryptedKeyHeader = recipientOfflinePublicKey.Encrypt(keyHeader.Combine().GetKey());
-            var encryptedConnectionRequestData = keyHeader.GetEncryptedStreamAes(JsonConvert.SerializeObject(request));
-
-            var encryptedConnectionRequest = new EncryptedConnectionRequest()
-            {
-                Crc32 = recipientOfflinePublicKey.crc32c,
-                RsaEncryptedKeyHeader = rsaEncryptedKeyHeader,
-                Request = encryptedConnectionRequestData.ToByteArray()
-            };
+            var payloadBytes = JsonConvert.SerializeObject(request).ToUtf8ByteArray();
+            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
 
             _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
-
-            // var response = await _dotYouHttpClientFactory.CreateClient(request.Recipient).DeliverConnectionRequest(request);
-            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity)request.Recipient).DeliverConnectionRequest(encryptedConnectionRequest);
+            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity) request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
 
             if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
             {
@@ -152,34 +134,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
         }
 
-        public async Task ReceiveConnectionRequest(EncryptedConnectionRequest encryptedConnectionRequest)
+        public async Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            var keyHeaderBytes = await _pkService.DecryptUsingOfflineKey(encryptedConnectionRequest.RsaEncryptedKeyHeader, encryptedConnectionRequest.Crc32);
-            var keyHeader = KeyHeader.FromCombinedBytes(keyHeaderBytes);
-
-            var key = keyHeader.AesKey;
-            var decryptedRequestBytes = Cryptography.Crypto.AesCbc.Decrypt(
-                cipherText: encryptedConnectionRequest.Request,
-                Key: ref key,
-                IV: keyHeader.Iv);
-
-            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(decryptedRequestBytes.StringFromUTF8Bytes());
-            
             //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the youverse network
             //_context.GetCurrent()/AssertCanManageConnections();
 
             //TODO: check robot detection code
 
+            var sender = _contextAccessor.GetCurrent().Caller.DotYouId;
+            var recipient = _tenantContext.HostDotYouId;
 
             //note: this would occur during the operation verification process
             request.Validate();
-            _logger.LogInformation($"[{request.Recipient}] is receiving a connection request from [{request.SenderDotYouId}]");
+            _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
             _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
 
+#pragma warning disable CS4014
+            //let this happen in the background w/o blocking
             _mediator.Publish(new ConnectionRequestReceived()
             {
-                Sender = (DotYouIdentity)request.SenderDotYouId
+                Sender = sender
             });
+#pragma warning restore CS4014
         }
 
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
@@ -230,7 +206,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var drives = await _driveService.GetDrives(PageOptions.All);
             var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
 
-
             ConnectionRequestReply acceptedReq = new()
             {
                 Name = new NameAttribute() //todo: remove this attribute field
@@ -238,10 +213,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                     Personal = "",
                     Surname = ""
                 },
+                SenderDotYouId = _tenantContext.HostDotYouId,
                 SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
 
-            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity)request.SenderDotYouId).EstablishConnection(acceptedReq);
+            var json = JsonConvert.SerializeObject(acceptedReq);
+            var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
+            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);
 
             if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
             {
@@ -253,15 +231,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
 
-            await this.DeletePendingRequest((DotYouIdentity)request.SenderDotYouId);
-            await this.DeleteSentRequest((DotYouIdentity)request.SenderDotYouId);
+            await this.DeletePendingRequest((DotYouIdentity) request.SenderDotYouId);
+            await this.DeleteSentRequest((DotYouIdentity) request.SenderDotYouId);
         }
 
         public async Task EstablishConnection(ConnectionRequestReply handshakeResponse)
         {
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
 
-            var originalRequest = await this.GetSentRequestInternal((DotYouIdentity)handshakeResponse.SenderDotYouId);
+            var originalRequest = await this.GetSentRequestInternal((DotYouIdentity) handshakeResponse.SenderDotYouId);
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
             if (null == originalRequest)
@@ -278,14 +256,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, handshakeResponse.Name, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
 
-            await this.DeleteSentRequestInternal((DotYouIdentity)originalRequest.Recipient);
+            await this.DeleteSentRequestInternal((DotYouIdentity) originalRequest.Recipient);
 
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            await this.DeletePendingRequestInternal((DotYouIdentity)originalRequest.Recipient);
+            await this.DeletePendingRequestInternal((DotYouIdentity) originalRequest.Recipient);
 
             await _mediator.Publish(new ConnectionRequestAccepted()
             {
-                Sender = (DotYouIdentity)originalRequest.SenderDotYouId
+                Sender = (DotYouIdentity) originalRequest.SenderDotYouId
             });
         }
 

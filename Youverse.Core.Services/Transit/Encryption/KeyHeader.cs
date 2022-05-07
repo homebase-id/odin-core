@@ -17,9 +17,14 @@ namespace Youverse.Core.Services.Transit.Encryption
 
         public Stream GetEncryptedStreamAes(string data)
         {
+            return this.GetEncryptedStreamAes(data.ToUtf8ByteArray());
+        }
+        
+        public Stream GetEncryptedStreamAes(byte[] data)
+        {
             var key = this.AesKey;
             var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
-                data: data.ToUtf8ByteArray(),
+                data: data,
                 key: ref key,
                 iv: this.Iv);
 

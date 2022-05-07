@@ -7,6 +7,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.EncryptionKeyService
 {
@@ -40,13 +41,27 @@ namespace Youverse.Core.Services.EncryptionKeyService
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
         }
 
-        public async Task<byte[]> DecryptUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32)
+        public async Task<byte[]> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32)
         {
             var rsaKey = await this.GetOfflineKeyInternal();
             var key = GetOfflineKeyDecryptionKey();
             var keyList = rsaKey.Keys;
             var pk = RsaKeyListManagement.FindKey(keyList, publicKeyCrc32);
             var bytes = pk.Decrypt(ref key, encryptedData);
+            return bytes;
+        }
+
+        public async Task<byte[]> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload)
+        {
+            var keyHeaderBytes = await this.DecryptKeyHeaderUsingOfflineKey(payload.KeyHeader, payload.Crc32);
+            var keyHeader = KeyHeader.FromCombinedBytes(keyHeaderBytes);
+
+            var key = keyHeader.AesKey;
+            var bytes = Cryptography.Crypto.AesCbc.Decrypt(
+                cipherText: payload.Data,
+                Key: ref key,
+                IV: keyHeader.Iv);
+
             return bytes;
         }
 
@@ -101,6 +116,20 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
             return cacheItem?.PublicKeyData;
         }
+
+        public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload)
+        {
+            var pk = await this.GetRecipientOfflinePublicKey((DotYouIdentity) recipient);
+            var keyHeader = KeyHeader.NewRandom16();
+            return new RsaEncryptedPayload()
+            {
+                Crc32 = pk.crc32c,
+                KeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
+                Data = keyHeader.GetEncryptedStreamAes(payload).ToByteArray()
+            };
+        }
+        
+        
 
         /// 
         private async Task<RsaOfflineKeySet> GetRsaHeader(string storage)

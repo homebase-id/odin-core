@@ -1,36 +1,29 @@
 ﻿using System;
 using Dawn;
 using Newtonsoft.Json;
-using Youverse.Core.Identity;
 using Youverse.Core.Identity.DataAttribute;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
-    public class EncryptedConnectionRequest
-    {
-        public byte[] RsaEncryptedKeyHeader { get; set; }
-        public byte[] Request { get; set; }
-        public uint Crc32 { get; set; }
-    }
-    
-    
-    public class ConnectionRequest: ConnectionRequestHeader, IIncomingCertificateMetaData
+    public class ConnectionRequest : ConnectionRequestHeader
     {
         [JsonConstructor]
-        public ConnectionRequest() { }
+        public ConnectionRequest()
+        {
+        }
 
         /// <summary>
         /// Individual who sent the invite
         /// </summary>
         // public DotYouIdentity SenderDotYouId { get; set; }
         public string SenderDotYouId { get; set; }
-        
+
         /// <summary>
         /// The name to be shown the recipient on the request
         /// </summary>
         public NameAttribute Name { get; set; }
-        
+
         public Int64 ReceivedTimestampMilliseconds { get; set; }
 
         public string GetSenderDisplayName()
@@ -61,6 +54,5 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             Guard.Argument(Id, nameof(Id)).NotEqual(Guid.Empty);
         }
-
     }
 }

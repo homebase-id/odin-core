@@ -8,6 +8,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Core.Services.EncryptionKeyService;
 
 namespace Youverse.Core.Services.Base
 {
@@ -20,10 +21,10 @@ namespace Youverse.Core.Services.Base
 
         [Post(RootPath + "/invitations/connect")]
         // Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] ConnectionRequest request);
-        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] EncryptedConnectionRequest request);
+        Task<ApiResponse<NoResultResponse>> DeliverConnectionRequest([Body] RsaEncryptedPayload request);
 
         [Post(RootPath + "/invitations/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] ConnectionRequestReply requestReply);
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] RsaEncryptedPayload requestReply);
 
         [Get(RootPath + "/profile")]
         Task<ApiResponse<DotYouProfile>> GetProfile();

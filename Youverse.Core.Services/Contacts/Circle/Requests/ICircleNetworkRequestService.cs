@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.EncryptionKeyService;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -67,7 +68,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        Task ReceiveConnectionRequest(EncryptedConnectionRequest request);
+        Task ReceiveConnectionRequest(ConnectionRequest request);
 
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.

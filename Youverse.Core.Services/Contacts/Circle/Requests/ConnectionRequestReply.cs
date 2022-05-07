@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
     /// to establish a connection
     /// </summary>
     
-    public class ConnectionRequestReply: IIncomingCertificateMetaData
+    public class ConnectionRequestReply
     {
         // /// <summary>
         // /// The Id of the original connection request

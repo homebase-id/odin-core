@@ -267,6 +267,16 @@ namespace Youverse.Hosting.Middleware
             var appIdClaim = user.FindFirst(DotYouClaimTypes.AppId)?.Value;
             if (null == appIdClaim)
             {
+                dotYouContext.Caller = new CallerContext(
+                    dotYouId: callerDotYouId,
+                    isOwner: false,
+                    masterKey: null,
+                    authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+                    isAnonymous: false,
+                    isConnected: false,
+                    isInYouverseNetwork: true //note: this will need to come from a claim: re: best buy/3rd party scenario
+                );
+
                 /*
                  * if no app is specified then we're looking at one of the special requests
                  *  Specials -
