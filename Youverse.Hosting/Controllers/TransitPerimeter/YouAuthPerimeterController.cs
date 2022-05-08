@@ -25,11 +25,11 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]
             string authorizationCode)
         {
-            var (success, remoteGrantKey) = await _youAuthService.ValidateAuthorizationCode(initiator, authorizationCode);
+            var (success, clientAuthTokenBytes) = await _youAuthService.ValidateAuthorizationCode(initiator, authorizationCode);
 
             if (success)
             {
-                return new ObjectResult(remoteGrantKey);
+                return new ObjectResult(clientAuthTokenBytes);
             }
 
             var problemDetails = new ProblemDetails

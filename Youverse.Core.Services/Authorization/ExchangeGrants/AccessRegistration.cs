@@ -18,8 +18,22 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedSharedSecret { get; set; }
 
         public bool IsRevoked { get; set; }
-        
+
+        /// <summary>
+        /// The GrantKeyStoreKey encrypted with this AccessRegistration's key
+        /// </summary>
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey { get; set; }
+
+        /// <summary>
+        /// Decrypts the grant key store key using your AccessKey; returns null if this AccessRegistration is bound to an 
+        /// </summary>
+        /// <param name="accessKey"></param>
+        /// <returns></returns>
+        public SensitiveByteArray GetGrantKeyStoreKey(SensitiveByteArray accessKey)
+        {
+            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(ref accessKey);
+            return grantKeyStoreKey;
+        }
 
         public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
         {

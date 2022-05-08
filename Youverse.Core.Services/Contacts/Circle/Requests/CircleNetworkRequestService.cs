@@ -92,8 +92,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
             //HACK: get list of drives from the header (requires UI updates)
+            //TODO: need to accept permission set from the UI
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterIdentityExchangeGrant((DotYouIdentity) header.Recipient, null, drives.Results.Select(d => d.Id).ToList());
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -197,8 +198,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var remoteClientAccessToken = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
             //HACK: USE ALL DRIVES FOR THE MOMENT, will need to get a list from the UI
+            //TODO: need to accept permission set from the UI
             var drives = await _driveService.GetDrives(PageOptions.All);
-            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterExchangeGrant(null, drives.Results.Select(d => d.Id).ToList());
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.RegisterIdentityExchangeGrant(sender, null, drives.Results.Select(d => d.Id).ToList());
 
             ConnectionRequestReply acceptedReq = new()
             {

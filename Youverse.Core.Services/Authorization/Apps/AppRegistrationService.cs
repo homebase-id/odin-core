@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             //TODO: need to build a different overload tha does not create client access token
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterExchangeGrant(permissions, driveIds);
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterAppExchangeGrant(applicationId, permissions, driveIds);
 
             //TODO: start * remove this section when we switch to using shared secrets for the transit encryption
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();

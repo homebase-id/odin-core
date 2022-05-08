@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Owner;
-using Youverse.Hosting.Controllers.YouAuth;
-
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
@@ -31,9 +28,10 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("files/header")]
         public async Task<IActionResult> GetMetadata(Guid driveAlias, Guid fileId)
         {
+            
             var file = new InternalDriveFileId()
             {
-                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -45,7 +43,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
@@ -59,7 +57,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
             await _driveService.DeleteLongTermFile(file);

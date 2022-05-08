@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(bool, byte[])> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
+        public async ValueTask<(bool, ClientAuthToken)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
         {
             // var queryString = QueryString.Create(new Dictionary<string, string>()
             // {
@@ -73,8 +73,15 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 if (null != response.Content && response.Content.Length > 0)
                 {
-                    var remoteIdentityConnectionKey = response.Content;
-                    return (true, remoteIdentityConnectionKey);
+                    var clientAuthTokenBytes = response.Content;
+
+                    if (ClientAuthToken.TryParse(clientAuthTokenBytes.StringFromUTF8Bytes(), out var clientAuthToken))
+                    {
+                        return (true, clientAuthToken);
+                    }
+
+                    //TODO: log a warning here that a bad payload was returned.
+                    return (true, null);
                 }
 
                 return (true, null)!;
@@ -90,33 +97,45 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
 
-            byte[] remoteGrantKey = Array.Empty<byte>();
+            byte[] clientAuthTokenBytes = Array.Empty<byte>();
             if (isValid)
             {
                 string dotYouId = initiator;
                 var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
+                    var clientAuthToken = new ClientAuthToken()
+                    {
+                        Id = info.ClientAccessTokenId,
+                        AccessTokenHalfKey = info.ClientAccessTokenHalfKey.ToSensitiveByteArray()
+                    };
+
                     //TODO: RSA Encrypt or used shared secret?
-                    remoteGrantKey = info.ClientAccessTokenHalfKey;
+                    clientAuthTokenBytes = clientAuthToken.ToString().ToUtf8ByteArray();
                 }
             }
 
-            return (isValid, remoteGrantKey);
+            return (isValid, clientAuthTokenBytes);
         }
 
         //
 
-        public async ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, SensitiveByteArray? remoteIdentityConnectionKey)
+        public async ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, ClientAuthToken? clientAuthToken)
         {
             AccessRegistration? browserAccessRegistration = null;
             ClientAccessToken? browserClientAccessToken = null;
 
-            if (remoteIdentityConnectionKey != null)
+            //If they were not connected, we need to create a new EGR and AccessReg for the browser
+            if (clientAuthToken == null)
             {
-                //look up the EGR key using the remoteIdentityConnectionKey
-                var accessReg = await _circleNetwork.GetIdentityConnectionAccessRegistration((DotYouIdentity) subject, remoteIdentityConnectionKey);
-                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.CreateClientAccessTokenFromExistingAccessRegistration(accessReg.Id, remoteIdentityConnectionKey);
+                //TODO: need to consider putting the dotyouid on the egr so we can upgrade it when 
+                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null);
+            }
+            else
+            {
+                //If we're given a client auth token, it means that subject was connected, so we just need to create a browser specific AccessReg
+                //look up the EGR key using the clientAuthToken
+                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.AddClientToExchangeGrant(clientAuthToken);
             }
 
             var session = await _youSessionManager.CreateSession(subject, browserAccessRegistration?.Id);

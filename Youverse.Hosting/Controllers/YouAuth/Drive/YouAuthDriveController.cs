@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _driveService.GetDriveIdByAlias(driveAlias).Result.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 

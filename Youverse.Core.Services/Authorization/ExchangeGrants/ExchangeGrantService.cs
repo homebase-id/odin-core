@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -32,64 +33,62 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
 
         /// <summary>
-        /// Creates a new Exchange registration and token based on system defaults
+        /// Creates an exchange grant for a given <see cref="DotYouIdentity"/> which can only view unencrypted data.
         /// </summary>
+        /// <param name="dotYouId">The identity being granted access</param>
         /// <param name="permissionSet"></param>
-        /// <param name="driveIdList">The list of drives which should be granted access </param>
+        /// <param name="driveIdList"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> RegisterExchangeGrant(PermissionSet permissionSet, List<Guid> driveIdList)
+        public async Task<(AccessRegistration, ClientAccessToken)> RegisterIdentityExchangeGrantForUnencryptedData(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList)
         {
-            var context = _contextAccessor.GetCurrent();
-            context.Caller.AssertHasMasterKey();
+            var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<IdentityExchangeGrant>(permissionSet, driveIdList, null);
+            grant.DotYouId = dotYouId;
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var record = grant.ToLiteDbRecord();
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(record));
 
-            var grants = new List<DriveGrant>();
-            
-            List<StorageDrive> drives = new List<StorageDrive>();
-            foreach (var id in driveIdList)
-            {
-                //Note: fail the whole operation if an invalid drive is specified (the true flag will ensure we throw an exception)
-                var drive = await _driveService.GetDrive(id, true);
-                drives.Add(drive);
-            }
-            //TODO: need to handle scenario when a new anon drive is added.  all grants must be updated
-            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
-            drives.AddRange(anonymousDrives.Results);
-            
-            foreach (var drive in drives)
-            {
-                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-
-                var dk = new DriveGrant()
-                {
-                    DriveId = drive.Id,
-                    DriveAllowsAnonymousReadAccess = drive.AllowAnonymousReads, //for debugging
-                    KeyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
-                    Permissions = DrivePermissions.Read //Hard coded until we support writing data into the system
-                };
-
-                storageKey.Wipe();
-                grants.Add(dk);
-            }
-
-            var grant = new ExchangeGrant()
-            {
-                Id = Guid.NewGuid(),
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
-                IsRevoked = false,
-                KeyStoreKeyEncryptedDriveGrants = grants,
-                PermissionSet = permissionSet
-            };
-
-            _systemStorage.WithTenantSystemStorage<ExchangeGrant>(EXCHANGE_REGISTRATION, s => s.Save(grant));
-
-            var token = await this.CreateClientAccessTokenInternal(grant.Id, grantKeyStoreKey);
+            var (accessRegistration, token) = await this.CreateClientAccessTokenInternal(grant.Id, grantKeyStoreKey);
             grantKeyStoreKey.Wipe();
 
-            return token;
+            return (accessRegistration, token);
+        }
+        
+
+        /// <summary>
+        /// Creates an exchange grant for a given <see cref="DotYouIdentity"/>.
+        /// </summary>
+        /// <param name="dotYouId">The identity being granted access</param>
+        /// <param name="permissionSet"></param>
+        /// <param name="driveIdList"></param>
+        /// <returns></returns>
+        public async Task<(AccessRegistration, ClientAccessToken)> RegisterIdentityExchangeGrant(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList)
+        {
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<IdentityExchangeGrant>(permissionSet, driveIdList, masterKey);
+            grant.DotYouId = dotYouId;
+
+            var record = grant.ToLiteDbRecord();
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(record));
+            
+            var (accessRegistration, token) = await this.CreateClientAccessTokenInternal(grant.Id, grantKeyStoreKey);
+            grantKeyStoreKey.Wipe();
+
+            return (accessRegistration, token);
+        }
+
+        public async Task<(AccessRegistration, ClientAccessToken)> RegisterAppExchangeGrant(Guid appId, PermissionSet permissionSet, List<Guid> driveIdList)
+        {
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<AppExchangeGrant>(permissionSet, driveIdList, masterKey);
+            grant.AppId = appId;
+
+            var record = grant.ToLiteDbRecord();
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(record));
+            
+            var (accessRegistration, token) = await this.CreateClientAccessTokenInternal(grant.Id, grantKeyStoreKey);
+            grantKeyStoreKey.Wipe();
+
+            return (accessRegistration, token);
         }
 
         /// <summary>
@@ -114,9 +113,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a new <see cref="AccessRegistration"/> from an existing <see cref="AccessRegistration"/>
         /// </summary>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenFromExistingAccessRegistration(Guid accessRegId, SensitiveByteArray sourceAccessRegistrationHalfKey)
+        public async Task<(AccessRegistration, ClientAccessToken)> AddClientToExchangeGrant(ClientAuthToken clientAuthToken)
         {
-            var sourceAccessRegistration = await this.GetAccessRegistration(accessRegId);
+            var sourceAccessRegistration = await this.GetAccessRegistration(clientAuthToken.Id);
+            var sourceAccessRegistrationHalfKey = clientAuthToken.AccessTokenHalfKey;
             var accessKeyStoreKey = sourceAccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref sourceAccessRegistrationHalfKey);
 
             var grantKeyStoreKey = sourceAccessRegistration.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey.DecryptKeyClone(ref accessKeyStoreKey);
@@ -149,11 +149,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         /// <summary>
         /// Gets an exchange grant if the specified ClientAuthToken is valid.  The caller must check if
-        /// the <see cref="AccessRegistration"/> and <see cref="ExchangeGrant"/> are revoked
+        /// the <see cref="AccessRegistration"/> and <see cref="ExchangeGrantBase"/> are revoked
         /// </summary>
         /// <param name="authToken"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ExchangeGrant)> GetAccessAndGrant(ClientAuthToken authToken)
+        public async Task<(AccessRegistration, ExchangeGrantBase)> GetAccessAndGrant(ClientAuthToken authToken)
         {
             var registration = await this.GetAccessRegistration(authToken.Id);
 
@@ -164,7 +164,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return (registration, grant);
         }
 
-        public async Task<ExchangeGrant> GetExchangeGrant(Guid id)
+        public async Task<ExchangeGrantBase> GetExchangeGrant(Guid id)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             return await this.GetExchangeGrantInternal(id);
@@ -185,7 +185,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             grant.KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants.Where(dg => dg.DriveId != driveId).ToList();
 
-            _systemStorage.WithTenantSystemStorage<ExchangeGrant>(EXCHANGE_REGISTRATION, s => s.Save(grant));
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantBase>(EXCHANGE_REGISTRATION, s => s.Save(grant));
         }
 
         public async Task GrantDrive(Guid exchangeGrantId, StorageDrive drive, DrivePermissions permissions)
@@ -217,7 +217,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             grant.KeyStoreKeyEncryptedDriveGrants.Add(driveGrant);
 
-            _systemStorage.WithTenantSystemStorage<ExchangeGrant>(EXCHANGE_REGISTRATION, s => s.Save(grant));
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantBase>(EXCHANGE_REGISTRATION, s => s.Save(grant));
         }
 
         public async Task<AccessRegistration> GetAccessRegistration(Guid id)
@@ -226,23 +226,36 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return eg;
         }
 
-        public async Task<PagedResult<ExchangeGrant>> GetExchangeGrantList(PageOptions pageOptions)
+        public async Task<PagedResult<ExchangeGrantBase>> GetExchangeGrantList(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<ExchangeGrant>(EXCHANGE_REGISTRATION, s => s.GetList(pageOptions));
+            var page = await _systemStorage.WithTenantSystemStorageReturnList<ExchangeGrantBase>(EXCHANGE_REGISTRATION, s => s.GetList(pageOptions));
             return page;
         }
 
         /////
 
-        private async Task<ExchangeGrant> GetExchangeGrantInternal(Guid id)
+        private async Task<ExchangeGrantBase> GetExchangeGrantInternal(Guid id)
         {
-            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrant>(EXCHANGE_REGISTRATION, s => s.Get(id));
-            return eg;
+            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(id));
+
+            if (eg.StorageType == ExchangeGranteeType.App)
+            {
+                return AppExchangeGrant.FromLiteDbRecord(eg);
+            }
+            
+            if (eg.StorageType == ExchangeGranteeType.Identity)
+            {
+                return IdentityExchangeGrant.FromLiteDbRecord(eg);
+            }
+
+            throw new MissingDataException("Invalid Storage type on ExchangeGrantLiteDbRecord");
         }
 
         /// <summary>
-        /// Creates a new XToken from an <see cref="ExchangeGrant"/> which can be given to remote callers for access to data.
+        /// Creates a new <see cref="ClientAuthToken"/> from an existing <see cref="ExchangeGrantBase"/> which can be given to remote callers for access to
+        /// data.  If the <param name="grantKeyStoreKey">grantKeyStoreKey</param> is null, the AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey will
+        /// be null
         /// </summary>
         /// <returns></returns>
         private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(Guid grantId, SensitiveByteArray grantKeyStoreKey)
@@ -260,10 +273,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
                 AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref sharedSecret),
                 IsRevoked = false,
-                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref grantKeyStoreKey)
+                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref grantKeyStoreKey)
             };
 
-            grantKeyStoreKey.Wipe();
+            grantKeyStoreKey?.Wipe();
             accessKeyStoreKey.Wipe();
 
             //Note: we have to send both the id and the accesstokenhalfkey back to the server
@@ -278,19 +291,57 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             return Task.FromResult((reg, cat));
         }
-        
-        private async Task<List<DriveGrant>> GetAnonymousDriveGrants()
-        {
-            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
-            var anonDriveGrants = anonymousDrives.Results.Select(drive => new DriveGrant()
-            {
-                DriveId = drive.Id,
-                DriveAllowsAnonymousReadAccess = true,
-                KeyStoreKeyEncryptedStorageKey = null,
-                Permissions = DrivePermissions.Read
-            }).ToList();
 
-            return anonDriveGrants;
+        private async Task<(T, SensitiveByteArray)> CreateExchangeGrant<T>(PermissionSet permissionSet, List<Guid> driveIdList, SensitiveByteArray masterKey = null)
+            where T : ExchangeGrantBase, new()
+        {
+            var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+
+            var grants = new List<DriveGrant>();
+
+            List<StorageDrive> drives = new List<StorageDrive>();
+
+            if (driveIdList != null)
+            {
+                foreach (var id in driveIdList)
+                {
+                    //Note: fail the whole operation if an invalid drive is specified (the true flag will ensure we throw an exception)
+                    var drive = await _driveService.GetDrive(id, true);
+                    drives.Add(drive);
+                }
+            }
+
+            //TODO: need to handle scenario when a new anon drive is added.  all grants must be updated
+            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
+            drives.AddRange(anonymousDrives.Results);
+
+            foreach (var drive in drives)
+            {
+                var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
+
+                var dk = new DriveGrant()
+                {
+                    DriveId = drive.Id,
+                    DriveAlias = drive.Alias,
+                    KeyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
+                    Permissions = DrivePermissions.Read //Hard coded until we support writing data into the system
+                };
+
+                storageKey.Wipe();
+                grants.Add(dk);
+            }
+
+            var grant = new T()
+            {
+                Id = Guid.NewGuid(),
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
+                IsRevoked = false,
+                KeyStoreKeyEncryptedDriveGrants = grants,
+                PermissionSet = permissionSet
+            };
+
+            return (grant, grantKeyStoreKey);
         }
     }
 }

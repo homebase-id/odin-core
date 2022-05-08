@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Base
             {
                 return true;
             }
-            
+
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
             return grant != null && grant.Permissions.HasFlag(permission);
         }
@@ -111,6 +111,24 @@ namespace Youverse.Core.Services.Base
             {
                 throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
+        }
+
+        /// <summary>
+        /// Returns the encryption key specific to this app.  This is only available
+        /// when the owner is making an HttpRequest.
+        /// </summary>
+        /// <returns></returns>
+        public Guid GetDriveId(Guid driveAlias)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == driveAlias);
+
+            //TODO: this sort of security check feels like it should be in a service..
+            if (null == grant)
+            {
+                throw new YouverseSecurityException($"No access permitted to drive alias {driveAlias}");
+            }
+
+            return grant.DriveId;
         }
 
         /// <summary>

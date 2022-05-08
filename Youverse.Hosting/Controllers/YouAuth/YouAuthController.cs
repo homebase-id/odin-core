@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, remoteIdentityConnectionKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, clientAuthToken) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var (session, clientAccessToken) = await _youAuthService.CreateSession(subject, remoteIdentityConnectionKey?.ToSensitiveByteArray() ?? null);
+            var (session, clientAccessToken) = await _youAuthService.CreateSession(subject, clientAuthToken);
 
             var options = new CookieOptions()
             {

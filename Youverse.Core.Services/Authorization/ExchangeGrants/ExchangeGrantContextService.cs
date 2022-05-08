@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             _contextAccessor = contextAccessor;
         }
 
-        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrant grant)> ValidateClientAuthToken(string sharedSecretEncryptedClientAuthToken64)
+        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrantBase grant)> ValidateClientAuthToken(string sharedSecretEncryptedClientAuthToken64)
         {
             //TODO: decrypt using  _contextAccessor.GetCurrent().AppContext.ClientSharedSecret and IV?
             var decryptedCat = sharedSecretEncryptedClientAuthToken64;
@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return await this.ValidateClientAuthToken(cat);
         }
 
-        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrant grant)> ValidateClientAuthToken(ClientAuthToken authToken)
+        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrantBase grant)> ValidateClientAuthToken(ClientAuthToken authToken)
         {
             var (registration, grant) = await _exchangeGrantService.GetAccessAndGrant(authToken);
             if (registration.IsRevoked || grant.IsRevoked)
@@ -55,7 +55,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var key = token.AccessTokenHalfKey;
             var accessKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
             var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            var grantKeyStoreKey = accessReg.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey.DecryptKeyClone(ref accessKey);
+            
+            var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
             accessKey.Wipe();
 
             return new PermissionContext(
