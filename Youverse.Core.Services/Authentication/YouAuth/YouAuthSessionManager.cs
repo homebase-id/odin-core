@@ -21,6 +21,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
+        [Obsolete("replaced with exchange grant service")]
         public ValueTask<YouAuthSession> CreateSession(string subject, Guid? accessRegistrationId)
         {
             if (string.IsNullOrWhiteSpace(subject))

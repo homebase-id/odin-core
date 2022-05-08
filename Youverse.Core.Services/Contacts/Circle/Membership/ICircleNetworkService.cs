@@ -48,12 +48,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false);
 
         /// <summary>
-        /// Gets the connection info if the specified <param name="remoteClientAuthToken">xtoken half key</param> is valid
+        /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">xtoken half key</param> is valid
         /// </summary>
         /// <param name="dotYouId"></param>
-        /// <param name="remoteClientAuthToken"></param>
+        /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthToken remoteClientAuthToken);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken);
 
         /// <summary>
         /// Gets the connection info if the specified key store key is valid.

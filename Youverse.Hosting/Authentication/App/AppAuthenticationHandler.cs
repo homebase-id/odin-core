@@ -99,11 +99,11 @@ namespace Youverse.Hosting.Authentication.App
             return Task.CompletedTask;
         }
 
-        private bool GetAuthResult(out ClientAuthToken result)
+        private bool GetAuthResult(out ClientAuthenticationToken result)
         {
             var value = Context.Request.Cookies[AppAuthConstants.ClientAuthTokenCookieName];
 
-            if (ClientAuthToken.TryParse(value, out result))
+            if (ClientAuthenticationToken.TryParse(value, out result))
             {
                 return true;
             }

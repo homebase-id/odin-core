@@ -1,5 +1,4 @@
-﻿using System;
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -10,53 +9,51 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Hosting.Authentication.YouAuth
 {
     public class YouAuthAuthenticationHandler : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>
     {
-        private readonly IYouAuthSessionManager _youAuthSessionManager;
+        private readonly ExchangeGrantContextService _exchangeGrantContextService;
 
         public YouAuthAuthenticationHandler(
             IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ISystemClock clock,
-            IYouAuthSessionManager youAuthSessionManager)
+            ExchangeGrantContextService exchangeGrantContextService)
             : base(options, logger, encoder, clock)
         {
-            _youAuthSessionManager = youAuthSessionManager;
+            _exchangeGrantContextService = exchangeGrantContextService;
         }
 
         //
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            //TODD: changing to set user as anonymous instead of failing.  This allows us to support reading files whose ACL = anonymous
-            // if (!TryGetSessionIdFromCookie(out Guid sessionId))
-            // {
-            //     return AuthenticateResult.Fail("No sessionId cookie");
-            // }
-
-            if (!TryGetSessionIdFromCookie(out Guid sessionId))
+            if (!TryGetClientAuthToken(out var clientAuthToken))
             {
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
 
-            var session = await _youAuthSessionManager.LoadFromId(sessionId);
-            if (session == null)
+            var (isValid, _, grant) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
+            var identityGrant = (IdentityExchangeGrant) grant;
+            
+            if (!isValid)
             {
                 //TODD: changing to set user as anonymous instead of failing.  This allows us to support reading files whose ACL = anonymous
                 // return AuthenticateResult.Fail("No session matching session id");
                 return AuthenticateResult.Success(CreateAnonTicket());
-
             }
 
             var claims = new[]
             {
-                new Claim(YouAuthDefaults.IdentityClaim, session.Subject),
+                new Claim(YouAuthDefaults.IdentityClaim, identityGrant.DotYouId),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                //Note: if you have a session, you're in the network because we've verified via login
+                new Claim(DotYouClaimTypes.IsInNetwork, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.Scheme);
@@ -97,16 +94,10 @@ namespace Youverse.Hosting.Authentication.YouAuth
 
         //
 
-        private bool TryGetSessionIdFromCookie(out Guid sessionId)
+        private bool TryGetClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
-            var value = Context.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "";
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return Guid.TryParse(value, out sessionId);
-            }
-
-            sessionId = default;
-            return false;
+            var clientAccessTokenValue64 = Context.Request.Cookies[YouAuthDefaults.XTokenCookieName];
+            return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
         }
     }
 }

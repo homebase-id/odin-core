@@ -39,8 +39,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthToken.Id}");
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthToken))
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthenticationToken.Id}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthenticationToken))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -60,8 +60,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthToken.Id}");
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthToken))
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthenticationToken.Id}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthenticationToken))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -88,8 +88,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions() {ProcessOutbox = true, ProcessTransitBox = true});
 
             var recipient = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthToken.Id}");
-            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthToken))
+            Console.WriteLine($"Identity: {recipient.Identity}\nAppId: {recipient.AppId}, Token:{recipient.ClientAuthenticationToken.Id}");
+            using (var client = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipient.ClientAuthenticationToken))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(client);
                 var itemsResponse = await svc.GetInboxItems(1, 100);

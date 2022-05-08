@@ -1,6 +1,7 @@
 ﻿using System;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI;
 
@@ -10,7 +11,7 @@ namespace Youverse.Hosting.Tests
     {
         public Guid AppId { get; set; }
         public byte[] DeviceUid { get; set; }
-        public ClientAuthToken AuthResult { get; set; }
+        public ClientAuthenticationToken AuthenticationResult { get; set; }
         public SensitiveByteArray AppSharedSecretKey { get; set; }
 
         /// <summary>

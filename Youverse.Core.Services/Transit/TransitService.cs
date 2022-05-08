@@ -19,6 +19,7 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Transit.Incoming;
 
@@ -233,7 +234,7 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthToken clientAuthToken, Guid driveAlias)
+        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthenticationToken clientAuthenticationToken, Guid driveAlias)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -244,7 +245,7 @@ namespace Youverse.Core.Services.Transit
 
             //TODO: need to encrypt the client access token here with something on my server side
             // var rsaEncryptedClientAccessToken = publicKey.Encrypt(clientAuthToken.ToString().ToUtf8ByteArray());
-            var encryptedClientAccessToken = clientAuthToken.ToString().ToUtf8ByteArray();
+            var encryptedClientAccessToken = clientAuthenticationToken.ToString().ToUtf8ByteArray();
 
             return new RsaEncryptedRecipientTransferInstructionSet()
             {
@@ -354,7 +355,7 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
-                var clientAuthToken = ClientAuthToken.Parse(decryptedClientAuthTokenBytes.StringFromUTF8Bytes());
+                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.StringFromUTF8Bytes());
 
                 var client = _dotYouHttpClientFactory.CreateClientWithAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();

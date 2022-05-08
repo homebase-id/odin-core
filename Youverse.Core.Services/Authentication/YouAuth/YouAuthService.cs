@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(bool, ClientAuthToken)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
+        public async ValueTask<(bool, ClientAuthenticationToken?)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
         {
             // var queryString = QueryString.Create(new Dictionary<string, string>()
             // {
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 {
                     var clientAuthTokenBytes = response.Content;
 
-                    if (ClientAuthToken.TryParse(clientAuthTokenBytes.StringFromUTF8Bytes(), out var clientAuthToken))
+                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.StringFromUTF8Bytes(), out var clientAuthToken))
                     {
                         return (true, clientAuthToken);
                     }
@@ -104,7 +104,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
-                    var clientAuthToken = new ClientAuthToken()
+                    var clientAuthToken = new ClientAuthenticationToken()
                     {
                         Id = info.ClientAccessTokenId,
                         AccessTokenHalfKey = info.ClientAccessTokenHalfKey.ToSensitiveByteArray()
@@ -120,33 +120,35 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, ClientAuthToken? clientAuthToken)
+        public async ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? clientAuthToken)
         {
-            AccessRegistration? browserAccessRegistration = null;
             ClientAccessToken? browserClientAccessToken = null;
+
+            //TODO: Need to handle how to upgrade the exchange grant.  when you are not connected and have logged in.. then you become connected 
 
             //If they were not connected, we need to create a new EGR and AccessReg for the browser
             if (clientAuthToken == null)
             {
-                //TODO: need to consider putting the dotyouid on the egr so we can upgrade it when 
-                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null);
+                browserClientAccessToken = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null, AccessRegistrationClientType.Browser);
             }
             else
             {
+                //TODO: need to evaluate if this will just have ever growing list of access registrations as the user logs in/logs out
                 //If we're given a client auth token, it means that subject was connected, so we just need to create a browser specific AccessReg
                 //look up the EGR key using the clientAuthToken
-                (browserAccessRegistration, browserClientAccessToken) = await _exchangeGrantService.AddClientToExchangeGrant(clientAuthToken);
+                browserClientAccessToken = await _exchangeGrantService.AddClientToExchangeGrant(clientAuthToken, AccessRegistrationClientType.Browser);
             }
 
-            var session = await _youSessionManager.CreateSession(subject, browserAccessRegistration?.Id);
-            return (session, browserClientAccessToken);
+            return browserClientAccessToken;
         }
 
         //
 
         public ValueTask DeleteSession(string subject)
         {
-            return _youSessionManager.DeleteFromSubject(subject);
+            //TODO: need to delete an access registration?
+            throw new NotImplementedException("");
+            // return _youSessionManager.DeleteFromSubject(subject);
         }
 
         //

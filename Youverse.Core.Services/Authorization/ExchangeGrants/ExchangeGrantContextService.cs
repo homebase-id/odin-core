@@ -1,8 +1,5 @@
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 
@@ -25,15 +22,13 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             //TODO: decrypt using  _contextAccessor.GetCurrent().AppContext.ClientSharedSecret and IV?
             var decryptedCat = sharedSecretEncryptedClientAuthToken64;
-            // byte[] data = sharedSecretEncryptedClientAuthToken64.ToUtf8ByteArray();
-            // AesCbc.Decrypt()
-            var cat = ClientAuthToken.Parse(decryptedCat);
+            var cat = ClientAuthenticationToken.Parse(decryptedCat);
             return await this.ValidateClientAuthToken(cat);
         }
 
-        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrantBase grant)> ValidateClientAuthToken(ClientAuthToken authToken)
+        public async Task<(bool isValid, AccessRegistration registration, ExchangeGrantBase grant)> ValidateClientAuthToken(ClientAuthenticationToken authenticationToken)
         {
-            var (registration, grant) = await _exchangeGrantService.GetAccessAndGrant(authToken);
+            var (registration, grant) = await _exchangeGrantService.GetAccessAndGrant(authenticationToken);
             if (registration.IsRevoked || grant.IsRevoked)
             {
                 return (false, null, null);
@@ -42,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return (true, registration, grant);
         }
 
-        public async Task<PermissionContext> GetContext(ClientAuthToken token)
+        public async Task<PermissionContext> GetContext(ClientAuthenticationToken token)
         {
             var (isValid, accessReg, grant) = await this.ValidateClientAuthToken(token);
 

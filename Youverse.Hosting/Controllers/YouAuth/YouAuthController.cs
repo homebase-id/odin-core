@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
 
@@ -55,7 +56,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var (session, clientAccessToken) = await _youAuthService.CreateSession(subject, clientAuthToken);
+            var clientAccessToken = await _youAuthService.CreateSession(subject, clientAuthToken);
 
             var options = new CookieOptions()
             {
@@ -65,16 +66,9 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 SameSite = SameSiteMode.Strict
             };
 
-            Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if (null != clientAccessToken)
-            {
-                ClientAuthToken authToken = new ClientAuthToken()
-                {
-                    Id = clientAccessToken.Id,
-                    AccessTokenHalfKey = clientAccessToken.AccessTokenHalfKey
-                };
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, authToken.ToString(), options);
-            }
+            var authenticationToken = clientAccessToken.ToAuthenticationToken();
+
+            Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, authenticationToken.ToString(), options);
 
             //TODO: RSA Encrypt shared secret
             var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());

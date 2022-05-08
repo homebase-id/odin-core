@@ -1,13 +1,12 @@
 ﻿using System;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Authentication
+namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
     /// <summary>
     /// Represents the client parts of the <see cref="ClientAccessToken"/> sent from the client during each request. 
     /// </summary>
-    public class ClientAuthToken
+    public class ClientAuthenticationToken
     {
         private static string SEPARATOR = "|";
         
@@ -27,17 +26,17 @@ namespace Youverse.Core.Services.Authentication
             return $"{Id}{SEPARATOR}{b64}";
         }
 
-        public static ClientAuthToken Parse(string value)
+        public static ClientAuthenticationToken Parse(string value)
         {
             var arr = value.Split(SEPARATOR);
-            return new ClientAuthToken()
+            return new ClientAuthenticationToken()
             {
                 Id = Guid.Parse(arr[0]),
                 AccessTokenHalfKey = new SensitiveByteArray(arr[1]) 
             };
         }
         
-        public static bool TryParse(string value, out ClientAuthToken result)
+        public static bool TryParse(string value, out ClientAuthenticationToken result)
         {
             result = null;
             if (null == value)

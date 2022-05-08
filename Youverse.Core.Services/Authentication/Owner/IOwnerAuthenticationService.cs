@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Authentication.Owner
 {
@@ -17,7 +18,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <param name="reply"></param>
         /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
-        Task<(ClientAuthToken, SensitiveByteArray)> Authenticate(IPasswordReply reply);
+        Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply);
 
         /// <summary>
         /// Determines if the <paramref name="token"/> is valid and has not expired.  

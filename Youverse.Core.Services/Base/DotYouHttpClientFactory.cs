@@ -7,6 +7,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Registry;
 
@@ -33,9 +34,9 @@ namespace Youverse.Core.Services.Base
             return this.CreateClient<IPerimeterHttpClient>(dotYouId, null, requireClientAccessToken);
         }
 
-        public T CreateClientWithAccessToken<T>(DotYouIdentity dotYouId, ClientAuthToken clientAuthToken, Guid? appIdOverride = null)
+        public T CreateClientWithAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
         {
-            return this.CreateClientInternal<T>(dotYouId, clientAuthToken, true, appIdOverride);
+            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken, true, appIdOverride);
         }
 
         public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null, bool requireClientAccessToken = true)
@@ -56,16 +57,16 @@ namespace Youverse.Core.Services.Base
         }
 
         ///
-        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthToken clientAuthToken, bool requireClientAccessToken, Guid? appIdOverride = null)
+        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, bool requireClientAccessToken, Guid? appIdOverride = null)
         {
             Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
 
             if (requireClientAccessToken)
             {
-                Guard.Argument(clientAuthToken, nameof(clientAuthToken)).NotNull();
-                Guard.Argument(clientAuthToken.Id, nameof(clientAuthToken.Id)).Require(x => x != Guid.Empty);
-                Guard.Argument(clientAuthToken.AccessTokenHalfKey, nameof(clientAuthToken.AccessTokenHalfKey)).Require(x => x.IsSet());
-                Guard.Argument(clientAuthToken, nameof(clientAuthToken)).NotNull();
+                Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
+                Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
+                Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
+                Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
             }
 
             var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _contextAccessor.GetCurrent().AppContext?.AppId.ToString() ?? "";
@@ -97,10 +98,10 @@ namespace Youverse.Core.Services.Base
             };
 
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
-            if (null != clientAuthToken)
+            if (null != clientAuthenticationToken)
             {
                 //TODO: need to encrypt this token somehow? (shared secret?)
-                client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthToken.ToString());
+                client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
 
             var ogClient = RestService.For<T>(client);

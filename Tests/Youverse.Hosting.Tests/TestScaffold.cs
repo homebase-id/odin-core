@@ -17,6 +17,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -183,7 +184,7 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
-        public async Task<(ClientAuthToken, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
+        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -217,7 +218,7 @@ namespace Youverse.Hosting.Tests
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
 
-            Assert.IsTrue(ClientAuthToken.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
+            Assert.IsTrue(ClientAuthenticationToken.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
             var newToken = result.Id;
             Assert.IsTrue(newToken != Guid.Empty);
@@ -244,7 +245,7 @@ namespace Youverse.Hosting.Tests
 
             var context = new OwnerAuthTokenContext()
             {
-                AuthResult = result,
+                AuthenticationResult = result,
                 SharedSecret = sharedSecret
             };
 
@@ -260,19 +261,19 @@ namespace Youverse.Hosting.Tests
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthResult, null);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, null);
             return client;
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, Guid? appId = null)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthResult, appId);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, appId);
             sharedSecret = token.SharedSecret;
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthToken token, Guid? appId = null)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, Guid? appId = null)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -315,7 +316,7 @@ namespace Youverse.Hosting.Tests
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthToken token)
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(AppAuthConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
@@ -333,7 +334,7 @@ namespace Youverse.Hosting.Tests
 
         public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
         {
-            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthToken);
+            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
@@ -399,7 +400,7 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public async Task<(ClientAuthToken clientAuthToken, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
+        public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
@@ -434,13 +435,13 @@ namespace Youverse.Hosting.Tests
                 Assert.That(clientAccessHalfKey.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
-                ClientAuthToken authResult = new ClientAuthToken()
+                ClientAuthenticationToken authenticationResult = new ClientAuthenticationToken()
                 {
                     Id = reply.Token,
                     AccessTokenHalfKey = clientAccessHalfKey.ToSensitiveByteArray()
                 };
 
-                return (authResult, sharedSecret);
+                return (authenticationResult, sharedSecret);
             }
         }
 
@@ -478,7 +479,7 @@ namespace Youverse.Hosting.Tests
             {
                 Identity = identity,
                 AppId = appId,
-                ClientAuthToken = authResult,
+                ClientAuthenticationToken = authResult,
                 AppSharedSecretKey = sharedSecret,
                 DriveAlias = appDriveAlias
             };
@@ -663,7 +664,7 @@ namespace Youverse.Hosting.Tests
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthToken))
+            using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthenticationToken))
             {
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
@@ -703,7 +704,7 @@ namespace Youverse.Hosting.Tests
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthToken))
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             await transitAppSvc.ProcessTransfers();
@@ -717,7 +718,7 @@ namespace Youverse.Hosting.Tests
             return new TransitTestUtilsContext()
             {
                 AppId = testAppContext.AppId,
-                AuthResult = testAppContext.ClientAuthToken,
+                AuthenticationResult = testAppContext.ClientAuthenticationToken,
                 AppSharedSecretKey = appSharedSecretKey,
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
@@ -810,7 +811,7 @@ namespace Youverse.Hosting.Tests
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthToken))
+                        using (var rClient = CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessTransfers();
@@ -825,7 +826,7 @@ namespace Youverse.Hosting.Tests
             return new TransitTestUtilsContext()
             {
                 AppId = testAppContext.AppId,
-                AuthResult = testAppContext.ClientAuthToken,
+                AuthenticationResult = testAppContext.ClientAuthenticationToken,
                 AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,

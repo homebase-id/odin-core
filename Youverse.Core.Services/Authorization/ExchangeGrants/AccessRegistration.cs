@@ -8,6 +8,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     {
         public Guid Id { get; set; }
 
+        public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
+        
         public Guid GrantId { get; set; }
         public UInt64 Created { get; set; }
 
@@ -41,16 +43,12 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
     }
 
-    public class ClientAccessToken
+    /// <summary>
+    /// Specifies the type of client using the AccessRegistration.  This lets us reduce permissions/access for browsers, apps, or 3rd party callers.
+    /// </summary>
+    public enum AccessRegistrationClientType
     {
-        public Guid Id { get; set; }
-        public SensitiveByteArray AccessTokenHalfKey { get; set; }
-        public SensitiveByteArray SharedSecret { get; set; }
-
-        public void Wipe()
-        {
-            this.AccessTokenHalfKey?.Wipe();
-            this.SharedSecret?.Wipe();
-        }
+        Browser = 1,
+        Other = 99
     }
 }

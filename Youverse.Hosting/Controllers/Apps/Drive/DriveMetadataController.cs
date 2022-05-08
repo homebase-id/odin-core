@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpPost("create")]
         public async Task<IActionResult> CreateDrive(Guid driveAlias, string name, Guid type, string metadata, bool allowAnonymousReads)
         {
-            var existingDrive = _driveService.GetDriveIdByAlias(driveAlias, false);
+            var existingDrive = await _driveService.GetDriveIdByAlias(driveAlias, false);
             
             if(null == existingDrive)
             {

@@ -51,9 +51,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public long LastUpdated { get; set; }
 
-        public ClientAuthToken CreateClientAuthToken()
+        public ClientAuthenticationToken CreateClientAuthToken()
         {
-            var clientAuthToken = new ClientAuthToken()
+            var clientAuthToken = new ClientAuthenticationToken()
             {
                 Id = this.ClientAccessTokenId,
                 AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray()

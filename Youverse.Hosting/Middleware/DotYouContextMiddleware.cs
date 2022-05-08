@@ -124,7 +124,7 @@ namespace Youverse.Hosting.Middleware
 
             var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            var authResult = ClientAuthToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
+            var authResult = ClientAuthenticationToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
             var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.Id, authResult.AccessTokenHalfKey);
 
             dotYouContext.Caller = new CallerContext(
@@ -142,6 +142,7 @@ namespace Youverse.Hosting.Middleware
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
+                DriveAlias = d.Alias,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 Permissions = DrivePermissions.All
             });
@@ -171,7 +172,7 @@ namespace Youverse.Hosting.Middleware
             var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
 
             var value = httpContext.Request.Cookies[AppAuthConstants.ClientAuthTokenCookieName];
-            var authToken = ClientAuthToken.Parse(value);
+            var authToken = ClientAuthenticationToken.Parse(value);
             var user = httpContext.User;
 
             dotYouContext.Caller = new CallerContext(
@@ -181,7 +182,7 @@ namespace Youverse.Hosting.Middleware
                 authContext: AppAuthConstants.SchemeName, // Note: we're logged in using an app token so we do not have the master key
                 isAnonymous: false
             );
-            
+
             //TODO: need to check the app reg negated permission set
 
             var permissionContext = await exchangeGrantContextService.GetContext(authToken);
@@ -195,17 +196,12 @@ namespace Youverse.Hosting.Middleware
         {
             var user = httpContext.User;
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var youAuthSessionManager = httpContext.RequestServices.GetRequiredService<IYouAuthSessionManager>();
             var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
 
             var callerDotYouId = (DotYouIdentity) user.Identity!.Name;
 
-            //HACK: need to determine how we can see if the subject of the session is in the youverse network
-            Guid.TryParse(httpContext.Request.Cookies[YouAuthDefaults.SessionCookieName] ?? "", out var sessionId);
-            var session = await youAuthSessionManager.LoadFromId(sessionId);
-
             bool isAnonymous = user.HasClaim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier);
-            bool isInNetwork = isAnonymous == false && session != null; //HACK: used for testing but invalid way to determine if someone is in network
+            bool isInNetwork = user.HasClaim(DotYouClaimTypes.IsInNetwork, bool.TrueString.ToLower());
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: callerDotYouId,
@@ -219,32 +215,61 @@ namespace Youverse.Hosting.Middleware
 
             if (isAnonymous)
             {
-                //TODO: Handle scenarios where
+                var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
+                var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+                var grants = anonymousDrives.Results.Select(d => new DriveGrant()
+                {
+                    DriveId = d.Id,
+                    DriveAlias = d.Alias,
+                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                    Permissions = DrivePermissions.All
+                });
+
+                //HACK: granting ability to see friends list to anon users.
+                var permissionSet = new PermissionSet();
+                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Read);
+
+                dotYouContext.SetPermissionContext(
+                    new PermissionContext(
+                        driveGrants: grants,
+                        permissionSet: permissionSet,
+                        driveDecryptionKey: null,
+                        sharedSecretKey: null,
+                        exchangeGrantId: Guid.Empty,
+                        accessRegistrationId: Guid.Empty,
+                        isOwner: false
+                    ));
+
                 return;
             }
-            
+
+            //
             var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
 
             //TODO: if we switch session to being and exchange grant then I can use this overload
-            // var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
             var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
             if (icr.IsConnected())
             {
                 dotYouContext.Caller.SetIsConnected();
             }
-            
+
             //if there's a client auth token, let's add the permissions it grants
             var clientAuthToken = GetClientAuthToken(httpContext);
             if (null != clientAuthToken)
             {
                 var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
                 dotYouContext.SetPermissionContext(permissionContext);
-                
+
                 //this part gets weird.  what if they're coming via a specific app. do i load that app or do i
                 //load the one associated with the exchange grant?
                 // and what if the exchange grant has no appid?   which takes priority
-                var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
-                dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
+
+                //var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
+                if(Guid.TryParse(httpContext.Request.Headers[DotYouHeaderNames.AppId], out Guid appId))
+                {
+                    var appReg = await appRegSvc.GetAppRegistration(appId);
+                    dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, permissionContext.SharedSecretKey);
+                }
             }
         }
 
@@ -302,13 +327,13 @@ namespace Youverse.Hosting.Middleware
                 }
 
                 //TODO: reduce the permissions based on the app registration's negated permission set
-                
+
                 SensitiveByteArray sharedSecret = null;
 
                 //the client auth token is coming from one of the following:
                 //  1. an Identity Connection Registration; in this case there is no app associated with the CAT.
                 //  2. a 3rd party connection; in this case there is an app? (TODO: confirm)
-                if (ClientAuthToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+                if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
                 {
                     //connection must be valid
                     var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
@@ -343,10 +368,10 @@ namespace Youverse.Hosting.Middleware
             // - or??
         }
 
-        private ClientAuthToken GetClientAuthToken(HttpContext httpContext)
+        private ClientAuthenticationToken GetClientAuthToken(HttpContext httpContext)
         {
             var clientAccessTokenValue64 = httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName];
-            if (ClientAuthToken.TryParse(clientAccessTokenValue64, out var token))
+            if (ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out var token))
             {
                 return token;
             }

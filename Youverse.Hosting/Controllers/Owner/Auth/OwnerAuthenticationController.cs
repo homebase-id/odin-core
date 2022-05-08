@@ -6,6 +6,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner.Auth
@@ -27,7 +28,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
-            if (ClientAuthToken.TryParse(value ?? "", out var result))
+            if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
                 var isValid = await _authService.IsValidToken(result.Id);
                 return new JsonResult(isValid);
@@ -66,7 +67,7 @@ namespace Youverse.Hosting.Controllers.Owner.Auth
         public Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
-            var result = ClientAuthToken.Parse(value);
+            var result = ClientAuthenticationToken.Parse(value);
             _authService.ExpireToken(result.Id);
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
