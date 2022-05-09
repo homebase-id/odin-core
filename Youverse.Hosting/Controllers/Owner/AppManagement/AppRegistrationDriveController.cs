@@ -16,22 +16,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         {
             _appRegistrationService = appRegistrationService;
         }
-
-        [HttpGet("owned")]
-        public async Task<IActionResult> GetOwnedDrives([FromQuery] int pageNumber, [FromQuery] int pageSize)
-        {
-            // await _appRegistrationService.CreateOwnedDrive(appId, publicDriveAlias, driveName);
-
-            throw new NotImplementedException("");
-        }
         
-        [HttpPost("owned")]
-        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid driveType, string driveMetadata)
-        {
-            throw new NotImplementedException("TODO update to exchange grant service");
-            // await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, driveType, driveMetadata);
-            return Ok();
-        }
 
     }
 }

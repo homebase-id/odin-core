@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Drive
         
         public override Guid Type
         {
-            get => _inner.Alias;
+            get => _inner.Type;
             set { }
         }
         
@@ -146,6 +146,5 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
         
-        public virtual byte[] AnonEncryptedStorageKey { get; set; }
     }
 }

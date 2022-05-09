@@ -9,5 +9,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public string Name { get; set; }
         public bool IsRevoked { get; set; }
         
+        
+        
     }
 }

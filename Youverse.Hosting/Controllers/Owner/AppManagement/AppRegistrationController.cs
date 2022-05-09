@@ -58,14 +58,6 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
             return new JsonResult(reg);
         }
 
-        [HttpPost("drives/owned")]
-        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid driveAlias, string driveName, Guid type, string metadata)
-        {
-            throw new NotImplementedException("update to use exchange grant and drive service");
-            // await _appRegistrationService.CreateOwnedDrive(appId, driveAlias, driveName, type, metadata);
-            // return Ok();
-        }
-
         [HttpPost("revoke/{appId}")]
         public async Task<NoResultResponse> RevokeApp(Guid appId)
         {

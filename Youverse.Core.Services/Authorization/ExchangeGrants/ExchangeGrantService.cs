@@ -320,6 +320,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             foreach (var drive in drives)
             {
+                //ignore duplicates 
+                if (grants.Any(x => x.DriveAlias == drive.Alias))
+                {
+                    continue;
+                }
                 
                 var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
