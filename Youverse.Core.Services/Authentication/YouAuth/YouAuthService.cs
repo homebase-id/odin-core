@@ -147,8 +147,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public ValueTask DeleteSession(string subject)
         {
             //TODO: need to delete an access registration?
-            throw new NotImplementedException("");
-            // return _youSessionManager.DeleteFromSubject(subject);
+            return ValueTask.CompletedTask;
         }
 
         //

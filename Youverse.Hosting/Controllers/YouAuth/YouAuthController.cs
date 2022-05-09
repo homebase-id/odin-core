@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
             clientAccessToken?.Wipe();
 
-            var handlerUrl = $"/home/youauth/finalize?ss64={shareSecret64}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
         }
 
@@ -101,7 +101,6 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 await _youAuthService.DeleteSession(User.Identity.Name);
             }
 
-            Response.Cookies.Delete(YouAuthDefaults.SessionCookieName);
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
             return Ok();
         }
