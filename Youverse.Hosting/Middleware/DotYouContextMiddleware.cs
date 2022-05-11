@@ -22,8 +22,9 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.YouAuth;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
@@ -80,10 +81,10 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            if (authType == TransitPerimeterAuthConstants.TransitAuthScheme)
+            if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = TransitPerimeterAuthConstants.TransitAuthScheme;
+                dotYouContext.AuthContext = PerimeterAuthConstants.TransitCertificateAuthScheme;
             }
 
             await _next(httpContext);
@@ -286,7 +287,7 @@ namespace Youverse.Hosting.Middleware
                 dotYouId: callerDotYouId,
                 isOwner: false,
                 masterKey: null,
-                authContext: TransitPerimeterAuthConstants.TransitAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+                authContext: PerimeterAuthConstants.TransitCertificateAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
                 isAnonymous: false,
                 isConnected: false,
                 isInYouverseNetwork: true //note: this will need to come from a claim: re: best buy/3rd party scenario

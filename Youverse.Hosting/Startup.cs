@@ -18,8 +18,9 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.YouAuth;
 using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
@@ -84,13 +85,15 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddAppAuthentication()
-                .AddTransitPerimeterAuthentication();
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme);
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
-                TransitPerimeterPolicies.AddPolicies(policy);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
                 YouAuthPolicies.AddPolicies(policy);
             });
 

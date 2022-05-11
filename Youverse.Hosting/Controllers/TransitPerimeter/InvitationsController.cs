@@ -8,7 +8,8 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Controllers.TransitPerimeter
 {
@@ -21,7 +22,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
-    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkRequestService _circleNetworkRequestService;

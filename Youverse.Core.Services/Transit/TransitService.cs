@@ -21,6 +21,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 
 namespace Youverse.Core.Services.Transit
@@ -37,7 +38,7 @@ namespace Youverse.Core.Services.Transit
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICircleNetworkService _circleNetworkService;
-
+        private readonly IPublicKeyService _publicKeyService;
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
@@ -49,7 +50,7 @@ namespace Youverse.Core.Services.Transit
             ITransitAuditWriterService auditWriter,
             ITransitBoxService transitBoxService,
             ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService) : base(auditWriter)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base(auditWriter)
         {
             _contextAccessor = contextAccessor;
             _outboxService = outboxService;
@@ -60,6 +61,7 @@ namespace Youverse.Core.Services.Transit
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
+            _publicKeyService = publicKeyService;
             _logger = logger;
         }
 
@@ -193,8 +195,8 @@ namespace Youverse.Core.Services.Transit
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
-                    var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfInvalid: true);
-                    if (null == recipientPublicKey)
+                    var pk = await _publicKeyService.GetRecipientOfflinePublicKey(recipient, true, false);
+                    if (null == pk)
                     {
                         AddToTransferKeyEncryptionQueue(recipient, package);
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
@@ -208,9 +210,9 @@ namespace Youverse.Core.Services.Transit
                         //TODO: throwing an exception here would result in a partial send.  need to return an error code and status instead
                         throw new MissingDataException("Cannot send transfer a recipient to which you're not connected.");
                     }
-                    
+
                     var clientAuthToken = identityReg.CreateClientAuthToken();
-                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(recipientPublicKey.PublicKeyData.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
+                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
 
                     var item = new RecipientTransferInstructionSetItem()
                     {
@@ -411,9 +413,5 @@ namespace Youverse.Core.Services.Transit
             return item?.InstructionSet;
         }
 
-        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
-        {
-            throw new NotImplementedException("use public key service");
-        }
     }
 }

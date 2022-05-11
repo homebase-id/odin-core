@@ -11,7 +11,8 @@ using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Controllers.TransitPerimeter
 {
@@ -20,7 +21,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/encryption")]
-    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class EncryptionPublicKeyController : ControllerBase
     {
         private readonly IPublicKeyService _publicKeyService;

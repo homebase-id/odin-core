@@ -4,8 +4,9 @@ using System.Threading.Tasks;
 using MediatR;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Mediator.ClientNotifications;
+using Youverse.Core.Services.Notifications;
 
-namespace Youverse.Core.Services.Notifications
+namespace Youverse.Core.Services.ClientNotifications
 {
     public class AppNotificationHandler : WebSocketHandlerBase,
         INotificationHandler<NewInboxItemNotification>,

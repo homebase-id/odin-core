@@ -14,6 +14,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
@@ -21,6 +22,7 @@ using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
+using Youverse.Core.Services.Notification;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
@@ -110,6 +112,8 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
+
+            cb.RegisterType<TransDiNotificationService>();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

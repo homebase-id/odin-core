@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,13 +11,13 @@ using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
 
-
-namespace Youverse.Hosting.Authentication.TransitPerimeter
+namespace Youverse.Hosting.Authentication.Perimeter
 {
-    public static class TransitPerimeterAuthenticationExtensions
+    public static class CertificatePerimeterAuthenticationExtensions
     {
-        public static AuthenticationBuilder AddTransitPerimeterAuthentication(this AuthenticationBuilder builder)
+        public static AuthenticationBuilder AddDiCertificateAuthentication(this AuthenticationBuilder builder, string schemeName)
         {
             if (builder == null)
             {
@@ -26,7 +25,7 @@ namespace Youverse.Hosting.Authentication.TransitPerimeter
             }
 
             //return builder.AddCertificate(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
-            return builder.AddScheme<CertificateAuthenticationOptions, TransitCertificateAuthenticationHandler>(TransitPerimeterAuthConstants.TransitAuthScheme, options =>
+            return builder.AddScheme<CertificateAuthenticationOptions, CertificateAuthenticationHandler>(schemeName, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication

@@ -11,18 +11,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Youverse.Hosting.Authentication.TransitPerimeter
+namespace Youverse.Hosting.Authentication.CertificatePerimeter
 {
     /// <summary>
     /// This is a copy of Microsoft.AspNetCore.Authentication.Certificate.CertificateAuthenticationHandler except
     /// it raises an event after certificate validation even if it has been cached.
     /// </summary>
-    public class TransitCertificateAuthenticationHandler : AuthenticationHandler<CertificateAuthenticationOptions>
+    public class CertificateAuthenticationHandler : AuthenticationHandler<CertificateAuthenticationOptions>
     {
         private static readonly Oid ClientCertificateOid = new Oid("1.3.6.1.5.5.7.3.2");
         private ICertificateValidationCache _cache;
 
-        public TransitCertificateAuthenticationHandler(
+        public CertificateAuthenticationHandler(
             IOptionsMonitor<CertificateAuthenticationOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,

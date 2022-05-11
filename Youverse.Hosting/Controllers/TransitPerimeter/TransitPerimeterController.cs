@@ -10,7 +10,8 @@ using Newtonsoft.Json;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Controllers.TransitPerimeter
 {
@@ -19,7 +20,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;

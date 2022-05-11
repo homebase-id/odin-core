@@ -1,30 +1,26 @@
-using System;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Services.Authorization;
-using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Authentication.TransitPerimeter
+namespace Youverse.Hosting.Authentication.Perimeter
 {
-    public static class TransitPerimeterPolicies
+    public static class CertificatePerimeterPolicies
     {
-
         public const string IsInYouverseNetwork = "IsInYouverseNetwork";
         public const string IsInYouverseNetworkWithApp = "IsInYouverseNetworkWithApp";
 
-        public static void AddPolicies(AuthorizationOptions policy)
+        public static void AddPolicies(AuthorizationOptions policy, string scheme)
         {
             policy.AddPolicy(IsInYouverseNetwork, pb =>
             {
                 pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
-                pb.AuthenticationSchemes.Add(TransitPerimeterAuthConstants.TransitAuthScheme);
+                pb.AuthenticationSchemes.Add(scheme);
             });
             
             policy.AddPolicy(IsInYouverseNetworkWithApp, pb =>
             {
                 pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
                 pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
-                pb.AuthenticationSchemes.Add(TransitPerimeterAuthConstants.TransitAuthScheme);
+                pb.AuthenticationSchemes.Add(scheme);
             });
         }
     }
