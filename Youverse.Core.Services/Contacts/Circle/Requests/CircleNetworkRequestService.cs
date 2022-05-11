@@ -247,6 +247,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
 
+            //lookup EGRs for 
+            
+            
             await this.DeleteSentRequestInternal((DotYouIdentity) originalRequest.Recipient);
 
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)

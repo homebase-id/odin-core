@@ -120,23 +120,23 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? clientAuthToken)
+        public async ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? icrClientAuthToken)
         {
             ClientAccessToken? browserClientAccessToken = null;
 
             //TODO: Need to handle how to upgrade the exchange grant.  when you are not connected and have logged in.. then you become connected 
 
             //If they were not connected, we need to create a new EGR and AccessReg for the browser
-            if (clientAuthToken == null)
+            if (icrClientAuthToken == null)
             {
-                browserClientAccessToken = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null, AccessRegistrationClientType.Browser);
+                browserClientAccessToken = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null, AccessRegistrationClientType.Cookies);
             }
             else
             {
                 //TODO: need to evaluate if this will just have ever growing list of access registrations as the user logs in/logs out
                 //If we're given a client auth token, it means that subject was connected, so we just need to create a browser specific AccessReg
                 //look up the EGR key using the clientAuthToken
-                browserClientAccessToken = await _exchangeGrantService.AddClientToExchangeGrant(clientAuthToken, AccessRegistrationClientType.Browser);
+                browserClientAccessToken = await _exchangeGrantService.AddClientToExchangeGrant(icrClientAuthToken, AccessRegistrationClientType.Cookies);
             }
 
             return browserClientAccessToken;

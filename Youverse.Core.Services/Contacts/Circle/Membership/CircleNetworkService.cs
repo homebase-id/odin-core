@@ -10,6 +10,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -39,21 +40,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _systemStorage = systemStorage;
             _exchangeGrantService = exchangeGrantService;
         }
-
-        public async Task DeleteConnection(DotYouIdentity dotYouId)
-        {
-            _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Delete(dotYouId));
-        }
-
+        
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
+            
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
             if (info is {Status: ConnectionStatus.Connected})
             {
+                await _exchangeGrantService.RevokeIdentityExchangeGrantAccess(dotYouId);
+                
                 info.Status = ConnectionStatus.None;
                 _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
+
                 return true;
             }
 
@@ -65,6 +64,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
+
+            //TODO: when you block a connection, you must also destroy exchange grant
+
             if (null != info && info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
@@ -107,7 +109,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Read);
+
             var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(
                 connectionsPage.Request,

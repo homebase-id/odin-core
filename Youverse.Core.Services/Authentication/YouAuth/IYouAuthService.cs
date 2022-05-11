@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode);
 
         // ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, ClientAuthToken? clientAuthToken);
-        ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? clientAuthToken);
+        ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? icrClientAuthToken);
 
         ValueTask DeleteSession(string subject);
     }

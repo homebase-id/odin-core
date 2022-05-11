@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -7,7 +8,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -42,6 +42,15 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <returns></returns>
         public async Task<ClientAccessToken> RegisterIdentityExchangeGrantForUnencryptedData(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList, AccessRegistrationClientType clientType)
         {
+            //TODO: scenario 1: there is already an exchange grant with the dotyouid from previously logging in
+            //              in this case, we need to create a new access reg; leave the others intact so other browsers/clients work
+
+            //TODO: scenario 2: there is not already a dotyouid, thus you create a new exchange grant and access reg
+
+            //TODO: scenario 3: check if there is an irc, if so= throw exception
+
+            //TODO: when you destroy a connection, you must also destroy exchange grant
+
             var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<IdentityExchangeGrant>(permissionSet, driveIdList);
             grant.DotYouId = dotYouId;
 
@@ -51,7 +60,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var (_, token) = await this.CreateClientAccessTokenInternal(grant.Id, grantKeyStoreKey, clientType);
             grantKeyStoreKey.Wipe();
 
-            return  token;
+            return token;
         }
 
 
@@ -64,6 +73,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <returns></returns>
         public async Task<(AccessRegistration, ClientAccessToken)> RegisterIdentityExchangeGrant(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList)
         {
+            //check to see if we have a grant with this identity already, if that grant is only for unencrypted data, upgrade it
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<IdentityExchangeGrant>(permissionSet, driveIdList, masterKey);
             grant.DotYouId = dotYouId;
@@ -166,6 +177,30 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return (registration, grant);
         }
 
+        public async Task<ExchangeGrantBase> GetExchangeGrant(DotYouIdentity dotYouId)
+        {
+            //TODO: need to figure out how to secure this call; it has to be made when there is no master key since it's used to create a session
+
+            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.FindOne(r => r.DotYouId == dotYouId));
+
+            if (null == eg)
+            {
+                return null;
+            }
+
+            if (eg.StorageType == ExchangeGranteeType.App)
+            {
+                return AppExchangeGrant.FromLiteDbRecord(eg);
+            }
+
+            if (eg.StorageType == ExchangeGranteeType.Identity)
+            {
+                return IdentityExchangeGrant.FromLiteDbRecord(eg);
+            }
+
+            throw new MissingDataException("Invalid Storage type on ExchangeGrantLiteDbRecord");
+        }
+
         public async Task<ExchangeGrantBase> GetExchangeGrant(Guid id)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -228,11 +263,81 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return eg;
         }
 
-        public async Task<PagedResult<ExchangeGrantBase>> GetExchangeGrantList(PageOptions pageOptions)
+        /// <summary>
+        /// Revokes the exchange grant and all associated access registrations
+        /// </summary>
+        /// <returns></returns>
+        public async Task RevokeExchangeGrantAccess(Guid accessRegistrationId)
+        {
+            var accessReg = await this.GetAccessRegistration(accessRegistrationId);
+
+            var allAccessRegistrations = await _systemStorage.WithTenantSystemStorageReturnList<AccessRegistration>(ACCESS_TOKEN_REG,
+                s => s.Find(ar => ar.GrantId == accessReg.GrantId, PageOptions.All));
+
+            //TODO: will we really have more than one here?
+
+            //revoke all access regs
+            foreach (var reg in allAccessRegistrations.Results)
+            {
+                reg.IsRevoked = true;
+                _systemStorage.WithTenantSystemStorage<AccessRegistration>(ACCESS_TOKEN_REG, s => s.Save(reg));
+            }
+
+            //revoke the grant
+            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(accessReg.GrantId));
+            eg.IsRevoked = true;
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(eg));
+        }
+
+        /// <summary>
+        /// Revokes the exchange grant and all associated access registrations
+        /// </summary>
+        /// <returns></returns>
+        public async Task RevokeIdentityExchangeGrantAccess(DotYouIdentity dotYouId)
+        {
+            var grant = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.FindOne(r => r.DotYouId == dotYouId));
+
+            if (grant != null)
+            {
+                grant.IsRevoked = true;
+                _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(grant));
+            }
+
+            //kill all associated access registrations (this will kill all browser logins)
+            var allAccessRegistrations = await _systemStorage.
+                WithTenantSystemStorageReturnList<AccessRegistration>(ACCESS_TOKEN_REG,
+                s => s.Find(ar => ar.GrantId == grant.Id, PageOptions.All));
+
+            //revoke all access regs
+            foreach (var reg in allAccessRegistrations.Results)
+            {
+                reg.IsRevoked = true;
+                _systemStorage.WithTenantSystemStorage<AccessRegistration>(ACCESS_TOKEN_REG, s => s.Save(reg));
+            }
+        }
+
+        public async Task<PagedResult<AppExchangeGrant>> GetAppExchangeGrantList(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<ExchangeGrantBase>(EXCHANGE_REGISTRATION, s => s.GetList(pageOptions));
-            return page;
+            var recordPage = await _systemStorage.WithTenantSystemStorageReturnList<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION,
+                s => s.Find(r => r.StorageType == ExchangeGranteeType.App, ListSortDirection.Ascending, sort => sort.Created, pageOptions));
+
+            List<AppExchangeGrant> page = recordPage.Results.Select(AppExchangeGrant.FromLiteDbRecord).ToList();
+            return new PagedResult<AppExchangeGrant>(recordPage.Request,
+                recordPage.TotalPages,
+                page);
+        }
+
+        public async Task<PagedResult<IdentityExchangeGrant>> GetIdentityExchangeGrantList(PageOptions pageOptions)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            var recordPage = await _systemStorage.WithTenantSystemStorageReturnList<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION,
+                s => s.Find(r => r.StorageType == ExchangeGranteeType.Identity, ListSortDirection.Ascending, sort => sort.Created, pageOptions));
+
+            var page = recordPage.Results.Select(IdentityExchangeGrant.FromLiteDbRecord).ToList();
+            return new PagedResult<IdentityExchangeGrant>(recordPage.Request,
+                recordPage.TotalPages,
+                page);
         }
 
         /////
@@ -240,6 +345,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         private async Task<ExchangeGrantBase> GetExchangeGrantInternal(Guid id)
         {
             var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(id));
+
+            if (null == eg)
+            {
+                return null;
+            }
 
             if (eg.StorageType == ExchangeGranteeType.App)
             {
@@ -325,7 +435,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 {
                     continue;
                 }
-                
+
                 var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
                 var dk = new DriveGrant()

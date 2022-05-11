@@ -101,13 +101,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req);
 
         /// <summary>
-        /// Clears any connection regardless of <see cref="ConnectionStatus"/>.
-        /// </summary>
-        /// <param name="dotYouId"></param>
-        /// <returns></returns>
-        Task DeleteConnection(DotYouIdentity dotYouId);
-
-        /// <summary>
         /// Gets the access registration granted to the <param name="dotYouId"></param>
         /// </summary>
         /// <param name="dotYouId"></param>

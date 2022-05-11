@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     /// </summary>
     public enum AccessRegistrationClientType
     {
-        Browser = 1,
+        Cookies = 1,
         Other = 99
     }
 }
