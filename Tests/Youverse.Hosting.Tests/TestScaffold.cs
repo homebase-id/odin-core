@@ -365,8 +365,8 @@ namespace Youverse.Hosting.Tests
             var permissionSet = new PermissionSet();
             if (canManageConnections)
             {
-                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+                permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))

@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Base
             return grant != null && grant.Permissions.HasFlag(permission);
         }
 
-        public bool HasPermission(SystemApiPermissionType pmt, int permission)
+        public bool HasPermission(SystemApi pmt, int permission)
         {
             if (this._isOwner)
             {
@@ -69,13 +69,13 @@ namespace Youverse.Core.Services.Base
             {
                 switch (pmt)
                 {
-                    case SystemApiPermissionType.Contact:
+                    case SystemApi.Contact:
                         return ((ContactPermissions) value).HasFlag((ContactPermissions) permission);
 
-                    case SystemApiPermissionType.CircleNetwork:
+                    case SystemApi.CircleNetwork:
                         return ((CircleNetworkPermissions) value).HasFlag((CircleNetworkPermissions) permission);
 
-                    case SystemApiPermissionType.CircleNetworkRequests:
+                    case SystemApi.CircleNetworkRequests:
                         return ((CircleNetworkRequestPermissions) value).HasFlag((CircleNetworkRequestPermissions) permission);
                 }
             }
@@ -83,7 +83,7 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public void AssertHasPermission(SystemApiPermissionType pmt, int permission)
+        public void AssertHasPermission(SystemApi pmt, int permission)
         {
             if (!HasPermission(pmt, permission))
             {

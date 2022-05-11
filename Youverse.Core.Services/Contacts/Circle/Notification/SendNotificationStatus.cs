@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Notification
+namespace Youverse.Core.Services.Contacts.Circle.Notification
 {
     public enum SendNotificationStatus
     {

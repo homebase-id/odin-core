@@ -8,7 +8,6 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
@@ -22,7 +21,6 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.YouAuth;
@@ -85,6 +83,15 @@ namespace Youverse.Hosting.Middleware
             {
                 await LoadTransitContext(httpContext, dotYouContext);
                 dotYouContext.AuthContext = PerimeterAuthConstants.TransitCertificateAuthScheme;
+
+                await _next(httpContext);
+                return;
+            }
+            
+            if (authType == PerimeterAuthConstants.NotificationCertificateAuthScheme)
+            {
+                await LoadNotificationContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = PerimeterAuthConstants.NotificationCertificateAuthScheme;
             }
 
             await _next(httpContext);
@@ -136,8 +143,8 @@ namespace Youverse.Hosting.Middleware
                 isAnonymous: false);
 
             var permissionSet = new PermissionSet();
-            permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-            permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+            permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage);
+            permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
 
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
@@ -228,7 +235,7 @@ namespace Youverse.Hosting.Middleware
 
                 //HACK: granting ability to see friends list to anon users.
                 var permissionSet = new PermissionSet();
-                permissionSet.Permissions.Add(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Read);
+                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Read);
 
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(
@@ -360,6 +367,71 @@ namespace Youverse.Hosting.Middleware
             // - incoming message request
             // - getting app transit key
             // - or??
+        }
+        
+        private async Task LoadNotificationContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            var user = httpContext.User;
+            var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
+            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
+
+            var callerDotYouId = (DotYouIdentity) user.Identity!.Name;
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: callerDotYouId,
+                isOwner: false,
+                masterKey: null,
+                authContext: PerimeterAuthConstants.NotificationCertificateAuthScheme, // Note: we're logged in using a transit certificate so we do not have the master key
+                isAnonymous: false,
+                isConnected: false,
+                isInYouverseNetwork: true //note: this will need to come from a claim: re: best buy/3rd party scenario
+            );
+            
+            //the client auth token is coming from one of the following:
+            //  1. an Identity Connection Registration; in this case there is no app associated with the CAT.
+            //  2. a 3rd party connection; in this case there is an app? (TODO: confirm)
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            {
+                //connection must be valid
+                var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
+                if (icr.IsConnected() == false)
+                {
+                    throw new YouverseSecurityException("Invalid connection");
+                }
+
+                dotYouContext.Caller.SetIsConnected();
+
+                // if they are connected, we can load the permissions from there.
+                var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
+                dotYouContext.SetPermissionContext(permissionContext);
+            }
+
+            //TODO: determine if an app ID should be required for sending notifications
+            var appIdClaim = user.FindFirst(DotYouClaimTypes.AppId)?.Value;
+            if (null == appIdClaim)
+            {
+                // throw new YouverseSecurityException("An appid must be specified to identity what sent the notification");
+            }
+            else
+            {
+                var failMessage = "Missing or revoked appId specified";
+                if (!Guid.TryParse(appIdClaim, out var appId) || appId == Guid.Empty)
+                {
+                    throw new YouverseSecurityException(failMessage);
+                }
+
+                var appReg = await appRegSvc.GetAppRegistration(appId);
+                if (appReg is {IsRevoked: true})
+                {
+                    throw new YouverseSecurityException(failMessage);
+                }
+
+                //TODO: reduce the permissions based on the app registration's negated permission set
+                
+                dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name, null);
+            }
+
         }
 
         private ClientAuthenticationToken GetClientAuthToken(HttpContext httpContext)

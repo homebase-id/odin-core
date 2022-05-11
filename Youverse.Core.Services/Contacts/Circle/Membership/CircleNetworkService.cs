@@ -8,21 +8,13 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Notification;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
-    //Need to consider using the recipient public key instead of the dotyouid
-    //meaning i can go to frodo site, click connect and the public ke cert has all i need to
-    //make the connect-request as well as encrypt the request.
-
-    //see: DotYouClaimTypes.PublicKeyCertificate
-
-    //can I get SAMs public key certificate from the request of the original client cert auth
-
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
@@ -33,23 +25,70 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService, IDotYouHttpClientFactory dotYouHttpClientFactory)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _exchangeGrantService = exchangeGrantService;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
         }
-        
+
+        public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
+        {
+            //updates a local cache of profile data
+            //HACK: use the override to get the connection auth token
+            var clientAuthToken = await this.GetConnectionAuthToken(dotYouId, true, true);
+            var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkProfileCacheClient>(dotYouId, clientAuthToken);
+
+            var response = await client.GetProfile(Guid.Empty);
+            if (response.IsSuccessStatusCode)
+            {
+                
+            }
+        }
+
+        public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected, bool overrideHack = false)
+        {
+            //TODO: need to NOT use the override version of GetIdentityConnectionRegistration but rather pass in some identifying token?
+            var identityReg = await this.GetIdentityConnectionRegistration(dotYouId, overrideHack);
+            if (!identityReg.IsConnected() && failIfNotConnected)
+            {
+                throw new YouverseSecurityException("Must be connected to perform this operation");
+            }
+
+            return identityReg.CreateClientAuthToken();
+        }
+
+        public async Task HandleNotification(DotYouIdentity senderDotYouId, CircleNetworkNotification notification)
+        {
+            if (notification.TargetSystemApi != SystemApi.CircleNetwork)
+            {
+                throw new Exception("Invalid notification type");
+            }
+
+            //TODO: thse should go into a background queue for processing offline.
+            // processing them here means they're going to be called using the senderDI's context
+
+            //TODO: need to expand on these numbers by using an enum or something
+            if (notification.NotificationId == (int) CircleNetworkNotificationType.ProfileDataChanged)
+            {
+                await this.UpdateConnectionProfileCache(senderDotYouId);
+            }
+
+            throw new Exception($"Unknown notification Id {notification.NotificationId}");
+        }
+
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            
+
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
             if (info is {Status: ConnectionStatus.Connected})
             {
                 await _exchangeGrantService.RevokeIdentityExchangeGrantAccess(dotYouId);
-                
+
                 info.Status = ConnectionStatus.None;
                 _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
 
@@ -109,7 +148,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Read);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Read);
 
             var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(
@@ -133,6 +172,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return await GetIdentityConnectionRegistrationInternal(dotYouId);
+        }
+
+        public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId)
+        {
+            var identityReg = await this.GetIdentityConnectionRegistration(dotYouId, true);
+            if (!identityReg.IsConnected())
+            {
+                //TODO: throwing an exception here would result in a partial send.  need to return an error code and status instead
+                throw new MissingDataException("Cannot send transfer a recipient to which you're not connected.");
+            }
+
+            return identityReg.CreateClientAuthToken();
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken)

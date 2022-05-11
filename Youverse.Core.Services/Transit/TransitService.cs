@@ -204,14 +204,7 @@ namespace Youverse.Core.Services.Transit
                     }
 
                     //TODO: examine how we can avoid using the override hack on GetIdentityConnectionRegistration
-                    var identityReg = _circleNetworkService.GetIdentityConnectionRegistration(recipient, true).GetAwaiter().GetResult();
-                    if (!identityReg.IsConnected())
-                    {
-                        //TODO: throwing an exception here would result in a partial send.  need to return an error code and status instead
-                        throw new MissingDataException("Cannot send transfer a recipient to which you're not connected.");
-                    }
-
-                    var clientAuthToken = identityReg.CreateClientAuthToken();
+                    var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient, true, true).GetAwaiter().GetResult();
                     var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
 
                     var item = new RecipientTransferInstructionSetItem()
@@ -357,9 +350,9 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
-                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.StringFromUTF8Bytes());
+                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUTF8Bytes());
 
-                var client = _dotYouHttpClientFactory.CreateClientWithAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 
@@ -412,6 +405,5 @@ namespace Youverse.Core.Services.Transit
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
             return item?.InstructionSet;
         }
-
     }
 }

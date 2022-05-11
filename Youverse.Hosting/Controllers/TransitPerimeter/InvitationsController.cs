@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
             var payloadBytes = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
-            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.StringFromUTF8Bytes());
+            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.ToStringFromUTF8Bytes());
 
             await _circleNetworkRequestService.ReceiveConnectionRequest(request);
             return new JsonResult(new NoResultResponse(true));
@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
         {
             var payloadBytes = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
-            ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.StringFromUTF8Bytes());
+            ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.ToStringFromUTF8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);
             return new JsonResult(new NoResultResponse(true));

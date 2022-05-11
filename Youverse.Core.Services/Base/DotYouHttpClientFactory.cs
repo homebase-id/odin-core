@@ -3,12 +3,8 @@ using System.Net.Http;
 using System.Security.Authentication;
 using Dawn;
 using Refit;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base
@@ -20,55 +16,35 @@ namespace Youverse.Core.Services.Base
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICertificateResolver _certificateResolver;
-        private readonly ICircleNetworkService _circleNetworkService;
 
-        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver, ICircleNetworkService circleNetworkService)
+        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver)
         {
             _contextAccessor = contextAccessor;
             _certificateResolver = certificateResolver;
-            _circleNetworkService = circleNetworkService;
         }
 
-        public IPerimeterHttpClient CreateClient(DotYouIdentity dotYouId, bool requireClientAccessToken = false)
+        public T CreateClientUsingAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
         {
-            return this.CreateClient<IPerimeterHttpClient>(dotYouId, null, requireClientAccessToken);
+            Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
+            Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
+            Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
+            Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
+
+            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken, appIdOverride);
         }
 
-        public T CreateClientWithAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
+        public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null)
         {
-            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken, true, appIdOverride);
-        }
 
-        public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null, bool requireClientAccessToken = true)
-        {
-            if (requireClientAccessToken)
-            {
-                //TODO: need to NOT use the override version of GetIdentityConnectionRegistration but rather pass in some identifying token?
-                var identityReg = _circleNetworkService.GetIdentityConnectionRegistration(dotYouId, true).GetAwaiter().GetResult();
-                if (identityReg.IsConnected())
-                {
-                    return this.CreateClientInternal<T>(dotYouId, identityReg.CreateClientAuthToken(), true, appIdOverride);
-                }
-
-                throw new MissingDataException("Client Access token required to create DotYouHttpClient");
-            }
-
-            return this.CreateClientInternal<T>(dotYouId, null, false, appIdOverride);
+            return this.CreateClientInternal<T>(dotYouId, null, appIdOverride);
         }
 
         ///
-        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, bool requireClientAccessToken, Guid? appIdOverride = null)
+        
+        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
         {
             Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
-
-            if (requireClientAccessToken)
-            {
-                Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
-                Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
-                Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
-                Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
-            }
-
+            
             var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _contextAccessor.GetCurrent().AppContext?.AppId.ToString() ?? "";
             Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
 

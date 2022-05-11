@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Contacts.Circle.Notification;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -12,6 +12,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public interface ICircleNetworkService
     {
+        /// <summary>
+        /// Updates the local cache of profile data for a given connection
+        /// </summary>
+        /// <returns></returns>
+        Task UpdateConnectionProfileCache(DotYouIdentity dotYouId);
+
+        /// <summary>
+        /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
+        /// </summary>
+        /// <returns></returns>
+        Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected = true, bool overrideHack = false);
+
         /// <summary>
         /// Disconnects you from the specified <see cref="DotYouIdentity"/>
         /// </summary>
@@ -92,7 +104,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
         /// <returns></returns>
         Task Connect(string dotYouId, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken);
-        
+
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
@@ -107,5 +119,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
         Task<AccessRegistration> GetIdentityConnectionAccessRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
+
+        /// <summary>
+        /// Handles the incoming notification.
+        /// </summary>
+        Task HandleNotification(DotYouIdentity senderDotYouId, CircleNetworkNotification notification);
     }
 }

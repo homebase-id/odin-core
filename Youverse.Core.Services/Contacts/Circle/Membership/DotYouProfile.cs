@@ -6,6 +6,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     public class DotYouProfile
     {
         public DotYouIdentity DotYouId { get; init; }
-        //TODO: populate this with more profile attributes OR delete it
+        
+        public string GivenName { get; set; }
+        
+        public string Surname { get; set; }
     }                                                                                                                                                                                                                           
 }

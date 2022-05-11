@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
 
             _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
-            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity) request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
+            var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
 
             if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
             {
@@ -210,7 +210,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var json = JsonConvert.SerializeObject(acceptedReq);
             var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
-            var response = await _dotYouHttpClientFactory.CreateClient((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);
+            var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);
 
             if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
             {

@@ -1,6 +1,6 @@
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Services.Notification
+namespace Youverse.Core.Services.Contacts.Circle.Notification
 {
     public class SendNotificationResult
     {

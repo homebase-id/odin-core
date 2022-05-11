@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Base
                 return;
             }
 
-            if (PermissionsContext != null && PermissionsContext.HasPermission(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage))
+            if (PermissionsContext != null && PermissionsContext.HasPermission(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage))
             {
                 return;
             }

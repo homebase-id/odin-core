@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
             if ((cacheItem == null || cacheItem.PublicKeyData.IsExpired()) && lookupIfInvalid)
             {
-                var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient, null, false);
+                var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
                 var tpkResponse = await svc.GetOfflinePublicKey();
 
                 if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
