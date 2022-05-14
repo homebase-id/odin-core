@@ -208,6 +208,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
 
+            //TODO: XXX - no need to do RSA encryption here since we have the remoteClientAccessToken.SharedSecret
             var json = JsonConvert.SerializeObject(acceptedReq);
             var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
             var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);

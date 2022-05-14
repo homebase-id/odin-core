@@ -41,9 +41,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guard.Argument(transferInstructionSet, nameof(transferInstructionSet)).NotNull();
             Guard.Argument(transferInstructionSet!.PublicKeyCrc, nameof(transferInstructionSet.PublicKeyCrc)).NotEqual<uint>(0);
             Guard.Argument(transferInstructionSet.EncryptedAesKeyHeader.Length, nameof(transferInstructionSet.EncryptedAesKeyHeader)).NotEqual(0);
-            Guard.Argument(transferInstructionSet.EncryptedClientAuthToken.Length, nameof(transferInstructionSet.EncryptedClientAuthToken)).NotEqual(0);
+            // Guard.Argument(transferInstructionSet.EncryptedClientAuthToken.Length, nameof(transferInstructionSet.EncryptedClientAuthToken)).NotEqual(0);
 
-            if (!await _appRegService.IsValidPublicKey(_contextAccessor.GetCurrent().AppContext.AppId, transferInstructionSet.PublicKeyCrc))
+            
+            //TODO: switch to using the public key sevice var key = await _publicKeyService.GetOfflinePublicKey();
+            
+            if (!await _publicKeyService.IsValidPublicKey(transferInstructionSet.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");
             }

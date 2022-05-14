@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.Apps.Circles
             return new JsonResult(result);
         }
 
-        [HttpPost("notify")]
+        //[HttpPost("notify")]
         public async Task<IActionResult> NotifyConnections(CircleNetworkNotification notification)
         {
             await _circleNetworkNotificationService.NotifyConnections(notification);

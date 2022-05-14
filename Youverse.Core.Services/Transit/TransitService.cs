@@ -233,13 +233,16 @@ namespace Youverse.Core.Services.Transit
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
+
             // var secureKeyHeader = keyHeader.Combine();
             // var rsaEncryptedKeyHeader = publicKey.Encrypt(secureKeyHeader.GetKey());
             // secureKeyHeader.Wipe();
-            var rsaEncryptedKeyHeader = keyHeader.Combine().GetKey();
 
-            //TODO: need to encrypt the client access token here with something on my server side
-            // var rsaEncryptedClientAccessToken = publicKey.Encrypt(clientAuthToken.ToString().ToUtf8ByteArray());
+            var combinedKey = keyHeader.Combine();
+            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
+            combinedKey.Wipe();
+
+            //TODO: need to encrypt the client access token here with something on my server side (therefore, we cannot use RSA encryption)
             var encryptedClientAccessToken = clientAuthenticationToken.ToString().ToUtf8ByteArray();
 
             return new RsaEncryptedRecipientTransferInstructionSet()
@@ -351,7 +354,8 @@ namespace Youverse.Core.Services.Transit
                 //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUTF8Bytes());
-
+                decryptedClientAuthTokenBytes.WriteZeros();
+                
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;

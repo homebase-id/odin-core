@@ -575,7 +575,46 @@ namespace Youverse.Hosting.Tests
                 }
             };
 
-            return await TransferFile(sender, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            var o = options ?? TransitTestUtilsOptions.Default;
+
+            var result =  await TransferFile(sender, instructionSet, fileMetadata, o);
+            
+            if (o.DisconnectIdentitiesAfterTransfer)
+            {
+                foreach (var recipient in recipients)
+                {
+                    await this.DisconnectIdentities(sender, (DotYouIdentity) recipient);
+                }
+            }
+            
+            return result;
+        }
+
+        public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(dotYouId1))
+            {
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsClient>(client).Disconnect(dotYouId2);
+                Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
+            }
+
+            using (var client = this.CreateOwnerApiHttpClient(dotYouId2))
+            {
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsClient>(client).Disconnect(dotYouId1);
+                Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
+            }
+        }
+
+        private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
+        {
+            var svc = RestService.For<ICircleNetworkConnectionsClient>(client);
+            var response = await svc.GetStatus(dotYouId);
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
+            Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");
+            Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
         }
 
         public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
@@ -653,6 +692,7 @@ namespace Youverse.Hosting.Tests
             var instructionStream = new MemoryStream(bytes);
 
             var appSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray();
+            fileMetadata.PayloadIsEncrypted = true;
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref appSharedSecretKey),
@@ -761,6 +801,7 @@ namespace Youverse.Hosting.Tests
                 var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
+                fileMetadata.PayloadIsEncrypted = true;
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),

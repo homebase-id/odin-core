@@ -62,6 +62,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    PayloadIsEncrypted = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() {Guid.NewGuid(), Guid.NewGuid()},

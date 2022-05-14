@@ -7,9 +7,12 @@ namespace Youverse.Hosting.Tests
         public static TransitTestUtilsOptions Default = new TransitTestUtilsOptions()
         {
             ProcessOutbox = false,
-            ProcessTransitBox = false
+            ProcessTransitBox = false,
+            DisconnectIdentitiesAfterTransfer = true
         };
-        
+
+        public bool DisconnectIdentitiesAfterTransfer { get; set; } = true;
+
         /// <summary>
         /// Indicates the file upload and/or transfer should be done in using the owner endpoints instead of the normal app endpoints.
         /// </summary>

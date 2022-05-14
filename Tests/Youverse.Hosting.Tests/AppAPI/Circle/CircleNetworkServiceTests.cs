@@ -74,7 +74,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
             }
 
-            await DisconnectIdentities(sender, recipient);
         }
 
         [Test]
@@ -107,7 +106,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsFalse(response.IsSuccessStatusCode, response.ReasonPhrase);
             }
 
-            await DisconnectIdentities(sender, recipient);
         }
 
         [Test]
@@ -126,7 +124,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
-            await DisconnectIdentities(frodo, sam);
+            
         }
 
         [Test]
@@ -146,15 +144,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
             }
-
-            await DisconnectIdentities(frodo, sam);
+            
         }
 
         [Test]
         public async Task CanGetSentConnectionRequestList()
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
-            
+
             //Check Sam's list of sent requests
             using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
             {
@@ -168,10 +165,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
             }
-
-            await DisconnectIdentities(frodo, sam);
         }
-        
+
         [Test]
         public async Task CanGetSentConnectionRequest()
         {
@@ -187,7 +182,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
                 Assert.IsTrue(response.Content.Recipient == sam.Identity);
             }
-            
         }
 
         [Test]
@@ -231,7 +225,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
-                
+
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
                 var getResponse = await svc.GetSentRequest(sam.Identity);
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
@@ -239,7 +233,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
         [Test]
         public async Task CanBlock()
         {
@@ -260,6 +254,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
+                
+                await samConnections.Unblock(frodo.Identity);
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -314,7 +310,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.None);
             }
-            
+
             using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
@@ -322,7 +318,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
-
         }
 
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
@@ -380,7 +375,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             using (var client = _scaffold.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var disconnectResponse = await frodoConnections.Delete(sam.Identity);
+                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
@@ -388,7 +383,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             using (var client = _scaffold.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsClient>(client);
-                var disconnectResponse = await samConnections.Delete(frodo.Identity);
+                var disconnectResponse = await samConnections.Disconnect(frodo.Identity);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
             }

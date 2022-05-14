@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         private const string RootPath = "/api/apps/v1/auth";
 
         [Get(RootPath + "/validate")]
-        public Task<ApiResponse<AppTokenValidationResult>> ValidateClientToken(string ssCat);
+        public Task<ApiResponse<AppTokenValidationResult>> ValidateClientToken(string ssCat64);
 
     }
 }

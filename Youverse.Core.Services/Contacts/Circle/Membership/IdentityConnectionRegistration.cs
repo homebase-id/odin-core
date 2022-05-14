@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
         /// communicating with this DotYouId's host.  This is never sent over the wire.
         /// </summary>
-        public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored
+        public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
 
         public long LastUpdated { get; set; }
 

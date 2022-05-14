@@ -15,6 +15,10 @@ namespace Youverse.Core.Cryptography
             return new SensitiveByteArray(array);
         }
 
+        public static void WriteZeros(this Byte[] array)
+        {
+            ByteArrayUtil.WipeByteArray(array);
+        }
         
         public static string ToBase64(this byte[] array)
         {

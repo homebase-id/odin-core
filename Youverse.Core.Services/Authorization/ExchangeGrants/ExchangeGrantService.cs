@@ -112,8 +112,13 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             var context = _contextAccessor.GetCurrent();
             context.Caller.AssertHasMasterKey();
-
             var grant = await this.GetExchangeGrantInternal(grantId);
+
+            if (grant.IsRevoked)
+            {
+                throw new YouverseSecurityException("Cannot create Client Access Token for a revoked ExchangeGrant");
+            }
+
             var mk = context.Caller.GetMasterKey();
             var grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref mk);
 
@@ -283,9 +288,22 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 _systemStorage.WithTenantSystemStorage<AccessRegistration>(ACCESS_TOKEN_REG, s => s.Save(reg));
             }
 
+            await RevokeExchangeGrant(accessReg.GrantId);
+        }
+
+        public async Task RevokeExchangeGrant(Guid grantId)
+        {
             //revoke the grant
-            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(accessReg.GrantId));
+            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(grantId));
             eg.IsRevoked = true;
+            _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(eg));
+        }
+
+        public async Task RemoveExchangeGrantRevocation(Guid grantId)
+        {
+            //revoke the grant
+            var eg = await _systemStorage.WithTenantSystemStorageReturnSingle<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Get(grantId));
+            eg.IsRevoked = false;
             _systemStorage.WithTenantSystemStorage<ExchangeGrantLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(eg));
         }
 
@@ -304,8 +322,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             }
 
             //kill all associated access registrations (this will kill all browser logins)
-            var allAccessRegistrations = await _systemStorage.
-                WithTenantSystemStorageReturnList<AccessRegistration>(ACCESS_TOKEN_REG,
+            var allAccessRegistrations = await _systemStorage.WithTenantSystemStorageReturnList<AccessRegistration>(ACCESS_TOKEN_REG,
                 s => s.Find(ar => ar.GrantId == grant.Id, PageOptions.All));
 
             //revoke all access regs

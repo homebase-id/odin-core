@@ -11,19 +11,6 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.EncryptionKeyService
 {
-    public class RsaOfflineKeySet
-    {
-        public Guid Id { get; set; }
-        public RsaFullKeyListData Keys { get; set; }
-    }
-
-    public class RecipientPublicKeyCacheItem
-    {
-        public Guid Id { get; set; } //recipient dotYouId as a guid
-
-        public RsaPublicKeyData PublicKeyData { get; set; }
-    }
-
     public class RsaKeyService : IPublicKeyService
     {
         private const string RecipientPublicOfflineKeyCache = "pkocache";
@@ -41,12 +28,23 @@ namespace Youverse.Core.Services.EncryptionKeyService
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
         }
 
-        public async Task<byte[]> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32)
+        public async Task<byte[]> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
         {
             var rsaKey = await this.GetOfflineKeyInternal();
             var key = GetOfflineKeyDecryptionKey();
             var keyList = rsaKey.Keys;
             var pk = RsaKeyListManagement.FindKey(keyList, publicKeyCrc32);
+
+            if (null == pk)
+            {
+                if (failIfNoMatchingPublicKey)
+                {
+                    throw new YouverseSecurityException("Invalid public key");
+                }
+
+                return null;
+            }
+
             var bytes = pk.Decrypt(ref key, encryptedData);
             return bytes;
         }
@@ -65,6 +63,18 @@ namespace Youverse.Core.Services.EncryptionKeyService
             return bytes;
         }
 
+        public async Task<bool> IsValidPublicKey(UInt32 crc)
+        {
+            return null != await GetOfflinePublicKey(crc);
+        }
+
+        public async Task<RsaFullKeyData> GetOfflinePublicKey(UInt32 crc)
+        {
+            var keySet = await this.GetOfflineKeyInternal();
+            var key = RsaKeyListManagement.FindKey(keySet.Keys, crc);
+            return key;
+        }
+
         public async Task<RsaPublicKeyData> GetOfflinePublicKey()
         {
             var rsaKey = await this.GetOfflineKeyInternal();
@@ -80,6 +90,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
             return pk;
         }
+
 
         public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
         {
@@ -128,8 +139,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                 Data = keyHeader.GetEncryptedStreamAes(payload).ToByteArray()
             };
         }
-        
-        
+
 
         /// 
         private async Task<RsaOfflineKeySet> GetRsaHeader(string storage)

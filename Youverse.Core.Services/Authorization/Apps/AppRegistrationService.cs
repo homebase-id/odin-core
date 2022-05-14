@@ -7,14 +7,11 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
-using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -76,8 +73,6 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(applicationId);
-            AssertValidAppRegistration(appReg);
-
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.ExchangeGrantId);
 
             var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
@@ -91,14 +86,6 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Token = cat.Id,
                 Data = encryptedData
             };
-        }
-
-        public Task RefreshAppKeys()
-        {
-            //this.GetRsaKeyList()
-            //TODO: michael to build a function
-            //RsaKeyListManagement.GetCurrentKey(apk, rsaKeyList, out var wasUpdated);
-            return Task.CompletedTask;
         }
 
         public async Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId)
@@ -125,8 +112,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(applicationId);
             if (null != appReg)
             {
-                appReg.IsRevoked = true;
-                _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+                await _exchangeGrantService.RevokeExchangeGrant(appReg.ExchangeGrantId);
             }
 
             //TODO: Send notification?
@@ -137,8 +123,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(applicationId);
             if (null != appReg)
             {
-                appReg.IsRevoked = false;
-                _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+                await _exchangeGrantService.RemoveExchangeGrantRevocation(appReg.ExchangeGrantId);
             }
 
             //TODO: do we do anything with storage DEK here?
@@ -181,14 +166,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 PublicKeyData = key,
             };
         }
-
-        public async Task<bool> IsValidPublicKey(Guid appId, uint crc)
-        {
-            var rsaKeyList = await this.GetRsaKeyList(appId);
-            var key = RsaKeyListManagement.FindKey(rsaKeyList, crc);
-            return null != key;
-        }
-
+        
         public async Task<RsaFullKeyListData> GetRsaKeyList(Guid appId)
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
@@ -209,8 +187,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
-                Name = appReg.Name,
-                IsRevoked = appReg.IsRevoked
+                Name = appReg.Name
             };
         }
 
@@ -240,14 +217,6 @@ namespace Youverse.Core.Services.Authorization.Apps
                 AppKeyEncryptedStorageKey = appEncryptedStorageKey,
                 Permissions = DrivePermissions.All
             };
-        }
-
-        private void AssertValidAppRegistration(AppRegistration appReg)
-        {
-            if (null == appReg || appReg.IsRevoked)
-            {
-                throw new YouverseSecurityException($"Application with Id {appReg!.ApplicationId} is not registered or has been revoked.");
-            }
         }
     }
 }

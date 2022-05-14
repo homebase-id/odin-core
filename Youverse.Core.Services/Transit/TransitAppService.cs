@@ -10,6 +10,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
 
@@ -22,10 +23,11 @@ namespace Youverse.Core.Services.Transit
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
         private readonly IInboxService _inboxService;
+        private readonly IPublicKeyService _publicKeyService;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
+        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -33,31 +35,19 @@ namespace Youverse.Core.Services.Transit
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
             _inboxService = inboxService;
+            _publicKeyService = publicKeyService;
         }
 
         public async Task StoreLongTerm(InternalDriveFileId file)
         {
             var transferInstructionSet = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
-
-            //TODO: should we use the context app id here??
-            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            var appKey = _contextAccessor.GetCurrent().AppContext.GetAppKey();
-
-            var keys = await _appRegistrationService.GetRsaKeyList(appId);
-            var pk = RsaKeyListManagement.FindKey(keys, transferInstructionSet.PublicKeyCrc);
-
-            if (pk == null)
-            {
-                throw new YouverseSecurityException("Invalid public key");
-            }
-
-            //TODO: need to figure out how we're going to decrypt the private key
-            var decryptedAesKeyHeaderBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedAesKeyHeader).ToSensitiveByteArray();
-            var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes.GetKey(), 16, 16);
-            decryptedAesKeyHeaderBytes.Wipe();
+            
+            var decryptedAesKeyHeaderBytes = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
+            decryptedAesKeyHeaderBytes.WriteZeros();
 
             // var keyHeader = KeyHeader.FromCombinedBytes(transferInstructionSet.EncryptedAesKeyHeader, 16, 16);
-            
+
             // var decryptedClientAuthTokenBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedClientAuthToken).ToSensitiveByteArray();
             // var clientAuthToken = ClientAuthToken.Parse(decryptedClientAuthTokenBytes.GetKey().StringFromUTF8Bytes());
             // decryptedClientAuthTokenBytes.Wipe();

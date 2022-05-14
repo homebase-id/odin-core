@@ -38,12 +38,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task RevokeApp(Guid applicationId);
 
         /// <summary>
-        /// Ensures public/private app keys are valid
-        /// </summary>
-        /// <returns></returns>
-        Task RefreshAppKeys();
-
-        /// <summary>
         /// Allows an app that has been revoked
         /// </summary>
         /// <param name="applicationId"></param>
@@ -64,9 +58,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         [Obsolete]
         Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
-
-        Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
-
+        
         Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
     }
