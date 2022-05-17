@@ -549,7 +549,7 @@ namespace Youverse.Hosting.Tests
                 {
                     DriveAlias = driveAlias,
                     OverwriteFileId = null,
-                    ExpiresTimestamp = null
+                    ExpiresTimestamp = null,
                 },
 
                 TransitOptions = new TransitOptions()
@@ -567,6 +567,7 @@ namespace Youverse.Hosting.Tests
             var fileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                PayloadIsEncrypted = true,
                 AppData = new()
                 {
                     Tags = tags,
@@ -577,8 +578,8 @@ namespace Youverse.Hosting.Tests
 
             var o = options ?? TransitTestUtilsOptions.Default;
 
-            var result =  await TransferFile(sender, instructionSet, fileMetadata, o);
-            
+            var result = await TransferFile(sender, instructionSet, fileMetadata, o);
+
             if (o.DisconnectIdentitiesAfterTransfer)
             {
                 foreach (var recipient in recipients)
@@ -586,7 +587,7 @@ namespace Youverse.Hosting.Tests
                     await this.DisconnectIdentities(sender, (DotYouIdentity) recipient);
                 }
             }
-            
+
             return result;
         }
 

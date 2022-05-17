@@ -340,6 +340,7 @@ namespace Youverse.Core.Services.Transit
                     Created = metadata.Created,
                     Updated = metadata.Updated,
                     AppData = metadata.AppData,
+                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
                 };
 
@@ -355,7 +356,7 @@ namespace Youverse.Core.Services.Transit
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUTF8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
-                
+
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;

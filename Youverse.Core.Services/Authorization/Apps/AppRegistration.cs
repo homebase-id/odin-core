@@ -1,6 +1,8 @@
 ﻿using System;
 using LiteDB;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -17,6 +19,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Defines the permission set this app perform, even if the caller has access (this includes the owner).
         /// </summary>
         public PermissionSet NegatedPermissionSet { get; set; }
+        
+        public bool IsRevoked { get; set; }
         
         /// <summary>
         /// The exchange grant tied to this app, which gives the app its drive access and permissions.

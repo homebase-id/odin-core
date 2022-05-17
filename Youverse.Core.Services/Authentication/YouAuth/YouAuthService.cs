@@ -104,14 +104,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
-                    var clientAuthToken = new ClientAuthenticationToken()
-                    {
-                        Id = info.ClientAccessTokenId,
-                        AccessTokenHalfKey = info.ClientAccessTokenHalfKey.ToSensitiveByteArray()
-                    };
-
                     //TODO: RSA Encrypt or used shared secret?
-                    clientAuthTokenBytes = clientAuthToken.ToString().ToUtf8ByteArray();
+                    clientAuthTokenBytes =  info.CreateClientAuthToken().ToString().ToUtf8ByteArray();
                 }
             }
 

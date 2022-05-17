@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -166,12 +167,12 @@ namespace Youverse.Core.Services.Authorization.Apps
                 PublicKeyData = key,
             };
         }
-        
+
         public async Task<RsaFullKeyListData> GetRsaKeyList(Guid appId)
         {
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
 
-            Guard.Argument(result, "App public private keys").NotNull();
+            Guard.Argument(result, "App public private keys are null").NotNull();
 
             return result;
         }
@@ -183,11 +184,15 @@ namespace Youverse.Core.Services.Authorization.Apps
                 return null;
             }
 
+            //TODO: workaround while adjusting appreg storage;  need to bind the app reg and the exchange grant together in a better way
+            var isRevoked = _exchangeGrantService.IsExchangeGrantRevoked(appReg.ExchangeGrantId).GetAwaiter().GetResult();
+         
             //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new AppRegistrationResponse()
             {
                 ApplicationId = appReg.ApplicationId,
-                Name = appReg.Name
+                Name = appReg.Name,
+                IsRevoked = isRevoked
             };
         }
 

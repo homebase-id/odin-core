@@ -6,6 +6,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -58,8 +59,14 @@ namespace Youverse.Core.Services.Transit
             var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
+            
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
+
+            metadata.AccessControlList = new AccessControlList()
+            {
+                RequiredSecurityGroup = SecurityGroupType.Owner
+            };
 
             await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
         }

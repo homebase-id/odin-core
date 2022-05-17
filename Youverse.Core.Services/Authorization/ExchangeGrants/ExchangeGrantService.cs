@@ -206,6 +206,12 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             throw new MissingDataException("Invalid Storage type on ExchangeGrantLiteDbRecord");
         }
 
+        public async Task<bool> IsExchangeGrantRevoked(Guid id)
+        {
+            var g = await this.GetExchangeGrantInternal(id);
+            return g.IsRevoked;
+        }
+
         public async Task<ExchangeGrantBase> GetExchangeGrant(Guid id)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();

@@ -123,6 +123,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
+            foreach (var recipient in recipientContexts.Keys)
+            {
+                await _scaffold.DisconnectIdentities(sender, recipient);
+            }
+
+
             //connect to all recipients to determine if they received
 
             // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
@@ -272,6 +278,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 // {
                 //     Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
                 // }
+                
             }
         }
     }
