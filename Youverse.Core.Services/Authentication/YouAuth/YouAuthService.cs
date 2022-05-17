@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 
 #nullable enable
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         private readonly ICircleNetworkService _circleNetwork;
 
-        private readonly XTokenService _xTokenService;
+        private readonly ExchangeGrantService _exchangeGrantService;
         //
 
         public YouAuthService(
@@ -27,14 +27,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IYouAuthSessionManager youSessionManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, XTokenService xTokenService)
+            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _xTokenService = xTokenService;
+            _exchangeGrantService = exchangeGrantService;
         }
 
         //
@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<(bool, byte[])> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
+        public async ValueTask<(bool, ClientAuthenticationToken?)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode)
         {
             // var queryString = QueryString.Create(new Dictionary<string, string>()
             // {
@@ -64,14 +64,24 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             var dotYouId = new DotYouIdentity(subject);
             var response = await _dotYouHttpClientFactory
-                .CreateClient<IPerimeterHttpClient>(dotYouId, YouAuthDefaults.AppId)
+                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId, YouAuthDefaults.AppId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
+
+            //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken
 
             if (response.IsSuccessStatusCode)
             {
                 if (null != response.Content && response.Content.Length > 0)
                 {
-                    return (true, response.Content);
+                    var clientAuthTokenBytes = response.Content;
+
+                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUTF8Bytes(), out var clientAuthToken))
+                    {
+                        return (true, clientAuthToken);
+                    }
+
+                    //TODO: log a warning here that a bad payload was returned.
+                    return (true, null);
                 }
 
                 return (true, null)!;
@@ -87,48 +97,51 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
 
-            byte[] halfKey = Array.Empty<byte>();
+            byte[] clientAuthTokenBytes = Array.Empty<byte>();
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetConnectionInfo((DotYouIdentity) dotYouId);
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
                 if (info.IsConnected())
                 {
-                    //TODO: RSA Encrypt
-                    //halfKey = info.XToken.DriveKeyHalfKey.KeyEncrypted;
-                    halfKey = info.RemoteHalf;
+                    //TODO: RSA Encrypt or used shared secret?
+                    clientAuthTokenBytes =  info.CreateClientAuthToken().ToString().ToUtf8ByteArray();
                 }
             }
 
-            return (isValid, halfKey);
+            return (isValid, clientAuthTokenBytes);
         }
 
         //
 
-        public async ValueTask<(YouAuthSession, byte[]?)> CreateSession(string subject, SensitiveByteArray? xTokenHalfKey)
+        public async ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? icrClientAuthToken)
         {
-            XToken token = null;
-            byte[] halfKey = null;
-            
-            if (xTokenHalfKey != null)
+            ClientAccessToken? browserClientAccessToken = null;
+
+            //TODO: Need to handle how to upgrade the exchange grant.  when you are not connected and have logged in.. then you become connected 
+
+            //If they were not connected, we need to create a new EGR and AccessReg for the browser
+            if (icrClientAuthToken == null)
             {
-                var connection = await _circleNetwork.GetConnectionInfo((DotYouIdentity) subject, xTokenHalfKey);
-                if (connection.IsConnected())
-                {
-                    var xToken = connection.XToken;
-                    (token, halfKey) = await _xTokenService.CloneXToken(xToken, xTokenHalfKey);
-                }
+                browserClientAccessToken = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null, AccessRegistrationClientType.Cookies);
+            }
+            else
+            {
+                //TODO: need to evaluate if this will just have ever growing list of access registrations as the user logs in/logs out
+                //If we're given a client auth token, it means that subject was connected, so we just need to create a browser specific AccessReg
+                //look up the EGR key using the clientAuthToken
+                browserClientAccessToken = await _exchangeGrantService.AddClientToExchangeGrant(icrClientAuthToken, AccessRegistrationClientType.Cookies);
             }
 
-            var session = await _youSessionManager.CreateSession(subject, token);
-            return (session, halfKey);
+            return browserClientAccessToken;
         }
 
         //
 
         public ValueTask DeleteSession(string subject)
         {
-            return _youSessionManager.DeleteFromSubject(subject);
+            //TODO: need to delete an access registration?
+            return ValueTask.CompletedTask;
         }
 
         //

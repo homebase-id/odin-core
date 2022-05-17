@@ -17,6 +17,11 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 
 namespace Youverse.Core.Services.Transit
@@ -32,7 +37,8 @@ namespace Youverse.Core.Services.Transit
         private readonly ISystemStorage _systemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
-
+        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly IPublicKeyService _publicKeyService;
         private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
         private const string RecipientTransitPublicKeyCache = "rtpkc";
 
@@ -44,7 +50,7 @@ namespace Youverse.Core.Services.Transit
             ITransitAuditWriterService auditWriter,
             ITransitBoxService transitBoxService,
             ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext) : base(auditWriter)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base(auditWriter)
         {
             _contextAccessor = contextAccessor;
             _outboxService = outboxService;
@@ -54,6 +60,8 @@ namespace Youverse.Core.Services.Transit
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
+            _circleNetworkService = circleNetworkService;
+            _publicKeyService = publicKeyService;
             _logger = logger;
         }
 
@@ -67,11 +75,22 @@ namespace Youverse.Core.Services.Transit
 
             //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata) = await UnpackMetadata(package);
-            await _driveService.StoreLongTerm(package.File, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+            await _driveService.StoreLongTerm(package.InternalFile, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+
+            if (null == metadata.AccessControlList)
+            {
+                throw new MissingDataException("Access control list must be specified");
+            }
+
+            var ext = new ExternalFileIdentifier()
+            {
+                DriveAlias = _driveService.GetDrive(package.InternalFile.DriveId).Result.Alias,
+                FileId = package.InternalFile.FileId
+            };
 
             var tx = new UploadResult()
             {
-                File = package.File
+                File = ext
             };
 
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
@@ -83,7 +102,7 @@ namespace Youverse.Core.Services.Transit
             return tx;
         }
 
-        public async Task AcceptTransfer(DriveFileId file, uint publicKeyCrc)
+        public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
         {
             _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
 
@@ -104,8 +123,8 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
         {
-            var metadataStream = await _driveService.GetTempStream(package.File, MultipartUploadParts.Metadata.ToString());
-            
+            var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+
             var clientSharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
@@ -117,10 +136,8 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Invalid transfer key header");
             }
 
-            var sharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
-            var keyHeader = transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-
-            var metadata = new FileMetadata(package.File)
+            KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
+            var metadata = new FileMetadata(package.InternalFile)
             {
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
 
@@ -131,9 +148,10 @@ namespace Youverse.Core.Services.Transit
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
-                    PayloadIsEncrypted = uploadDescriptor.FileMetadata.AppData.PayloadIsEncrypted
+                    Alias = uploadDescriptor.FileMetadata.AppData.Alias
                 },
-                
+
+                PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
                 SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
                 AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
@@ -147,27 +165,27 @@ namespace Youverse.Core.Services.Transit
 
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
-            var keyStatus = await this.PrepareTransferKeys(package);
+            var keyStatus = await this.PrepareTransferInstructionSet(package);
 
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? new List<string>();
             await _outboxService.Add(recipients.Select(r => new OutboxItem()
             {
-                File = package.File,
+                File = package.InternalFile,
                 Recipient = (DotYouIdentity) r,
                 AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
-                AppClientId = this._contextAccessor.GetCurrent().AppContext.AppClientId
+                AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
             }));
 
             return keyStatus;
         }
 
-        private async Task<Dictionary<string, TransferStatus>> PrepareTransferKeys(UploadPackage package)
+        private async Task<Dictionary<string, TransferStatus>> PrepareTransferInstructionSet(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.File);
-            var storageKey = this._contextAccessor.GetCurrent().Permissions.GetDriveStorageKey(package.File.DriveId);
+            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.InternalFile);
+            var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(package.InternalFile.DriveId);
             var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 
@@ -177,24 +195,26 @@ namespace Youverse.Core.Services.Transit
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
-                    var recipientPublicKey = await this.GetRecipientTransitPublicKey(recipient, lookupIfInvalid: true);
-                    if (null == recipientPublicKey)
+                    var pk = await _publicKeyService.GetRecipientOfflinePublicKey(recipient, true, false);
+                    if (null == pk)
                     {
                         AddToTransferKeyEncryptionQueue(recipient, package);
                         results.Add(recipient, TransferStatus.AwaitingTransferKey);
                         continue;
                     }
 
-                    var header = this.CreateEncryptedRecipientTransferKeyHeader(recipientPublicKey.PublicKeyData.publicKey, keyHeader);
+                    //TODO: examine how we can avoid using the override hack on GetIdentityConnectionRegistration
+                    var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient, true, true).GetAwaiter().GetResult();
+                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
 
-                    var item = new RecipientTransferKeyHeaderItem()
+                    var item = new RecipientTransferInstructionSetItem()
                     {
                         Recipient = recipient,
-                        Header = header,
-                        File = package.File
+                        InstructionSet = instructionSet,
+                        File = package.InternalFile
                     };
 
-                    _systemStorage.WithTenantSystemStorage<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
+                    _systemStorage.WithTenantSystemStorage<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
                 }
                 catch (Exception)
@@ -209,17 +229,28 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private RsaEncryptedRecipientTransferKeyHeader CreateEncryptedRecipientTransferKeyHeader(byte[] recipientPublicKeyDer, KeyHeader keyHeader)
+        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthenticationToken clientAuthenticationToken, Guid driveAlias)
         {
+            //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
-            var secureKeyHeader = keyHeader.Combine();
-            var data = publicKey.Encrypt(secureKeyHeader.GetKey());
-            secureKeyHeader.Wipe();
 
-            return new RsaEncryptedRecipientTransferKeyHeader()
+            // var secureKeyHeader = keyHeader.Combine();
+            // var rsaEncryptedKeyHeader = publicKey.Encrypt(secureKeyHeader.GetKey());
+            // secureKeyHeader.Wipe();
+
+            var combinedKey = keyHeader.Combine();
+            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
+            combinedKey.Wipe();
+
+            //TODO: need to encrypt the client access token here with something on my server side (therefore, we cannot use RSA encryption)
+            var encryptedClientAccessToken = clientAuthenticationToken.ToString().ToUtf8ByteArray();
+
+            return new RsaEncryptedRecipientTransferInstructionSet()
             {
                 PublicKeyCrc = publicKey.crc32c,
-                EncryptedAesKey = data
+                EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
+                EncryptedClientAuthToken = encryptedClientAccessToken,
+                DriveAlias = driveAlias
             };
         }
 
@@ -228,7 +259,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
-                FileId = package.File.FileId,
+                FileId = package.InternalFile.FileId,
                 AppId = _contextAccessor.GetCurrent().AppContext.AppId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -275,8 +306,8 @@ namespace Youverse.Core.Services.Transit
             try
             {
                 //look up transfer key
-                var transferKeyHeader = await this.GetTransferKeyFromCache(recipient, file);
-                if (null == transferKeyHeader)
+                var transferInstructionSet = await this.GetTransferInstructionSetFromCache(recipient, file);
+                if (null == transferInstructionSet)
                 {
                     return new SendResult()
                     {
@@ -285,19 +316,18 @@ namespace Youverse.Core.Services.Transit
                         Recipient = recipient,
                         Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Success = false,
-                        FailureReason = TransferFailureReason.EncryptedTransferKeyNotAvailable
+                        FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable
                     };
                 }
 
-                var transferKeyHeaderBytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(transferKeyHeader));
+                var transferKeyHeaderBytes = JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var metadata = await _driveService.GetMetadata(file);
-                
+
                 //redact information
-                metadata.File = DriveFileId.Redacted();
+                metadata.File = InternalDriveFileId.Redacted();
                 metadata.SenderDotYouId = string.Empty;
                 metadata.AccessControlList = null;
 
@@ -306,23 +336,28 @@ namespace Youverse.Core.Services.Transit
                 //if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
-                    File = DriveFileId.Redacted(),
+                    File = InternalDriveFileId.Redacted(),
                     Created = metadata.Created,
                     Updated = metadata.Updated,
                     AppData = metadata.AppData,
+                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
                 };
-                
+
                 var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                
                 var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                var client = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient, outboxItem.AppId);
+                //TODO: here we need to decrypt the token. 
+                var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
+                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUTF8Bytes());
+                decryptedClientAuthTokenBytes.WriteZeros();
+
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 
@@ -370,33 +405,10 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<RsaEncryptedRecipientTransferKeyHeader> GetTransferKeyFromCache(string recipient, DriveFileId file)
+        private async Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferKeyHeaderItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
-            return item?.Header;
-        }
-
-        private async Task<TransitPublicKey> GetRecipientTransitPublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true)
-        {
-            //TODO: optimize by reading a dictionary cache
-            var tpk = await _systemStorage.WithTenantSystemStorageReturnSingle<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Get(recipient));
-
-            if ((tpk == null || !tpk.IsValid()) && lookupIfInvalid)
-            {
-                var svc = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(recipient);
-                var tpkResponse = await svc.GetTransitPublicKey();
-
-                if (tpkResponse.Content != null && (!tpkResponse.IsSuccessStatusCode || !tpkResponse.Content.IsValid()))
-                {
-                    this._logger.LogWarning("Transit public key is invalid");
-                    return null;
-                }
-
-                tpk = tpkResponse.Content;
-                _systemStorage.WithTenantSystemStorage<TransitPublicKey>(RecipientTransitPublicKeyCache, s => s.Save(tpk));
-            }
-
-            return tpk;
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
+            return item?.InstructionSet;
         }
     }
 }

@@ -159,6 +159,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 var bytesRead = 0;
                 do
                 {
+                    // stream.ReadAsync(buffer, 0, buffer.Length).GetAwaiter().GetResult();
                     bytesRead = stream.Read(buffer, 0, buffer.Length);
                     output.Write(buffer, 0, bytesRead);
                 } while (bytesRead > 0);

@@ -15,25 +15,36 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// Creates a new storage drive
         /// </summary>
-        /// <param name="name"></param>
         /// <returns></returns>
-        Task<StorageDrive> CreateDrive(string name);
+        Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false);
 
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
+        Task<Guid?> GetDriveIdByAlias(Guid driveAlias, bool failIfInvalid = false);
+
         /// <summary>
-        /// Returns a list of the containers in the system
+        /// Returns a list of the storage drives in the system
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions);
 
         /// <summary>
+        /// Gets a list of the storage drives by type
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions);
+
+        Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions);
+
+        /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
         /// <returns></returns>
-        DriveFileId CreateFileId(Guid driveId);
+        InternalDriveFileId CreateInternalFileId(Guid driveId);
 
-        Task WriteMetaData(DriveFileId file, FileMetadata metadata);
+        Task WriteMetaData(InternalDriveFileId file, FileMetadata metadata);
 
         /// <summary>
         /// Writes the payload stream
@@ -41,95 +52,95 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        Task WritePayload(DriveFileId file, Stream stream);
+        Task WritePayload(InternalDriveFileId file, Stream stream);
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
-        Task WritePartStream(DriveFileId file, FilePart filePart, Stream stream);
+        Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream);
 
         /// <summary>
         /// Writes a stream to the drive's temporary storage
         /// </summary>
-        Task WriteTempStream(DriveFileId file, string extension, Stream stream);
+        Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream);
 
-        Task<Stream> GetTempStream(DriveFileId file, string extension);
+        Task<Stream> GetTempStream(InternalDriveFileId file, string extension);
 
         /// <summary>
         /// Deserializes the file to an instance of {T}.  Assumes format is JSON
         /// </summary>
         /// <returns></returns>
-        Task<T> GetDeserializedStream<T>(DriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm);
+        Task<T> GetDeserializedStream<T>(InternalDriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm);
 
         /// <summary>
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>
-        Task StoreLongTerm(DriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
+        Task StoreLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
 
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
         /// </summary>
         /// <returns></returns>
-        Task DeleteTempFile(DriveFileId file, string extension);
+        Task DeleteTempFile(InternalDriveFileId file, string extension);
 
         /// <summary>
         /// Deletes all temp files matching the fileId regardless of extension
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        Task DeleteTempFiles(DriveFileId file);
+        Task DeleteTempFiles(InternalDriveFileId file);
 
         /// <summary>
         /// Gets the <see cref="FileMetadata"/>
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        Task<FileMetadata> GetMetadata(DriveFileId file);
+        Task<FileMetadata> GetMetadata(InternalDriveFileId file);
 
 
-        Task<Stream> GetPayloadStream(DriveFileId file);
+        Task<Stream> GetPayloadStream(InternalDriveFileId file);
 
-        Task<long> GetPayloadSize(DriveFileId file);
+        Task<long> GetPayloadSize(InternalDriveFileId file);
         
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
         /// <returns></returns>
-        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(DriveFileId file);
+        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(InternalDriveFileId file);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
         /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
-        void AssertFileIsValid(DriveFileId file);
+        void AssertFileIsValid(InternalDriveFileId file);
 
         /// <summary>
         /// Returns true if all parts of the file exist, otherwise false.
         /// </summary>
         //// <returns></returns>
-        bool FileExists(DriveFileId file);
+        bool FileExists(InternalDriveFileId file);
 
         /// <summary>
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
-        Task DeleteLongTermFile(DriveFileId file);
+        Task DeleteLongTermFile(InternalDriveFileId file);
 
-        Task WriteEncryptedKeyHeader(DriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
+        Task WriteEncryptedKeyHeader(InternalDriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
 
         Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 
         /// <summary>
         /// Encrypts and writes a KeyHeader
         /// </summary>
-        Task<EncryptedKeyHeader> WriteKeyHeader(DriveFileId file, KeyHeader keyHeader);
+        Task<EncryptedKeyHeader> WriteKeyHeader(InternalDriveFileId file, KeyHeader keyHeader);
 
         /// <summary>
         /// Returns the payload bytes.  If the payload is larger than the max size we will
         /// load into memory, the tooLarge result will be true.
         /// </summary>
         /// <returns></returns>
-        Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(DriveFileId file);
+        Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(InternalDriveFileId file);
     }
 }

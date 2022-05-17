@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 
 namespace Youverse.Core.Services.Transit.Quarantine
@@ -18,6 +19,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ITransitService _transitService;
         private readonly IAppRegistrationService _appRegService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
+        private readonly IPublicKeyService _publicKeyService;
 
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
@@ -25,26 +27,31 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             IAppRegistrationService appRegService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService) : base(auditWriter)
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base(auditWriter)
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
             _appRegService = appRegService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
+            _publicKeyService = publicKeyService;
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
+        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
-            Guard.Argument(rsaKeyHeader, nameof(rsaKeyHeader)).NotNull();
-            Guard.Argument(rsaKeyHeader!.PublicKeyCrc, nameof(rsaKeyHeader.PublicKeyCrc)).NotEqual<uint>(0);
-            Guard.Argument(rsaKeyHeader.EncryptedAesKey.Length, nameof(rsaKeyHeader.EncryptedAesKey.Length)).NotEqual(0);
+            Guard.Argument(transferInstructionSet, nameof(transferInstructionSet)).NotNull();
+            Guard.Argument(transferInstructionSet!.PublicKeyCrc, nameof(transferInstructionSet.PublicKeyCrc)).NotEqual<uint>(0);
+            Guard.Argument(transferInstructionSet.EncryptedAesKeyHeader.Length, nameof(transferInstructionSet.EncryptedAesKeyHeader)).NotEqual(0);
+            // Guard.Argument(transferInstructionSet.EncryptedClientAuthToken.Length, nameof(transferInstructionSet.EncryptedClientAuthToken)).NotEqual(0);
 
-            if (!await _appRegService.IsValidPublicKey(_contextAccessor.GetCurrent().AppContext.AppId, rsaKeyHeader.PublicKeyCrc))
+            
+            //TODO: switch to using the public key sevice var key = await _publicKeyService.GetOfflinePublicKey();
+            
+            if (!await _publicKeyService.IsValidPublicKey(transferInstructionSet.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");
             }
 
-            return await _transitPerimeterTransferStateService.CreateTransferStateItem(rsaKeyHeader);
+            return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
         }
 
         public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
@@ -117,12 +124,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             throw new HostToHostTransferException("Unhandled error");
-        }
-
-        public async Task<TransitPublicKey> GetTransitPublicKey()
-        {
-            var tpk = await _appRegService.GetTransitPublicKey(_contextAccessor.GetCurrent().AppContext.AppId);
-            return tpk;
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

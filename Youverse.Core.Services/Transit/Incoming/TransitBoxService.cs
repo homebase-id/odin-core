@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 
@@ -15,24 +16,35 @@ namespace Youverse.Core.Services.Transit.Incoming
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
+        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IDriveService _driveService;
 
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator)
+
+        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
             _systemStorage = systemStorage;
             _mediator = mediator;
+            _contextAccessor = contextAccessor;
+            _driveService = driveService;
         }
-        
+
         public Task Add(TransferBoxItem item)
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(item.AppId), s => s.Save(item));
 
+            var ext =  new ExternalFileIdentifier()
+            {
+                DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                FileId = item.TempFile.FileId
+            };
+            
             _mediator.Publish(new NewInboxItemNotification()
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
                 AppId = item.AppId,
-                TempFile = item.TempFile
+                TempFile = ext
             });
 
             return Task.CompletedTask;
@@ -42,7 +54,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         {
             return await _systemStorage.WithTenantSystemStorageReturnList<TransferBoxItem>(GetAppCollectionName(appId), s => s.GetList(pageOptions));
         }
-        
+
         public async Task<TransferBoxItem> GetItem(Guid appId, Guid id)
         {
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<TransferBoxItem>(GetAppCollectionName(appId), s => s.Get(id));

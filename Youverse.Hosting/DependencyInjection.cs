@@ -12,15 +12,18 @@ using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.ClientNotifications;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Security;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
-using Youverse.Core.Services.Profile;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
@@ -30,7 +33,6 @@ using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Owner.Demo;
 
 namespace Youverse.Hosting
 {
@@ -52,12 +54,11 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
-
 
             cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
@@ -80,12 +81,11 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .SingleInstance();
 
-            cb.RegisterType<ProfileService>().As<IProfileService>().SingleInstance();
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
-            cb.RegisterType<ProfileAttributeManagementService>().As<IProfileAttributeManagementService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
@@ -100,15 +100,20 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
 
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
-
-            cb.RegisterType<DemoDataGenerator>().SingleInstance();
-
+            
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
-            //TODO breakout interface
-            cb.RegisterType<XTokenService>().AsSelf().SingleInstance();
+            cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<ExchangeGrantContextService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
+
+            cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
+
+            cb.RegisterType<CircleNetworkNotificationService>();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)
@@ -153,7 +158,7 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
-            
+
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
             ctx.DotYouRegistryId = id;

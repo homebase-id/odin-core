@@ -9,13 +9,13 @@ namespace Youverse.Core.Services.Drive.Storage
     public class AppFileMetaData : IAppFileMetaData
     {
         public List<Guid> Tags { get; set; }
+        
         public int FileType { get; set; }
         
         public bool ContentIsComplete { get; set; }
         
-        public bool PayloadIsEncrypted { get; set; }
-
         public string JsonContent { get; set; }
         
+        public Guid Alias { get; set; }
     }
 }

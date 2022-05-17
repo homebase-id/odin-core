@@ -1,14 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.SystemStorage;
 
@@ -54,11 +52,11 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             lock (_indexStorage)
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-                var unfiltered = _indexStorage.GetList(PageOptions.All, 
-                    ListSortDirection.Ascending, 
-                    item => item.CreatedTimestamp)
+                var unfiltered = _indexStorage.GetList(PageOptions.All,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp)
                     .GetAwaiter().GetResult();
-                
+
                 var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
                 if (!includeMetadataHeader)
                 {
@@ -69,7 +67,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public async Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -77,11 +75,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             lock (_indexStorage)
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
-                var unfiltered = _indexStorage.Find(item => item.Tags.Contains(tag),
+                // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
+                var unfiltered = _indexStorage.Find(item => item.FileType == fileType,
                         ListSortDirection.Ascending,
                         item => item.CreatedTimestamp,
                         PageOptions.All)
-                    .GetAwaiter().GetResult();
+                    .GetAwaiter()
+                    .GetResult();
 
                 var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
 
@@ -94,7 +94,61 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions,IDriveAclAuthorizationService driveAclAuthorizationService)
+
+        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        {
+            AssertValidIndexLoaded();
+
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
+            {
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
+                var unfiltered = _indexStorage.Find(item => (item.Tags.Contains(tag) || tag == Guid.Empty) && item.FileType == fileType,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter()
+                    .GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
+            }
+        }
+
+        public async Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        {
+            AssertValidIndexLoaded();
+
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
+            {
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                var unfiltered = _indexStorage.Find(item => item.Alias == alias,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter()
+                    .GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
+            }
+        }
+
+        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             Func<IndexedItem, bool> callerHasPermission = (item) => driveAclAuthorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
             var filtered = unfiltered.Results.Where(callerHasPermission);
@@ -117,7 +171,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public Task UpdateCurrentIndex(FileMetadata metadata)
         {
-            _indexStorage.Save(ConvertMetadata(metadata));
+            _indexStorage.Save(MetadataToIndexedItem(metadata));
 
             //technically the index is ready because it has at least one item in it
             //this, however, means we need to build a way for apps to understand the
@@ -131,11 +185,23 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             if (null == _backupIndexStorage)
             {
-                throw new Exception("Backup index not ready; call PrepareBackupIndexForRebuild before calling UpdateBackupIndex");
+                throw new Exception("Backup index not ready; call PrepareSecondaryIndexForRebuild before calling UpdateSecondaryIndex");
             }
 
-            _backupIndexStorage.Save(ConvertMetadata(metadata));
+            _backupIndexStorage.Save(MetadataToIndexedItem(metadata));
 
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveFromCurrentIndex(InternalDriveFileId file)
+        {
+            _indexStorage.Delete(file.FileId);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveFromSecondaryIndex(InternalDriveFileId file)
+        {
+            _indexStorage.Delete(file.FileId);
             return Task.CompletedTask;
         }
 
@@ -227,8 +293,9 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
-        private IndexedItem ConvertMetadata(FileMetadata metadata)
+        private IndexedItem MetadataToIndexedItem(FileMetadata metadata)
         {
+            //Note: drive is not indexed since this index sits with-in the drive's structure
             return new IndexedItem()
             {
                 FileId = metadata.File.FileId,
@@ -236,9 +303,12 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
                 Tags = metadata.AppData.Tags,
+                FileType = metadata.AppData.FileType,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent,
-                AccessControlList = metadata.AccessControlList
+                AccessControlList = metadata.AccessControlList,
+                Alias = metadata.AppData.Alias,
+                PayloadIsEncrypted = metadata.PayloadIsEncrypted,
             };
         }
 

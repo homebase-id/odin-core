@@ -15,6 +15,7 @@ using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Authentication.Owner;
 
 #nullable enable
@@ -25,12 +26,13 @@ namespace Youverse.Hosting.Authentication.App
     /// </summary>
     public class AppAuthenticationHandler : AuthenticationHandler<AppAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
-        private IAppAuthenticationService _authService;
+        private readonly ExchangeGrantContextService _exchangeGrantContext;
+
         public AppAuthenticationHandler(IOptionsMonitor<AppAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, ISystemClock clock, IAppAuthenticationService authService)
+            UrlEncoder encoder, ISystemClock clock, ExchangeGrantContextService exchangeGrantContext)
             : base(options, logger, encoder, clock)
         {
-            _authService = authService;
+            _exchangeGrantContext = exchangeGrantContext;
         }
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -41,11 +43,10 @@ namespace Youverse.Hosting.Authentication.App
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            // var authService = Context.RequestServices.GetRequiredService<IAppAuthenticationService>();
             if (GetAuthResult(out var authResult))
             {
-                var validationResult = await _authService.ValidateClientToken(authResult.SessionToken);
-                if (validationResult.IsValid)
+                var (isValid, _, __) = await _exchangeGrantContext.ValidateClientAuthToken(authResult);
+                if (isValid)
                 {
                     //TODO: this needs to be pulled from context rather than the domain
                     string domain = this.Context.Request.Host.Host;
@@ -74,7 +75,7 @@ namespace Youverse.Hosting.Authentication.App
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, AppAuthConstants.SchemeName);
-                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.SessionToken);
+                    ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);
                     return AuthenticateResult.Success(ticket);
                 }
             }
@@ -87,7 +88,7 @@ namespace Youverse.Hosting.Authentication.App
             if (GetAuthResult(out var result))
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-                authService.ExpireToken(result.SessionToken);
+                authService.ExpireToken(result.Id);
             }
 
             return Task.CompletedTask;
@@ -98,10 +99,11 @@ namespace Youverse.Hosting.Authentication.App
             return Task.CompletedTask;
         }
 
-        private bool GetAuthResult(out DotYouAuthenticationResult result)
+        private bool GetAuthResult(out ClientAuthenticationToken result)
         {
-            var value = Context.Request.Cookies[AppAuthConstants.CookieName];
-            if (DotYouAuthenticationResult.TryParse(value, out result))
+            var value = Context.Request.Cookies[AppAuthConstants.ClientAuthTokenCookieName];
+
+            if (ClientAuthenticationToken.TryParse(value, out result))
             {
                 return true;
             }

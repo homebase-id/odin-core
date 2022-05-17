@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using AppContext = Youverse.Core.Services.Base.AppContext;
@@ -13,17 +16,13 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        //Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, bool createDrive = false, bool canManageConnections = false);
-        
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid defaultDrivePublicId, bool createDrive = false, bool canManageConnections = false);
-        
+        // Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
+
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<Guid> driveIds);
+
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
-        /// <summary>
-        /// Creates the AppContext for a given client registration
-        /// </summary>
-        /// <returns></returns>
-        Task<AppContext> GetAppContext(Guid token, SensitiveByteArray clientHalfKek);
+        Task<AppRegistrationResponse> GetAppRegistrationByGrant(Guid grantId);
 
         /// <summary>
         /// Gets all registered apps
@@ -37,12 +36,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="applicationId"></param>
         /// <returns></returns>
         Task RevokeApp(Guid applicationId);
-
-        /// <summary>
-        /// Ensures public/private app keys are valid
-        /// </summary>
-        /// <returns></returns>
-        Task RefreshAppKeys();
 
         /// <summary>
         /// Allows an app that has been revoked
@@ -63,38 +56,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey);
 
-        /// <summary>
-        /// Returns the specified app device registration
-        /// </summary>
-        /// <returns></returns>
-        Task<AppClientRegistration> GetClientRegistration(Guid id);
-
-        /// <summary>
-        /// Gets the list of devices on which an app is registered.
-        /// </summary>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<AppClientRegistration>> GetClientRegistrationList(PageOptions pageOptions);
-
+        [Obsolete]
         Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
-
-        Task<bool> IsValidPublicKey(Guid transitContextAppId, uint publicKeyCrc);
-
+        
         Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
 
-        /// <summary>
-        /// Creates app context specifically for the transit system
-        /// </summary>
-        /// <returns></returns>
-        Task<AppContextBase> GetAppContextBase(Guid appId, bool includeMasterKey = false);
-
-        /// <summary>
-        /// Creates a new drive to be used with the specified app.  
-        /// </summary>
-        /// <param name="appId">The app Id</param>
-        /// <param name="publicDriveIdentifier">A key which can be shared publicly to specify when data should be pulled from this drive</param>
-        /// <param name="driveName"></param>
-        /// <returns></returns>
-        Task CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName);
     }
 }

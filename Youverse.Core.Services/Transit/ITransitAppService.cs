@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Converts a transfer key header to a long term key header and stores it for the specified file.
         /// </summary>
-        Task StoreLongTerm(DriveFileId file);
+        Task StoreLongTerm(InternalDriveFileId file);
 
         /// <summary>
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage

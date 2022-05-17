@@ -22,6 +22,11 @@ namespace Youverse.Core.Services.Authorization
         /// Indicates the current <see cref="ClaimsPrincipal"/> is a user with a valid certificate
         /// </summary>
         public static string IsIdentified = "https://schemas.youfoundation.id/2021/3/identity/IsIdentified";
+        
+        /// <summary>
+        /// Indicates the caller is on the Youverse network
+        /// </summary>
+        public static string IsInNetwork = "https://schemas.youfoundation.id/2021/3/identity/IsInNetwork";
 
         public static string SessionId = "https://schemas.youfoundation.id/2021/3/identity/SessionId";
 
@@ -30,8 +35,6 @@ namespace Youverse.Core.Services.Authorization
         /// </summary>
         public static string Actor = "https://schemas.youfoundation.id/2021/3/identity/Actor";
 
-        public static string PublicKeyCertificate = "https://schemas.youfoundation.id/2021/3/identity/PublicKeyCertificate";
-        
         public static string AuthResult  = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
         
         public static string IsAuthorizedApp = "https://schemas.youfoundation.id/2021/3/identity/IsAuthorizedApp";

@@ -24,20 +24,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _contextAccessor = contextAccessor;
         }
 
-        public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferKeyHeader rsaKeyHeader)
+        public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guid id = Guid.NewGuid();
 
-            var file = _driveService.CreateFileId(_contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault());
+            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.DriveAlias, true))!.Value;
+            var file = _driveService.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
 
-            await using var stream = new MemoryStream(JsonConvert.SerializeObject(rsaKeyHeader).ToUtf8ByteArray());
+            await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());
             await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
             item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
 
             this.Save(item);
-
             return id;
         }
 

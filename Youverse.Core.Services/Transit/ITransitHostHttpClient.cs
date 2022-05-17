@@ -18,9 +18,6 @@ namespace Youverse.Core.Services.Transit
             [AliasAs("header")] StreamPart header,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
-
-
-        [Get(HostRootEndpoint + "/tpk")]
-        Task<ApiResponse<TransitPublicKey>> GetTransitPublicKey();
+        
     }
 }

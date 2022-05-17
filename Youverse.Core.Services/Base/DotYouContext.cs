@@ -5,26 +5,28 @@ namespace Youverse.Core.Services.Base
 {
     public class DotYouContext
     {
-        private PermissionContext _permissions;
+        private PermissionContext _permissionsContext;
         
+        public string AuthContext { get; set; }
+
         public CallerContext Caller { get; set; }
 
         public IAppContext AppContext { get; set; }
-
-        public PermissionContext Permissions
+        
+        public PermissionContext PermissionsContext
         {
-            get { return _permissions; }
+            get { return _permissionsContext; }
         }
-
+        
         public void SetPermissionContext(PermissionContext pc)
         {
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware
-            if (null != _permissions)
+            if (null != _permissionsContext)
             {
                 throw new YouverseSecurityException("Cannot set permission context");
             }
 
-            _permissions = pc;
+            _permissionsContext = pc;
         }
 
         public void AssertCanManageConnections()
@@ -34,7 +36,7 @@ namespace Youverse.Core.Services.Base
                 return;
             }
 
-            if (Permissions != null && Permissions.HasPermission(SystemApiPermissionType.CircleNetwork, (int) CircleNetworkPermissions.Manage))
+            if (PermissionsContext != null && PermissionsContext.HasPermission(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage))
             {
                 return;
             }

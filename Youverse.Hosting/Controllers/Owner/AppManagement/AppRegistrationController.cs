@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.Owner.AppManagement
@@ -14,10 +17,12 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
     public class AppRegistrationController : Controller
     {
         private readonly IAppRegistrationService _appRegistrationService;
+        private readonly IDriveService _driveService;
 
-        public AppRegistrationController(IAppRegistrationService appRegistrationService)
+        public AppRegistrationController(IAppRegistrationService appRegistrationService, IDriveService driveService)
         {
             _appRegistrationService = appRegistrationService;
+            _driveService = driveService;
         }
 
         [HttpGet]
@@ -37,15 +42,20 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
         [HttpPost]
         public async Task<IActionResult> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistrationService.RegisterApp(appRegistration.ApplicationId, appRegistration.Name, appRegistration.DefaultDrivePublicId, appRegistration.CreateDrive, appRegistration.CanManageConnections);
-            return new JsonResult(reg);
-        }
+            var driveIds = new List<Guid>();
 
-        [HttpPost("drives/owned")]
-        public async Task<IActionResult> CreateOwnedDrive(Guid appId, Guid publicDriveIdentifier, string driveName)
-        {
-            await _appRegistrationService.CreateOwnedDrive(appId, publicDriveIdentifier, driveName);
-            return Ok();
+            if (appRegistration.CreateDrive)
+            {
+                var drive = await _driveService.CreateDrive(appRegistration.DriveName, appRegistration.DriveType, appRegistration.DefaultDrivePublicId, appRegistration.DriveMetadata, appRegistration.DriveAllowAnonymousReads);
+                driveIds.Add(drive.Id);
+            }
+
+            var reg = await _appRegistrationService.RegisterApp(
+                applicationId: appRegistration.ApplicationId,
+                name: appRegistration.Name,
+                permissions: appRegistration.PermissionSet,
+                driveIds: driveIds);
+            return new JsonResult(reg);
         }
 
         [HttpPost("revoke/{appId}")]

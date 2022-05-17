@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Notifications;
 
 namespace Youverse.Hosting.Middleware

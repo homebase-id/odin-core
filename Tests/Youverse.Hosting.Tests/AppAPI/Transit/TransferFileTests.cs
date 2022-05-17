@@ -40,14 +40,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var sender = TestIdentities.Frodo;
             var recipients = new List<string>() {TestIdentities.Samwise};
 
-            var testContext = await _scaffold.SetupTestSampleApp(sender);
+            Guid appId = Guid.NewGuid();
+            Guid driveAlias = Guid.NewGuid();
+            var testContext = await _scaffold.SetupTestSampleApp(appId, sender, false, driveAlias);
 
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity) r;
-                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient);
+                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
+
+                await _scaffold.CreateConnection(sender, recipient);
             }
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -58,7 +62,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveIdentifier = null,
+                    DriveAlias = testContext.DriveAlias,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -93,7 +97,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
             {
                 var transitSvc = RestService.For<ITransitTestHttpClient>(client);
                 var response = await transitSvc.Upload(
@@ -107,7 +111,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
 
                 foreach (var recipient in instructionSet.TransitOptions.Recipients)
                 {
@@ -118,6 +122,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             keyHeader.AesKey.Wipe();
             key.Wipe();
+
+            foreach (var recipient in recipientContexts.Keys)
+            {
+                await _scaffold.DisconnectIdentities(sender, recipient);
+            }
+
 
             //connect to all recipients to determine if they received
 
@@ -189,7 +199,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             });
 
             var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.AuthResult))
+            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.ClientAuthenticationToken))
             {
                 var svc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
                 var itemsResponse = await svc.GetInboxItems(1, 100);
@@ -199,18 +209,16 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.IsNotNull(items);
                 Assert.IsTrue(items.Results.Count == 1);
 
-                var singleItemResponse = await svc.GetInboxItem(items.Results.First().Id);
+                var inboxItemResponse = await svc.GetInboxItem(items.Results.First().Id);
 
-                Assert.IsTrue(singleItemResponse.IsSuccessStatusCode);
-                var singleItem = singleItemResponse.Content;
-                Assert.IsNotNull(singleItem);
-                Assert.IsTrue(singleItem.Id == items.Results.First().Id);
+                Assert.IsTrue(inboxItemResponse.IsSuccessStatusCode);
+                var inboxItem = inboxItemResponse.Content;
+                Assert.IsNotNull(inboxItem);
+                Assert.IsTrue(inboxItem.Id == items.Results.First().Id);
 
                 var driveSvc = RestService.For<IDriveStorageHttpClient>(recipientClient);
 
-                var fileId = singleItem.File.FileId;
-
-                var fileHeaderResponse = await driveSvc.GetFileHeader(fileId);
+                var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.DriveAlias, inboxItem.File.FileId);
                 Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileHeaderResponse.Content, Is.Not.Null);
 
@@ -227,7 +235,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
+                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv byte array was all zeros");
                 Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 var key = recipientContext.AppSharedSecretKey.ToSensitiveByteArray();
@@ -238,7 +246,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(fileId);
+                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveAlias, inboxItem.File.FileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -256,7 +264,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var driveQueryClient = RestService.For<IDriveQueryClient>(recipientClient);
 
-                var response = await driveQueryClient.GetByTag(recipientContext.DefaultDrivePublicId, categoryId, true, 1, 100);
+                var response = await driveQueryClient.GetByTag(recipientContext.DriveAlias, categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var page = response.Content;
                 Assert.IsNotNull(page);
@@ -270,6 +278,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 // {
                 //     Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
                 // }
+                
             }
         }
     }

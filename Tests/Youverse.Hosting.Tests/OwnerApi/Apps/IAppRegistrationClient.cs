@@ -30,12 +30,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         [Post(RootPath + "/clients")]
         Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
 
-        [Get(RootPath + "/clients/{id}")]
-        Task<ApiResponse<AppClientRegistration>> GetRegisteredAppClient(Guid id);
-
-        [Get(RootPath + "/clients")]
-        Task<ApiResponse<PagedResult<AppClientRegistration>>> GetRegisteredAppDeviceList([Query] int pageNumber, [Query] int pageSize);
-
         [Post(RootPath + "/clients/revoke")]
         Task<ApiResponse<NoResultResponse>> RevokeAppClient([Query]Guid appClientId);
         

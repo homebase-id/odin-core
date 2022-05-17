@@ -5,6 +5,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitPublicKey
     {
+        [Obsolete]
         public Guid AppId { get; set; }
 
         public RsaPublicKeyData PublicKeyData { get; set; }

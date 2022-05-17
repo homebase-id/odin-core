@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Accepts an incoming file as complete and valid.
         /// </summary>
-        Task AcceptTransfer(DriveFileId file, uint publicKeyCrc);
+        Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc);
 
         /// <summary>
         /// Sends a collection if <see cref="OutboxItem"/>s

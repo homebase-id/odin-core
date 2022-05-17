@@ -47,50 +47,32 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
 
-            Guid driveId;
-
-            //Use the drive requested, if set
-            var requestedDrive = instructionSet?.StorageOptions?.DriveIdentifier;
-            if (requestedDrive.HasValue)
+            if (instructionSet.StorageOptions?.DriveAlias == null)
             {
-                var requestedDriveId = _contextAccessor.GetCurrent().AppContext.OwnedDrives
-                    .SingleOrDefault(x => x.DriveIdentifier == requestedDrive.Value)?
-                    .DriveId;
-
-                if (!requestedDriveId.HasValue)
-                {
-                    throw new MissingDataException("Invalid public drive identifier");
-                }
-
-                driveId = requestedDriveId.GetValueOrDefault();
-            }
-            else
-            {
-                driveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault();
+                throw new UploadException("Missing drive alias");
             }
 
-            if (driveId == Guid.Empty)
-            {
-                throw new UploadException("Missing or invalid driveId");
-            }
+            InternalDriveFileId file;
+            var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.DriveAlias, true).Result.GetValueOrDefault();
+            var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
-            DriveFileId file;
-            if (instructionSet.StorageOptions?.OverwriteFileId.HasValue ?? false)
-            {
-                //file to overwrite
-                file = new DriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = instructionSet.StorageOptions.OverwriteFileId.GetValueOrDefault()
-                };
-            }
-            else
+            if (overwriteFileId == Guid.Empty)
             {
                 //get a new fileid
-                file = _driveService.CreateFileId(driveId);
+                file = _driveService.CreateInternalFileId(driveId);
+            }
+            else
+            {
+                //file to overwrite
+                file = new InternalDriveFileId()
+                {
+                    DriveId = driveId,
+                    FileId = overwriteFileId
+                };
             }
 
             var pkgId = Guid.NewGuid();
+
             var package = new UploadPackage(file, instructionSet!);
             _packages.Add(pkgId, package);
 
@@ -104,7 +86,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid package Id");
             }
 
-            await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Metadata.ToString(), data);
+            await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
         }
 
         public async Task AddPayload(Guid packageId, Stream data)
@@ -114,7 +96,7 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Invalid package Id");
             }
 
-            await _driveService.WriteTempStream(pkg.File, MultipartUploadParts.Payload.ToString(), data);
+            await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         }
 
         public async Task<UploadPackage> GetPackage(Guid packageId)

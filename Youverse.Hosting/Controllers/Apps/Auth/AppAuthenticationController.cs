@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authentication.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Hosting.Controllers.Apps.Auth
 {
@@ -9,17 +10,21 @@ namespace Youverse.Hosting.Controllers.Apps.Auth
     [Route(AppApiPathConstants.BasePathV1 + "/auth")]
     public class AppAuthenticationController : Controller
     {
-        private readonly IAppAuthenticationService _appAuth;
-        
-        public AppAuthenticationController(IAppAuthenticationService appAuth)
+        private readonly ExchangeGrantContextService _exchangeGrantContext;
+
+        public AppAuthenticationController(ExchangeGrantContextService exchangeGrantContext)
         {
-            _appAuth = appAuth;
+            _exchangeGrantContext = exchangeGrantContext;
         }
 
         [HttpGet("validate")]
-        public async Task<IActionResult> ValidateClientToken(Guid token)
+        public async Task<IActionResult> ValidateClientToken(string ssCat64)
         {
-            var result = await _appAuth.ValidateClientToken(token);
+            var (isValid, _, __) = await _exchangeGrantContext.ValidateClientAuthToken(ssCat64);
+            var result = new AppTokenValidationResult()
+            {
+                IsValid = isValid
+            };
             return new JsonResult(result);
         }
     }

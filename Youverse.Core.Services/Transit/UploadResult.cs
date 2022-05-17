@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit
             this.RecipientStatus = new();
         }
         
-        public DriveFileId File { get; set; }
+        public ExternalFileIdentifier File { get; set; }
         
         public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
     }

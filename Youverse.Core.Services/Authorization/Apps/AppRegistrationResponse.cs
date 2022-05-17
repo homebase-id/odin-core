@@ -7,12 +7,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         public Guid ApplicationId { get; set; }
         
         public string Name { get; set; }
-
+        
+        [Obsolete("is revoked comes from the EGR bound in the app")]
         public bool IsRevoked { get; set; }
         
-        /// <summary>
-        /// The drive associated with this app.
-        /// </summary>
-        public Guid? DefaultDriveId { get; set; }
+        
+        
     }
 }

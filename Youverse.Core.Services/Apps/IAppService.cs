@@ -13,6 +13,6 @@ namespace Youverse.Core.Services.Apps
         /// <summary>
         /// Gets the file header information encrypted using the app's shared secret for the requesting client
         /// </summary>
-        Task<ClientFileHeader> GetClientEncryptedFileHeader(DriveFileId file);
+        Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file);
     }
 }

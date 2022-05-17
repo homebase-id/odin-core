@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Drive.Storage
     {
         public FileMetadata()
         {
-            this.File = new DriveFileId()
+            this.File = new InternalDriveFileId()
             {
                 DriveId = Guid.Empty,
                 FileId = Guid.Empty
@@ -20,22 +20,36 @@ namespace Youverse.Core.Services.Drive.Storage
             this.AppData = new AppFileMetaData();
         }
 
-        public FileMetadata(DriveFileId file)
+        public FileMetadata(InternalDriveFileId file)
         {
             this.File = file;
             this.AppData = new AppFileMetaData();
         }
 
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
+
         public UInt64 Created { get; set; }
+
         public UInt64 Updated { get; set; }
+        
+        /// <summary>
+        /// Specifies the app which last updated this file
+        /// </summary>
+        //public Guid LastUpdatedAppId { get; set; }
+        
         public string ContentType { get; set; }
 
-
+        /// <summary>
+        /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
+        /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
+        /// </summary>
+        public bool PayloadIsEncrypted { get; set; }
+        
         /// <summary>
         /// The DotYouId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
         public string SenderDotYouId { get; set; }
+
 
         public AccessControlList AccessControlList { get; set; }
         

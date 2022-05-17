@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Transit
 
         public TransferFailureReason? FailureReason { get; set; }
 
-        public DriveFileId File { get; set; }
+        public InternalDriveFileId File { get; set; }
 
         public UInt64 Timestamp { get; set; }
         public Guid OutboxItemId { get; set; }

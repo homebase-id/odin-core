@@ -6,6 +6,7 @@ using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -17,8 +18,9 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.YouAuth;
 using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
@@ -38,6 +40,12 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
+            //HACK: why is this suddenly needed!? 
+            services.Configure<KestrelServerOptions>(options =>
+            {
+                options.AllowSynchronousIO = true;
+            });
+            
             var config = new Configuration(Configuration);
             services.AddSingleton(config);
 
@@ -62,7 +70,7 @@ namespace Youverse.Hosting
 
             services.AddControllers(options =>
                 {
-                    options.Filters.Add(new ApplyPerimeterMetaData());
+                    // options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
@@ -77,13 +85,16 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
                 .AddAppAuthentication()
-                .AddTransitPerimeterAuthentication();
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme);
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
-                TransitPerimeterPolicies.AddPolicies(policy);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
+                YouAuthPolicies.AddPolicies(policy);
             });
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();

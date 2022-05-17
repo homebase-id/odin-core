@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() { TestIdentities.Frodo };
             var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthenticationResult))
             {
                 var svc = RestService.For<ITransitTestOutboxHttpClient>(client);
 
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() { TestIdentities.Frodo };
             var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthenticationResult))
             {
                 var svc = RestService.For<ITransitTestOutboxHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() { TestIdentities.Frodo };
             var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthenticationResult))
             {
                 var svc = RestService.For<ITransitTestOutboxHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);
@@ -131,7 +131,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() { TestIdentities.Frodo };
             var utilsContext = await _scaffold.TransferFile(sender, recipients);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthResult))
+            using (var client = _scaffold.CreateAppApiHttpClient(sender, utilsContext.AuthenticationResult))
             {
                 var svc = RestService.For<ITransitTestOutboxHttpClient>(client);
                 var itemsResponse = await svc.GetOutboxItems(1, 100);

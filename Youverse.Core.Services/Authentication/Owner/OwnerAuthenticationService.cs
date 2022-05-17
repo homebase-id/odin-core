@@ -6,6 +6,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 
 /// <summary>
@@ -55,7 +56,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return nonce;
         }
 
-        public async Task<(DotYouAuthenticationResult, SensitiveByteArray)> Authenticate(IPasswordReply reply)
+        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply)
         {
             
             Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
@@ -83,10 +84,10 @@ namespace Youverse.Core.Services.Authentication.Owner
             // TODO: audit login some where, or in helper class below
 
 
-            var auth = new DotYouAuthenticationResult()
+            var auth = new ClientAuthenticationToken()
             {
-                SessionToken = serverToken.Id,
-                ClientHalfKek = new SensitiveByteArray(clientToken.GetKey())
+                Id = serverToken.Id,
+                AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey())
             };
 
             return (auth, serverToken.SharedSecret.ToSensitiveByteArray());

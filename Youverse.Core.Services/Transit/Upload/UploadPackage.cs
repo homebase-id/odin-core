@@ -10,20 +10,19 @@ namespace Youverse.Core.Services.Transit.Upload
     /// </summary>
     public class UploadPackage
     {
-        public UploadPackage(DriveFileId file, UploadInstructionSet instructionSet, int expectedPartsCount = 3)
+        public UploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet)
         {
-            Guard.Argument(file, nameof(file)).HasValue();
-            Guard.Argument(file.FileId, nameof(file.FileId)).NotEqual(Guid.Empty);
-            Guard.Argument(file.DriveId, nameof(file.DriveId)).NotEqual(Guid.Empty);
+            Guard.Argument(internalFile, nameof(internalFile)).HasValue();
+            Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
+            Guard.Argument(internalFile.DriveId, nameof(internalFile.DriveId)).NotEqual(Guid.Empty);
 
-            this.File = file;
+            this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
-            this.ExpectedPartsCount = expectedPartsCount;
         }
 
-        public UploadInstructionSet InstructionSet { get; set; }
+        public UploadInstructionSet InstructionSet { get; init; }
         
-        public DriveFileId File { get; set; }
-        public int ExpectedPartsCount { get; }
+        public InternalDriveFileId InternalFile { get; init; }
+        
     }
 }

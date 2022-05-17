@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic.FileIO;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
@@ -31,6 +32,26 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns></returns>
         Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
+
+        /// <summary>
+        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
+        /// </summary>
+        /// <param name="fileType">The type of file to match</param>
+        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        
+        /// <summary>
+        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
+        /// </summary>
+        /// <param name="tag">The category to match</param>
+        /// <param name="fileType">The type of file to match</param>
+        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
+        /// <param name="pageOptions"></param>
+        /// <returns></returns>
+        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
         /// </summary>
@@ -38,7 +59,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
 
         /// <summary>
@@ -51,6 +72,20 @@ namespace Youverse.Core.Services.Drive.Query
         /// Updates the current index that is in use.
         /// </summary>
         Task UpdateCurrentIndex(FileMetadata metadata);
+
+        /// <summary>
+        /// Removes the specified file from the index that is currently in use.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        Task RemoveFromCurrentIndex(InternalDriveFileId file);
+
+        /// <summary>
+        /// Removes the specified file from the secondary index.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        Task RemoveFromSecondaryIndex(InternalDriveFileId file);
 
         /// <summary>
         /// Updates the index that is not currently in use.  Use when performing a rebuild.

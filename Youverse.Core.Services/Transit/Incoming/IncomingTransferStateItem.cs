@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Transit.Incoming
             //for LiteDB
         }
 
-        public IncomingTransferStateItem(Guid id, DriveFileId tempFile)
+        public IncomingTransferStateItem(Guid id, InternalDriveFileId tempFile)
         {
             Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// </summary>
         public uint PublicKeyCrc { get; set; }
 
-        public DriveFileId TempFile { get; set; }
+        public InternalDriveFileId TempFile { get; set; }
 
         public PartState HeaderState { get; set; }
         public PartState MetadataState { get; set; }

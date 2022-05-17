@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// Removes the outbox item for the given recipient and file
         /// </summary>
         /// <returns></returns>
-        Task Remove(DotYouIdentity recipient, DriveFileId file);
+        Task Remove(DotYouIdentity recipient, InternalDriveFileId file);
         
 
         /// <summary>

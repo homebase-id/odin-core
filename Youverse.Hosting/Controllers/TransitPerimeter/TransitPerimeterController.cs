@@ -10,7 +10,8 @@ using Newtonsoft.Json;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Hosting.Authentication.TransitPerimeter;
+using Youverse.Hosting.Authentication.CertificatePerimeter;
+using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Controllers.TransitPerimeter
 {
@@ -19,7 +20,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    [Authorize(Policy = TransitPerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = TransitPerimeterAuthConstants.TransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;
@@ -30,13 +31,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             _perimeterService = perimeterService;
         }
 
-        [HttpGet("tpk")]
-        public async Task<JsonResult> GetTransitPublicKey()
-        {
-            var key = await _perimeterService.GetTransitPublicKey();
-            return new JsonResult(key);
-        }
-
+        
         [HttpPost("stream")]
         public async Task<IActionResult> AcceptHostToHostTransfer()
         {
@@ -81,7 +76,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
 
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = JsonConvert.DeserializeObject<RsaEncryptedRecipientTransferKeyHeader>(json);
+            var transferKeyHeader = JsonConvert.DeserializeObject<RsaEncryptedRecipientTransferInstructionSet>(json);
 
             var transferStateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
             return transferStateItemId;

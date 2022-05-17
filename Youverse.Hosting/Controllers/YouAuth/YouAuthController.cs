@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Authorization.Exchange;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.YouAuth;
 
@@ -36,7 +39,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, halfKey) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, clientAuthToken) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -52,8 +55,8 @@ namespace Youverse.Hosting.Controllers.YouAuth
                     StatusCode = problemDetails.Status,
                 };
             }
-            
-            var (session, sessionHalfKey) = await _youAuthService.CreateSession(subject, halfKey?.ToSensitiveByteArray() ?? null);
+
+            var clientAccessToken = await _youAuthService.CreateSession(subject, clientAuthToken);
 
             var options = new CookieOptions()
             {
@@ -63,15 +66,16 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 SameSite = SameSiteMode.Strict
             };
 
-            Response.Cookies.Append(YouAuthDefaults.SessionCookieName, session.Id.ToString(), options);
-            if(null != sessionHalfKey)
-            {
-                Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, Convert.ToBase64String(sessionHalfKey), options);
-            }
-            
-            //session.XToken.SharedSecretKey
-            //TODO: need to send shared secret and place in local storage
-            return Redirect(returnUrl);
+            var authenticationToken = clientAccessToken.ToAuthenticationToken();
+
+            Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, authenticationToken.ToString(), options);
+
+            //TODO: RSA Encrypt shared secret
+            var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
+            clientAccessToken?.Wipe();
+
+            var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            return Redirect(handlerUrl);
         }
 
 
@@ -79,7 +83,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme, Policy = YouAuthPolicies.IsIdentified)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -97,7 +101,6 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 await _youAuthService.DeleteSession(User.Identity.Name);
             }
 
-            Response.Cookies.Delete(YouAuthDefaults.SessionCookieName);
             Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
             return Ok();
         }

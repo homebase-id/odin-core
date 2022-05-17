@@ -5,11 +5,11 @@ using Youverse.Core.Services.Drive;
 namespace Youverse.Core.Services.Authorization.Apps
 {
     /// <summary>
-    /// Specifies a drive
+    /// Specifies a permissions granted to an app for a given drive
     /// </summary>
     public class AppDriveGrant
     {
-        public Guid DriveIdentifier { get; set; }
+        public Guid DriveAlias { get; set; }
 
         public Guid DriveId { get; set; }
         
@@ -20,5 +20,4 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public DrivePermissions Permissions { get; set; }
     }
-    
 }

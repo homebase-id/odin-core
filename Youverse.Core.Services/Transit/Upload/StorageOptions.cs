@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// The drive in which to store this file
         /// </summary>
-        public Guid? DriveIdentifier { get; set; }
+        public Guid DriveAlias { get; set; }
     
         /// <summary>
         /// The fileId to overwrite if it exists

@@ -1,19 +1,10 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.TagHelpers.Cache;
-using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Authentication.App;
 using Youverse.Hosting.Controllers.Owner;
-
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
 {
@@ -35,11 +26,12 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata(Guid fileId)
+        public async Task<IActionResult> GetMetadata(Guid driveAlias, Guid fileId)
         {
-            var file = new DriveFileId()
+            
+            var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
@@ -47,17 +39,28 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayload(Guid fileId)
+        public async Task<IActionResult> GetPayload(Guid driveAlias, Guid fileId)
         {
-            var file = new DriveFileId()
+            var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().AppContext.DriveId.GetValueOrDefault(),
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
                 FileId = fileId
             };
 
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
+        }
+
+        [HttpDelete("files")]
+        public async Task DeleteFile(Guid driveAlias, Guid fileId)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias),
+                FileId = fileId
+            };
+            await _driveService.DeleteLongTermFile(file);
         }
     }
 }

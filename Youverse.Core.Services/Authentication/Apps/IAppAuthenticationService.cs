@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Authentication.Apps
         /// <summary>
         /// Validates the token given to a client during registration
         /// </summary>
-        /// <param name="token"></param>
-        Task<AppTokenValidationResult> ValidateClientToken(Guid token);
+        /// <param name="accessRegistrationId"></param>
+        Task<AppTokenValidationResult> ValidateClientToken(Guid accessRegistrationId);
     }
 }

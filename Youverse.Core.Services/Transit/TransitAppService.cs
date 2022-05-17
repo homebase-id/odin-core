@@ -5,10 +5,13 @@ using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
 
@@ -21,10 +24,11 @@ namespace Youverse.Core.Services.Transit
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
         private readonly IInboxService _inboxService;
+        private readonly IPublicKeyService _publicKeyService;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService)
+        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -32,33 +36,37 @@ namespace Youverse.Core.Services.Transit
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
             _inboxService = inboxService;
+            _publicKeyService = publicKeyService;
         }
 
-        public async Task StoreLongTerm(DriveFileId file)
+        public async Task StoreLongTerm(InternalDriveFileId file)
         {
-            var rsaKeyHeader = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferKeyHeader>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+            var transferInstructionSet = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+            
+            var decryptedAesKeyHeaderBytes = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+            var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
+            decryptedAesKeyHeaderBytes.WriteZeros();
 
-            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            var appKey = _contextAccessor.GetCurrent().AppContext.GetAppKey();
+            // var keyHeader = KeyHeader.FromCombinedBytes(transferInstructionSet.EncryptedAesKeyHeader, 16, 16);
 
-            var keys = await _appRegistrationService.GetRsaKeyList(appId);
-            var pk = RsaKeyListManagement.FindKey(keys, rsaKeyHeader.PublicKeyCrc);
+            // var decryptedClientAuthTokenBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedClientAuthToken).ToSensitiveByteArray();
+            // var clientAuthToken = ClientAuthToken.Parse(decryptedClientAuthTokenBytes.GetKey().StringFromUTF8Bytes());
+            // decryptedClientAuthTokenBytes.Wipe();
 
-            if (pk == null)
-            {
-                throw new YouverseSecurityException("Invalid public key");
-            }
-
-            var decryptedPrivateKey = pk.Decrypt(ref appKey, rsaKeyHeader.EncryptedAesKey).ToSensitiveByteArray();
-            var keyHeader = KeyHeader.FromCombinedBytes(decryptedPrivateKey.GetKey(), 16, 16);
-            decryptedPrivateKey.Wipe();
+            // transferInstructionSet.DriveAlias
 
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
             var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
+            
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
-            metadata.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
+            metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
+
+            metadata.AccessControlList = new AccessControlList()
+            {
+                RequiredSecurityGroup = SecurityGroupType.Owner
+            };
 
             await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
         }
@@ -70,12 +78,19 @@ namespace Youverse.Core.Services.Transit
             foreach (var item in items.Results)
             {
                 await StoreLongTerm(item.TempFile);
+
+                var externalFileIdentifier = new ExternalFileIdentifier()
+                {
+                    DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                    FileId = item.TempFile.FileId
+                };
+
                 await _inboxService.Add(new InboxItem()
                 {
                     Sender = item.Sender,
                     AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                     AppId = item.AppId,
-                    File = item.TempFile,
+                    File = externalFileIdentifier,
                     Priority = 0 //TODO
                 });
                 await _transitBoxService.Remove(item.AppId, item.Id);

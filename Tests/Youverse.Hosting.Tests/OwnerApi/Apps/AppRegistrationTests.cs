@@ -37,13 +37,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var newId = await AddSampleAppNoDrive(appId, name);
         }
-
-        [Test]
-        public async Task RegisterNewAppWithDrive()
-        {
-            Assert.Inconclusive("TODO");
-        }
-
+        
         [Test]
         public async Task RevokeAppRegistration()
         {
@@ -70,7 +64,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         public async Task RegisterAppOnClient()
         {
             var identity = TestIdentities.Frodo;
-            
+
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
@@ -93,29 +87,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 var reply = regResponse.Content;
                 var decryptedData = rsa.Decrypt(ref RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
-            
+
                 //only supporting version 1 for now
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(decryptedData, Is.Not.Null);
-                Assert.That(decryptedData.Length, Is.EqualTo(32));
+                Assert.That(decryptedData.Length, Is.EqualTo(48));
 
-                var (clientKek, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16);
+                var (idBytes, clientAccessHalfKey, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16, 16);
 
-                Assert.IsNotNull(clientKek);
+                Assert.False(new Guid(idBytes) == Guid.Empty);
+                Assert.IsNotNull(clientAccessHalfKey);
                 Assert.IsNotNull(sharedSecret);
-                Assert.That(clientKek.Length, Is.EqualTo(16));
+                Assert.That(clientAccessHalfKey.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
-                
-                var savedAppClientResponse = await svc.GetRegisteredAppClient(reply.Token);
-                Assert.IsTrue(savedAppClientResponse.IsSuccessStatusCode);
-                var savedAppClient = savedAppClientResponse.Content;
-                
-                Assert.IsNotNull(savedAppClient);
-                Assert.IsTrue(savedAppClient.ApplicationId == appId);
-                Assert.IsFalse(savedAppClient.IsRevoked);
-                Assert.IsFalse(savedAppClient.Id == Guid.Empty);
-
             }
         }
 
@@ -126,8 +111,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
+                    ApplicationId = applicationId,
                     Name = name,
-                    ApplicationId = applicationId
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -139,7 +124,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var savedApp = await GetSampleApp(applicationId);
                 Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
                 Assert.IsTrue(savedApp.Name == request.Name);
-                Assert.IsTrue(savedApp.DefaultDriveId == null);
 
                 return appReg;
             }

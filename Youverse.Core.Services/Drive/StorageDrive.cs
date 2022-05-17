@@ -39,6 +39,24 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public override Guid Alias
+        {
+            get => _inner.Alias;
+            set { }
+        }
+        
+        public override Guid Type
+        {
+            get => _inner.Type;
+            set { }
+        }
+        
+        public override string Metadata
+        {
+            get => _inner.Metadata;
+            set { }
+        }
+
         public override bool IsReadonly
         {
             get => _inner.IsReadonly;
@@ -60,6 +78,12 @@ namespace Youverse.Core.Services.Drive
         public override byte[] EncryptedIdValue
         {
             get => _inner.EncryptedIdValue;
+            set { }
+        }
+
+        public override bool AllowAnonymousReads
+        {
+            get => _inner.AllowAnonymousReads;
             set { }
         }
 
@@ -85,13 +109,23 @@ namespace Youverse.Core.Services.Drive
     public class StorageDriveBase
     {
         public virtual Guid Id { get; init; }
-        
-        /// <summary>
-        /// Specifies a fixed value used to look up this drive.  This is intended to be shared 
-        /// </summary>
-        public virtual Guid? Key { get; init; }
 
         public virtual string Name { get; set; }
+
+        /// <summary>
+        /// Data specified by the client to further help with usage of this drive (i.e. a json string indicating things like description, etc.)
+        /// </summary>
+        public virtual string Metadata { get; set; }
+        
+        /// <summary>
+        /// Specifies a public identifier for accessing this drive.  This stops us from sharing the Id outside of this system.
+        /// </summary>
+        public virtual Guid Alias { get; set; }
+
+        /// <summary>
+        /// Specifies the type of data stored here.  This field is set by the client when creating a drive.
+        /// </summary>
+        public virtual Guid Type { get; set; }
 
         /// <summary>
         /// Specifies the drive can only be written to by the owner while in the OwnerAuth context
@@ -106,5 +140,11 @@ namespace Youverse.Core.Services.Drive
         public virtual byte[] EncryptedIdIv { get; set; }
 
         public virtual byte[] EncryptedIdValue { get; set; }
+
+        /// <summary>
+        /// Specifies if anonymous callers can read this drive.
+        /// </summary>
+        public virtual bool AllowAnonymousReads { get; set; }
+        
     }
 }

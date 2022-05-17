@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// <summary>
         /// Removes the Inbox item for the given recipient and file
         /// </summary>
-        Task Remove(DotYouIdentity recipient, DriveFileId file);
+        Task Remove(DotYouIdentity recipient, InternalDriveFileId file);
 
         Task<InboxItem> GetItem(Guid id);
 

@@ -10,6 +10,8 @@
 
         public const string AppManagementDrivesV1 = AppManagementV1 + "/drives";
         
+        public const string SecurityConfig = BasePathV1 + "/securityconfig";
+
         public const string YouAuthV1 = BasePathV1 + "/youauth";
 
         public const string DrivesV1 = BasePathV1 + "/drive";
@@ -19,6 +21,8 @@
         public const string ProvisioningV1 = BasePathV1 + "/provisioning";
         
         public const string CirclesV1 = BasePathV1 + "/circles";
+        
+        public const string NotificationsV1 = BasePathV1 + "/notify";
 
     }
 }

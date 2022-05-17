@@ -11,17 +11,19 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, string authContext, bool isInYouverseNetwork = false)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, string authContext, bool isInYouverseNetwork = false, bool isAnonymous = true, bool isConnected = false)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
             this._masterKey = masterKey;
             this.AuthContext = authContext;
             this.IsInYouverseNetwork = isInYouverseNetwork;
+            this.IsAnonymous = isAnonymous;
+            this.IsConnected = isConnected;
         }
-        
+
         public string AuthContext { get; set; }
-        
+
         /// <summary>
         /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
         /// </summary>
@@ -38,6 +40,15 @@ namespace Youverse.Core.Services.Base
         }
 
         public bool IsInYouverseNetwork { get; }
+        public bool IsAnonymous { get; }
+
+        public bool IsConnected { get; private set; }
+
+        public void SetIsConnected()
+        {
+            //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
+            this.IsConnected = true;
+        }
 
         public void AssertHasMasterKey()
         {

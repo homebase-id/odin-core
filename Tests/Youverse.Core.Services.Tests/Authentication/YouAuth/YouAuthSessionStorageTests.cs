@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Youverse.Core.Services.Authentication.YouAuth;
@@ -9,7 +8,6 @@ using Youverse.Core.Services.Base;
 using NSubstitute;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.Exchange;
 using Youverse.Core.Services.Registry;
 
 #nullable enable
@@ -46,6 +44,7 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             {
                 Directory.Delete(_dataStoragePath, true);
             }
+
             if (!string.IsNullOrWhiteSpace(_tempStoragePath))
             {
                 Directory.Delete(_tempStoragePath, true);
@@ -59,23 +58,10 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
 
             var sessionlifetime = TimeSpan.FromDays(1);
             var sessionId = Guid.NewGuid();
+            
+            var accessRegistrationId = Guid.Empty;
 
-            var mk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var ksk = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var hhk = new SymmetricKeyEncryptedXor(ref ksk, out var _);
-            
-            var xtoken = new XToken()
-            {
-                Id = Guid.NewGuid(),
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
-                DriveKeyHalfKey = hhk,
-                MasterKeyEncryptedDriveKey = new SymmetricKeyEncryptedAes(ref mk, ref ksk),
-                ClientSharedSecretKey = ByteArrayUtil.GetRndByteArray(16),
-                IsRevoked = false,
-                DriveGrants = new List<XTokenDriveGrant>()
-            };
-            
-            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, xtoken);
+            var session = new YouAuthSession(sessionId, "samtheman", sessionlifetime, accessRegistrationId);
 
             youAuthSessionStorage.Save(session);
             var copy = youAuthSessionStorage.LoadFromId(session.Id);
@@ -84,15 +70,8 @@ namespace Youverse.Core.Services.Tests.Authentication.YouAuth
             Assert.That(session.CreatedAt, Is.EqualTo(copy!.CreatedAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.That(session.ExpiresAt, Is.EqualTo(copy!.ExpiresAt).Within(TimeSpan.FromMilliseconds(1)));
             Assert.AreEqual(session.Subject, copy!.Subject);
-            
-            
-            Assert.That(session.XToken.DriveKeyHalfKey.KeyEncrypted, Is.EqualTo(copy.XToken.DriveKeyHalfKey.KeyEncrypted));
-            Assert.That(session.XToken.ClientSharedSecretKey, Is.EqualTo(copy.XToken.ClientSharedSecretKey));
-            Assert.That(session.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted, Is.EqualTo(copy.XToken.MasterKeyEncryptedDriveKey.KeyEncrypted));
-            Assert.That(session.XToken.Created, Is.EqualTo(copy.XToken.Created));
-            Assert.That(session.XToken.Id, Is.EqualTo(copy.XToken.Id));
-            CollectionAssert.AreEquivalent(session.XToken.DriveGrants, copy.XToken.DriveGrants);
-        }
 
+            Assert.That(session.AccessRegistrationId, Is.EqualTo(copy.AccessRegistrationId));
+        }
     }
 }
