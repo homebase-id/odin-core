@@ -10,14 +10,5 @@ namespace Youverse.Core.Services.Base
 
         string AppName { get; }
         
-        SensitiveByteArray GetAppKey();
-
-        SensitiveByteArray ClientSharedSecret
-        {
-            get
-            {
-                throw new NotImplementedException("todo");
-            }
-        }
     }
 }

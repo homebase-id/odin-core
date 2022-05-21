@@ -11,8 +11,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<(bool, ClientAuthenticationToken?)> ValidateAuthorizationCodeRequest(string initiator, string subject, string authorizationCode);
         ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode);
 
-        // ValueTask<(YouAuthSession, ClientAccessToken?)> CreateSession(string subject, ClientAuthToken? clientAuthToken);
-        ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? icrClientAuthToken);
+        /// <summary>
+        /// Creates an <see cref="AccessRegistration"/> for the browser and <see cref="ClientAccessToken"/> for use with the YouAuth Protocol
+        /// </summary>
+        /// <returns></returns>
+        ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken);
 
         ValueTask DeleteSession(string subject);
     }

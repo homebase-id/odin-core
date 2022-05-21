@@ -72,7 +72,6 @@ namespace Youverse.Hosting.Authentication.Perimeter
                 new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
             };
             
-            //TODO: need to app permission negations at the app level, meaning that while sam can form operations; he cannot perform those operations when using a specific app
             string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
             
             if (Guid.TryParse(appIdValue, out var appId) && appId != Guid.Empty)

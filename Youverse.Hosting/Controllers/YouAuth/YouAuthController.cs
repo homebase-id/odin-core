@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var (success, clientAuthToken) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
+            var (success, remoteIcrClientAuthToken) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
             {
@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
                 };
             }
 
-            var clientAccessToken = await _youAuthService.CreateSession(subject, clientAuthToken);
+            var clientAccessToken = await _youAuthService.RegisterBrowserAccess(subject, remoteIcrClientAuthToken);
 
             var options = new CookieOptions()
             {

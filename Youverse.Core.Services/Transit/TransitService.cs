@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Transit
         {
             var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
-            var clientSharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
+            var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
@@ -145,7 +145,10 @@ namespace Youverse.Core.Services.Transit
                 AppData = new AppFileMetaData()
                 {
                     Tags = uploadDescriptor.FileMetadata.AppData.Tags,
+                    
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
+                    DataType  = uploadDescriptor.FileMetadata.AppData.DataType,
+
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                     Alias = uploadDescriptor.FileMetadata.AppData.Alias

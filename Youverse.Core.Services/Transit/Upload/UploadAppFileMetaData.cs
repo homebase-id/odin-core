@@ -9,6 +9,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public List<Guid> Tags { get; set; }
 
         public int FileType { get; set; }
+        public int DataType { get; set; }
 
         public bool ContentIsComplete { get; set; }
 

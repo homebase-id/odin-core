@@ -93,6 +93,7 @@ namespace Youverse.Hosting
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
                 YouAuthPolicies.AddPolicies(policy);
             });

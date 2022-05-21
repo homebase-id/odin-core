@@ -55,6 +55,7 @@ namespace Youverse.Core.Services.Drive.Query
         public List<Guid> Tags { get; set; }
         
         public int FileType { get; set; }
+        public int DataType { get; set; }
 
         /// <summary>
         /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)

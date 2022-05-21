@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         public DotYouIdentity DotYouId { get; set; }
 
-        internal static IdentityExchangeGrant FromLiteDbRecord(ExchangeGrantLiteDbRecord record)
+        internal static IdentityExchangeGrant FromLiteDbRecord(ExchangeGrantBaseLiteDbRecord record)
         {
             return new IdentityExchangeGrant()
             {
@@ -57,9 +57,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 MasterKeyEncryptedKeyStoreKey = record.MasterKeyEncryptedKeyStoreKey
             };
         }
-        internal ExchangeGrantLiteDbRecord ToLiteDbRecord()
+
+        internal ExchangeGrantBaseLiteDbRecord ToLiteDbRecord()
         {
-            return new ExchangeGrantLiteDbRecord()
+            return new ExchangeGrantBaseLiteDbRecord()
             {
                 StorageType = ExchangeGranteeType.Identity,
                 DotYouId = this.DotYouId,
@@ -74,16 +75,55 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
     }
 
+    public class YouAuthExchangeGrant : ExchangeGrantBase
+    {
+        /// <summary>
+        /// The DotYouId being granted access
+        /// </summary>
+        public DotYouIdentity DotYouId { get; set; }
+
+        internal static YouAuthExchangeGrant FromLiteDbRecord(ExchangeGrantBaseLiteDbRecord record)
+        {
+            return new YouAuthExchangeGrant()
+            {
+                DotYouId = record.DotYouId,
+                Id = record.Id,
+                Created = record.Created,
+                Modified = record.Modified,
+                IsRevoked = record.IsRevoked,
+                PermissionSet = record.PermissionSet,
+                KeyStoreKeyEncryptedDriveGrants = record.KeyStoreKeyEncryptedDriveGrants,
+                MasterKeyEncryptedKeyStoreKey = record.MasterKeyEncryptedKeyStoreKey
+            };
+        }
+
+        internal ExchangeGrantBaseLiteDbRecord ToLiteDbRecord()
+        {
+            return new ExchangeGrantBaseLiteDbRecord()
+            {
+                StorageType = ExchangeGranteeType.YouAuth,
+                DotYouId = this.DotYouId,
+                Id = this.Id,
+                Created = this.Created,
+                Modified = this.Modified,
+                IsRevoked = this.IsRevoked,
+                PermissionSet = this.PermissionSet,
+                KeyStoreKeyEncryptedDriveGrants = this.KeyStoreKeyEncryptedDriveGrants,
+                MasterKeyEncryptedKeyStoreKey = this.MasterKeyEncryptedKeyStoreKey
+            };
+        }
+    }
+    
     public class AppExchangeGrant : ExchangeGrantBase
     {
         /// <summary>
         /// The app being granted access
         /// </summary>
         public Guid AppId { get; set; }
-        
-        internal ExchangeGrantLiteDbRecord ToLiteDbRecord()
+
+        internal ExchangeGrantBaseLiteDbRecord ToLiteDbRecord()
         {
-            return new ExchangeGrantLiteDbRecord()
+            return new ExchangeGrantBaseLiteDbRecord()
             {
                 StorageType = ExchangeGranteeType.Identity,
                 AppId = this.AppId,
@@ -96,8 +136,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 MasterKeyEncryptedKeyStoreKey = this.MasterKeyEncryptedKeyStoreKey
             };
         }
-        
-        internal static AppExchangeGrant FromLiteDbRecord(ExchangeGrantLiteDbRecord record)
+
+        internal static AppExchangeGrant FromLiteDbRecord(ExchangeGrantBaseLiteDbRecord record)
         {
             return new AppExchangeGrant()
             {
@@ -116,7 +156,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     /// <summary>
     /// Adapter class for storing in litedb.
     /// </summary>
-    public class ExchangeGrantLiteDbRecord : ExchangeGrantBase
+    public class ExchangeGrantBaseLiteDbRecord : ExchangeGrantBase
     {
         public ExchangeGranteeType StorageType { get; set; }
 
@@ -128,6 +168,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public enum ExchangeGranteeType
     {
         App = 1,
-        Identity = 2
+        Identity = 2,
+        YouAuth = 3
     }
 }

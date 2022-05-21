@@ -203,6 +203,7 @@ namespace Youverse.Core.Services.Drive
                 ContentIsComplete = item.ContentIsComplete,
                 PayloadIsEncrypted = item.PayloadIsEncrypted,
                 FileType = item.FileType,
+                DataType = item.DataType,
                 JsonContent = item.JsonContent,
                 Tags = item.Tags,
                 CreatedTimestamp = item.CreatedTimestamp,

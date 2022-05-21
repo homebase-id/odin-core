@@ -11,13 +11,8 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext : AppContextBase
     {
-        public AppContext(Guid appId, string appName, SensitiveByteArray clientSharedSecret) : base(appId, appName, clientSharedSecret)
+        public AppContext(Guid appId, string appName) : base(appId, appName)
         {
-        }
-
-        public override SensitiveByteArray GetAppKey()
-        {
-            throw new Exception("how to have an app key on transit context?  this is required for decrypting the rsa private key");
         }
     }
 }

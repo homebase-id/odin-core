@@ -67,6 +67,33 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             }
         }
 
+        public async Task<PagedResult<IndexedItem>> Query(int fileType, int dataType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        {
+            AssertValidIndexLoaded();
+
+            //HACK: grrrr need a better storage engine for searching
+            lock (_indexStorage)
+            {
+                //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
+                // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
+                var unfiltered = _indexStorage.Find(item => item.FileType == fileType,
+                        ListSortDirection.Ascending,
+                        item => item.CreatedTimestamp,
+                        PageOptions.All)
+                    .GetAwaiter()
+                    .GetResult();
+
+                var filtered = ApplySecurity(unfiltered, pageOptions, driveAclAuthorizationService);
+
+                if (!includeMetadataHeader)
+                {
+                    StripContent(ref filtered);
+                }
+
+                return filtered;
+            }
+        }
+        
         public async Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
@@ -304,6 +331,7 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 LastUpdatedTimestamp = metadata.Updated,
                 Tags = metadata.AppData.Tags,
                 FileType = metadata.AppData.FileType,
+                DataType = metadata.AppData.DataType,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 JsonContent = metadata.AppData.JsonContent,
                 AccessControlList = metadata.AccessControlList,
