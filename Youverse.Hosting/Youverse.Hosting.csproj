@@ -61,6 +61,8 @@
 
   <ItemGroup>
     <_ContentIncludedByDefault Remove="wwwroot\assets\unknown.png" />
+    <_ContentIncludedByDefault Remove="client\public-app\asset-manifest.json" />
+    <_ContentIncludedByDefault Remove="client\public-app\manifest.json" />
   </ItemGroup>
 
   <ItemGroup>
