@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
@@ -85,6 +86,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
         {
+            Console.WriteLine("Send connection request 0");
+
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
@@ -110,14 +113,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var payloadBytes = JsonConvert.SerializeObject(request).ToUtf8ByteArray();
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
-
             _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
             var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
 
             if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
             {
-                //TODO: add more info
-                throw new Exception("Failed to establish connection request");
+                //public key might be invalid, destroy the cache item
+                await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity) header.Recipient);
+                
+                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
+                _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}], <mortal kombat voice> round 2");
+                response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
+
+                //round 2, fail all together
+                if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
+                {
+                    throw new Exception("Failed to establish connection request");
+                }
             }
 
             clientAccessToken.SharedSecret.Wipe();
@@ -213,9 +225,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
             var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);
 
-            if (!response.IsSuccessStatusCode || response.Content is not {Success: true})
+            if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
             {
-                throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
+                //public key might be invalid, destroy the cache item
+                await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity) request.SenderDotYouId);
+
+                payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
+                response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity) request.SenderDotYouId).EstablishConnection(payloadBytes);
+
+                //round 2, fail all together
+                if (response.Content is {Success: false} || response.IsSuccessStatusCode == false)
+                {
+                    throw new Exception($"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
+                }
             }
 
             await _cns.Connect(request.SenderDotYouId, accessRegistration.Id, remoteClientAccessToken);
@@ -249,8 +271,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessRegistrationId, remoteClientAccessToken);
 
             //lookup EGRs for 
-            
-            
+
+
             await this.DeleteSentRequestInternal((DotYouIdentity) originalRequest.Recipient);
 
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)

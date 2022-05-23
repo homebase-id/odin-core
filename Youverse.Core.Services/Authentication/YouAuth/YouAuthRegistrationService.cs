@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     //need to create a new EGR for this browser and identity
 
                     var (grant, clientAccessToken) = _exchangeGrantService.CreateYouAuthExchangeGrant((DotYouIdentity) dotYouId, null, null, AccessRegistrationClientType.Cookies).GetAwaiter().GetResult();
-                    registration = new YouAuthRegistration(Guid.NewGuid(), dotYouId);
+                    registration = new YouAuthRegistration(registration.Id, dotYouId);
 
                     _youAuthRegistrationStorage.Save(registration);
                     return new ValueTask<(YouAuthRegistration, ClientAccessToken)>((registration, clientAccessToken));

@@ -42,8 +42,16 @@ namespace Youverse.Core.Services.Transit
         public async Task StoreLongTerm(InternalDriveFileId file)
         {
             var transferInstructionSet = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+
+            var (isValidPublicKey, decryptedAesKeyHeaderBytes) = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+
+            if (!isValidPublicKey)
+            {
+                //TODO: handle when isValidPublicKey = false
+                throw new YouverseSecurityException("Public key was invalid");
+            }
             
-            var decryptedAesKeyHeaderBytes = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+            
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
             decryptedAesKeyHeaderBytes.WriteZeros();
 
@@ -59,7 +67,7 @@ namespace Youverse.Core.Services.Transit
             var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
-            
+
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
 
