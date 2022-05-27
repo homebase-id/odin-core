@@ -21,8 +21,8 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
-    - name: Build
-      run: dotnet build --no-restore
+    - name: Publish
+      run: dotnet publish --no-restore
 
     - name: SFTP uploader - Youverse.Hosting Clients
       uses: wangyucode/sftp-upload-action@v1.3.2
