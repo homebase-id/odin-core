@@ -11,19 +11,16 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, string authContext, bool isInYouverseNetwork = false, bool isAnonymous = true, bool isConnected = false)
+        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, bool isInYouverseNetwork = false, bool isAnonymous = true, bool isConnected = false)
         {
             this.DotYouId = dotYouId;
             this.IsOwner = isOwner;
             this._masterKey = masterKey;
-            this.AuthContext = authContext;
             this.IsInYouverseNetwork = isInYouverseNetwork;
             this.IsAnonymous = isAnonymous;
             this.IsConnected = isConnected;
         }
-
-        public string AuthContext { get; set; }
-
+        
         /// <summary>
         /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
         /// </summary>

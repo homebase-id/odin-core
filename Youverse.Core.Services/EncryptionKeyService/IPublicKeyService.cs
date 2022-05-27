@@ -24,12 +24,19 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         Task<bool> IsValidPublicKey(UInt32 crc);
 
-        Task<byte[]> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true);
+        Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true);
 
         Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true);
 
         Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload);
 
-        Task<byte[]> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload);
+        Task<(bool, byte[])> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload);
+
+        /// <summary>
+        /// Destroys the cache item for the recipients public key so a new one will be retrieved
+        /// </summary>
+        /// <param name="recipient"></param>
+        /// <returns></returns>
+        Task InvalidatePublicKey(DotYouIdentity recipient);
     }
 }

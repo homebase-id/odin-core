@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -22,7 +23,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
 
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkRequestService _circleNetworkRequestService;
@@ -37,10 +38,23 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var payloadBytes = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+            Console.Write("ReceiveConnectionRequest 0");
+
+            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+
+            if (isValidPublicKey == false)
+            {
+                //TODO: extend with error code indicated a bad public key 
+                return new JsonResult(new NoResultResponse(false));
+            }
+
             ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.ToStringFromUTF8Bytes());
 
+            Console.Write("ReceiveConnectionRequest 1");
+
             await _circleNetworkRequestService.ReceiveConnectionRequest(request);
+            Console.Write("ReceiveConnectionRequest 2");
+
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -48,7 +62,14 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
         {
-            var payloadBytes = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+
+            if (isValidPublicKey == false)
+            {
+                //TODO: extend with error code indicated a bad public key 
+                return new JsonResult(new NoResultResponse(false));
+            }
+            
             ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.ToStringFromUTF8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);

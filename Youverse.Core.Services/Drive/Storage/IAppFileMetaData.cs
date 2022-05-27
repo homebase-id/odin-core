@@ -14,6 +14,11 @@ namespace Youverse.Core.Services.Drive.Storage
         /// A file type specific to an app.  This is indexed and be used to query data
         /// </summary>
         int FileType { get; set; }
+        
+        /// <summary>
+        /// A data type specific to an app.  This is indexed and be used to query data
+        /// </summary>
+        int DataType { get; set; }
 
         /// <summary>
         /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)

@@ -64,8 +64,8 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
             cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
-            cb.RegisterType<YouAuthSessionManager>().As<IYouAuthSessionManager>().SingleInstance();
-            cb.RegisterType<YouAuthSessionStorage>().As<IYouAuthSessionStorage>().SingleInstance();
+            cb.RegisterType<YouAuthRegistrationService>().As<IYouAuthRegistrationService>().SingleInstance();
+            cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();

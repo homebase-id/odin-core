@@ -12,5 +12,6 @@
         /// </summary>
         public const string NotificationCertificateAuthScheme = "NotificationCertificate";
 
+        public const string PublicTransitAuthScheme = "PublicTransitCertificate";
     }
 }

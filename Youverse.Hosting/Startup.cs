@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.AspNetCore.StaticFiles.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -41,11 +43,8 @@ namespace Youverse.Hosting
         public void ConfigureServices(IServiceCollection services)
         {
             //HACK: why is this suddenly needed!? 
-            services.Configure<KestrelServerOptions>(options =>
-            {
-                options.AllowSynchronousIO = true;
-            });
-            
+            services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
+
             var config = new Configuration(Configuration);
             services.AddSingleton(config);
 
@@ -86,13 +85,15 @@ namespace Youverse.Hosting
                 .AddYouAuthAuthentication()
                 .AddAppAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme);
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme)
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme);
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
                 AppPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
+                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
                 YouAuthPolicies.AddPolicies(policy);
             });
@@ -100,7 +101,7 @@ namespace Youverse.Hosting
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
             // In production, the React files will be served from this directory
-            //services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
+            services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
         }
 
         // ConfigureContainer is where you can register things directly
@@ -143,15 +144,11 @@ namespace Youverse.Hosting
 
             this.ConfigureLiteDBSerialization();
 
-            if (env.IsDevelopment())
-            {
-                //app.UseWebAssemblyDebugging();
-                //app.UseDeveloperExceptionPage();
-            }
-
+            app.UseDefaultFiles();
             app.UseCertificateForwarding();
             app.UseStaticFiles();
-            //app.UseSpaStaticFiles();
+
+            // app.UseSpaStaticFiles();
 
             app.UseRouting();
             app.UseAuthentication();
@@ -165,55 +162,92 @@ namespace Youverse.Hosting
             {
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
+                // endpoints.MapFallback(async context => { context.Response.WriteAsync("far cry"); });
+                //endpoints.MapFallbackToFile("/index.html");
             });
-            
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner")
-                , adminApp =>
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                ownerApp =>
                 {
-                    adminApp.UseSpa(spa =>
+                    var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
+                    ownerApp.UseStaticFiles(new StaticFileOptions()
                     {
-                        if (env.IsDevelopment())
-                        {
-                            // spa.UseProxyToSpaDevelopmentServer("http://localhost:3001/owner");
-                            spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/");
-                            //spa.UseProxyToSpaDevelopmentServer($"https://dominion.id.me:3001/owner");
-                        }
-                        else
-                        {
-                            //TODO: setup to read from config in production (CDN Or otherwise)
-                            spa.Options.SourcePath = @"Client/owner-console";
-                            spa.Options.DefaultPage = "/index.html";
-                            spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-                            {
-                                RequestPath = "/owner",
-                                FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "owner-console"))
-                            };
-                        }
+                        FileProvider = new PhysicalFileProvider(ownerPath),
+                        RequestPath = "/owner"
+                    });
+
+                    // ownerApp.UseFileServer(new FileServerOptions()
+                    // {
+                    //     StaticFileOptions = {ServeUnknownFileTypes = true},
+                    //     FileProvider = new PhysicalFileProvider(ownerPath),
+                    //     EnableDefaultFiles = true,
+                    //     RequestPath = "", //must be empty because the file provider is with-in the context of /home from app.Map
+                    // });
+
+                    ownerApp.Run(async context =>
+                    {
+                        await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                        return;
                     });
                 });
 
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"), landingPageApp =>
+            var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
+
+            app.UseStaticFiles(new StaticFileOptions()
             {
-                landingPageApp.UseSpa(spa =>
-                {
-                    if (env.IsDevelopment())
-                    {
-                        // spa.UseProxyToSpaDevelopmentServer("http://localhost:3000/home");
-                        spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/");
-                    }
-                    else
-                    {
-                        //TODO: setup to read from config in production (CDN Or otherwise)
-                        spa.Options.SourcePath = @"Client/public-app";
-                        spa.Options.DefaultPage = "/index.html";
-                        spa.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-                        {
-                            RequestPath = "/home",
-                            FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Client", "public-app"))
-                        };
-                    }
-                });
+                FileProvider = new PhysicalFileProvider(publicPath),
+                RequestPath = "/home"
             });
+            
+            app.Run(async context =>
+            {
+                await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                return;
+            });
+
+            //Note: I have ZERO clue why you have to use a .MapWhen versus .map
+            // if (env.IsDevelopment())
+            // {
+            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+            //
+            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+            // }
+            // else
+            {
+                // app.Map("/home", homeApp =>
+                // {
+                //     // homeApp.UseDefaultFiles();
+                //     // homeApp.UseStaticFiles();
+                //     homeApp.UseFileServer(new FileServerOptions()
+                //     {
+                //         FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "client", "home-app")),
+                //         EnableDefaultFiles = true,
+                //         RequestPath = "", //must be empty because the file provider is with-in the context of /home from app.Map
+                //     });
+                //     
+                //     // homeApp.UseEndpoints(cfg =>
+                //     // {
+                //     //     cfg.MapFallbackToFile("/index.html");
+                //     // });
+                // });
+
+                // app.Map("/owner", ownerApp =>
+                // {
+                //     ownerApp.UseFileServer(new FileServerOptions()
+                //     {
+                //         FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "client", "owner-app")),
+                //         EnableDefaultFiles = true,
+                //         RequestPath = "" //must be empty because the file provider is with-in the context of /owner from app.Map
+                //     });
+                //     
+                //     // ownerApp.UseEndpoints(cfg =>
+                //     // {
+                //     //     cfg.MapFallbackToFile("/index.html");
+                //     // });
+                // });
+            }
         }
 
         private void ConfigureLiteDBSerialization()

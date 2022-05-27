@@ -14,9 +14,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     {
         private readonly ILogger<YouAuthService> _logger;
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
-        private readonly IYouAuthSessionManager _youSessionManager;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-
+        private readonly IYouAuthRegistrationService _registrationService;
         private readonly ICircleNetworkService _circleNetwork;
 
         private readonly ExchangeGrantService _exchangeGrantService;
@@ -25,16 +24,15 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public YouAuthService(
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
-            IYouAuthSessionManager youSessionManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService)
+            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
-            _youSessionManager = youSessionManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
             _exchangeGrantService = exchangeGrantService;
+            _registrationService = registrationService;
         }
 
         //
@@ -75,9 +73,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 {
                     var clientAuthTokenBytes = response.Content;
 
-                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUTF8Bytes(), out var clientAuthToken))
+                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUTF8Bytes(), out var remoteIcrClientAuthToken))
                     {
-                        return (true, clientAuthToken);
+                        return (true, remoteIcrClientAuthToken);
                     }
 
                     //TODO: log a warning here that a bad payload was returned.
@@ -105,7 +103,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?
-                    clientAuthTokenBytes =  info.CreateClientAuthToken().ToString().ToUtf8ByteArray();
+                    clientAuthTokenBytes = info.CreateClientAuthToken().ToString().ToUtf8ByteArray();
                 }
             }
 
@@ -114,25 +112,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<ClientAccessToken> CreateSession(string subject, ClientAuthenticationToken? icrClientAuthToken)
+        public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            ClientAccessToken? browserClientAccessToken = null;
-
-            //TODO: Need to handle how to upgrade the exchange grant.  when you are not connected and have logged in.. then you become connected 
-
-            //If they were not connected, we need to create a new EGR and AccessReg for the browser
-            if (icrClientAuthToken == null)
-            {
-                browserClientAccessToken = await _exchangeGrantService.RegisterIdentityExchangeGrantForUnencryptedData((DotYouIdentity) subject, null, null, AccessRegistrationClientType.Cookies);
-            }
-            else
-            {
-                //TODO: need to evaluate if this will just have ever growing list of access registrations as the user logs in/logs out
-                //If we're given a client auth token, it means that subject was connected, so we just need to create a browser specific AccessReg
-                //look up the EGR key using the clientAuthToken
-                browserClientAccessToken = await _exchangeGrantService.AddClientToExchangeGrant(icrClientAuthToken, AccessRegistrationClientType.Cookies);
-            }
-
+            var (registration, browserClientAccessToken) = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
             return browserClientAccessToken;
         }
 

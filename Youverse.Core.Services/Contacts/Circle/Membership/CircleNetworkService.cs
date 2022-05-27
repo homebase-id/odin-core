@@ -302,6 +302,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 throw new YouverseSecurityException("invalid connection state");
             }
+            
+            //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
 
             await this.StoreConnection(dotYouId, accessRegistrationId, remoteClientAccessToken);
         }

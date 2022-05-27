@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Apps
                 keyHeader = KeyHeader.Empty();
             }
 
-            var clientSharedSecret = _contextAccessor.GetCurrent().AppContext.ClientSharedSecret;
+            var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, ref clientSharedSecret);
 
             return new ClientFileHeader()

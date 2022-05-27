@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
         }
 
-        public async Task<byte[]> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
+        public async Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
         {
             var rsaKey = await this.GetOfflineKeyInternal();
             var key = GetOfflineKeyDecryptionKey();
@@ -42,17 +42,22 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     throw new YouverseSecurityException("Invalid public key");
                 }
 
-                return null;
+                return (false, null);
             }
 
             var bytes = pk.Decrypt(ref key, encryptedData);
-            return bytes;
+            return (true, bytes);
         }
 
-        public async Task<byte[]> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload)
+        public async Task<(bool, byte[])> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload)
         {
-            var keyHeaderBytes = await this.DecryptKeyHeaderUsingOfflineKey(payload.KeyHeader, payload.Crc32);
+            var (isValidPublicKey, keyHeaderBytes) = await this.DecryptKeyHeaderUsingOfflineKey(payload.KeyHeader, payload.Crc32);
             var keyHeader = KeyHeader.FromCombinedBytes(keyHeaderBytes);
+
+            if (!isValidPublicKey)
+            {
+                return (false, null);
+            }
 
             var key = keyHeader.AesKey;
             var bytes = Cryptography.Crypto.AesCbc.Decrypt(
@@ -60,7 +65,12 @@ namespace Youverse.Core.Services.EncryptionKeyService
                 Key: ref key,
                 IV: keyHeader.Iv);
 
-            return bytes;
+            return (isValidPublicKey, bytes);
+        }
+
+        public async Task InvalidatePublicKey(DotYouIdentity recipient)
+        {
+            _systemStorage.WithTenantSystemStorage<RecipientPublicKeyCacheItem>(RecipientPublicOfflineKeyCache, s => s.Delete(recipient));
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)

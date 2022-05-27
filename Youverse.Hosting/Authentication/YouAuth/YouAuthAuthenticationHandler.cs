@@ -38,12 +38,10 @@ namespace Youverse.Hosting.Authentication.YouAuth
             }
 
             var (isValid, _, grant) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
-            var identityGrant = (IdentityExchangeGrant) grant;
+            var identityGrant = (YouAuthExchangeGrant) grant;
             
             if (!isValid)
             {
-                //TODD: changing to set user as anonymous instead of failing.  This allows us to support reading files whose ACL = anonymous
-                // return AuthenticateResult.Fail("No session matching session id");
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
 
