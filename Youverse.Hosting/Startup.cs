@@ -7,8 +7,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.AspNetCore.StaticFiles.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -20,11 +18,9 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.YouAuth;
-using Youverse.Hosting.Controllers.TransitPerimeter;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -162,91 +158,50 @@ namespace Youverse.Hosting
             {
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
-                // endpoints.MapFallback(async context => { context.Response.WriteAsync("far cry"); });
-                //endpoints.MapFallbackToFile("/index.html");
-            });
-
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                ownerApp =>
-                {
-                    var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
-                    ownerApp.UseStaticFiles(new StaticFileOptions()
-                    {
-                        FileProvider = new PhysicalFileProvider(ownerPath),
-                        RequestPath = "/owner"
-                    });
-
-                    // ownerApp.UseFileServer(new FileServerOptions()
-                    // {
-                    //     StaticFileOptions = {ServeUnknownFileTypes = true},
-                    //     FileProvider = new PhysicalFileProvider(ownerPath),
-                    //     EnableDefaultFiles = true,
-                    //     RequestPath = "", //must be empty because the file provider is with-in the context of /home from app.Map
-                    // });
-
-                    ownerApp.Run(async context =>
-                    {
-                        await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
-                        return;
-                    });
-                });
-
-            var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
-
-            app.UseStaticFiles(new StaticFileOptions()
-            {
-                FileProvider = new PhysicalFileProvider(publicPath),
-                RequestPath = "/home"
             });
             
-            app.Run(async context =>
-            {
-                await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                return;
-            });
 
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
-            // if (env.IsDevelopment())
-            // {
-            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
-            //
-            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
-            // }
-            // else
+            if (env.IsDevelopment())
             {
-                // app.Map("/home", homeApp =>
-                // {
-                //     // homeApp.UseDefaultFiles();
-                //     // homeApp.UseStaticFiles();
-                //     homeApp.UseFileServer(new FileServerOptions()
-                //     {
-                //         FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "client", "home-app")),
-                //         EnableDefaultFiles = true,
-                //         RequestPath = "", //must be empty because the file provider is with-in the context of /home from app.Map
-                //     });
-                //     
-                //     // homeApp.UseEndpoints(cfg =>
-                //     // {
-                //     //     cfg.MapFallbackToFile("/index.html");
-                //     // });
-                // });
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+            
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+            }
+            else
+            {
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                    ownerApp =>
+                    {
+                        var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
+                        ownerApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(ownerPath),
+                            RequestPath = "/owner"
+                        });
 
-                // app.Map("/owner", ownerApp =>
-                // {
-                //     ownerApp.UseFileServer(new FileServerOptions()
-                //     {
-                //         FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "client", "owner-app")),
-                //         EnableDefaultFiles = true,
-                //         RequestPath = "" //must be empty because the file provider is with-in the context of /owner from app.Map
-                //     });
-                //     
-                //     // ownerApp.UseEndpoints(cfg =>
-                //     // {
-                //     //     cfg.MapFallbackToFile("/index.html");
-                //     // });
-                // });
+                        ownerApp.Run(async context =>
+                        {
+                            await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                            return;
+                        });
+                    });
+
+                var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
+
+                app.UseStaticFiles(new StaticFileOptions()
+                {
+                    FileProvider = new PhysicalFileProvider(publicPath),
+                    RequestPath = "/home"
+                });
+            
+                app.Run(async context =>
+                {
+                    await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                    return;
+                });
             }
         }
 
