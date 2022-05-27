@@ -1,0 +1,34 @@
+name: Deploy to Demo Server
+
+on:
+  push:
+    branches: [ deploy_demo ]
+  pull_request:
+    branches: [ deploy_demo ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --no-restore
+
+    - name: 📂 FTP Deploy
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ${{ secrets.ftp_demo_server }}
+        username: ${{ secrets.ftp_demo_username }}
+        password: ${{ secrets.ftp_demo_password }}
+        
+  
