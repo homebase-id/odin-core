@@ -22,7 +22,7 @@ jobs:
       run: dotnet restore
       
     - name: Publish
-      run: dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist YouverseWebHost/YouverseWebHost.csproj
+      run: dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist YouverseWebHost/YouverseWebHost.csproj
 
     - name: SFTP uploader - Youverse.Hosting bin
       uses: wangyucode/sftp-upload-action@v1.3.2
