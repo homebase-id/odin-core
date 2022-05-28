@@ -6,7 +6,7 @@ Type=simple
 # will set the Current Working Directory (CWD)
 WorkingDirectory=/srv/sites/dotyoucore
 # systemd will run this executable to start the service
-ExecStart=/srv/sites/dotyoucore/Youverse.Hosting 
+ExecStart=/srv/sites/dotyoucore/YouverseWebHost 
 # to query logs using journalctl, set a logical name here  
 SyslogIdentifier=dotyoucore
 
