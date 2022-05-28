@@ -29,6 +29,12 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public async Task<(bool isValid, AccessRegistration registration, ExchangeGrantBase grant)> ValidateClientAuthToken(ClientAuthenticationToken authenticationToken)
         {
             var (registration, grant) = await _exchangeGrantService.GetAccessAndGrant(authenticationToken);
+
+            if (null == registration || null == grant)
+            {
+                return (false, null, null);
+            }
+            
             if (registration.IsRevoked || grant.IsRevoked)
             {
                 return (false, null, null);

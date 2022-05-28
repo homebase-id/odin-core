@@ -202,6 +202,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             var registration = await this.GetAccessRegistration(authenticationToken.Id);
 
+            if (null == registration)
+            {
+                return (null, null);
+            }
+            
             registration.AssertValidRemoteKey(authenticationToken.AccessTokenHalfKey);
 
             var grant = await this.GetExchangeGrantInternal(registration.GrantId);
