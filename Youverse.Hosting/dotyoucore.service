@@ -2,7 +2,7 @@
 Description=dotyoucore host
 
 [Service]
-Type=notify
+Type=simple
 # will set the Current Working Directory (CWD)
 WorkingDirectory=/srv/sites/dotyoucore
 # systemd will run this executable to start the service

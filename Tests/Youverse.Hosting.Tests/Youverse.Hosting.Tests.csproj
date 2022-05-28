@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     <ProjectReference Include="..\..\Youverse.Hosting\Youverse.Hosting.csproj" />
+    <ProjectReference Include="..\..\YouverseWebHost\YouverseWebHost.csproj" />
   </ItemGroup>
 
 </Project>

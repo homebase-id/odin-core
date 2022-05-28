@@ -28,6 +28,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Back
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Tests", "Tests\Youverse.Core.Services.Tests\Youverse.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YouverseWebHost", "YouverseWebHost\YouverseWebHost.csproj", "{0A9AFA04-AFD5-4375-9C18-14802425B332}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +72,10 @@ Global
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A9AFA04-AFD5-4375-9C18-14802425B332}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A9AFA04-AFD5-4375-9C18-14802425B332}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A9AFA04-AFD5-4375-9C18-14802425B332}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A9AFA04-AFD5-4375-9C18-14802425B332}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

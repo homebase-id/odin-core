@@ -152,8 +152,9 @@ namespace Youverse.Hosting
 
         internal static void InitializeTenant(ILifetimeScope scope, Tenant tenant)
         {
-            var logger = scope.Resolve<ILogger<Startup>>();
-            logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
+            //TODO: add logging back in
+            // var logger = scope.Resolve<ILogger<Startup>>();
+            // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
 
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
