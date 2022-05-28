@@ -80,6 +80,7 @@ namespace Youverse.Hosting
             _registry.Initialize();
             
             return Host.CreateDefaultBuilder(args)
+                .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)

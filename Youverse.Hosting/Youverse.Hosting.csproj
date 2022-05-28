@@ -51,7 +51,7 @@
 
 
   <ItemGroup>
-    <None Update="identityweb.service">
+    <None Update="dotyoucore.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <Content Include="client\**\*">
