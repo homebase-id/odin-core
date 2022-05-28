@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Middleware.Logging
             var path = context.Request.Path + context.Request.QueryString;
 
             _logger.LogInformation(
-                "{RemoteIp} request starting {Protocol} {Method} {Path}",
+                "{RemoteIp} request starting b1 {Protocol} {Method} {Path}",
                 remoteIp,
                 protocol,
                 method, 
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Middleware.Logging
 
             await _next(context);
 
-            _logger.LogInformation("{RemoteIp} request finished {Protocol} {Method} {Path} in {Elapsed}ms {Status}",
+            _logger.LogInformation("{RemoteIp} request finished b2 {Protocol} {Method} {Path} in {Elapsed}ms {Status}",
                 remoteIp,
                 protocol,
                 method,
