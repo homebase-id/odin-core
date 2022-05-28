@@ -1,5 +1,10 @@
 ﻿[Path]
-PathModified=/srv/sites/dotyoucore
+Unit=dotyoucore-watcher.service
+PathChanged=/srv/sites/dotyoucore
+TriggerLimitIntervalSec=30s
+TriggerLimitBurst=1
+# PathModified=/srv/sites/dotyoucore
+
 
 [Install]
 WantedBy=multi-user.target
