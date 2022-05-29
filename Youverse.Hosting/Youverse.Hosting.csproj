@@ -63,10 +63,10 @@
     <None Update="dotyoucore.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="dotyoucore-watcher.path">
+    <None Update="dotyoucore-watcher.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="dotyoucore-watcher.service">
+    <None Update="dotyoucore-deploy-watcher.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
