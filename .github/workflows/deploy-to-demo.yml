@@ -31,4 +31,4 @@ jobs:
         username: ${{ secrets.ftp_demo_username }}
         password: ${{ secrets.ftp_demo_password }}
         localDir: './dist'
-        remoteDir: '/srv/sites/dotyoucore/'
+        remoteDir: '/srv/dist/dotyoucore/'
