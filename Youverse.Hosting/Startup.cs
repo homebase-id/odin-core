@@ -172,6 +172,7 @@ namespace Youverse.Hosting
             }
             else
             {
+                logger.LogInformation("Mapping SPA paths on local disk");
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     ownerApp =>
                     {
