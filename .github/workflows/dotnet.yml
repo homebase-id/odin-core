@@ -2,9 +2,9 @@ name: Windows DotYouCore
 
 on:
   push:
-    branches: [ main ]
+    branches: [ deploy_demo ]
   pull_request:
-    branches: [ main ]
+    branches: [ deploy_demo ]
 
 jobs:
   build:
