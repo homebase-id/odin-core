@@ -21,6 +21,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      
     - name: Publish
       run: dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist Youverse.Hosting/Youverse.Hosting.csproj
 
