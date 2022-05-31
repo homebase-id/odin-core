@@ -2,9 +2,9 @@ name: Ubuntu DotYouCore
 
 on:
   push:
-    branches: [ deploy_demo ]
+    branches: [ main ]
   pull_request:
-    branches: [ deploy_demo ]
+    branches: [ main ]
 
 jobs:
   build:
