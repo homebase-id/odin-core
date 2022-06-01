@@ -165,7 +165,7 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:9443");
+            authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -192,10 +192,10 @@ namespace Youverse.Hosting.Tests
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:9443");
+            authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{identity}:9443");
+            var uri = new Uri($"https://{identity}");
 
             Console.WriteLine($"authenticating to {uri}");
             var nonceResponse = await svc.GenerateNonce();
@@ -290,7 +290,7 @@ namespace Youverse.Hosting.Tests
                 client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId.ToString());
             }
 
-            client.BaseAddress = new Uri($"https://{identity}:9443");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 
@@ -309,7 +309,7 @@ namespace Youverse.Hosting.Tests
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}:9443");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 
@@ -328,7 +328,7 @@ namespace Youverse.Hosting.Tests
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}:9443");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 

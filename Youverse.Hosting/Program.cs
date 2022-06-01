@@ -80,7 +80,7 @@ namespace Youverse.Hosting
             _registry.Initialize();
             
             return Host.CreateDefaultBuilder(args)
-                // .UseSystemd()
+                .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -144,7 +144,7 @@ namespace Youverse.Hosting
                             });
                         })
                         .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                        .UseUrls("https://*:9443") //you need to configure netsh on windows to allow 443
+                        .UseUrls("https://*:443") //you need to configure netsh on windows to allow 443
                         .UseStartup<Startup>();
                 });
         }
