@@ -144,7 +144,7 @@ namespace Youverse.Hosting
                             });
                         })
                         .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                        .UseUrls("https://*:443") //you need to configure netsh on windows to allow 443
+                        .UseUrls("https://*:9443") //you need to configure netsh on windows to allow 443
                         .UseStartup<Startup>();
                 });
         }
