@@ -21,6 +21,8 @@ Notes:
 
 
 #### SSL Notes
-Generate New CSR w/o requiring a passphase
+
+Generate New CSR w/o requiring a passphase.  Currently required
 
 `openssl req -new -newkey rsa:2048 -nodes -keyout private.key -out domain-name.csr`
+
