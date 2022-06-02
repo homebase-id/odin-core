@@ -48,6 +48,11 @@ namespace Youverse.Core.Services.Registry
 
         private static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
         {
+            if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
+            {
+                throw new Exception("Cannot find certificate or key file(s)");
+            }
+            
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
                 string encodedKey = File.ReadAllText(privateKeyPath);

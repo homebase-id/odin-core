@@ -47,6 +47,26 @@
         <Content Include="https\frodobaggins.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+
+    <Content Include="https\samwise.digital\private.key">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\samwise.digital\certificate.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\samwise.digital\samwise-digital.csr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <Content Include="https\frodo.digital\certificate.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\frodo.digital\frodo-digital.csr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\frodo.digital\private.key">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     </ItemGroup>
 
 

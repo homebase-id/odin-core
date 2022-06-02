@@ -37,6 +37,8 @@ namespace Youverse.Core.Services.Registry
         {
             _certificates.Add(Guid.Parse("FBABCc39-1111-4442-9120-57ef89a11111"), "frodobaggins.me");
             _certificates.Add(Guid.Parse("55BBCc39-0001-0042-9120-57ef89a00000"), "samwisegamgee.me");
+            _certificates.Add(Guid.Parse("00ABCc39-1111-4442-9120-57ef89a11111"), "frodo.digital");
+            _certificates.Add(Guid.Parse("11BBCc39-0001-0042-9120-57ef89a00000"), "samwise.digital");
 
             foreach (var c in _certificates)
             {
