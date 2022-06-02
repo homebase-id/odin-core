@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <DefaultItemExcludes>$(DefaultItemExcludes)</DefaultItemExcludes>
-
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
     <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
     <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
     <IsPackable>false</IsPackable>
@@ -47,13 +47,30 @@
         <Content Include="https\frodobaggins.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+
+    <Content Include="https\samwise.digital\private.key">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\samwise.digital\certificate.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\samwise.digital\samwise-digital.csr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <Content Include="https\frodo.digital\certificate.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\frodo.digital\frodo-digital.csr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="https\frodo.digital\private.key">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     </ItemGroup>
 
 
   <ItemGroup>
-    <None Update="identityweb.service">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <Content Include="client\**\*">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </Content>
@@ -61,6 +78,9 @@
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </Content>
     <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="dotyoucore.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

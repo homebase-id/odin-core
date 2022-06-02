@@ -4,7 +4,7 @@
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": false,
-      "applicationUrl": "https://frodobaggins.me",
+      "applicationUrl": "https://frodo.digital",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

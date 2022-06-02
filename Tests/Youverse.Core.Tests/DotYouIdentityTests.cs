@@ -11,8 +11,8 @@ namespace Youverse.Core.Tests
 {
     public class DotYouIdentityTests
     {
-        DotYouIdentity frodo = new DotYouIdentity("frodobaggins.me");
-        DotYouIdentity sam = new DotYouIdentity("samwisegamgee.me");
+        DotYouIdentity frodo = new DotYouIdentity("frodo.digital");
+        DotYouIdentity sam = new DotYouIdentity("samwise.digital");
         DotYouIdentity gandalf = new DotYouIdentity("gandalf.MIDDLEEARTH.life"); //Intentionally capitalized
 
         [SetUp]
@@ -40,7 +40,7 @@ namespace Youverse.Core.Tests
         [Test(Description = "Can == two instances")]
         public void CanCompareTwoInstancesEqually()
         {
-            var sam2 = new DotYouIdentity("samwisegamgee.me");
+            var sam2 = new DotYouIdentity("samwise.digital");
             Assert.IsTrue(sam2 == sam);
         }
 
@@ -54,7 +54,7 @@ namespace Youverse.Core.Tests
         public void CanDeserializeRecipientList()
         {
             var x = new RecipientList();
-            x.Recipients = new List<DotYouIdentity>() {(DotYouIdentity) "frodobaggins.me", (DotYouIdentity) "sam.me"};
+            x.Recipients = new List<DotYouIdentity>() {(DotYouIdentity) "frodo.digital", (DotYouIdentity) "samwise.digital"};
             var json = JsonConvert.SerializeObject(x);
             Console.WriteLine($"json:{json}");
 

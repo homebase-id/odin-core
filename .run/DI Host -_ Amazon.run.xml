@@ -1,6 +1,0 @@
-﻿<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="DI Host -&gt; Amazon" type="DotNetPublishAndUpload" factoryName="Publish to custom server" singleton="false">
-    <riderPublish configuration="Release" platform="Any CPU" runtime="Portable" server_id="13dd324e-9f64-44ec-bce9-fa90fe6c99a6" serverName="amazon-di" target_framework="net5.0" uuid_high="-4888385061342723785" uuid_low="-7626439775202983191" />
-    <method v="2" />
-  </configuration>
-</component>

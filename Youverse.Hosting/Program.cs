@@ -37,7 +37,7 @@ namespace Youverse.Hosting
 
             try
             {
-                Log.Information("Starting web host");
+                Log.Information("Starting web host b3");
                 CreateHostBuilder(args).Build().Run();
                 Log.Information("Stopped web host");
             }
@@ -80,6 +80,7 @@ namespace Youverse.Hosting
             _registry.Initialize();
             
             return Host.CreateDefaultBuilder(args)
+                .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
