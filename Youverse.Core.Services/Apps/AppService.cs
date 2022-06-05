@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Apps
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var ekh = await _driveService.GetEncryptedKeyHeader(file);
-            var md = await _driveService.GetMetadata(file);
+            var (md, _) = await _driveService.GetMetadata(file);
 
             KeyHeader keyHeader;
             if (md.PayloadIsEncrypted)

@@ -360,13 +360,14 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false)
+        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false,
+            bool driveAllowAnonymousReads = false)
         {
             var permissionSet = new PermissionSet();
             if (canManageConnections)
             {
-                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage);
-                permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int) CircleNetworkRequestPermissions.Manage);
+                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Manage);
+                permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int)CircleNetworkRequestPermissions.Manage);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
@@ -382,12 +383,13 @@ namespace Youverse.Hosting.Tests
                     DefaultDrivePublicId = appDriveAlias,
                     DriveMetadata = "{data:'test metadata'}",
                     DriveName = $"Test Drive name with type {driveType}",
-                    DriveType = driveType
+                    DriveType = driveType,
+                    DriveAllowAnonymousReads = driveAllowAnonymousReads
                 };
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
@@ -466,13 +468,14 @@ namespace Youverse.Hosting.Tests
             return await this.SetupTestSampleApp(appId, identity, false, driveAlias);
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, Guid appDriveAlias = default)
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, Guid appDriveAlias = default,
+            bool driveAllowAnonymousReads = false)
         {
             //TODO: we might need to let the callers pass this in at some point for testing
 
             //note; this is intentionally not global
 
-            this.AddApp(identity, appId, appDriveAlias, true, canManageConnections).GetAwaiter().GetResult();
+            this.AddApp(identity, appId, appDriveAlias, true, canManageConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
@@ -507,11 +510,11 @@ namespace Youverse.Hosting.Tests
                 AppData = new()
                 {
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
-            return (UploadTestUtilsContext) await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
@@ -530,7 +533,7 @@ namespace Youverse.Hosting.Tests
                 TransitOptions = null
             };
 
-            return (UploadTestUtilsContext) await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         /// <summary>
@@ -561,7 +564,7 @@ namespace Youverse.Hosting.Tests
             List<Guid> tags = null;
             if (options?.AppDataCategoryId != null)
             {
-                tags = new List<Guid>() {options.AppDataCategoryId};
+                tags = new List<Guid>() { options.AppDataCategoryId };
             }
 
             var fileMetadata = new UploadFileMetadata()
@@ -572,7 +575,7 @@ namespace Youverse.Hosting.Tests
                 {
                     Tags = tags,
                     ContentIsComplete = true,
-                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -584,7 +587,7 @@ namespace Youverse.Hosting.Tests
             {
                 foreach (var recipient in recipients)
                 {
-                    await this.DisconnectIdentities(sender, (DotYouIdentity) recipient);
+                    await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
                 }
             }
 
@@ -671,13 +674,13 @@ namespace Youverse.Hosting.Tests
             }
 
             var appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias, options.DriveAllowAnonymousReads);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity) r;
+                var recipient = (DotYouIdentity)r;
                 var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
 
@@ -732,13 +735,13 @@ namespace Youverse.Hosting.Tests
                     }
                 }
 
-                if (options is {ProcessOutbox: true})
+                if (options is { ProcessOutbox: true })
                 {
                     await transitSvc.ProcessOutbox();
                 }
 
 
-                if (options is {ProcessTransitBox: true})
+                if (options is { ProcessTransitBox: true })
                 {
                     //wait for process outbox to run
                     Task.Delay(2000).Wait();
@@ -779,13 +782,13 @@ namespace Youverse.Hosting.Tests
             }
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias, options.DriveAllowAnonymousReads);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity) r;
+                var recipient = (DotYouIdentity)r;
                 var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
 
@@ -839,14 +842,14 @@ namespace Youverse.Hosting.Tests
                     }
                 }
 
-                if (options is {ProcessOutbox: true})
+                if (options is { ProcessOutbox: true })
                 {
                     var resp = await transitSvc.ProcessOutbox();
                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 }
 
 
-                if (options is {ProcessTransitBox: true})
+                if (options is { ProcessTransitBox: true })
                 {
                     //wait for process outbox to run
                     Task.Delay(2000).Wait();

@@ -13,6 +13,6 @@ public class QueryParams
     
     public IEnumerable<byte[]> AclId { get; set; } = null;
     
-    public IEnumerable<byte[]> TagsMatchOne { get; set; } = null;
+    public IEnumerable<byte[]> TagsMatchAtLeastOne { get; set; } = null;
     public IEnumerable<byte[]> TagsMatchAll { get; set; } = null;
 }

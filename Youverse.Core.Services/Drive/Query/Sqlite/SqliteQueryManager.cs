@@ -48,7 +48,7 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.ThreadId?.ToList(),
             qp.UserDateSpan?.ToList(),
             qp.AclId?.ToList(),
-            qp.TagsMatchOne?.ToList(),
+            qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
@@ -69,7 +69,7 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.ThreadId?.ToList(),
             qp.UserDateSpan?.ToList(),
             qp.AclId?.ToList(),
-            qp.TagsMatchOne?.ToList(),
+            qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, results.Select(r => new Guid(r))));

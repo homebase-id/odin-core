@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Tests.AppAPI.Drive;
 
 namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 {
@@ -30,50 +32,90 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         }
 
         [Test]
-        public async Task FailsWhenNoValidIndex()
+        public async Task CanQueryBatchByOneTag()
         {
-            Assert.Inconclusive("TODO");
+            var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+            var uploadContext = await this.UploadAnonymousFile(identity, tag);
+
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            {
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams()
+                {
+                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                };
+
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = false
+                };
+
+                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
+            }
         }
-
-        // [Test]
-        // public async Task CanQueryDriveByCategory()
-        // {
-        // }
-        //
-        // [Test]
-        // public async Task CanQueryDriveByCategoryNoContent()
-        // {
-        // }
-
+        
         [Test]
         public async Task CanQueryDriveRecentItems()
         {
             var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+            var uploadContext = await this.UploadAnonymousFile(identity, tag);
 
-            var metadata = new UploadFileMetadata()
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                ContentType = "application/json",
-                AppData = new()
+                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
+
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams();
+                var resultOptions = new ResultOptions()
                 {
-                    Tags = new List<Guid>() {Guid.NewGuid()},
-                    ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
-                }
-            };
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = true
+                };
 
-            var uploadContext = await _scaffold.Upload(identity, metadata);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
-            {
-                var svc = RestService.For<IDriveQueryClient>(client);
-
-                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, true, 1, 100);
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(page.Results.Count > 0);
+                Assert.IsTrue(batch.SearchResults.Any());
+                Assert.IsNotNull(batch.StartCursor);
+                //TODO: test that star cursor is not zeros
+
+                //TODO: ensure cursor was updated sometime in the last 10 minutes?
+                Assert.IsTrue(batch.CursorUpdatedTimestamp > 0);
+
+                var firstResult = batch.SearchResults.First();
+
+                //ensure file content was sent 
+                Assert.NotNull(firstResult.JsonContent);
+                Assert.IsNotEmpty(firstResult.JsonContent);
+
+                Assert.NotNull(firstResult.PayloadContent);
+                Assert.IsNotEmpty(firstResult.PayloadContent);
+
+                Assert.IsTrue(firstResult.FileType == uploadContext.FileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.DataType == uploadContext.FileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.ContentType == uploadContext.FileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsFalse(firstResult.PayloadTooLarge);
+
+                //must be ordered correctly
+                //TODO: How to test this with a fileId?
             }
         }
 
@@ -81,21 +123,65 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         public async Task CanQueryDriveRecentItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+            var uploadContext = await this.UploadAnonymousFile(identity, tag);
 
-            var uploadContext = await _scaffold.Upload(identity);
-
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IDriveQueryClient>(client);
+                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, false, 1, 100);
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams();
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = false
+                };
 
-                Assert.IsTrue(page.Results.Count > 0);
-                Assert.IsTrue(page.Results.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
         }
+        
+        private async Task<UploadTestUtilsContext> UploadAnonymousFile(DotYouIdentity identity, Guid tag)
+        {
+            List<Guid> tags = new List<Guid>() { tag };
+
+            var uploadFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    Tags = tags
+                },
+                AccessControlList = new AccessControlList()
+                {
+                    RequiredSecurityGroup = SecurityGroupType.Anonymous
+                }
+            };
+
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = false,
+                DriveAllowAnonymousReads = true
+            };
+
+            return await _scaffold.Upload(identity, uploadFileMetadata, options);
+        }
+
     }
 }

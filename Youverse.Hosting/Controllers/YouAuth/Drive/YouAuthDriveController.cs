@@ -7,6 +7,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Hosting.Authentication.YouAuth;
 
 namespace Youverse.Hosting.Controllers.YouAuth.Drive
@@ -60,38 +61,23 @@ namespace Youverse.Hosting.Controllers.YouAuth.Drive
             var payload = await _driveService.GetPayloadStream(file);
             return new FileStreamResult(payload, "application/octet-stream");
         }
-
-
-        [HttpGet("query/filetype")]
-        public async Task<IActionResult> GetByFileType(Guid driveAlias, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        
+        [HttpPost("query/recent")]
+        public async Task<IActionResult> GetRecent([FromQuery] Guid driveAlias, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
+            [FromQuery] ResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
-            var page = await _driveQueryService.GetByFileType(driveId, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
-            return new JsonResult(page);
+            var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
+            return new JsonResult(batch);
         }
 
-        [HttpGet("query/alias")]
-        public async Task<IActionResult> GetByAlias(Guid driveAlias, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
+        [HttpPost("query/batch")]
+        public async Task<IActionResult> GetBatch([FromQuery] Guid driveAlias, [FromQuery] byte[] startCursor, [FromQuery] byte[] stopCursor, [FromBody] QueryParams qp,
+            [FromQuery] ResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
-            var page = await _driveQueryService.GetByAlias(driveId, alias, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
-            return new JsonResult(page);
-        }
-
-        [HttpGet("query/tag")]
-        public async Task<IActionResult> GetByTag(Guid driveAlias, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
-        {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
-            var page = await _driveQueryService.GetByTag(driveId, tag, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
-            return new JsonResult(page);
-        }
-
-        [HttpGet("query/recent")]
-        public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveAlias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
-        {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
-            var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
-            return new JsonResult(page);
+            var batch = await _driveQueryService.GetBatch(driveId, startCursor, stopCursor, qp, options);
+            return new JsonResult(batch);
         }
 
         [HttpGet("metadata/type")]

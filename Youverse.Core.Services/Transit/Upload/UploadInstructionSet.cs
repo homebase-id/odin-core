@@ -1,6 +1,4 @@
-﻿using Youverse.Core.Services.Drive.Storage;
-
-namespace Youverse.Core.Services.Transit.Upload
+﻿namespace Youverse.Core.Services.Transit.Upload
 {
     /// <summary>
     /// Specifies how an upload should be handled

@@ -180,13 +180,13 @@ namespace Youverse.Core.Services.Drive
 
             foreach (var fileId in page.Results)
             {
-                var md = await _driveService.GetMetadata(new InternalDriveFileId()
+                var (md, acl) = await _driveService.GetMetadata(new InternalDriveFileId()
                 {
                     DriveId = driveId,
                     FileId = fileId
                 });
-
-                var dsr = FromFileMetadata(md);
+                
+                var dsr = FromFileMetadata(md, acl);
 
                 if (!includeMetadataHeader)
                 {
@@ -236,8 +236,8 @@ namespace Youverse.Core.Services.Drive
                     FileId = fileId
                 };
                 
-                var md = await _driveService.GetMetadata(file);
-                var dsr = FromFileMetadata(md);
+                var (md, acl) = await _driveService.GetMetadata(file);
+                var dsr = FromFileMetadata(md, acl);
 
                 if (!options.IncludeMetadataHeader)
                 {
@@ -262,11 +262,11 @@ namespace Youverse.Core.Services.Drive
             return results;
         }
 
-        private DriveSearchResult FromFileMetadata(FileMetadata metadata)
+        private DriveSearchResult FromFileMetadata(FileMetadata metadata, AccessControlList acl)
         {
             int priority = 1000;
 
-            switch (metadata.AccessControlList.RequiredSecurityGroup)
+            switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     priority = 500;

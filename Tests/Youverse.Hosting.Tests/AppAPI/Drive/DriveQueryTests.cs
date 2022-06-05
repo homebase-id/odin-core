@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -39,11 +39,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             _scaffold.RunAfterAnyTests();
         }
 
-        [Test]
-        public async Task FailsWhenNoValidIndex()
-        {
-            Assert.Inconclusive("TODO");
-        }
+        // [Test]
+        // public async Task FailsWhenNoValidIndex()
+        // {
+        //     Assert.Inconclusive("TODO");
+        // }
 
         // [Test]
         // public async Task CanQueryDriveByCategory()
@@ -56,51 +56,60 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         // }
 
         [Test]
-        public async Task CanQueryByOneTag()
+        public async Task CanQueryBatchByOneTag()
         {
             var identity = TestIdentities.Samwise;
-
             Guid tag = Guid.NewGuid();
             List<Guid> tags = new List<Guid>() { tag };
 
-            var metadata = new UploadFileMetadata()
+            var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    Tags = tags,
-                },
+                    ContentIsComplete = false,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    Tags = tags
+                }
             };
 
-            var uploadContext = await _scaffold.Upload(identity, metadata);
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = true,
+            };
+
+            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetByTag(uploadContext.TestAppContext.DriveAlias, tag, false, 1, 100);
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams()
+                {
+                    TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
+                };
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = false
+                };
 
-                Assert.IsTrue(page.Results.Count > 0);
-                Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
-            }
-
-            var appId = uploadContext.AppId;
-            using (var ownerClient = _scaffold.CreateOwnerApiHttpClient(identity, out var _, appId))
-            {
-                var svc = RestService.For<IDriveQueryClient>(ownerClient);
-
-                var response = await svc.GetByTag(uploadContext.TestAppContext.DriveAlias, tag, false, 1, 100);
-
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
-
-                Assert.IsTrue(page.Results.Count > 0);
-                Assert.IsNotNull(page.Results.Single(item => item.Tags.Contains(tag)));
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+                
+                Assert.IsNotNull(batch);
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
             }
         }
 
@@ -148,7 +157,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
 
@@ -224,7 +233,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");

@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -38,7 +39,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task CanSendTransferAndSeeStatus()
         {
             var sender = TestIdentities.Frodo;
-            var recipients = new List<string>() {TestIdentities.Samwise};
+            var recipients = new List<string>() { TestIdentities.Samwise };
 
             Guid appId = Guid.NewGuid();
             Guid driveAlias = Guid.NewGuid();
@@ -47,7 +48,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
-                var recipient = (DotYouIdentity) r;
+                var recipient = (DotYouIdentity)r;
                 var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.DriveAlias);
                 recipientContexts.Add(recipient, ctx);
 
@@ -85,9 +86,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        Tags = new List<Guid>() {Guid.NewGuid()},
+                        Tags = new List<Guid>() { Guid.NewGuid() },
                         ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
             };
@@ -183,10 +184,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         public async Task RecipientCanGetReceivedTransferFromDriveAndIsSearchable()
         {
             var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() {TestIdentities.Frodo};
+            var recipients = new List<string>() { TestIdentities.Frodo };
             var categoryId = Guid.NewGuid();
             var message = "ping ping pong pong";
-            var jsonMessage = JsonConvert.SerializeObject(new {message = message});
+            var jsonMessage = JsonConvert.SerializeObject(new { message = message });
             var payloadText = "lets alllll prraayyy for this world";
 
             var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions()
@@ -260,17 +261,31 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadText);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
-                //var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-
                 var driveQueryClient = RestService.For<IDriveQueryClient>(recipientClient);
 
-                var response = await driveQueryClient.GetByTag(recipientContext.DriveAlias, categoryId, true, 1, 100);
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams()
+                {
+                    TagsMatchAtLeastOne = new List<byte[]>() { categoryId.ToByteArray() }
+                };
 
-                Assert.IsTrue(page.Results.Count() == 1);
-                CollectionAssert.AreEquivalent(utilsContext.FileMetadata.AppData.Tags, page.Results[0].Tags);
+                var resultOptions = new ResultOptions()
+                {
+                    IncludePayload = true,
+                    IncludeMetadataHeader = true,
+                    MaxRecords = 100
+                };
+
+                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                
+//                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, categoryId, true, 1, 100);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
+
+                Assert.IsTrue(batch.SearchResults.Count() == 1);
+                CollectionAssert.AreEquivalent(utilsContext.FileMetadata.AppData.Tags, batch.SearchResults.First().Tags);
 
 
                 // Console.WriteLine($"Items with category: {categoryId}");
@@ -278,7 +293,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 // {
                 //     Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
                 // }
-                
             }
         }
     }

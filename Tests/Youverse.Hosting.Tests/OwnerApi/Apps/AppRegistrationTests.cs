@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 

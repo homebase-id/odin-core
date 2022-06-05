@@ -327,7 +327,7 @@ namespace Youverse.Core.Services.Transit
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
-                var metadata = await _driveService.GetMetadata(file);
+                var (metadata, _) = await _driveService.GetMetadata(file);
 
                 //redact information
                 metadata.File = InternalDriveFileId.Redacted();

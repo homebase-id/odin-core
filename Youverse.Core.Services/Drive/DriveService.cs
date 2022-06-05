@@ -36,7 +36,8 @@ namespace Youverse.Core.Services.Drive
         private const string DriveCollectionName = "drives";
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator, IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
+        public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
@@ -139,7 +140,7 @@ namespace Youverse.Core.Services.Drive
         {
             return await this.GetDrivesInternal(true, pageOptions);
         }
-        
+
         public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
         {
             Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.Type == type;
@@ -154,17 +155,17 @@ namespace Youverse.Core.Services.Drive
             var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
             return converted;
         }
-        
+
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.AllowAnonymousReads == true; 
+            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.AllowAnonymousReads == true;
 
             var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
             var storageDrives = page.Results.Select(ToStorageDrive).ToList();
             var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
             return converted;
         }
-        
+
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
             Expression<Func<StorageDriveBase, bool>> predicate = drive => true;
@@ -210,7 +211,7 @@ namespace Youverse.Core.Services.Drive
 
             if (this.FileExists(file))
             {
-                var existingMetadata = await this.GetMetadata(file);
+                var (existingMetadata, _) = await this.GetMetadata(file);
                 metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
                 metadata.Created = existingMetadata.Created;
             }
@@ -233,7 +234,7 @@ namespace Youverse.Core.Services.Drive
             await GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream);
 
             //update the metadata file - updated date
-            var metadata = await GetMetadata(file);
+            var (metadata, _) = await GetMetadata(file);
             metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
 
             //TODO: who sets the checksum?
@@ -336,7 +337,7 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId);
         }
 
-        public async Task<FileMetadata> GetMetadata(InternalDriveFileId file)
+        public async Task<(FileMetadata, AccessControlList)> GetMetadata(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
 
@@ -344,13 +345,14 @@ namespace Youverse.Core.Services.Drive
 
             // var acl = await GetAcl(file);
             await _driveAclAuthorizationService.AssertCallerHasPermission(metadata.AccessControlList);
-
+            
+            var acl = metadata.AccessControlList;
             if (!_contextAccessor.GetCurrent().Caller.IsOwner)
             {
                 metadata.AccessControlList = null;
             }
-
-            return metadata;
+            //return the acl as a separate value for any internal code that needs to use it
+            return (metadata, acl);
         }
 
         // public Task<AccessControlList> GetAcl(DriveFileId)
@@ -421,13 +423,12 @@ namespace Youverse.Core.Services.Drive
 
             metadata.File = file;
 
-            await this.WriteKeyHeader(file, keyHeader);
-            await this.WriteMetaData(file, metadata);
-
             string sourceFile = await GetTempStorageManager(file.DriveId).GetPath(file.FileId, payloadExtension);
             await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
 
-            OnLongTermFileChanged(file, metadata);
+            //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
+            await this.WriteKeyHeader(file, keyHeader);
+            await this.WriteMetaData(file, metadata);
         }
 
         public Task WriteEncryptedKeyHeader(InternalDriveFileId file, EncryptedKeyHeader encryptedKeyHeader)

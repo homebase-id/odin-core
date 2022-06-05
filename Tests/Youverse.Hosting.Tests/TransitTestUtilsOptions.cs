@@ -11,6 +11,8 @@ namespace Youverse.Hosting.Tests
             DisconnectIdentitiesAfterTransfer = true
         };
 
+        public bool DriveAllowAnonymousReads { get; set; } = false;
+
         public bool DisconnectIdentitiesAfterTransfer { get; set; } = true;
 
         /// <summary>

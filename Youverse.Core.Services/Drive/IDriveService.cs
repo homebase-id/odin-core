@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -92,17 +93,17 @@ namespace Youverse.Core.Services.Drive
         Task DeleteTempFiles(InternalDriveFileId file);
 
         /// <summary>
-        /// Gets the <see cref="FileMetadata"/>
+        /// Gets the <see cref="FileMetadata"/>.  Removes the access control list if anyone other than the owner is retrieving this file
         /// </summary>
         /// <param name="file"></param>
-        /// <returns></returns>
-        Task<FileMetadata> GetMetadata(InternalDriveFileId file);
+        /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
+        Task<(FileMetadata, AccessControlList)> GetMetadata(InternalDriveFileId file);
 
 
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
 
         Task<long> GetPayloadSize(InternalDriveFileId file);
-        
+
         /// <summary>
         /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
         /// </summary>
