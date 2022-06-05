@@ -45,7 +45,18 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
 
         public StorageDrive Drive { get; init; }
 
-        public async Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public Task<(byte[], IEnumerable<Guid>)> GetRecent(ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<PagedResult<Guid>> GetRecentlyCreatedItems(bool includeMetadataHeader,
+            PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -63,11 +74,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     StripContent(ref filtered);
                 }
 
-                return filtered;
+                return new PagedResult<Guid>(pageOptions, filtered.TotalPages,
+                    filtered.Results.Select(x => x.FileId).ToList());
             }
         }
 
-        public async Task<PagedResult<IndexedItem>> Query(int fileType, int dataType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public async Task<PagedResult<Guid>> Query(int fileType, int dataType, bool includeMetadataHeader,
+            PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -90,11 +103,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     StripContent(ref filtered);
                 }
 
-                return filtered;
+                return new PagedResult<Guid>(pageOptions, filtered.TotalPages,
+                    filtered.Results.Select(x => x.FileId).ToList());
             }
         }
-        
-        public async Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+
+        public async Task<PagedResult<Guid>> GetByFileType(int fileType, bool includeMetadataHeader,
+            PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -117,12 +132,14 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     StripContent(ref filtered);
                 }
 
-                return filtered;
+                return new PagedResult<Guid>(pageOptions, filtered.TotalPages,
+                    filtered.Results.Select(x => x.FileId).ToList());
             }
         }
 
 
-        public async Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public async Task<PagedResult<Guid>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader,
+            PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -131,7 +148,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
             {
                 //HACK: highly inefficient way to do security filtering (we're scanning all f'kin records)  #prototype
                 // tag == Guid.Empty is for when the tag does not matter. Yes, we need to change the method name to something other than GetByTag 
-                var unfiltered = _indexStorage.Find(item => (item.Tags.Contains(tag) || tag == Guid.Empty) && item.FileType == fileType,
+                var unfiltered = _indexStorage.Find(
+                        item => (item.Tags.Contains(tag) || tag == Guid.Empty) && item.FileType == fileType,
                         ListSortDirection.Ascending,
                         item => item.CreatedTimestamp,
                         PageOptions.All)
@@ -145,11 +163,13 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     StripContent(ref filtered);
                 }
 
-                return filtered;
+                return new PagedResult<Guid>(pageOptions, filtered.TotalPages,
+                    filtered.Results.Select(x => x.FileId).ToList());
             }
         }
 
-        public async Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        public async Task<PagedResult<Guid>> GetByAlias(Guid alias, bool includeMetadataHeader,
+            PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
         {
             AssertValidIndexLoaded();
 
@@ -171,13 +191,16 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                     StripContent(ref filtered);
                 }
 
-                return filtered;
+                return new PagedResult<Guid>(pageOptions, filtered.TotalPages,
+                    filtered.Results.Select(x => x.FileId).ToList());
             }
         }
 
-        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService)
+        private PagedResult<IndexedItem> ApplySecurity(PagedResult<IndexedItem> unfiltered, PageOptions pageOptions,
+            IDriveAclAuthorizationService driveAclAuthorizationService)
         {
-            Func<IndexedItem, bool> callerHasPermission = (item) => driveAclAuthorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
+            Func<IndexedItem, bool> callerHasPermission = (item) =>
+                driveAclAuthorizationService.CallerHasPermission(item.AccessControlList).GetAwaiter().GetResult();
             var filtered = unfiltered.Results.Where(callerHasPermission);
 
             //possible memory spike
@@ -212,7 +235,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         {
             if (null == _backupIndexStorage)
             {
-                throw new Exception("Backup index not ready; call PrepareSecondaryIndexForRebuild before calling UpdateSecondaryIndex");
+                throw new Exception(
+                    "Backup index not ready; call PrepareSecondaryIndexForRebuild before calling UpdateSecondaryIndex");
             }
 
             _backupIndexStorage.Save(MetadataToIndexedItem(metadata));
@@ -247,7 +271,8 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
                 Directory.Delete(indexPath, true);
             }
 
-            _backupIndexStorage = new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, IndexCollectionName);
+            _backupIndexStorage =
+                new LiteDBSingleCollectionStorage<IndexedItem>(_logger, indexPath, IndexCollectionName);
 
             return Task.CompletedTask;
         }
@@ -305,7 +330,9 @@ namespace Youverse.Core.Services.Drive.Query.LiteDb
         private bool IsValidIndex(StorageDriveIndex index)
         {
             //TODO: this needs more rigor than just checking the number of files
-            var qFileCount = Directory.Exists(index.GetQueryIndexPath()) ? Directory.GetFiles(index.GetQueryIndexPath()).Count() : 0;
+            var qFileCount = Directory.Exists(index.GetQueryIndexPath())
+                ? Directory.GetFiles(index.GetQueryIndexPath()).Count()
+                : 0;
 
             return qFileCount > 0;
         }

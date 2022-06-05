@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
@@ -23,6 +24,28 @@ namespace Youverse.Core.Services.Drive.Query
         /// </summary>
         IndexReadyState IndexReadyState { get; set; }
 
+        /// <summary>
+        /// Returns the fileId of recently modified files
+        /// </summary>
+        /// <param name="startCursor"></param>
+        /// <param name="qp"></param>
+        /// <param name="options"></param>
+        /// <param name="maxDate"></param>
+        /// <returns>(cursor, file Id List)</returns>
+        Task<(byte[], IEnumerable<Guid>)> GetRecent(UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options);
+
+
+        /// <summary>
+        /// Returns a batch of file Ids
+        /// </summary>
+        /// <param name="stopCursor"></param>
+        /// <param name="qp"></param>
+        /// <param name="options"></param>
+        /// <param name="startCursor"></param>
+        /// <returns>
+        /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
+        /// </returns>
+        Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
 
         /// <summary>
         /// Returns the most recently created <see cref="IndexedItem"/>s.  Items are returned CreateTimestamp descending
@@ -30,7 +53,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        Task<PagedResult<Guid>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
 
         /// <summary>
@@ -40,8 +63,8 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-        
+        Task<PagedResult<Guid>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
         /// </summary>
@@ -50,7 +73,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        Task<PagedResult<Guid>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
         /// <summary>
         /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
@@ -59,7 +82,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
+        Task<PagedResult<Guid>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
 
 
         /// <summary>
