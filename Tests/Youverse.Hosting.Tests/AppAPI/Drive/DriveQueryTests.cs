@@ -14,6 +14,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -60,7 +61,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var identity = TestIdentities.Samwise;
 
             Guid tag = Guid.NewGuid();
-            List<Guid> tags = new List<Guid>() {tag};
+            List<Guid> tags = new List<Guid>() { tag };
 
             var metadata = new UploadFileMetadata()
             {
@@ -114,7 +115,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -124,13 +125,21 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, true, 1, 100);
+                UInt64 maxDate = 0; //get everything ever modified
+                var startCursor = Array.Empty<byte>();
+                var qp = new QueryParams();
+                var options = new ResultOptions();
+                var response = await svc.GetRecent(uploadContext.TestAppContext.DriveAlias, maxDate, startCursor, qp, options);
+                // var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(page.Results.Count > 0);
+                Assert.IsTrue(batch.SearchResults.Count() > 1);
+                Assert.IsNotNull(batch.StartCursor);
+                //TODO: test that star cursor is not zeros
+                
             }
         }
 

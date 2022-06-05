@@ -74,11 +74,11 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
-                cmd.ExecuteNonQuery();
+                // cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
+                // cmd.ExecuteNonQuery();
 
                 cmd.CommandText =
-                    @"CREATE TABLE mainindex(
+                    @"CREATE TABLE if not exists mainindex(
                      fileid BLOB UNIQUE PRIMARY KEY NOT NULL,
                      createdtimestamp INTEGER NOT NULL,
                      updatedtimestamp INTEGER,

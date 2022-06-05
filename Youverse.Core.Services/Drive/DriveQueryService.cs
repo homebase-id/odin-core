@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 
@@ -70,7 +71,7 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<BatchResult> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+        public async Task<QueryBatchResult> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
@@ -78,7 +79,7 @@ namespace Youverse.Core.Services.Drive
                 var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
-                return new BatchResult()
+                return new QueryBatchResult()
                 {
                     StartCursor = cursor,
                     StopCursor = null,
@@ -90,14 +91,14 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<BatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(startCursor, stopCursor, qp, options);
                 var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
                 
-                return new BatchResult()
+                return new QueryBatchResult()
                 {
                     StartCursor = resultStartCursor,
                     StopCursor = resultStopCursor,
@@ -369,8 +370,8 @@ namespace Youverse.Core.Services.Drive
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
 
-            manager = new LiteDbDriveQueryManager(drive, logger, _accessor);
-
+//            manager = new LiteDbDriveQueryManager(drive, logger, _accessor);
+            manager = new SqliteQueryManager(drive, logger);
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index
             _queryManagers.TryAdd(drive.Id, manager);

@@ -5,7 +5,7 @@ using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class BatchResult
+    public class QueryBatchResult
     {
         public byte[] StartCursor { get; set; }
         public byte[] StopCursor { get; set; }
@@ -21,13 +21,13 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
+        /// <param name="driveId"></param>
+        /// <param name="maxDate"></param>
         /// <param name="startCursor"></param>
         /// <param name="qp"></param>
         /// <param name="options"></param>
-        /// <param name="driveId"></param>
-        /// <param name="maxDate"></param>
         /// <returns>(cursor, file Id List)</returns>
-        Task<BatchResult> GetRecent(Guid driveId, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options);
+        Task<QueryBatchResult> GetRecent(Guid driveId, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options);
 
         /// <summary>
         /// Returns a batch of file Ids
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<BatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
+        Task<QueryBatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
         
         Task<PagedResult<DriveSearchResult>> GetRecentlyCreatedItems(Guid driveId, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions);
 

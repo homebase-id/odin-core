@@ -49,7 +49,6 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         public async Task<IActionResult> GetByTag(Guid driveAlias, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
-            ;
 
             var page = await _driveQueryService.GetByTag(driveId, tag, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
@@ -65,7 +64,8 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpPost("recent2")]
-        public async Task<IActionResult> GetRecent(Guid driveAlias, UInt64 maxDate, byte[] startCursor, [FromBody] QueryParams qp, [FromBody] ResultOptions options)
+        public async Task<IActionResult> GetRecent([FromQuery] Guid driveAlias, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
+            [FromQuery] ResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
             var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
 
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch(Guid driveAlias, byte[] startCursor, byte[] stopCursor, [FromBody] QueryParams qp, [FromBody] ResultOptions options)
+        public async Task<IActionResult> GetBatch([FromQuery] Guid driveAlias, [FromQuery] byte[] startCursor, [FromQuery] byte[] stopCursor, [FromBody] QueryParams qp,[FromQuery] ResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
             var batch = await _driveQueryService.GetBatch(driveId, startCursor, stopCursor, qp, options);

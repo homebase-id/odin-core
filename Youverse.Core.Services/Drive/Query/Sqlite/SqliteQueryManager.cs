@@ -134,7 +134,6 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.Tags);
         }
 
-        // _indexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }
 
@@ -160,6 +159,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public Task LoadLatestIndex()
     {
-        throw new NotImplementedException();
+        _indexDb.CreateDatabase();
+        return Task.CompletedTask;
     }
 }

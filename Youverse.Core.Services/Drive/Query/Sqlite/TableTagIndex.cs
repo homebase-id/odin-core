@@ -41,10 +41,10 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
-                cmd.ExecuteNonQuery();
+                // cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
+                // cmd.ExecuteNonQuery();
 
-                cmd.CommandText = @"CREATE TABLE tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
+                cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
                                  + "CREATE INDEX TagIdx ON tagindex(tagid);";
 
                 cmd.ExecuteNonQuery();
