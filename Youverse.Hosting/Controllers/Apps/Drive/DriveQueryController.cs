@@ -2,8 +2,10 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Hosting.Controllers.Owner;
 
 namespace Youverse.Hosting.Controllers.Apps.Drive
@@ -28,7 +30,8 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("filetype")]
         public async Task<IActionResult> GetByFileType(Guid driveAlias, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);;
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            ;
             var page = await _driveQueryService.GetByFileType(driveId, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
@@ -36,7 +39,8 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("alias")]
         public async Task<IActionResult> GetByAlias(Guid driveAlias, Guid alias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);;
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            ;
             var page = await _driveQueryService.GetByAlias(driveId, alias, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
         }
@@ -44,7 +48,8 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("tag")]
         public async Task<IActionResult> GetByTag(Guid driveAlias, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);;
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            ;
 
             var page = await _driveQueryService.GetByTag(driveId, tag, fileType, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
@@ -53,9 +58,26 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecentlyCreatedItems(Guid driveAlias, bool includeMetadataHeader, bool includePayload, int pageNumber, int pageSize)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);;
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            ;
             var page = await _driveQueryService.GetRecentlyCreatedItems(driveId, includeMetadataHeader, includePayload, new PageOptions(pageNumber, pageSize));
             return new JsonResult(page);
+        }
+
+        [HttpPost("recent2")]
+        public async Task<IActionResult> GetRecent(Guid driveAlias, UInt64 maxDate, byte[] startCursor, [FromBody] QueryParams qp, [FromBody] ResultOptions options)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
+            return new JsonResult(batch);
+        }
+
+        [HttpPost("batch")]
+        public async Task<IActionResult> GetBatch(Guid driveAlias, byte[] startCursor, byte[] stopCursor, [FromBody] QueryParams qp, [FromBody] ResultOptions options)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            var batch = await _driveQueryService.GetBatch(driveId, startCursor, stopCursor, qp, options);
+            return new JsonResult(batch);
         }
 
         [HttpPost("rebuild")]

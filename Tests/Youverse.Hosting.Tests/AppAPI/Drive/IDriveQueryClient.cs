@@ -16,5 +16,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         [Get(RootPath + "/recent")]
         Task<ApiResponse<PagedResult<IndexedItem>>> GetRecentlyCreatedItems(Guid driveAlias, bool includeContent, int pageNumber, int pageSize);
+
+        [Get(RootPath + "/recent2")]
+        Task<ApiResponse<PagedResult<IndexedItem>>> GetRecent(Guid driveAlias, UInt64 maxDate, byte[] startCursor, [Body] QueryParams qp, [Body] ResultOptions options);
+
+        [Get(RootPath + "/batch")]
+        Task<ApiResponse<PagedResult<IndexedItem>>> GetBatch(Guid driveAlias, byte[] startCursor, byte[] stopCursor, [Body] QueryParams qp, [Body] ResultOptions options);
     }
 }

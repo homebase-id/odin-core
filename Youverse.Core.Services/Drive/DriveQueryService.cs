@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Permissions;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -69,25 +70,40 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<(byte[], IEnumerable<DriveSearchResult>)> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+        public async Task<BatchResult> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (cursor, fileIdList) = await queryManager.GetRecent(maxDate, startCursor, qp, options);
                 var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
-                return (cursor, searchResults);
+
+                //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
+                return new BatchResult()
+                {
+                    StartCursor = cursor,
+                    StopCursor = null,
+                    CursorUpdatedTimestamp = 0,
+                    SearchResults = searchResults
+                };
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<(byte[], byte[], ulong, IEnumerable<DriveSearchResult>)> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+        public async Task<BatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(startCursor, stopCursor, qp, options);
+                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(startCursor, stopCursor, qp, options);
                 var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
-                return (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, searchResults);
+                
+                return new BatchResult()
+                {
+                    StartCursor = resultStartCursor,
+                    StopCursor = resultStopCursor,
+                    CursorUpdatedTimestamp = cursorUpdatedTimestamp,
+                    SearchResults = searchResults
+                };
             }
 
             throw new NoValidIndexException(driveId);
