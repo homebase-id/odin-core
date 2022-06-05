@@ -521,6 +521,7 @@ namespace Youverse.Hosting.Tests
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             Guid appDriveAlias = Guid.Parse("99888555-0000-0000-0000-000000004445");
+            //Guid appDriveAlias = Guid.NewGuid();
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,

@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         [Test]
         public async Task CanQueryDriveRecentItems()
         {
-            var identity = TestIdentities.Samwise;
+            var identity = TestIdentities.Frodo;
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadAnonymousFile(identity, tag);
 
