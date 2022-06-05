@@ -230,12 +230,13 @@ namespace Youverse.Core.Services.Drive
 
             foreach (var fileId in fileIdList)
             {
-                var md = await _driveService.GetMetadata(new InternalDriveFileId()
+                var file = new InternalDriveFileId()
                 {
                     DriveId = driveId,
                     FileId = fileId
-                });
-
+                };
+                
+                var md = await _driveService.GetMetadata(file);
                 var dsr = FromFileMetadata(md);
 
                 if (!options.IncludeMetadataHeader)
@@ -245,12 +246,6 @@ namespace Youverse.Core.Services.Drive
 
                 if (options.IncludePayload)
                 {
-                    var file = new InternalDriveFileId()
-                    {
-                        DriveId = driveId,
-                        FileId = dsr.FileId
-                    };
-
                     var (tooLarge, size, bytes) = await _driveService.GetPayloadBytes(file);
                     dsr.PayloadTooLarge = tooLarge;
                     dsr.PayloadSize = size;
@@ -296,6 +291,7 @@ namespace Youverse.Core.Services.Drive
             //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
             return new DriveSearchResult()
             {
+                ContentType = metadata.ContentType,
                 FileId = metadata.File.FileId,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 PayloadIsEncrypted = metadata.PayloadIsEncrypted,

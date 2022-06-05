@@ -38,6 +38,9 @@ namespace Youverse.Hosting.Tests
         /// </summary>
         public string AppDataJsonContent { get; set; }
 
+        /// <summary>
+        /// The data to be uploaded as the payload
+        /// </summary>
         public string PayloadData { get; set; }
     }
 }

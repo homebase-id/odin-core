@@ -792,7 +792,7 @@ namespace Youverse.Hosting.Tests
                 await this.CreateConnection(sender, recipient);
             }
 
-            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
             using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret, testAppContext.AppId))
             {

@@ -38,5 +38,7 @@ namespace Youverse.Core.Services.Drive
         /// The lower the number, the higher the priority
         /// </summary>
         public int Priority { get; set; }
+
+        public string ContentType { get; set; }
     }
 }

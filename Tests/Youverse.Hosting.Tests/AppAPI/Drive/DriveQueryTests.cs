@@ -109,40 +109,74 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
 
-            var metadata = new UploadFileMetadata()
+            var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
+                    ContentIsComplete = false,
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
-                    DataType = 0
+                    DataType = 202
                 }
             };
 
-            var uploadContext = await _scaffold.Upload(identity, metadata);
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = true,
+            };
+
+            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                UInt64 maxDate = 0; //get everything ever modified
                 var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
                 var qp = new QueryParams();
-                var options = new ResultOptions();
-                var response = await svc.GetRecent(uploadContext.TestAppContext.DriveAlias, maxDate, startCursor, qp, options);
-                // var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, true, 1, 100);
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = true
+                };
+
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+
                 Assert.IsTrue(response.IsSuccessStatusCode);
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(batch.SearchResults.Count() > 1);
+                Assert.IsTrue(batch.SearchResults.Any());
                 Assert.IsNotNull(batch.StartCursor);
                 //TODO: test that star cursor is not zeros
-                
+
+                //TODO: ensure cursor was updated sometime in the last 10 minutes?
+                Assert.IsTrue(batch.CursorUpdatedTimestamp > 0);
+
+                var firstResult = batch.SearchResults.First();
+
+                //ensure file content was sent 
+                Assert.NotNull(firstResult.JsonContent);
+                Assert.IsNotEmpty(firstResult.JsonContent);
+
+                Assert.NotNull(firstResult.PayloadContent);
+                Assert.IsNotEmpty(firstResult.PayloadContent);
+
+                Assert.IsTrue(firstResult.FileType == uploadFileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.DataType == uploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.ContentType == uploadFileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsFalse(firstResult.PayloadTooLarge);
+
+                //must be ordered correctly
+                //TODO: How to test this with a fileId?
             }
         }
 
@@ -151,20 +185,49 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
 
-            var uploadContext = await _scaffold.Upload(identity);
+            var uploadFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202
+                }
+            };
 
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = true,
+            };
+
+            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
                 var svc = RestService.For<IDriveQueryClient>(client);
 
-                var response = await svc.GetRecentlyCreatedItems(uploadContext.TestAppContext.DriveAlias, false, 1, 100);
-                Assert.IsTrue(response.IsSuccessStatusCode);
-                var page = response.Content;
-                Assert.IsNotNull(page);
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams();
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludePayload = true,
+                    IncludeMetadataHeader = false
+                };
 
-                Assert.IsTrue(page.Results.Count > 0);
-                Assert.IsTrue(page.Results.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+
+                Assert.IsTrue(response.IsSuccessStatusCode);
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
         }
     }
