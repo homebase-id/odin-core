@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Security.Permissions;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -11,7 +10,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;

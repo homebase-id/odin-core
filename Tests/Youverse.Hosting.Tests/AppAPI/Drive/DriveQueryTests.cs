@@ -112,10 +112,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var metadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                PayloadIsEncrypted = false,
                 AppData = new()
                 {
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 0
                 }
             };
 

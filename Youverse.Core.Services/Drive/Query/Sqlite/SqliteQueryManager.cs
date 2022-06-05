@@ -42,14 +42,14 @@ public class SqliteQueryManager : IDriveQueryManager
             out var cursor,
             maxDate,
             startCursor,
-            qp.FileType.ToList(),
-            qp.DataType.ToList(),
-            qp.Sender.ToList(),
-            qp.ThreadId.ToList(),
-            qp.UserDateSpan.ToList(),
-            qp.AclId.ToList(),
-            qp.TagsMatchOne.ToList(),
-            qp.TagsMatchAll.ToList());
+            qp.FileType?.ToList(),
+            qp.DataType?.ToList(),
+            qp.Sender?.ToList(),
+            qp.ThreadId?.ToList(),
+            qp.UserDateSpan?.ToList(),
+            qp.AclId?.ToList(),
+            qp.TagsMatchOne?.ToList(),
+            qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
@@ -63,14 +63,14 @@ public class SqliteQueryManager : IDriveQueryManager
             out UInt64 cursorUpdatedTimestamp,
             startCursor,
             stopCursor,
-            qp.FileType.ToList(),
-            qp.DataType.ToList(),
-            qp.Sender.ToList(),
-            qp.ThreadId.ToList(),
-            qp.UserDateSpan.ToList(),
-            qp.AclId.ToList(),
-            qp.TagsMatchOne.ToList(),
-            qp.TagsMatchAll.ToList());
+            qp.FileType?.ToList(),
+            qp.DataType?.ToList(),
+            qp.Sender?.ToList(),
+            qp.ThreadId?.ToList(),
+            qp.UserDateSpan?.ToList(),
+            qp.AclId?.ToList(),
+            qp.TagsMatchOne?.ToList(),
+            qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, results.Select(r => new Guid(r))));
     }
@@ -102,7 +102,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public Task UpdateCurrentIndex(FileMetadata metadata)
     {
-        var exists = _indexDb.tblMainIndex.Get(metadata.File.FileId) == null;
+        var exists = _indexDb.tblMainIndex.Get(metadata.File.FileId) != null;
         var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
 
         //TODO: Need to sortout the ACL
@@ -120,6 +120,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 threadId,
                 userDate,
                 acl,
+                null,
                 metadata.AppData.Tags);
         }
         else
@@ -160,6 +161,7 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task LoadLatestIndex()
     {
         _indexDb.CreateDatabase();
+        this.IndexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }
 }

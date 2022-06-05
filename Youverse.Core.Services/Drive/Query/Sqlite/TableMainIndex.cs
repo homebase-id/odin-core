@@ -237,7 +237,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
                 _param1.Value = fileId;
                 _param2.Value = createdZeroSeconds;
-                _param3.Value = null;
+                // _param3.Value = null;
+                _param3.Value = UnixTime.UnixTimeMillisecondsUnique();
                 _param4.Value = isArchived;
                 _param5.Value = isHistory;
                 _param6.Value = fileType;
