@@ -4,6 +4,7 @@ using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
@@ -34,7 +35,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
+            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -52,7 +53,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
+            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -83,7 +84,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, Guid.NewGuid());
+            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
@@ -102,7 +103,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var identity = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
+            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))

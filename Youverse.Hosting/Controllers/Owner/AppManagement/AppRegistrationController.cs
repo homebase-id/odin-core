@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
 
             if (appRegistration.CreateDrive)
             {
-                var drive = await _driveService.CreateDrive(appRegistration.DriveName, appRegistration.DriveType, appRegistration.DefaultDrivePublicId, appRegistration.DriveMetadata, appRegistration.DriveAllowAnonymousReads);
+                var drive = await _driveService.CreateDrive(appRegistration.DriveName, appRegistration.TargetDrive, appRegistration.DriveMetadata, appRegistration.DriveAllowAnonymousReads);
                 driveIds.Add(drive.Id);
             }
 

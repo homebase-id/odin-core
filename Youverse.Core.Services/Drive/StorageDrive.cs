@@ -87,6 +87,15 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public TargetDrive GetTargetDrive()
+        {
+            return new TargetDrive()
+            {
+                Alias = this.Alias,
+                Type = this.Type
+            };
+        }
+        
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;

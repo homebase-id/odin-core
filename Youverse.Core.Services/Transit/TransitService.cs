@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Transit
 
             var ext = new ExternalFileIdentifier()
             {
-                DriveAlias = _driveService.GetDrive(package.InternalFile.DriveId).Result.Alias,
+                TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.GetTargetDrive(),
                 FileId = package.InternalFile.FileId
             };
 
@@ -208,7 +208,7 @@ namespace Youverse.Core.Services.Transit
 
                     //TODO: examine how we can avoid using the override hack on GetIdentityConnectionRegistration
                     var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient, true, true).GetAwaiter().GetResult();
-                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.DriveAlias);
+                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.Drive);
 
                     var item = new RecipientTransferInstructionSetItem()
                     {
@@ -232,7 +232,7 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthenticationToken clientAuthenticationToken, Guid driveAlias)
+        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthenticationToken clientAuthenticationToken, TargetDrive drive)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -253,7 +253,7 @@ namespace Youverse.Core.Services.Transit
                 PublicKeyCrc = publicKey.crc32c,
                 EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
                 EncryptedClientAuthToken = encryptedClientAccessToken,
-                DriveAlias = driveAlias
+                Drive = drive
             };
         }
 

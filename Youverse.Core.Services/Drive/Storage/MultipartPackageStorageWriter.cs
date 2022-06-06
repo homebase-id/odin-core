@@ -47,13 +47,13 @@ namespace Youverse.Core.Services.Transit.Upload
                 throw new UploadException("Cannot transfer to yourself; what's the point?");
             }
 
-            if (instructionSet.StorageOptions?.DriveAlias == null)
+            if (!instructionSet.StorageOptions?.Drive?.IsValid() ?? false)
             {
-                throw new UploadException("Missing drive alias");
+                throw new UploadException("Target drive is invalid");
             }
 
             InternalDriveFileId file;
-            var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.DriveAlias, true).Result.GetValueOrDefault();
+            var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
             var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
             if (overwriteFileId == Guid.Empty)

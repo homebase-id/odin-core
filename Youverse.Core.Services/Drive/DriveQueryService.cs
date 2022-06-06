@@ -22,18 +22,12 @@ namespace Youverse.Core.Services.Drive
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
-        private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly IHttpContextAccessor _accessor;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory,
-            IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContextAccessor contextAccessor,
-            IHttpContextAccessor accessor = null)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
-            _driveAclAuthorizationService = driveAclAuthorizationService;
-            _accessor = accessor;
             _contextAccessor = contextAccessor;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
@@ -74,7 +68,7 @@ namespace Youverse.Core.Services.Drive
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (cursor, fileIdList) = await queryManager.GetRecent(maxDate, startCursor, qp, options);
-                var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
+                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
                 return new QueryBatchResult()
@@ -94,8 +88,8 @@ namespace Youverse.Core.Services.Drive
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(startCursor, stopCursor, qp, options);
-                var searchResults = await CreateSearchResult2(driveId, fileIdList, options);
-                
+                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
+
                 return new QueryBatchResult()
                 {
                     StartCursor = resultStartCursor,
@@ -108,123 +102,7 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<PagedResult<DriveSearchResult>> GetRecentlyCreatedItems(Guid driveId, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
-            {
-                var page = await queryManager.GetRecentlyCreatedItems(includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                return await CreateSearchResult(driveId, page, includePayload, includeMetadataHeader);
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-
-        public async Task<PagedResult<DriveSearchResult>> GetByFileType(Guid driveId, int fileType, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
-            {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
-                {
-                    var page = await queryManager.GetByFileType(fileType, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload, includeMetadataHeader);
-                    return pageResult;
-                }
-
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-
-        public async Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
-            {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
-                {
-                    var page = await queryManager.GetByTag(tag, fileType, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload, includeMetadataHeader);
-                    return pageResult;
-                }
-
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-
-        public async Task<PagedResult<DriveSearchResult>> GetByAlias(Guid driveId, Guid alias, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
-            {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
-                {
-                    var page = await queryManager.GetByAlias(alias, includeMetadataHeader, pageOptions,
-                        _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload, includeMetadataHeader);
-                    return pageResult;
-                }
-
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-
-        private async Task<PagedResult<DriveSearchResult>> CreateSearchResult(Guid driveId, PagedResult<Guid> page, bool includePayload, bool includeMetadataHeader)
-        {
-            var results = new List<DriveSearchResult>();
-
-            foreach (var fileId in page.Results)
-            {
-                var (md, acl) = await _driveService.GetMetadata(new InternalDriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = fileId
-                });
-                
-                var dsr = FromFileMetadata(md, acl);
-
-                if (!includeMetadataHeader)
-                {
-                    dsr.JsonContent = "";
-                }
-
-                if (includePayload)
-                {
-                    var file = new InternalDriveFileId()
-                    {
-                        DriveId = driveId,
-                        FileId = dsr.FileId
-                    };
-
-                    var (tooLarge, size, bytes) = await _driveService.GetPayloadBytes(file);
-                    dsr.PayloadTooLarge = tooLarge;
-                    dsr.PayloadSize = size;
-
-                    if (!tooLarge)
-                    {
-                        dsr.PayloadContent = bytes.ToBase64();
-                    }
-                }
-
-                results.Add(dsr);
-            }
-
-            var newResult = new PagedResult<DriveSearchResult>()
-            {
-                Request = page.Request,
-                TotalPages = page.TotalPages,
-                Results = results
-            };
-
-            return newResult;
-        }
-
-        private async Task<IEnumerable<DriveSearchResult>> CreateSearchResult2(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
+        private async Task<IEnumerable<DriveSearchResult>> CreateSearchResult(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
         {
             var results = new List<DriveSearchResult>();
 
@@ -235,7 +113,7 @@ namespace Youverse.Core.Services.Drive
                     DriveId = driveId,
                     FileId = fileId
                 };
-                
+
                 var (md, acl) = await _driveService.GetMetadata(file);
                 var dsr = FromFileMetadata(md, acl);
 

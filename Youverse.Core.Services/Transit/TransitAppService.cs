@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit
 
                 var externalFileIdentifier = new ExternalFileIdentifier()
                 {
-                    DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                    TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.GetTargetDrive(),
                     FileId = item.TempFile.FileId
                 };
 

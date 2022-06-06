@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             Guid id = Guid.NewGuid();
 
-            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.DriveAlias, true))!.Value;
+            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.Drive, true))!.Value;
             var file = _driveService.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
 

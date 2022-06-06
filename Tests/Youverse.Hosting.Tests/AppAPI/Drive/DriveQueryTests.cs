@@ -104,7 +104,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 
@@ -155,7 +155,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     IncludeMetadataHeader = true
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -231,7 +231,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

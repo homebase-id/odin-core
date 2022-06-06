@@ -31,14 +31,27 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Standard Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppStandardProfileDriveAlias, "", true);
-                var drive2 = await _driveService.CreateDrive("Financial Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppFinancialProfileDriveAlias, "", false);
+                var profileTargetDrive = new TargetDrive()
+                {
+                    Alias = SystemAppConstants.ProfileAppStandardProfileDriveAlias,
+                    Type = SystemAppConstants.ProfileDriveType
+                };
+
+                var drive = await _driveService.CreateDrive("Standard Profile", profileTargetDrive, "", true);
+
+                var financialTargetDrive = new TargetDrive()
+                {
+                    Alias = SystemAppConstants.ProfileAppFinancialProfileDriveAlias,
+                    Type = SystemAppConstants.ProfileDriveType
+                };
+                
+                var drive2 = await _driveService.CreateDrive("Financial Profile", financialTargetDrive, "", false);
 
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    permissions:null,
-                    new List<Guid>() {drive.Id, drive2.Id});
+                    permissions: null,
+                    new List<Guid>() { drive.Id, drive2.Id });
             }
         }
 
@@ -49,12 +62,18 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Default Chat Drive", SystemAppConstants.ChatDriveType, SystemAppConstants.ChatAppDefaultDriveAlias, "", true);
+                var targetDrive = new TargetDrive()
+                {
+                    Alias = SystemAppConstants.ChatAppDefaultDriveAlias,
+                    Type = SystemAppConstants.ChatDriveType
+                };
+
+                var drive = await _driveService.CreateDrive("Default Chat Drive", targetDrive, "", true);
                 await _appRegService.RegisterApp(
                     SystemAppConstants.ChatAppId,
                     chatAppName,
                     permissions: null,
-                    new List<Guid>() {drive.Id});
+                    new List<Guid>() { drive.Id });
             }
         }
 
@@ -64,12 +83,17 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Web Home Default Drive", SystemAppConstants.WebHomeDriveType, SystemAppConstants.WebHomeDefaultDriveAlias, "", true);
+                var targetDrive = new TargetDrive()
+                {
+                    Alias = SystemAppConstants.WebHomeDefaultDriveAlias,
+                    Type = SystemAppConstants.WebHomeDriveType
+                };
+                var drive = await _driveService.CreateDrive("Web Home Default Drive", targetDrive, "", true);
                 await _appRegService.RegisterApp(
                     SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
                     permissions: null,
-                    new List<Guid>() {drive.Id});
+                    new List<Guid>() { drive.Id });
             }
         }
     }

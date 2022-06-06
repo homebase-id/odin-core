@@ -22,7 +22,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new TestScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = testContext.DriveAlias,
+                    Drive = testContext.TargetDrive
                 }
             };
 
@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(uploadResult.File, Is.Not.Null);
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(uploadResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
                 Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
@@ -100,14 +100,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 //
 
                 ////
-                var driveAlias = uploadResult.File.DriveAlias;
-
+                var targetDrive = uploadResult.File.TargetDrive;
                 var fileId = uploadResult.File.FileId;
-
+                
                 //retrieve the file that was uploaded; decrypt; 
                 var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
 
-                var fileResponse = await driveSvc.GetFileHeader(uploadResult.File.DriveAlias, fileId);
+                var fileResponse = await driveSvc.GetFileHeader(targetDrive, fileId);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -135,7 +134,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(driveAlias, fileId);
+                var payloadResponse = await driveSvc.GetPayload(targetDrive, fileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

@@ -118,14 +118,14 @@ namespace Youverse.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public Guid GetDriveId(Guid driveAlias)
+        public Guid GetDriveId(TargetDrive drive)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == driveAlias);
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == drive.Alias && g.DriveType == drive.Type);
 
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
-                throw new YouverseSecurityException($"No access permitted to drive alias {driveAlias}");
+                throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
             }
 
             return grant.DriveId;

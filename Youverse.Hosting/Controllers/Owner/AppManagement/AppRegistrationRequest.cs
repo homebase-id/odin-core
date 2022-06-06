@@ -1,5 +1,7 @@
 using System;
+using Microsoft.AspNetCore.Mvc.TagHelpers;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Hosting.Controllers.Owner.AppManagement
 {
@@ -13,11 +15,12 @@ namespace Youverse.Hosting.Controllers.Owner.AppManagement
 
         public PermissionSet PermissionSet { get; set; }
         
-        public Guid DefaultDrivePublicId { get; set; }
+        public TargetDrive TargetDrive { get; set; }
+        
         public string DriveMetadata { get; set; }
         
         public bool DriveAllowAnonymousReads { get; set; }
-        public Guid DriveType { get; set; }
+        
         public string DriveName { get; set; }
     }
 }

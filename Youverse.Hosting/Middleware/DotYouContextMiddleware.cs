@@ -157,6 +157,7 @@ namespace Youverse.Hosting.Middleware
             {
                 DriveId = d.Id,
                 DriveAlias = d.Alias,
+                DriveType = d.Type,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 Permissions = DrivePermissions.All
             });
@@ -227,6 +228,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     DriveId = d.Id,
                     DriveAlias = d.Alias,
+                    DriveType = d.Type,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                     Permissions = DrivePermissions.All
                 });

@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
             var ext =  new ExternalFileIdentifier()
             {
-                DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.GetTargetDrive(),
                 FileId = item.TempFile.FileId
             };
             

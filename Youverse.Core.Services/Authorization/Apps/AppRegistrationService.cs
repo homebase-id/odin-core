@@ -201,27 +201,5 @@ namespace Youverse.Core.Services.Authorization.Apps
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }
-
-        private async Task<AppDriveGrant> CreateOwnedDriveInternal(Guid driveAlias, string driveName, Guid type, string metadata, bool allowAnonymousReads, SymmetricKeyEncryptedAes masterKeyEncryptedAppKey)
-        {
-            Guard.Argument(driveAlias, nameof(driveAlias)).NotEqual(Guid.Empty);
-            Guard.Argument(driveName, nameof(driveName)).NotEmpty().NotNull();
-
-            var drive = await _driveService.CreateDrive(driveName, type, driveAlias, metadata, allowAnonymousReads);
-
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var storageKey = drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-            var appKey = masterKeyEncryptedAppKey.DecryptKeyClone(ref masterKey);
-            var appEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref appKey, ref storageKey);
-
-            //TODO: the drive alias is both on the appdrive grant and the drive.  need to refactor this when I refactor the drive ownership
-            return new AppDriveGrant()
-            {
-                DriveAlias = driveAlias,
-                DriveId = drive.Id,
-                AppKeyEncryptedStorageKey = appEncryptedStorageKey,
-                Permissions = DrivePermissions.All
-            };
-        }
     }
 }

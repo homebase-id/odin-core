@@ -29,12 +29,6 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<PagedResult<Guid>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions,
-        IDriveAclAuthorizationService driveAclAuthorizationService)
-    {
-        throw new NotImplementedException();
-    }
-
     public Task<(byte[], IEnumerable<Guid>)> GetRecent(UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
     {
         var results = _indexDb.QueryModified(
@@ -74,27 +68,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
         return Task.FromResult((resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, results.Select(r => new Guid(r))));
     }
-
-    public Task<PagedResult<Guid>> GetByFileType(int fileType, bool includeMetadataHeader,
-        PageOptions pageOptions,
-        IDriveAclAuthorizationService driveAclAuthorizationService)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<PagedResult<Guid>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader,
-        PageOptions pageOptions,
-        IDriveAclAuthorizationService driveAclAuthorizationService)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<PagedResult<Guid>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions,
-        IDriveAclAuthorizationService driveAclAuthorizationService)
-    {
-        throw new NotImplementedException();
-    }
-
+    
     public Task SwitchIndex()
     {
         throw new NotImplementedException();

@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Drive
 
         private static object _createDriveLock = new object();
 
-        public Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false)
+        public Task<StorageDrive> CreateDrive(string name, TargetDrive targetDrive, string metadata, bool allowAnonymousReads = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Drive
             {
                 //driveAlias and type must be unique
                 var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
-                        DriveCollectionName, s => s.Find(drive => drive.Type == type && drive.Alias == driveAlias, PageOptions.All))
+                        DriveCollectionName, s => s.Find(drive => drive.Type == targetDrive.Type && drive.Alias == targetDrive.Alias, PageOptions.All))
                     .GetAwaiter().GetResult();
 
                 if (existingDrives.Results.Count > 0)
@@ -85,8 +85,8 @@ namespace Youverse.Core.Services.Drive
                 {
                     Id = id,
                     Name = name,
-                    Alias = driveAlias,
-                    Type = type,
+                    Alias = targetDrive.Alias,
+                    Type = targetDrive.Type,
                     Metadata = metadata,
                     MasterKeyEncryptedStorageKey = driveKey,
                     EncryptedIdIv = encryptedIdIv,
@@ -122,14 +122,14 @@ namespace Youverse.Core.Services.Drive
             return drive;
         }
 
-        public async Task<Guid?> GetDriveIdByAlias(Guid driveAlias, bool failIfInvalid = false)
+        public async Task<Guid?> GetDriveIdByAlias(TargetDrive drive, bool failIfInvalid = false)
         {
-            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.FindOne(d => d.Alias == driveAlias));
+            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.FindOne(d => d.Alias == drive.Alias && d.Type == drive.Type));
             if (null == sdb)
             {
                 if (failIfInvalid)
                 {
-                    throw new InvalidDriveException(driveAlias);
+                    throw new InvalidDriveException(drive.Alias);
                 }
             }
 
@@ -345,12 +345,13 @@ namespace Youverse.Core.Services.Drive
 
             // var acl = await GetAcl(file);
             await _driveAclAuthorizationService.AssertCallerHasPermission(metadata.AccessControlList);
-            
+
             var acl = metadata.AccessControlList;
             if (!_contextAccessor.GetCurrent().Caller.IsOwner)
             {
                 metadata.AccessControlList = null;
             }
+
             //return the acl as a separate value for any internal code that needs to use it
             return (metadata, acl);
         }

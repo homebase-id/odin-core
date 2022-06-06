@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Query.LiteDb;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
@@ -46,44 +45,6 @@ namespace Youverse.Core.Services.Drive.Query
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
         Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
-
-        /// <summary>
-        /// Returns the most recently created <see cref="IndexedItem"/>s.  Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<Guid>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
-
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="fileType">The type of file to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<Guid>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="tag">The category to match</param>
-        /// <param name="fileType">The type of file to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<Guid>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="tag">The category to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<Guid>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild

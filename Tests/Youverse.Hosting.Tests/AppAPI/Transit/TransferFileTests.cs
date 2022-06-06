@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -42,14 +43,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
             var recipients = new List<string>() { TestIdentities.Samwise };
 
             Guid appId = Guid.NewGuid();
-            Guid driveAlias = Guid.NewGuid();
-            var testContext = await _scaffold.SetupTestSampleApp(appId, sender, false, driveAlias);
+            var testContext = await _scaffold.SetupTestSampleApp(appId, sender, false, TargetDrive.NewTargetDrive());
 
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.DriveAlias);
+                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.TargetDrive);
                 recipientContexts.Add(recipient, ctx);
 
                 await _scaffold.CreateConnection(sender, recipient);
@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = testContext.DriveAlias,
+                    Drive = testContext.TargetDrive,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -112,7 +112,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 foreach (var recipient in instructionSet.TransitOptions.Recipients)
                 {
@@ -219,7 +219,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var driveSvc = RestService.For<IDriveStorageHttpClient>(recipientClient);
 
-                var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.DriveAlias, inboxItem.File.FileId);
+                var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.TargetDrive, inboxItem.File.FileId);
                 Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileHeaderResponse.Content, Is.Not.Null);
 
@@ -247,7 +247,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.DriveAlias, inboxItem.File.FileId);
+                var payloadResponse = await driveSvc.GetPayload(inboxItem.File.TargetDrive, inboxItem.File.FileId);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -277,7 +277,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                     MaxRecords = 100
                 };
 
-                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await driveQueryClient.GetBatch(recipientContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 
 //                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");

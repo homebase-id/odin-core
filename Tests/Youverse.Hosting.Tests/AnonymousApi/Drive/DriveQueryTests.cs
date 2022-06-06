@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 };
 
                 var svc = RestService.For<IYouAuthDriveQueryClient>(client);
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         [Test]
         public async Task CanQueryDriveRecentItems()
         {
-            var identity = TestIdentities.Frodo;
+            var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadAnonymousFile(identity, tag);
 
@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                     IncludeMetadataHeader = true
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -140,7 +140,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.DriveAlias, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

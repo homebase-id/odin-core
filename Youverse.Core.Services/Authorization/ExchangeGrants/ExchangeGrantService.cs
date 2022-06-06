@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             };
 
             _systemStorage.WithTenantSystemStorage<ExchangeGrantBaseLiteDbRecord>(EXCHANGE_REGISTRATION, s => s.Save(newGrant.ToLiteDbRecord()));
-            
+
             var icrAccessReg = await this.GetAccessRegistration(icrClientAuthToken.Id);
             var sourceAccessRegistrationHalfKey = icrClientAuthToken.AccessTokenHalfKey;
             var accessKeyStoreKey = icrAccessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref sourceAccessRegistrationHalfKey);
@@ -79,7 +79,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <param name="permissionSet"></param>
         /// <param name="driveIdList"></param>
         /// <param name="clientType"></param>
-        public async Task<(YouAuthExchangeGrant, ClientAccessToken)> CreateYouAuthExchangeGrant(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList, AccessRegistrationClientType clientType)
+        public async Task<(YouAuthExchangeGrant, ClientAccessToken)> CreateYouAuthExchangeGrant(DotYouIdentity dotYouId, PermissionSet permissionSet, List<Guid> driveIdList,
+            AccessRegistrationClientType clientType)
         {
             var (grant, grantKeyStoreKey) = await this.CreateExchangeGrant<YouAuthExchangeGrant>(permissionSet, driveIdList);
             grant.DotYouId = dotYouId;
@@ -172,16 +173,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return newClientAccessToken;
         }
 
-       
-
 
         public async Task<(SensitiveByteArray, List<DriveGrant>)> GetDrivesFromValidatedAccessRegistration(Guid accessRegId, SensitiveByteArray accessTokenHalfKey)
         {
             var accessReg = await this.GetAccessRegistration(accessRegId);
-            if (accessReg is {IsRevoked: false})
+            if (accessReg is { IsRevoked: false })
             {
                 var grant = await this.GetExchangeGrantInternal(accessReg.GrantId);
-                if (grant is {IsRevoked: false})
+                if (grant is { IsRevoked: false })
                 {
                     var driveGrants = grant.KeyStoreKeyEncryptedDriveGrants;
                     var keyStoreKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref accessTokenHalfKey);
@@ -206,7 +205,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             {
                 return (null, null);
             }
-            
+
             registration.AssertValidRemoteKey(authenticationToken.AccessTokenHalfKey);
 
             var grant = await this.GetExchangeGrantInternal(registration.GrantId);
@@ -245,7 +244,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             {
                 return IdentityExchangeGrant.FromLiteDbRecord(eg);
             }
-            
+
             if (eg.StorageType == ExchangeGranteeType.YouAuth)
             {
                 return YouAuthExchangeGrant.FromLiteDbRecord(eg);
@@ -446,7 +445,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// be null
         /// </summary>
         /// <returns></returns>
-        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(Guid grantId, SensitiveByteArray grantKeyStoreKey, AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)
+        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(Guid grantId, SensitiveByteArray grantKeyStoreKey,
+            AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var serverAccessKey = new SymmetricKeyEncryptedXor(ref accessKeyStoreKey, out var clientAccessKey);
@@ -518,6 +518,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 {
                     DriveId = drive.Id,
                     DriveAlias = drive.Alias,
+                    DriveType = drive.Type,
                     KeyStoreKeyEncryptedStorageKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
                     Permissions = DrivePermissions.Read //Hard coded until we support writing data into the system
                 };

@@ -17,11 +17,11 @@ namespace Youverse.Core.Services.Drive
         /// Creates a new storage drive
         /// </summary>
         /// <returns></returns>
-        Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false);
+        Task<StorageDrive> CreateDrive(string name, TargetDrive drive, string metadata, bool allowAnonymousReads = false);
 
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
-        Task<Guid?> GetDriveIdByAlias(Guid driveAlias, bool failIfInvalid = false);
+        Task<Guid?> GetDriveIdByAlias(TargetDrive drive, bool failIfInvalid = false);
 
         /// <summary>
         /// Returns a list of the storage drives in the system

@@ -22,6 +22,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -360,7 +361,7 @@ namespace Youverse.Hosting.Tests
             return Task.CompletedTask;
         }
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, Guid appDriveAlias, bool createDrive = false, bool canManageConnections = false,
+        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
             bool driveAllowAnonymousReads = false)
         {
             var permissionSet = new PermissionSet();
@@ -380,10 +381,9 @@ namespace Youverse.Hosting.Tests
                     ApplicationId = appId,
                     CreateDrive = createDrive,
                     PermissionSet = permissionSet,
-                    DefaultDrivePublicId = appDriveAlias,
+                    TargetDrive = targetDrive,
                     DriveMetadata = "{data:'test metadata'}",
                     DriveName = $"Test Drive name with type {driveType}",
-                    DriveType = driveType,
                     DriveAllowAnonymousReads = driveAllowAnonymousReads
                 };
 
@@ -392,7 +392,6 @@ namespace Youverse.Hosting.Tests
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
-
 
                 var updatedAppResponse = await svc.GetRegisteredApp(appId);
                 Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
@@ -464,18 +463,31 @@ namespace Youverse.Hosting.Tests
         public async Task<TestSampleAppContext> SetupTestSampleApp(DotYouIdentity identity)
         {
             Guid appId = Guid.NewGuid();
-            Guid driveAlias = Guid.NewGuid();
-            return await this.SetupTestSampleApp(appId, identity, false, driveAlias);
+            TargetDrive targetDrive = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = Guid.NewGuid()
+            };
+            return await this.SetupTestSampleApp(appId, identity, false, targetDrive);
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, Guid appDriveAlias = default,
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canManageConnections = false, TargetDrive targetDrive = null,
             bool driveAllowAnonymousReads = false)
         {
             //TODO: we might need to let the callers pass this in at some point for testing
 
+            if (null == targetDrive)
+            {
+                targetDrive = new TargetDrive()
+                {
+                    Alias = Guid.NewGuid(),
+                    Type = Guid.NewGuid()
+                };
+            }
+            
             //note; this is intentionally not global
 
-            this.AddApp(identity, appId, appDriveAlias, true, canManageConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
+            this.AddApp(identity, appId, targetDrive, true, canManageConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
@@ -484,20 +496,20 @@ namespace Youverse.Hosting.Tests
                 AppId = appId,
                 ClientAuthenticationToken = authResult,
                 AppSharedSecretKey = sharedSecret,
-                DriveAlias = appDriveAlias
+                TargetDrive = targetDrive
             };
         }
 
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var driveAlias = Guid.NewGuid();
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = driveAlias,
+                    Drive = TargetDrive.NewTargetDrive(),
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -520,14 +532,18 @@ namespace Youverse.Hosting.Tests
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            Guid appDriveAlias = Guid.Parse("99888555-0000-0000-0000-000000004445");
-            //Guid appDriveAlias = Guid.NewGuid();
+            var targetDrive = new TargetDrive()
+            {
+                Alias = Guid.Parse("99888555-0000-0000-0000-000000004445"),
+                Type = Guid.NewGuid()
+            };
+            
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = appDriveAlias,
+                    Drive = targetDrive,
                     OverwriteFileId = null,
                     ExpiresTimestamp = null
                 },
@@ -544,14 +560,13 @@ namespace Youverse.Hosting.Tests
         public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var driveAlias = Guid.NewGuid();
 
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    DriveAlias = driveAlias,
+                    Drive = TargetDrive.NewTargetDrive(),
                     OverwriteFileId = null,
                     ExpiresTimestamp = null,
                 },
@@ -675,14 +690,14 @@ namespace Youverse.Hosting.Tests
             }
 
             var appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias, options.DriveAllowAnonymousReads);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
+                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
                 recipientContexts.Add(recipient, ctx);
 
                 await this.CreateConnection(sender, recipient);
@@ -723,7 +738,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {
@@ -783,14 +798,14 @@ namespace Youverse.Hosting.Tests
             }
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.DriveAlias, options.DriveAllowAnonymousReads);
+            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.DriveAlias);
+                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
                 recipientContexts.Add(recipient, ctx);
 
                 await this.CreateConnection(sender, recipient);
@@ -830,7 +845,7 @@ namespace Youverse.Hosting.Tests
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(transferResult.File.DriveAlias, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {

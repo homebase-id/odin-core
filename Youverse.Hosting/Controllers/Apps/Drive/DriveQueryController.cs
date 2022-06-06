@@ -28,19 +28,19 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
         }
         
         [HttpPost("recent")]
-        public async Task<IActionResult> GetRecent([FromQuery] Guid driveAlias, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
+        public async Task<IActionResult> GetRecent([FromQuery] TargetDrive drive, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
             [FromQuery] ResultOptions options)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive);
             var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
             return new JsonResult(batch);
         }
 
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromQuery] Guid driveAlias, [FromQuery] byte[] startCursor, [FromQuery] byte[] stopCursor, [FromBody] QueryParams qp,
+        public async Task<IActionResult> GetBatch([FromQuery] TargetDrive drive, [FromQuery] byte[] startCursor, [FromQuery] byte[] stopCursor, [FromBody] QueryParams qp,
             [FromQuery] ResultOptions options)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(driveAlias);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive);
             var batch = await _driveQueryService.GetBatch(driveId, startCursor, stopCursor, qp, options);
             return new JsonResult(batch);
         }
