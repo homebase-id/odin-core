@@ -54,10 +54,10 @@ namespace Youverse.Core.Services.Drive
 
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             await manager.PrepareSecondaryIndexForRebuild();
-            foreach (FileMetadata md in metaDataList)
+            foreach (ServerFileHeader header in metaDataList)
             {
                 //intentionally letting this run w/o await
-                manager.UpdateSecondaryIndex(md);
+                manager.UpdateSecondaryIndex(header);
             }
 
             await manager.SwitchIndex();
@@ -114,8 +114,8 @@ namespace Youverse.Core.Services.Drive
                     FileId = fileId
                 };
 
-                var (md, acl) = await _driveService.GetMetadata(file);
-                var dsr = FromFileMetadata(md, acl);
+                var header = await _driveService.GetServerFileHeader(file);
+                var dsr = FromFileMetadata(header);
 
                 if (!options.IncludeMetadataHeader)
                 {
@@ -140,11 +140,11 @@ namespace Youverse.Core.Services.Drive
             return results;
         }
 
-        private DriveSearchResult FromFileMetadata(FileMetadata metadata, AccessControlList acl)
+        private DriveSearchResult FromFileMetadata(ServerFileHeader header)
         {
             int priority = 1000;
 
-            switch (acl.RequiredSecurityGroup)
+            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     priority = 500;
@@ -166,6 +166,8 @@ namespace Youverse.Core.Services.Drive
                     break;
             }
 
+            var metadata = header.FileMetadata;
+            
             //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
             return new DriveSearchResult()
             {
@@ -180,7 +182,7 @@ namespace Youverse.Core.Services.Drive
                 CreatedTimestamp = metadata.Created,
                 LastUpdatedTimestamp = metadata.Updated,
                 SenderDotYouId = metadata.SenderDotYouId,
-                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? metadata.AccessControlList : null,
+                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? header.ServerMetadata.AccessControlList : null,
                 Priority = priority
             };
         }
@@ -203,10 +205,10 @@ namespace Youverse.Core.Services.Drive
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             manager.IndexReadyState = IndexReadyState.IsRebuilding;
 
-            foreach (FileMetadata md in metaDataList)
+            foreach (ServerFileHeader header in metaDataList)
             {
                 //intentionally letting this run w/o await
-                manager.UpdateCurrentIndex(md);
+                manager.UpdateCurrentIndex(header);
             }
 
             manager.IndexReadyState = IndexReadyState.Ready;
@@ -260,7 +262,7 @@ namespace Youverse.Core.Services.Drive
         public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
-            return manager.UpdateCurrentIndex(notification.FileMetadata);
+            return manager.UpdateCurrentIndex(notification.FileHeader);
         }
 
         public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)

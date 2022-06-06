@@ -30,10 +30,5 @@ namespace Youverse.Core.Services.Drive.Storage
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
         string JsonContent { get; set; }
-
-        /// <summary>
-        /// An alternative identifier for this file.  This can be used when you need a fixed handle in your client app to find this file.
-        /// </summary>
-        Guid Alias { get; set; }
     }
 }

@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic.FileIO;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
@@ -55,7 +52,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Updates the current index that is in use.
         /// </summary>
-        Task UpdateCurrentIndex(FileMetadata metadata);
+        Task UpdateCurrentIndex(ServerFileHeader metadata);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
@@ -75,7 +72,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// Updates the index that is not currently in use.  Use when performing a rebuild.
         /// </summary>
         /// <param name="metadata"></param>
-        Task UpdateSecondaryIndex(FileMetadata metadata);
+        Task UpdateSecondaryIndex(ServerFileHeader metadata);
 
         /// <summary>
         /// Prepares backup index for rebuild; clears and instantiates a new instance.

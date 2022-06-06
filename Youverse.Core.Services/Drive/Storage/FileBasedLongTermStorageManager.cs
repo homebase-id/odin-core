@@ -109,16 +109,6 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.FromResult((Stream)fileStream);
         }
 
-        public async Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId)
-        {
-            await using var stream = File.Open(GetFilenameAndPath(fileId, FilePart.Header), FileMode.Open, FileAccess.Read);
-            var json = await new StreamReader(stream).ReadToEndAsync();
-            stream.Close();
-
-            var ekh = JsonConvert.DeserializeObject<EncryptedKeyHeader>(json);
-            return ekh;
-        }
-
         public void AssertFileIsValid(Guid fileId)
         {
             if (fileId == Guid.Empty)
@@ -139,21 +129,14 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private bool IsFileValid(Guid fileId)
         {
-            string header = GetFilenameAndPath(fileId, FilePart.Header);
             string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
             string payload = GetFilenameAndPath(fileId, FilePart.Payload);
 
-            return File.Exists(header) && File.Exists(metadata) && File.Exists(payload);
+            return File.Exists(metadata) && File.Exists(payload);
         }
 
         public Task Delete(Guid fileId)
         {
-            string header = GetFilenameAndPath(fileId, FilePart.Header);
-            if (File.Exists(header))
-            {
-                File.Delete(header);
-            }
-
             string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
             if (File.Exists(metadata))
             {
@@ -185,7 +168,7 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.FromResult(new FileInfo(path).Length);
         }
 
-        public async Task<IEnumerable<FileMetadata>> GetMetadataFiles(PageOptions pageOptions)
+        public async Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions)
         {
             string path = this.Drive.GetStoragePath(StorageDisposition.LongTerm);
             var options = new EnumerationOptions()
@@ -197,34 +180,26 @@ namespace Youverse.Core.Services.Drive.Storage
                 MatchType = MatchType.Win32
             };
 
-            var results = new List<FileMetadata>();
+            var results = new List<ServerFileHeader>();
             var filePaths = Directory.EnumerateFiles(path, $"*.{FilePart.Metadata.ToString().ToLower()}", options);
             foreach (string filePath in filePaths)
             {
                 string filename = Path.GetFileNameWithoutExtension(filePath);
                 Guid fileId = Guid.Parse(filename);
-                var md = await this.GetMetadata(fileId);
+                var md = await this.GetServerFileHeader(fileId);
                 results.Add(md);
             }
 
             return results;
         }
 
-        public async Task<FileMetadata> GetMetadata(Guid fileId)
+        public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
             var stream = await this.GetFilePartStream(fileId, FilePart.Metadata);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
-            var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
-            return metadata;
-        }
-
-        public async Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader keyHeader)
-        {
-            var json = JsonConvert.SerializeObject(keyHeader);
-            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
-            await this.WritePartStream(fileId, FilePart.Header, stream);
-            stream.Close();
+            var header = JsonConvert.DeserializeObject<ServerFileHeader>(json);
+            return header;
         }
 
         private string GetFileDirectory(Guid fileId, bool ensureExists = false)

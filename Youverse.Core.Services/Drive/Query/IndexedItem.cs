@@ -68,7 +68,6 @@ namespace Youverse.Core.Services.Drive.Query
         /// </summary>
         public string JsonContent { get; set; }
 
-        public Guid Alias { get; set; }
 
         public bool PayloadIsEncrypted { get; set; }
         

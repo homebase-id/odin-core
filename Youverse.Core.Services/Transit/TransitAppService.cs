@@ -28,7 +28,8 @@ namespace Youverse.Core.Services.Transit
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
+        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService,
+            ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -41,17 +42,18 @@ namespace Youverse.Core.Services.Transit
 
         public async Task StoreLongTerm(InternalDriveFileId file)
         {
-            var transferInstructionSet = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+            var transferInstructionSet =
+                await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
-            var (isValidPublicKey, decryptedAesKeyHeaderBytes) = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+            var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
+                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
 
             if (!isValidPublicKey)
             {
                 //TODO: handle when isValidPublicKey = false
                 throw new YouverseSecurityException("Public key was invalid");
             }
-            
-            
+
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
             decryptedAesKeyHeaderBytes.WriteZeros();
 
@@ -71,12 +73,15 @@ namespace Youverse.Core.Services.Transit
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
 
-            metadata.AccessControlList = new AccessControlList()
+            var serverMetadata = new ServerMetadata()
             {
-                RequiredSecurityGroup = SecurityGroupType.Owner
+                AccessControlList = new AccessControlList()
+                {
+                    RequiredSecurityGroup = SecurityGroupType.Owner
+                }
             };
 
-            await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitTempFileToLongTerm(file, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
         }
 
         public async Task ProcessTransfers()

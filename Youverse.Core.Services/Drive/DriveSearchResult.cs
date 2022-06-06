@@ -17,8 +17,6 @@ namespace Youverse.Core.Services.Drive
         public bool PayloadIsEncrypted { get; set; }
         public string JsonContent { get; set; }
         
-        public Guid Alias { get; set; }
-
         public ulong CreatedTimestamp { get; set; }
 
         public string SenderDotYouId { get; set; }

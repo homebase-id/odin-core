@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Drive
         public virtual bool IsReadonly { get; set; }
 
         /// <summary>
-        /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
+        /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>
         /// </summary>
         public virtual SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
 

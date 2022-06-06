@@ -74,12 +74,14 @@ public class SqliteQueryManager : IDriveQueryManager
         throw new NotImplementedException();
     }
 
-    public Task UpdateCurrentIndex(FileMetadata metadata)
+    public Task UpdateCurrentIndex(ServerFileHeader header)
     {
+        var metadata = header.FileMetadata;
+        
         var exists = _indexDb.tblMainIndex.Get(metadata.File.FileId) != null;
         var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
 
-        //TODO: Need to sortout the ACL
+        //TODO: Need to sortout the ACL: header.ServerMetadata.AccessControlList
         var acl = new List<Guid>();
         var threadId = Array.Empty<byte>();
         ulong userDate = 0;
@@ -122,9 +124,9 @@ public class SqliteQueryManager : IDriveQueryManager
         throw new NotImplementedException("need a delete entry on DriveIndexDatabase");
     }
 
-    public Task UpdateSecondaryIndex(FileMetadata metadata)
+    public Task UpdateSecondaryIndex(ServerFileHeader metadata)
     {
-        throw new NotImplementedException("Rebuild not yet supported");
+        throw new NotImplementedException();
     }
 
     public Task PrepareSecondaryIndexForRebuild()

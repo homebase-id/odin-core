@@ -18,7 +18,6 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public string JsonContent { get; set; }
         
-        public Guid Alias { get; set; }
     }
 
 }

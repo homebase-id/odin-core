@@ -20,14 +20,13 @@ namespace Youverse.Core.Services.Apps
 
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
-            var ekh = await _driveService.GetEncryptedKeyHeader(file);
-            var (md, _) = await _driveService.GetMetadata(file);
+            var header = await _driveService.GetServerFileHeader(file);
 
             KeyHeader keyHeader;
-            if (md.PayloadIsEncrypted)
+            if (header.FileMetadata.PayloadIsEncrypted)
             {
                 var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-                keyHeader = ekh.DecryptAesToKeyHeader(ref storageKey);
+                keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             }
             else
             {
@@ -35,13 +34,25 @@ namespace Youverse.Core.Services.Apps
             }
 
             var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, ekh.Iv, ref clientSharedSecret);
+            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
 
+           
+            if (_contextAccessor.GetCurrent().Caller.IsOwner)
+            {
+                return new ClientFileHeader()
+                {
+                    EncryptedKeyHeader = appEkh,
+                    FileMetadata = header.FileMetadata, 
+                    ServerMetadata = header.ServerMetadata
+                };
+            }
+            
             return new ClientFileHeader()
             {
                 EncryptedKeyHeader = appEkh,
-                FileMetadata = md
+                FileMetadata = header.FileMetadata
             };
+
         }
     }
 }

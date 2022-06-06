@@ -45,16 +45,8 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         InternalDriveFileId CreateInternalFileId(Guid driveId);
 
-        Task WriteMetaData(InternalDriveFileId file, FileMetadata metadata);
-
-        /// <summary>
-        /// Writes the payload stream
-        /// </summary>
-        /// <param name="file"></param>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        Task WritePayload(InternalDriveFileId file, Stream stream);
-
+        Task WriteFileHeader(InternalDriveFileId file, ServerFileHeader header);
+        
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
@@ -77,7 +69,7 @@ namespace Youverse.Core.Services.Drive
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>
-        Task StoreLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension);
+        Task CommitTempFileToLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
 
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
@@ -97,19 +89,13 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <param name="file"></param>
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
-        Task<(FileMetadata, AccessControlList)> GetMetadata(InternalDriveFileId file);
+        Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
 
 
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
 
         Task<long> GetPayloadSize(InternalDriveFileId file);
-
-        /// <summary>
-        /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
-        /// </summary>
-        /// <returns></returns>
-        Task<EncryptedKeyHeader> GetEncryptedKeyHeader(InternalDriveFileId file);
-
+        
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
@@ -128,14 +114,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task DeleteLongTermFile(InternalDriveFileId file);
 
-        Task WriteEncryptedKeyHeader(InternalDriveFileId file, EncryptedKeyHeader encryptedKeyHeader);
-
-        Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
-
-        /// <summary>
-        /// Encrypts and writes a KeyHeader
-        /// </summary>
-        Task<EncryptedKeyHeader> WriteKeyHeader(InternalDriveFileId file, KeyHeader keyHeader);
+        Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 
         /// <summary>
         /// Returns the payload bytes.  If the payload is larger than the max size we will

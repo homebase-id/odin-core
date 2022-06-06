@@ -8,5 +8,7 @@ namespace Youverse.Core.Services.Apps
         public EncryptedKeyHeader EncryptedKeyHeader { get; set; }
         public FileMetadata FileMetadata { get; set; }
         
+        public ServerMetadata ServerMetadata { get; set; }
+        
     }
 }

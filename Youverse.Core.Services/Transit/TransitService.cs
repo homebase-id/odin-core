@@ -74,13 +74,14 @@ namespace Youverse.Core.Services.Transit
             }
 
             //hacky sending the extension for the payload file.  need a proper convention
-            var (keyHeader, metadata) = await UnpackMetadata(package);
-            await _driveService.StoreLongTerm(package.InternalFile, keyHeader, metadata, MultipartUploadParts.Payload.ToString());
+            var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
 
-            if (null == metadata.AccessControlList)
+            if (null == serverMetadata.AccessControlList)
             {
                 throw new MissingDataException("Access control list must be specified");
             }
+
+            await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
             var ext = new ExternalFileIdentifier()
             {
@@ -104,7 +105,7 @@ namespace Youverse.Core.Services.Transit
 
         public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
         {
-            _logger.LogInformation($"TransitService.Accept temp fileId:{file.FileId} driveId:{file.DriveId}");
+            _logger.LogInformation($"TransitService.AcceptTransfer temp fileId:{file.FileId} driveId:{file.DriveId}");
 
             var item = new TransferBoxItem()
             {
@@ -121,7 +122,7 @@ namespace Youverse.Core.Services.Transit
             await _transitBoxService.Add(item);
         }
 
-        private async Task<(KeyHeader keyHeader, FileMetadata metadata)> UnpackMetadata(UploadPackage package)
+        private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
         {
             var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
@@ -145,21 +146,24 @@ namespace Youverse.Core.Services.Transit
                 AppData = new AppFileMetaData()
                 {
                     Tags = uploadDescriptor.FileMetadata.AppData.Tags,
-                    
+
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
-                    DataType  = uploadDescriptor.FileMetadata.AppData.DataType,
+                    DataType = uploadDescriptor.FileMetadata.AppData.DataType,
 
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
-                    Alias = uploadDescriptor.FileMetadata.AppData.Alias
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
                 },
 
                 PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId,
+                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId
+            };
+
+            var serverMetadata = new ServerMetadata()
+            {
                 AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
 
-            return (keyHeader, metadata);
+            return (keyHeader, metadata, serverMetadata);
         }
 
         private async Task<Dictionary<string, TransferStatus>> PrepareTransfer(UploadPackage package)
@@ -176,7 +180,7 @@ namespace Youverse.Core.Services.Transit
             await _outboxService.Add(recipients.Select(r => new OutboxItem()
             {
                 File = package.InternalFile,
-                Recipient = (DotYouIdentity) r,
+                Recipient = (DotYouIdentity)r,
                 AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
                 AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
             }));
@@ -187,14 +191,15 @@ namespace Youverse.Core.Services.Transit
         private async Task<Dictionary<string, TransferStatus>> PrepareTransferInstructionSet(UploadPackage package)
         {
             var results = new Dictionary<string, TransferStatus>();
-            var encryptedKeyHeader = await _driveService.GetEncryptedKeyHeader(package.InternalFile);
+            var header = await _driveService.GetServerFileHeader(package.InternalFile);
+
             var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(package.InternalFile.DriveId);
-            var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 
             foreach (var r in package.InstructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity) r;
+                var recipient = (DotYouIdentity)r;
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
@@ -232,7 +237,8 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader, ClientAuthenticationToken clientAuthenticationToken, TargetDrive drive)
+        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
+            ClientAuthenticationToken clientAuthenticationToken, TargetDrive drive)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -324,15 +330,13 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 var transferKeyHeaderBytes = JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray();
-                var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+                var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json",
+                    Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
-                var (metadata, _) = await _driveService.GetMetadata(file);
+                var header = await _driveService.GetServerFileHeader(file);
 
-                //redact information
-                metadata.File = InternalDriveFileId.Redacted();
-                metadata.SenderDotYouId = string.Empty;
-                metadata.AccessControlList = null;
+                var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
                 //therefore, if a new attribute is added, it must be considered 
@@ -345,6 +349,7 @@ namespace Youverse.Core.Services.Transit
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
+                    SenderDotYouId = string.Empty
                 };
 
                 var json = JsonConvert.SerializeObject(redactedMetadata);
@@ -410,7 +415,8 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.FindOne(r => r.Recipient == recipient && r.File == file));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache,
+                s => s.FindOne(r => r.Recipient == recipient && r.File == file));
             return item?.InstructionSet;
         }
     }
