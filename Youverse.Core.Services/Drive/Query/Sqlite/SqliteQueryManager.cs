@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
@@ -22,7 +21,7 @@ public class SqliteQueryManager : IDriveQueryManager
         _logger = logger;
 
         var connectionString = $"URI=file:{drive.GetIndexPath()}\\index.db";
-        _indexDb = new DriveIndexDatabase(connectionString, DatabaseIndexKind.enumTimeSeries);
+        _indexDb = new DriveIndexDatabase(connectionString, DatabaseIndexKind.TimeSeries);
     }
 
     public StorageDrive Drive { get; init; }
@@ -40,7 +39,7 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
             qp.ThreadId?.ToList(),
-            qp.UserDateSpan?.ToList(),
+            qp.UserDateSpan,
             qp.AclId?.ToList(),
             qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
@@ -61,7 +60,7 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
             qp.ThreadId?.ToList(),
-            qp.UserDateSpan?.ToList(),
+            qp.UserDateSpan,
             qp.AclId?.ToList(),
             qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());

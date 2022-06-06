@@ -33,8 +33,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
     /// </summary>
     public enum DatabaseIndexKind
     {
-        enumTimeSeries,
-        enumRandom,
+        TimeSeries,
+        Random,
     }
 
     public class DriveIndexDatabase
@@ -167,22 +167,22 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// If a transaction is not already ongoing, then the three tables are updated in a single transaction.
         /// Otherwise they'll just be put into the existing transaction.
         /// </summary>
-        /// <param name="FileId">The GUID file ID</param>
-        /// <param name="FileType">An int32 designating the local drive file type, e.g. "attribute" (application specific)</param>
-        /// <param name="DataType">An int32 designating the data type of the file, e.g. "full name" (application specific)</param>
-        /// <param name="SenderId">Who sent this item (may be null)</param>
-        /// <param name="ThreadId">The thread id, e.g. for conversations (may be null)</param>
-        /// <param name="UserDate">An int64 designating the user date (GetZeroTime(dt) or GetZeroTimeSeconds())</param>
-        /// <param name="AccessControlList">The access control list</param>
-        /// <param name="TagIdList">The tags</param>
-        public void AddEntry(Guid FileId,
-                             Int32 FileType,
-                             Int32 DataType,
-                             byte[] SenderId,
-                             byte[] ThreadId,
-                             UInt64 UserDate,
-                             List<Guid> AccessControlList,
-                             List<Guid> TagIdList)
+        /// <param name="fileId">The GUID file ID</param>
+        /// <param name="fileType">An int32 designating the local drive file type, e.g. "attribute" (application specific)</param>
+        /// <param name="dataType">An int32 designating the data type of the file, e.g. "full name" (application specific)</param>
+        /// <param name="senderId">Who sent this item (may be null)</param>
+        /// <param name="threadId">The thread id, e.g. for conversations (may be null)</param>
+        /// <param name="userDate">An int64 designating the user date (GetZeroTime(dt) or GetZeroTimeSeconds())</param>
+        /// <param name="accessControlList">The access control list</param>
+        /// <param name="tagIdList">The tags</param>
+        public void AddEntry(Guid fileId,
+                             Int32 fileType,
+                             Int32 dataType,
+                             byte[] senderId,
+                             byte[] threadId,
+                             UInt64 userDate,
+                             List<Guid> accessControlList,
+                             List<Guid> tagIdList)
         {
             bool isLocalTransaction = false;
 
@@ -196,9 +196,9 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
                 UInt64 t1 = ZeroTime.GetZeroTimeSeconds();
 
-                tblMainIndex.InsertRow(FileId, t1, FileType, DataType, SenderId, ThreadId, UserDate, false, false);
-                tblAclIndex.InsertRows(FileId, AccessControlList);
-                tblTagIndex.InsertRows(FileId, TagIdList);
+                tblMainIndex.InsertRow(fileId, t1, fileType, dataType, senderId, threadId, userDate, false, false);
+                tblAclIndex.InsertRows(fileId, accessControlList);
+                tblTagIndex.InsertRows(fileId, tagIdList);
 
                 if (isLocalTransaction == true)
                 {
@@ -209,16 +209,16 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             }
         }
 
-        public void UpdateEntry(Guid FileId,
-                                Int32? FileType = null,
-                                Int32? DataType = null,
-                                byte[] SenderId = null,
-                                byte[] ThreadId = null,
-                                UInt64? UserDate = null,
-                                List<Guid> AddAccessControlList = null,
-                                List<Guid> DeleteAccessControlList = null,
-                                List<Guid> AddTagIdList = null,
-                                List<Guid> DeleteTagIdList = null)
+        public void UpdateEntry(Guid fileId,
+                                Int32? fileType = null,
+                                Int32? dataType = null,
+                                byte[] senderId = null,
+                                byte[] threadId = null,
+                                UInt64? userDate = null,
+                                List<Guid> addAccessControlList = null,
+                                List<Guid> deleteAccessControlList = null,
+                                List<Guid> addTagIdList = null,
+                                List<Guid> deleteTagIdList = null)
         {
             bool isLocalTransaction = false;
 
@@ -230,13 +230,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     isLocalTransaction = true;
                 }
 
-                tblMainIndex.UpdateRow(FileId, FileType: FileType, DataType: DataType, SenderId: SenderId,
-                                       ThreadId: ThreadId, UserDate: UserDate);
+                tblMainIndex.UpdateRow(fileId, FileType: fileType, DataType: dataType, SenderId: senderId,
+                                       ThreadId: threadId, UserDate: userDate);
 
-                tblAclIndex.InsertRows(FileId, AddAccessControlList);
-                tblTagIndex.InsertRows(FileId, AddTagIdList);
-                tblAclIndex.DeleteRow(FileId, DeleteAccessControlList);
-                tblTagIndex.DeleteRow(FileId, DeleteTagIdList);
+                tblAclIndex.InsertRows(fileId, addAccessControlList);
+                tblTagIndex.InsertRows(fileId, addTagIdList);
+                tblAclIndex.DeleteRow(fileId, deleteAccessControlList);
+                tblTagIndex.DeleteRow(fileId, deleteTagIdList);
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
@@ -256,13 +256,14 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="resultFirstCursor">Output. Set to NULL if no more items, otherwise it's the first cursor of the result set. You may need this in stopAtCursor.</param>
         /// <param name="resultLastCursor">Output. Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
+        /// <param name="cursorUpdatedTimestamp"></param>
         /// <param name="startFromCursor">NULL to get the first batch, otherwise the last value you got from resultLastCursor</param>
         /// <param name="stopAtCursor">NULL to stop at end of table, otherwise cursor to where to stop. E.g. when refreshing after coming back after an hour.</param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
         /// <param name="senderidAnyOf"></param>
         /// <param name="threadidAnyOf"></param>
-        /// <param name="userdateSpan"></param>
+        /// <param name="userDateRange"></param>
         /// <param name="aclAnyOf"></param>
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
@@ -277,7 +278,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                                        List<int> datatypesAnyOf = null,
                                        List<byte[]> senderidAnyOf = null,
                                        List<byte[]> threadidAnyOf = null,
-                                       List<UInt64> userdateSpan = null,
+                                       TimeRange userDateRange = null,
                                        List<byte[]> aclAnyOf = null,
                                        List<byte[]> tagsAnyOf = null,
                                        List<byte[]> tagsAllOf = null)
@@ -331,14 +332,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 strWhere += $"threadid IN ({HexList(threadidAnyOf)}) ";
             }
 
-            if (userdateSpan != null)
+            if (userDateRange != null)
             {
-                if (userdateSpan.Count != 2)
-                    throw new Exception("Userdate must be in range a..b");
+                userDateRange.Validate();
 
                 if (strWhere != "")
                     strWhere += "AND ";
-                strWhere += $"(userdate >= {userdateSpan[0]} AND userdate <= {userdateSpan[1]}) ";
+                strWhere += $"(userdate >= {userDateRange.Start} AND userdate <= {userDateRange.End}) ";
             }
 
             if (tagsAnyOf != null)
@@ -419,7 +419,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                                        List<int> datatypesAnyOf = null,
                                        List<byte[]> senderidAnyOf = null,
                                        List<byte[]> threadidAnyOf = null,
-                                       List<UInt64> userdateSpan = null,
+                                       TimeRange userDateRange = null,
                                        List<byte[]> aclAnyOf = null,
                                        List<byte[]> tagsAnyOf = null,
                                        List<byte[]> tagsAllOf = null)
@@ -468,14 +468,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 strWhere += $"threadid IN ({HexList(threadidAnyOf)}) ";
             }
 
-            if (userdateSpan != null)
+            if (userDateRange != null)
             {
-                if (userdateSpan.Count != 2)
-                    throw new Exception("Userdate must be in range a..b");
-
+                userDateRange.Validate();
+                
                 if (strWhere != "")
                     strWhere += "AND ";
-                strWhere += $"(userdate >= {userdateSpan[0]} AND userdate <= {userdateSpan[1]}) ";
+                strWhere += $"(userdate >= {userDateRange.Start} AND userdate <= {userDateRange.End}) ";
             }
 
             if (tagsAnyOf != null)
@@ -600,7 +599,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
         public string FileIdToPath(Guid fileid)
         {
-            if (_kind == DatabaseIndexKind.enumTimeSeries)
+            if (_kind == DatabaseIndexKind.TimeSeries)
             {
                 UInt64 t = SequentialGuid.FileIdToUnixTime(fileid);
                 var dt = DateTimeOffset.FromUnixTimeSeconds((long)t).UtcDateTime;

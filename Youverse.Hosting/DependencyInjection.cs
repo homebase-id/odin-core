@@ -19,7 +19,6 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
@@ -76,7 +75,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
-            cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()

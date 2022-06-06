@@ -1,5 +1,4 @@
 using System;
-using Youverse.Core.Services.Authorization.Acl;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -49,8 +48,6 @@ namespace Youverse.Core.Services.Drive.Storage
         /// The DotYouId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
         public string SenderDotYouId { get; set; }
-        
-        public AccessControlList AccessControlList { get; set; }
         
         public AppFileMetaData AppData { get; set; }
     }

@@ -5,7 +5,7 @@ using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveSearchResult : IIndexedItem
+    public class DriveSearchResult
     {
         public Guid FileId { get; set; }
 
