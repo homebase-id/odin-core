@@ -205,7 +205,7 @@ namespace Youverse.Core.Services.Drive
 
             var json = JsonConvert.SerializeObject(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream);
+            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Header, stream);
 
             OnLongTermFileChanged(file, header);
         }

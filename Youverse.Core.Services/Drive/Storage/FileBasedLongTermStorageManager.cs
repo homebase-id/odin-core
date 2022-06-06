@@ -129,7 +129,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private bool IsFileValid(Guid fileId)
         {
-            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Header);
             string payload = GetFilenameAndPath(fileId, FilePart.Payload);
 
             return File.Exists(metadata) && File.Exists(payload);
@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Task Delete(Guid fileId)
         {
-            string metadata = GetFilenameAndPath(fileId, FilePart.Metadata);
+            string metadata = GetFilenameAndPath(fileId, FilePart.Header);
             if (File.Exists(metadata))
             {
                 File.Delete(metadata);
@@ -181,7 +181,7 @@ namespace Youverse.Core.Services.Drive.Storage
             };
 
             var results = new List<ServerFileHeader>();
-            var filePaths = Directory.EnumerateFiles(path, $"*.{FilePart.Metadata.ToString().ToLower()}", options);
+            var filePaths = Directory.EnumerateFiles(path, $"*.{FilePart.Header.ToString().ToLower()}", options);
             foreach (string filePath in filePaths)
             {
                 string filename = Path.GetFileNameWithoutExtension(filePath);
@@ -195,7 +195,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
-            var stream = await this.GetFilePartStream(fileId, FilePart.Metadata);
+            var stream = await this.GetFilePartStream(fileId, FilePart.Header);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
             var header = JsonConvert.DeserializeObject<ServerFileHeader>(json);
