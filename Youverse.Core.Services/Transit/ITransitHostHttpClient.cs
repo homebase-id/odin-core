@@ -10,14 +10,11 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public interface ITransitHostHttpClient
     {
-        private const string HostRootEndpoint = "/api/perimeter/transit/host";
-
         [Multipart]
-        [Post(HostRootEndpoint + "/stream")]
+        [Post("/api/perimeter/transit/host/stream")]
         Task<ApiResponse<HostTransferResponse>> SendHostToHost(
             [AliasAs("header")] StreamPart header,
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
-        
     }
 }
