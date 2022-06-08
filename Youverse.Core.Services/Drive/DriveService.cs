@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
+using KeyValueDatabase;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -35,7 +36,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private const string DriveCollectionName = "drives";
         private readonly ILoggerFactory _loggerFactory;
-
+        
         public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
@@ -48,7 +49,8 @@ namespace Youverse.Core.Services.Drive
             _tenantContext = tenantContext;
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
-
+            
+            
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 

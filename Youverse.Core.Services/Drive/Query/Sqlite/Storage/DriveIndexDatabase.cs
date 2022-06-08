@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
+using System.Linq;
+using Youverse.Core.Util;
 
 
 /*
@@ -17,7 +19,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
     /// <summary>
     /// Database types:
@@ -42,24 +44,24 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         private string _connectionString;
         private SQLiteConnection _connection = null;
 
-        public TableMainIndex tblMainIndex = null;
-        public TableAclIndex tblAclIndex = null;
-        public TableTagIndex tblTagIndex = null;
+        public TableMainIndex TblMainIndex = null;
+        public TableAclIndex TblAclIndex = null;
+        public TableTagIndex TblTagIndex = null;
 
         private SQLiteTransaction _transaction = null;
         private DatabaseIndexKind _kind;
 
-        private static Object _getConnectionLock = new Object();
-        private static Object _getTransactionLock = new Object();
+        private Object _getConnectionLock = new Object();
+        private Object _getTransactionLock = new Object();
 
         public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind)
         {
             _connectionString = connectionString;
             _kind = databaseKind;
 
-            tblMainIndex = new TableMainIndex(this);
-            tblAclIndex = new TableAclIndex(this);
-            tblTagIndex = new TableTagIndex(this);
+            TblMainIndex = new TableMainIndex(this);
+            TblAclIndex = new TableAclIndex(this);
+            TblTagIndex = new TableTagIndex(this);
         }
 
         ~DriveIndexDatabase()
@@ -124,9 +126,9 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
         public void CreateDatabase()
         {
-            tblMainIndex.CreateTable();
-            tblAclIndex.CreateTable();
-            tblTagIndex.CreateTable();
+            TblMainIndex.CreateTable();
+            TblAclIndex.CreateTable();
+            TblTagIndex.CreateTable();
             Vacuum();
         }
 
@@ -156,7 +158,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 if (_transaction != null)
                 {
                     _transaction.Commit();
-                    _transaction.Dispose();  // I believe these objects need to be disposed
+                    _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
             }
@@ -173,16 +175,18 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// <param name="senderId">Who sent this item (may be null)</param>
         /// <param name="threadId">The thread id, e.g. for conversations (may be null)</param>
         /// <param name="userDate">An int64 designating the user date (GetZeroTime(dt) or GetZeroTimeSeconds())</param>
-        /// <param name="accessControlList">The access control list</param>
+        /// <param name="requiredSecurityGroup">The security group required </param>
+        /// <param name="accessControlList">The list of Id's of the circles or identities which can access this file</param>
         /// <param name="tagIdList">The tags</param>
         public void AddEntry(Guid fileId,
-                             Int32 fileType,
-                             Int32 dataType,
-                             byte[] senderId,
-                             byte[] threadId,
-                             UInt64 userDate,
-                             List<Guid> accessControlList,
-                             List<Guid> tagIdList)
+            Int32 fileType,
+            Int32 dataType,
+            byte[] senderId,
+            byte[] threadId,
+            UInt64 userDate,
+            Int32 requiredSecurityGroup,
+            IEnumerable<Guid> accessControlList,
+            IEnumerable<Guid> tagIdList)
         {
             bool isLocalTransaction = false;
 
@@ -196,29 +200,20 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
                 UInt64 t1 = ZeroTime.GetZeroTimeSeconds();
 
-                tblMainIndex.InsertRow(fileId, t1, fileType, dataType, senderId, threadId, userDate, false, false);
-                tblAclIndex.InsertRows(fileId, accessControlList);
-                tblTagIndex.InsertRows(fileId, tagIdList);
+                TblMainIndex.InsertRow(fileId, t1, fileType, dataType, senderId, threadId, userDate, false, false, requiredSecurityGroup);
+                TblAclIndex.InsertRows(fileId, accessControlList?.ToList());
+                TblTagIndex.InsertRows(fileId, tagIdList?.ToList());
 
                 if (isLocalTransaction == true)
                 {
                     _transaction.Commit();
-                    _transaction.Dispose();  // I believe these objects need to be disposed
+                    _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
             }
         }
 
-        public void UpdateEntry(Guid fileId,
-                                Int32? fileType = null,
-                                Int32? dataType = null,
-                                byte[] senderId = null,
-                                byte[] threadId = null,
-                                UInt64? userDate = null,
-                                List<Guid> addAccessControlList = null,
-                                List<Guid> deleteAccessControlList = null,
-                                List<Guid> addTagIdList = null,
-                                List<Guid> deleteTagIdList = null)
+        public void DeleteEntry(Guid fileId)
         {
             bool isLocalTransaction = false;
 
@@ -230,20 +225,95 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     isLocalTransaction = true;
                 }
 
-                tblMainIndex.UpdateRow(fileId, FileType: fileType, DataType: dataType, SenderId: senderId,
-                                       ThreadId: threadId, UserDate: userDate);
+                TblAclIndex.DeleteAllRows(fileId);
+                TblTagIndex.DeleteAllRows(fileId);
+                TblMainIndex.DeleteRow(fileId);
 
-                tblAclIndex.InsertRows(fileId, addAccessControlList);
-                tblTagIndex.InsertRows(fileId, addTagIdList);
-                tblAclIndex.DeleteRow(fileId, deleteAccessControlList);
-                tblTagIndex.DeleteRow(fileId, deleteTagIdList);
+                if (isLocalTransaction == true)
+                {
+                    _transaction.Commit();
+                    _transaction.Dispose(); // I believe these objects need to be disposed
+                    _transaction = null;
+                }
+            }
+        }
+
+        public void UpdateEntry(Guid fileId,
+            Int32? fileType = null,
+            Int32? dataType = null,
+            byte[] senderId = null,
+            byte[] threadId = null,
+            UInt64? userDate = null,
+            Int32? requiredSecurityGroup = null,
+            List<Guid> addAccessControlList = null,
+            List<Guid> deleteAccessControlList = null,
+            List<Guid> addTagIdList = null,
+            List<Guid> deleteTagIdList = null)
+        {
+            bool isLocalTransaction = false;
+
+            lock (_getTransactionLock)
+            {
+                if (_transaction == null)
+                {
+                    _transaction = GetConnection().BeginTransaction();
+                    isLocalTransaction = true;
+                }
+
+                TblMainIndex.UpdateRow(fileId, fileType: fileType, dataType: dataType, senderId: senderId,
+                    threadId: threadId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+
+                TblAclIndex.InsertRows(fileId, addAccessControlList);
+                TblTagIndex.InsertRows(fileId, addTagIdList);
+                TblAclIndex.DeleteRow(fileId, deleteAccessControlList);
+                TblTagIndex.DeleteRow(fileId, deleteTagIdList);
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
                 if (isLocalTransaction == true)
                 {
                     _transaction.Commit();
-                    _transaction.Dispose();  // I believe these objects need to be disposed
+                    _transaction.Dispose(); // I believe these objects need to be disposed
+                    _transaction = null;
+                }
+            }
+        }
+
+
+        public void UpdateEntryZapZap(Guid fileId,
+            Int32? fileType = null,
+            Int32? dataType = null,
+            byte[] senderId = null,
+            byte[] threadId = null,
+            UInt64? userDate = null,
+            Int32? requiredSecurityGroup = null,
+            List<Guid> accessControlList = null,
+            List<Guid> tagIdList = null)
+        {
+            bool isLocalTransaction = false;
+
+            lock (_getTransactionLock)
+            {
+                if (_transaction == null)
+                {
+                    _transaction = GetConnection().BeginTransaction();
+                    isLocalTransaction = true;
+                }
+
+                TblMainIndex.UpdateRow(fileId, fileType: fileType, dataType: dataType, senderId: senderId,
+                    threadId: threadId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+
+                TblAclIndex.DeleteAllRows(fileId);
+                TblAclIndex.InsertRows(fileId, accessControlList);
+                TblTagIndex.DeleteAllRows(fileId);
+                TblTagIndex.InsertRows(fileId, tagIdList);
+
+                // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+                //
+                if (isLocalTransaction == true)
+                {
+                    _transaction.Commit();
+                    _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
             }
@@ -256,32 +326,31 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="resultFirstCursor">Output. Set to NULL if no more items, otherwise it's the first cursor of the result set. You may need this in stopAtCursor.</param>
         /// <param name="resultLastCursor">Output. Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
-        /// <param name="cursorUpdatedTimestamp"></param>
         /// <param name="startFromCursor">NULL to get the first batch, otherwise the last value you got from resultLastCursor</param>
         /// <param name="stopAtCursor">NULL to stop at end of table, otherwise cursor to where to stop. E.g. when refreshing after coming back after an hour.</param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
         /// <param name="senderidAnyOf"></param>
         /// <param name="threadidAnyOf"></param>
-        /// <param name="userDateRange"></param>
+        /// <param name="userdateSpan"></param>
         /// <param name="aclAnyOf"></param>
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
         public List<byte[]> QueryBatch(int noOfItems,
-                                       out byte[] resultFirstCursor,
-                                       out byte[] resultLastCursor,
-                                       out UInt64 cursorUpdatedTimestamp,
-                                       byte[] startFromCursor = null,
-                                       byte[] stopAtCursor = null,
-                                       List<int> filetypesAnyOf = null,
-                                       List<int> datatypesAnyOf = null,
-                                       List<byte[]> senderidAnyOf = null,
-                                       List<byte[]> threadidAnyOf = null,
-                                       TimeRange userDateRange = null,
-                                       List<byte[]> aclAnyOf = null,
-                                       List<byte[]> tagsAnyOf = null,
-                                       List<byte[]> tagsAllOf = null)
+            out byte[] resultFirstCursor,
+            out byte[] resultLastCursor,
+            out UInt64 cursorUpdatedTimestamp,
+            byte[] startFromCursor = null,
+            byte[] stopAtCursor = null,
+            List<int> filetypesAnyOf = null,
+            List<int> datatypesAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
+            List<byte[]> threadidAnyOf = null,
+            TimeRange userdateSpan = null,
+            List<byte[]> aclAnyOf = null,
+            List<byte[]> tagsAnyOf = null,
+            List<byte[]> tagsAllOf = null)
         {
             Stopwatch stopWatch = new Stopwatch();
 
@@ -332,13 +401,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 strWhere += $"threadid IN ({HexList(threadidAnyOf)}) ";
             }
 
-            if (userDateRange != null)
+            if (userdateSpan != null)
             {
-                userDateRange.Validate();
+                userdateSpan.Validate();
 
                 if (strWhere != "")
                     strWhere += "AND ";
-                strWhere += $"(userdate >= {userDateRange.Start} AND userdate <= {userDateRange.End}) ";
+                strWhere += $"(userdate >= {userdateSpan.Start} AND userdate <= {userdateSpan.End}) ";
             }
 
             if (tagsAnyOf != null)
@@ -395,10 +464,10 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             if (i < noOfItems)
                 resultLastCursor = null; // No more items
             else
-                resultLastCursor = result[result.Count-1];
+                resultLastCursor = result[result.Count - 1];
 
             stopWatch.Stop();
-            Utils.StopWatchStatus("QueryBatch() "+stm, stopWatch);
+            Utils.StopWatchStatus("QueryBatch() " + stm, stopWatch);
 
             return result;
         }
@@ -412,17 +481,17 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// <param name="resultLastCursor">Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
         /// <returns></returns>
         public List<byte[]> QueryModified(int noOfItems,
-                                       out byte[] outCursor,
-                                       UInt64 stopAtModifiedDate,
-                                       byte[] startFromCursor = null,
-                                       List<int> filetypesAnyOf = null,
-                                       List<int> datatypesAnyOf = null,
-                                       List<byte[]> senderidAnyOf = null,
-                                       List<byte[]> threadidAnyOf = null,
-                                       TimeRange userDateRange = null,
-                                       List<byte[]> aclAnyOf = null,
-                                       List<byte[]> tagsAnyOf = null,
-                                       List<byte[]> tagsAllOf = null)
+            out byte[] outCursor,
+            UInt64 stopAtModifiedDate,
+            byte[] startFromCursor = null,
+            List<int> filetypesAnyOf = null,
+            List<int> datatypesAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
+            List<byte[]> threadidAnyOf = null,
+            TimeRange userdateSpan = null,
+            List<byte[]> aclAnyOf = null,
+            List<byte[]> tagsAnyOf = null,
+            List<byte[]> tagsAllOf = null)
         {
             Stopwatch stopWatch = new Stopwatch();
 
@@ -468,13 +537,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 strWhere += $"threadid IN ({HexList(threadidAnyOf)}) ";
             }
 
-            if (userDateRange != null)
+            if (userdateSpan != null)
             {
-                userDateRange.Validate();
-                
+                userdateSpan.Validate();
+
                 if (strWhere != "")
                     strWhere += "AND ";
-                strWhere += $"(userdate >= {userDateRange.Start} AND userdate <= {userDateRange.End}) ";
+                strWhere += $"(userdate >= {userdateSpan.Start} AND userdate <= {userdateSpan.End}) ";
             }
 
             if (tagsAnyOf != null)
@@ -534,7 +603,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             return result;
         }
 
-        public string IntList(List<int> list)
+        private string IntList(List<int> list)
         {
             int len = list.Count;
             string s = "";
@@ -550,7 +619,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             return s;
         }
 
-        public string HexList(List<byte[]> list)
+        private string HexList(List<byte[]> list)
         {
             int len = list.Count;
             string s = "";
@@ -567,7 +636,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         }
 
 
-        public string AndHexList(List<byte[]> list)
+        private string AndHexList(List<byte[]> list)
         {
             int len = list.Count;
             string s = "";
@@ -615,4 +684,4 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             }
         }
     }
-}   
+}

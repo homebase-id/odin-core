@@ -15,4 +15,25 @@ namespace Youverse.Core.Services.Base
 
         Task<T> WithTenantSystemStorageReturnSingle<T>(string collection, Func<IStorage<T>, Task<T>> func);
     }
+
+    public interface IKeyValueStorage
+    {
+        void Save<T>(string dbName, T value) where T :IKeyValueStorable;
+    }
+
+    public class SqliteKeyValueStore : IKeyValueStorage
+    {
+        public void Save<T>(string dbName, T value) where T : IKeyValueStorable
+        {
+            
+            
+        }
+    }
+
+    public interface IKeyValueStorable
+    {
+        byte[] GetPrimaryKey();
+        byte[] SecondaryKey();
+        byte[] GetTertiaryKey();
+    }
 }

@@ -72,6 +72,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
+                    UserDate = 0,
                     Tags = tags
                 }
             };
@@ -127,7 +128,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ContentIsComplete = false,
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
-                    DataType = 202
+                    DataType = 202,
+                    UserDate = 0
                 }
             };
 
@@ -180,6 +182,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 Assert.IsTrue(firstResult.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.DataType == uploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.UserDate == uploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.ContentType == uploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
                 Assert.IsFalse(firstResult.PayloadTooLarge);
@@ -203,7 +206,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ContentIsComplete = false,
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
-                    DataType = 202
+                    DataType = 202,
+                    UserDate = 0
                 }
             };
 

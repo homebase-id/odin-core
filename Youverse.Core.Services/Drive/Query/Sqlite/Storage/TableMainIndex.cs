@@ -1,20 +1,22 @@
 ﻿using System;
 using System.Data.SQLite;
+using Youverse.Core.Util;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
     public class TableMainIndexData
     {
-        public Guid fileId;
-        public UInt64 createdTimeStamp;
-        public UInt64 updatedTimeStamp;
-        public Int32 fileType;
-        public Int32 dataType;
+        public Guid FileId;
+        public UInt64 CreatedTimeStamp;
+        public UInt64 UpdatedTimeStamp;
+        public Int32 FileType;
+        public Int32 DataType;
         public byte[] SenderId;
         public byte[] ThreadId;
-        public UInt64 userDate;
-        public bool isArchived;
-        public bool isHistory;
+        public UInt64 UserDate;
+        public bool IsArchived;
+        public bool IsHistory;
+        public Int32 RequiredSecurityGroup;
     };
 
     public class TableMainIndex : TableBase
@@ -30,7 +32,12 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         private SQLiteParameter _param8 = null;
         private SQLiteParameter _param9 = null;
         private SQLiteParameter _param10 = null;
-        private static Object _insertLock = new Object();
+        private SQLiteParameter _param11 = null;
+        private Object _insertLock = new Object();
+
+        private SQLiteCommand _deleteCommand = null;
+        private SQLiteParameter _dparam1 = null;
+        private Object _deleteLock = new Object();
 
         private SQLiteCommand _updateCommand = null;
         private SQLiteParameter _uparam1 = null;
@@ -39,11 +46,12 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         private SQLiteParameter _uparam4 = null;
         private SQLiteParameter _uparam5 = null;
         private SQLiteParameter _uparam6 = null;
-        private static Object _updateLock = new Object();
+        private SQLiteParameter _uparam7 = null;
+        private Object _updateLock = new Object();
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
-        private static Object _selectLock = new Object();
+        private Object _selectLock = new Object();
 
         public TableMainIndex(DriveIndexDatabase db) : base(db)
         {
@@ -74,11 +82,11 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                // cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
-                // cmd.ExecuteNonQuery();
+                cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
+                cmd.ExecuteNonQuery();
 
                 cmd.CommandText =
-                    @"CREATE TABLE if not exists mainindex(
+                    @"CREATE TABLE mainindex(
                      fileid BLOB UNIQUE PRIMARY KEY NOT NULL,
                      createdtimestamp INTEGER NOT NULL,
                      updatedtimestamp INTEGER,
@@ -88,7 +96,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                      isArchived INTEGER NOT NULL,
                      isHistory INTEGER NOT NULL,
                      senderid BLOB,
-                     threadId BLOB); "
+                     threadId BLOB,
+                     requiredSecurityGroup INTEGER NOT NULL); "
                     + "CREATE INDEX idxupdatedtimestamp ON mainindex(updatedtimestamp);";
 
                 cmd.ExecuteNonQuery();
@@ -106,7 +115,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 {
                     _selectCommand = _driveIndexDatabase.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT createdtimestamp, updatedtimestamp, filetype, datatype, senderid, threadId, userdate, isArchived, isHistory FROM mainindex WHERE fileid=$fileid";
+                        $"SELECT createdtimestamp, updatedtimestamp, filetype, datatype, senderid, threadId, userdate, isArchived, isHistory, requiredSecurityGroup FROM mainindex WHERE fileid=$fileid";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$fileid";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -121,16 +130,15 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     int i = 0;
                     while (rdr.Read())
                     {
-                        md.fileId = fileId;
-                        md.createdTimeStamp = (UInt64) rdr.GetInt64(0);
+                        md.FileId = fileId;
+                        md.CreatedTimeStamp = (UInt64)rdr.GetInt64(0);
 
                         // type = rdr.GetDataTypeName(1);
                         if (!rdr.IsDBNull(1))
-                            md.updatedTimeStamp = (UInt64)rdr.GetInt64(1);
+                            md.UpdatedTimeStamp = (UInt64)rdr.GetInt64(1);
 
-                        md.fileType = rdr.GetInt32(2);
-                        md.dataType = rdr.GetInt32(3);
-
+                        md.FileType = rdr.GetInt32(2);
+                        md.DataType = rdr.GetInt32(3);
                         if (!rdr.IsDBNull(4))
                         {
                             md.SenderId = new byte[16];
@@ -143,9 +151,10 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                             rdr.GetBytes(5, 0, md.ThreadId, 0, 16);
                         }
 
-                        md.userDate = (UInt64)rdr.GetInt64(6);
-                        md.isArchived = rdr.GetBoolean(7);
-                        md.isHistory = rdr.GetBoolean(8);
+                        md.UserDate = (UInt64)rdr.GetInt64(6);
+                        md.IsArchived = rdr.GetBoolean(7);
+                        md.IsHistory = rdr.GetBoolean(8);
+                        md.RequiredSecurityGroup = rdr.GetInt32(9);
 
                         i++;
                     }
@@ -173,15 +182,17 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         /// <param name="userZeroSeconds">user defined date in GetZeroSeconds()</param>
         /// <param name="isArchived"></param>
         /// <param name="isHistory"></param>
-        public void InsertRow(Guid fileId, 
-                            UInt64 createdZeroSeconds,
-                            Int32 fileType,
-                            Int32 dataType,
-                            byte[] SenderId, 
-                            byte[] ThreadId, 
-                            UInt64 userZeroSeconds,
-                            bool isArchived, 
-                            bool isHistory)
+        /// <param name="requiredSecurityGroup"></param>
+        public void InsertRow(Guid fileId,
+            UInt64 createdZeroSeconds,
+            Int32 fileType,
+            Int32 dataType,
+            byte[] SenderId,
+            byte[] ThreadId,
+            UInt64 userZeroSeconds,
+            bool isArchived,
+            bool isHistory,
+            Int32 requiredSecurityGroup)
         {
             lock (_insertLock)
             {
@@ -191,16 +202,21 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     _insertCommand = _driveIndexDatabase.CreateCommand();
                     _insertCommand.CommandText =
                         @"INSERT INTO mainindex(
-                        fileid, createdtimestamp, updatedtimestamp,
-                        isarchived, ishistory,
-                        filetype,
-                        datatype,
-                        senderid, threadid,
-                        userdate)
+                            fileid, 
+                            createdtimestamp,
+                            updatedtimestamp,
+                            isarchived,
+                            ishistory,
+                            filetype,
+                            datatype,
+                            senderid,
+                            threadid,
+                            userdate,
+                            requiredSecurityGroup)
                     VALUES ($fileid, $createdtimestamp, $updatedtimestamp,
                         $isarchived, $ishistory,
                         $filetype, $datatype,
-                        $senderid, $threadid, $userdate)";
+                        $senderid, $threadid, $userdate, $requiredSecurityGroup)";
 
                     _param1 = _insertCommand.CreateParameter();
                     _param1.ParameterName = "$fileid";
@@ -222,6 +238,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     _param9.ParameterName = "$threadid";
                     _param10 = _insertCommand.CreateParameter();
                     _param10.ParameterName = "$userdate";
+                    _param11 = _insertCommand.CreateParameter();
+                    _param11.ParameterName = "$requiredSecurityGroup";
 
                     _insertCommand.Parameters.Add(_param1);
                     _insertCommand.Parameters.Add(_param2);
@@ -233,6 +251,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     _insertCommand.Parameters.Add(_param8);
                     _insertCommand.Parameters.Add(_param9);
                     _insertCommand.Parameters.Add(_param10);
+                    _insertCommand.Parameters.Add(_param11);
                 }
 
                 _param1.Value = fileId;
@@ -245,17 +264,39 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 _param8.Value = SenderId;
                 _param9.Value = ThreadId;
                 _param10.Value = userZeroSeconds;
+                _param11.Value = requiredSecurityGroup;
 
                 _insertCommand.ExecuteNonQuery();
             }
         }
 
+        public void DeleteRow(Guid fileId)
+        {
+            lock (_deleteLock)
+            {
+                // Make sure we only prep once 
+                if (_deleteCommand == null)
+                {
+                    _deleteCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteCommand.CommandText = @"DELETE FROM mainindex WHERE fileid=$fileid";
+
+                    _dparam1 = _deleteCommand.CreateParameter();
+                    _dparam1.ParameterName = "$fileid";
+                    _deleteCommand.Parameters.Add(_dparam1);
+                }
+
+                _dparam1.Value = fileId;
+                _deleteCommand.ExecuteNonQuery();
+            }
+        }
+
         public void UpdateRow(Guid fileId,
-                              Int32? FileType = null,
-                              Int32? DataType = null,
-                              byte[] SenderId = null,
-                              byte[] ThreadId = null,
-                              UInt64? UserDate = null)
+            Int32? fileType = null,
+            Int32? dataType = null,
+            byte[] senderId = null,
+            byte[] threadId = null,
+            UInt64? userDate = null,
+            Int32? requiredSecurityGroup = null)
         {
             lock (_updateLock)
             {
@@ -269,6 +310,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                     _uparam4 = _updateCommand.CreateParameter();
                     _uparam5 = _updateCommand.CreateParameter();
                     _uparam6 = _updateCommand.CreateParameter();
+                    _uparam7 = _updateCommand.CreateParameter();
+
 
                     _uparam1.ParameterName = "$updatedtimestamp";
                     _updateCommand.Parameters.Add(_uparam1);
@@ -287,6 +330,9 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
 
                     _uparam6.ParameterName = "$userdate";
                     _updateCommand.Parameters.Add(_uparam6);
+
+                    _uparam7.ParameterName = "$requiredSecurityGroup";
+                    _updateCommand.Parameters.Add(_uparam7);
                 }
 
                 string stm;
@@ -294,33 +340,37 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
                 stm = "updatedtimestamp = $updatedtimestamp ";
 
 
-                if (FileType != null)
+                if (fileType != null)
                     stm += ", filetype = $filetype ";
 
-                if (DataType != null)
+                if (dataType != null)
                     stm += ", datatype = $datatype ";
 
-                if (SenderId != null)
+                if (senderId != null)
                     stm += ", senderid = $senderid ";
 
-                if (ThreadId != null)
+                if (threadId != null)
                     stm += ", threadid = $threadid ";
 
-                if (UserDate != null)
+                if (userDate != null)
                     stm += ", userdate = $userdate ";
+
+                if (requiredSecurityGroup != null)
+                    stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
 
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
                 _uparam1.Value = UnixTime.UnixTimeMillisecondsUnique();
-                _uparam2.Value = FileType;
-                _uparam3.Value = DataType;
-                _uparam4.Value = SenderId;
-                _uparam5.Value = ThreadId;
-                _uparam6.Value = UserDate;
+                _uparam2.Value = fileType;
+                _uparam3.Value = dataType;
+                _uparam4.Value = senderId;
+                _uparam5.Value = threadId;
+                _uparam6.Value = userDate;
+                _uparam7.Value = requiredSecurityGroup;
 
                 _updateCommand.ExecuteNonQuery();
             }
         }
     }
-}   
+}

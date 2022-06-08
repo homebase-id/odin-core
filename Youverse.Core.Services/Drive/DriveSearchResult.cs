@@ -21,6 +21,7 @@ namespace Youverse.Core.Services.Drive
 
         public string SenderDotYouId { get; set; }
 
+        public ulong UserDate { get; set; }
         public ulong LastUpdatedTimestamp { get; set; }
         
         public long PayloadSize { get; set; }

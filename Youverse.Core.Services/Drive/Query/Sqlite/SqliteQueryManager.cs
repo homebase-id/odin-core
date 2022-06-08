@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
@@ -28,8 +31,15 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(byte[], IEnumerable<Guid>)> GetRecent(UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+    public Task<(byte[], IEnumerable<Guid>)> GetRecent(CallerContext callerContext, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
     {
+        Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+
+        if (callerContext.IsOwner)
+        {
+            //query without enforcing security
+        }
+
         var results = _indexDb.QueryModified(
             options.MaxRecords,
             out var cursor,
@@ -47,8 +57,10 @@ public class SqliteQueryManager : IDriveQueryManager
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
 
-    public Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+    public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
     {
+        Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+
         var results = _indexDb.QueryBatch(
             options.MaxRecords,
             out byte[] resultFirstCursor,
@@ -67,7 +79,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
         return Task.FromResult((resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, results.Select(r => new Guid(r))));
     }
-    
+
     public Task SwitchIndex()
     {
         throw new NotImplementedException();
@@ -76,26 +88,28 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task UpdateCurrentIndex(ServerFileHeader header)
     {
         var metadata = header.FileMetadata;
-        
-        var exists = _indexDb.tblMainIndex.Get(metadata.File.FileId) != null;
+
+        int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
+        var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
         var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
 
-        //TODO: Need to sortout the ACL: header.ServerMetadata.AccessControlList
         var acl = new List<Guid>();
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredIdentities());
+        
         var threadId = Array.Empty<byte>();
-        ulong userDate = 0;
-
+        
         if (exists)
         {
-            _indexDb.UpdateEntry(
+            _indexDb.UpdateEntryZapZap(
                 metadata.File.FileId,
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
                 threadId,
-                userDate,
+                metadata.AppData.UserDate,
+                securityGroup,
                 acl,
-                null,
                 metadata.AppData.Tags);
         }
         else
@@ -105,7 +119,8 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.DataType,
                 sender,
                 threadId,
-                userDate,
+                metadata.AppData.UserDate,
+                securityGroup,
                 acl,
                 metadata.AppData.Tags);
         }

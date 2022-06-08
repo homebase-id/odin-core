@@ -110,6 +110,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 
                 Assert.IsTrue(firstResult.FileType == uploadContext.FileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.DataType == uploadContext.FileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.UserDate == uploadContext.FileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.ContentType == uploadContext.FileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
                 Assert.IsFalse(firstResult.PayloadTooLarge);
@@ -163,6 +164,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                     JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
+                    UserDate = 0,
                     Tags = tags
                 },
                 AccessControlList = new AccessControlList()

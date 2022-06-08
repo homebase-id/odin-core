@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
@@ -67,7 +66,7 @@ namespace Youverse.Core.Services.Drive
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetRecent(maxDate, startCursor, qp, options);
+                var (cursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, maxDate, startCursor, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
@@ -87,7 +86,7 @@ namespace Youverse.Core.Services.Drive
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(startCursor, stopCursor, qp, options);
+                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, startCursor, stopCursor, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 return new QueryBatchResult()
@@ -167,7 +166,7 @@ namespace Youverse.Core.Services.Drive
             }
 
             var metadata = header.FileMetadata;
-            
+
             //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
             return new DriveSearchResult()
             {
@@ -177,6 +176,7 @@ namespace Youverse.Core.Services.Drive
                 PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                 FileType = metadata.AppData.FileType,
                 DataType = metadata.AppData.DataType,
+                UserDate = metadata.AppData.UserDate,
                 JsonContent = metadata.AppData.JsonContent,
                 Tags = metadata.AppData.Tags,
                 CreatedTimestamp = metadata.Created,

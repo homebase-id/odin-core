@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
     public static class Utils
     {

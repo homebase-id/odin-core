@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
     public class TableBase
     {

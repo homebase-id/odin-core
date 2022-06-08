@@ -53,8 +53,9 @@ namespace Youverse.Core.Services.Authorization.Acl
                     return CallerIsConnected();
 
                 case SecurityGroupType.CircleConnected:
-                    return Task.FromResult(CallerIsConnected().GetAwaiter().GetResult() &&
-                                           CallerIsInCircle(acl.CircleId).GetAwaiter().GetResult());
+                    return Task.FromResult(false);
+                // return Task.FromResult(CallerIsConnected().GetAwaiter().GetResult() &&
+                //                        CallerIsInCircle(acl.CircleId).GetAwaiter().GetResult());
 
                 case SecurityGroupType.CustomList:
                     return Task.FromResult(CallerIsInYouverseNetwork().GetAwaiter().GetResult() &&

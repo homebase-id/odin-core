@@ -2,25 +2,31 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
     public class TableTagIndex : TableBase
     {
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;
         private SQLiteParameter _iparam2 = null;
-        private static Object _insertLock = new Object();
+        private Object _insertLock = new Object();
 
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _dparam1 = null;
         private SQLiteParameter _dparam2 = null;
-        private static Object _deleteLock = new Object();
+        private Object _deleteLock = new Object();
+
+        private SQLiteCommand _deleteAllCommand = null;
+        private SQLiteParameter _dallparam1 = null;
+        private Object _deleteAllLock = new Object();
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
-        private static Object _selectLock = new Object();
+        private Object _selectLock = new Object();
 
-        public TableTagIndex(DriveIndexDatabase db) : base(db) { }
+        public TableTagIndex(DriveIndexDatabase db) : base(db)
+        {
+        }
 
         ~TableTagIndex()
         {
@@ -28,6 +34,18 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             {
                 _insertCommand.Dispose();
                 _insertCommand = null;
+            }
+
+            if (_deleteCommand != null)
+            {
+                _deleteCommand.Dispose();
+                _deleteCommand = null;
+            }
+
+            if (_deleteAllCommand != null)
+            {
+                _deleteAllCommand.Dispose();
+                _deleteAllCommand = null;
             }
 
             if (_selectCommand != null)
@@ -41,11 +59,11 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                // cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
-                // cmd.ExecuteNonQuery();
+                cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
+                cmd.ExecuteNonQuery();
 
-                cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
-                                 + "CREATE INDEX TagIdx ON tagindex(tagid);";
+                cmd.CommandText = @"CREATE TABLE tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
+                                  + "CREATE INDEX TagIdx ON tagindex(tagid);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -149,5 +167,24 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite
             }
         }
 
+        public void DeleteAllRows(Guid FileId)
+        {
+            lock (_deleteAllLock)
+            {
+                // Make sure we only prep once - I wish I had been able to use local static vars
+                // rather then class members
+                if (_deleteAllCommand == null)
+                {
+                    _deleteAllCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteAllCommand.CommandText = @"DELETE FROM tagindex WHERE fileid=$fileid";
+                    _dallparam1 = _deleteAllCommand.CreateParameter();
+                    _dallparam1.ParameterName = "$fileid";
+                    _deleteAllCommand.Parameters.Add(_dallparam1);
+                }
+
+                _dallparam1.Value = FileId;
+                _deleteAllCommand.ExecuteNonQuery();
+            }
+        }
     }
-}   
+}
