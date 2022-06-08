@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SQLite;
-using System.Diagnostics;
 
 
 /*
@@ -17,7 +15,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace KeyValueDatabase
+namespace Youverse.Core.SystemStorage.KeyValue
 {
     public class KeyValueDatabase // IDisposable ?
     {
@@ -99,11 +97,11 @@ namespace KeyValueDatabase
         /// <summary>
         /// Will destroy all your data and create a fresh database
         /// </summary>
-        public void CreateDatabase()
+        public void CreateDatabase(bool dropExistingTables = true)
         {
-            tblKeyValue.CreateTable();
-            tblKeyTwoValue.CreateTable();
-            TblKeyUniqueThreeValue.CreateTable();
+            tblKeyValue.EnsureTableExists(dropExistingTables);
+            tblKeyTwoValue.EnsureTableExists(dropExistingTables);
+            TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
             Vacuum();
         }
 

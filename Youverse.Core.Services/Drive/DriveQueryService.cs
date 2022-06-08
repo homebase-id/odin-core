@@ -121,18 +121,6 @@ namespace Youverse.Core.Services.Drive
                     dsr.JsonContent = "";
                 }
 
-                if (options.IncludePayload)
-                {
-                    var (tooLarge, size, bytes) = await _driveService.GetPayloadBytes(file);
-                    dsr.PayloadTooLarge = tooLarge;
-                    dsr.PayloadSize = size;
-
-                    if (!tooLarge)
-                    {
-                        dsr.PayloadContent = bytes.ToBase64();
-                    }
-                }
-
                 results.Add(dsr);
             }
 

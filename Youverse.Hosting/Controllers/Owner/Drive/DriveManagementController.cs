@@ -11,8 +11,7 @@ using Youverse.Hosting.Authentication.Owner;
 namespace Youverse.Hosting.Controllers.Owner.Drive
 {
     [ApiController]
-    // [Route(OwnerApiPathConstants.DrivesV1)]
-    [Route("/api/owner/v1/drive/mgmt")]
+    [Route(OwnerApiPathConstants.DrivesV1)]
     [AuthorizeOwnerConsole]
     public class DriveManagementController : ControllerBase
     {
@@ -25,7 +24,7 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
             _driveService = driveService;
         }
 
-        [HttpGet("drives")]
+        [HttpGet]
         public async Task<IActionResult> GetDrives(int pageNumber, int pageSize)
         {
             var drives = await _driveService.GetDrives(new PageOptions(pageNumber, pageSize));
@@ -43,6 +42,20 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return new JsonResult(page);
+        }
+        
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
+        {
+            var existingDrive = await _driveService.GetDriveIdByAlias(targetDrive, false);
+            
+            if(null == existingDrive)
+            {
+                //create a drive on the drive service
+                var drive = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);
+            }
+            
+            return Ok();
         }
 
         [HttpPost("rebuildallindices")]

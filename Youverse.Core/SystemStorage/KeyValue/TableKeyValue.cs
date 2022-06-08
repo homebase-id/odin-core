@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Data.SQLite;
 
-
-namespace KeyValueDatabase
+namespace Youverse.Core.SystemStorage.KeyValue
 {
     public class TableKeyValue : TableKeyValueBase // Make it IDisposable??
     {
@@ -70,15 +69,18 @@ namespace KeyValueDatabase
         }
 
 
-        public override void CreateTable()
+        public override void EnsureTableExists(bool dropExisting = false)
         {
             using (var cmd = _keyValueDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS keyvalue;";
-                cmd.ExecuteNonQuery();
+                if(dropExisting)
+                {
+                    cmd.CommandText = "DROP TABLE IF EXISTS keyvalue;";
+                    cmd.ExecuteNonQuery();
+                }
 
                 cmd.CommandText =
-                    @"CREATE TABLE keyvalue(
+                    @"CREATE TABLE if not exists keyvalue(
                      key BLOB UNIQUE NOT NULL, value BLOB); "
                     + "CREATE INDEX idxkey ON keyvalue(key);";
 

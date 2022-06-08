@@ -40,6 +40,9 @@ public class SqliteQueryManager : IDriveQueryManager
             //query without enforcing security
         }
 
+        var aclList = new List<byte[]>();
+
+        //TODO: add required security group to the querymodified function
         var results = _indexDb.QueryModified(
             options.MaxRecords,
             out var cursor,
@@ -48,9 +51,9 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
-            qp.ThreadId?.ToList(),
-            qp.UserDateSpan,
-            qp.AclId?.ToList(),
+            null,
+            qp.UserDate,
+            null,
             qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
 
@@ -60,6 +63,12 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+
+        var aclList = new List<byte[]>();
+
+        //if the caller is not owner
+        // we have to pass the data thru a filter where the only files returned are those which match
+        //TODO: add required security group to the query modified function
 
         var results = _indexDb.QueryBatch(
             options.MaxRecords,
@@ -71,9 +80,9 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
-            qp.ThreadId?.ToList(),
-            qp.UserDateSpan,
-            qp.AclId?.ToList(),
+            null, //thread id list
+            qp.UserDate,
+            null, //acl list  
             qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
 
@@ -96,9 +105,9 @@ public class SqliteQueryManager : IDriveQueryManager
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredIdentities());
-        
+
         var threadId = Array.Empty<byte>();
-        
+
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(
@@ -130,7 +139,8 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public Task RemoveFromCurrentIndex(InternalDriveFileId file)
     {
-        throw new NotImplementedException("need a delete entry on DriveIndexDatabase");
+        _indexDb.DeleteEntry(file.FileId);
+        return Task.CompletedTask;
     }
 
     public Task RemoveFromSecondaryIndex(InternalDriveFileId file)
@@ -150,7 +160,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public Task LoadLatestIndex()
     {
-        _indexDb.CreateDatabase();
+        _indexDb.CreateDatabase(false);
         this.IndexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }

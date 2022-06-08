@@ -272,7 +272,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
                 var resultOptions = new ResultOptions()
                 {
-                    IncludePayload = true,
                     IncludeMetadataHeader = true,
                     MaxRecords = 100
                 };

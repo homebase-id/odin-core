@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Data.SQLite;
 
-
-namespace KeyValueDatabase
+namespace Youverse.Core.SystemStorage.KeyValue
 {
     public class TableKeyValueBase
     {
@@ -19,9 +17,9 @@ namespace KeyValueDatabase
         }
 
 
-        public virtual void CreateTable()
+        public virtual void EnsureTableExists(bool dropExisting = false)
         {
-            throw new Exception("You must implement the CreateTable class");
+            throw new Exception("You must implement the EnsureTableExists class");
         }
     }
 } 

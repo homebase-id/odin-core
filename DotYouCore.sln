@@ -28,8 +28,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Back
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Tests", "Tests\Youverse.Core.Services.Tests\Youverse.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Indexer.Tests", "Tests\Youverse.Core.Indexer.Tests\Youverse.Core.Indexer.Tests.csproj", "{8BD903C3-528C-4185-97C6-0EFC37B85B49}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,10 +70,6 @@ Global
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8BD903C3-528C-4185-97C6-0EFC37B85B49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8BD903C3-528C-4185-97C6-0EFC37B85B49}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8BD903C3-528C-4185-97C6-0EFC37B85B49}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8BD903C3-528C-4185-97C6-0EFC37B85B49}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -85,7 +79,6 @@ Global
 		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D} = {A98EA801-5CF3-4550-920B-F48963F4C123}
-		{8BD903C3-528C-4185-97C6-0EFC37B85B49} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

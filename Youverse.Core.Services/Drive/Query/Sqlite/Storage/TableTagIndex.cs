@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
+using System.Diagnostics;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
@@ -55,14 +56,17 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             }
         }
 
-        public override void CreateTable()
+        public override void EnsureTableExists(bool dropExisting = false)
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
-                cmd.ExecuteNonQuery();
+                if(dropExisting)
+                {
+                    cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
+                    cmd.ExecuteNonQuery();
+                }
 
-                cmd.CommandText = @"CREATE TABLE tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
+                cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
                                   + "CREATE INDEX TagIdx ON tagindex(tagid);";
 
                 cmd.ExecuteNonQuery();
@@ -132,7 +136,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 for (int i = 0; i < TagIdList.Count; i++)
                 {
                     _iparam2.Value = TagIdList[i].ToByteArray();
-                    _insertCommand.ExecuteNonQuery();
+                   int rows =  _insertCommand.ExecuteNonQuery();
+                   Debugger.Launch();
                 }
             }
         }

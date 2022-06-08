@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace KeyValueDatabase
+namespace Youverse.Core.SystemStorage.KeyValue
 {
     public class TableKeyThreeValue : TableKeyValueBase // Make it IDisposable??
     {
@@ -104,15 +104,18 @@ namespace KeyValueDatabase
         }
 
 
-        public override void CreateTable()
+        public override void EnsureTableExists(bool dropExisting = false)
         {
             using (var cmd = _keyValueDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS keythreevalue;";
-                cmd.ExecuteNonQuery();
-
+                if(dropExisting)
+                {
+                    cmd.CommandText = "DROP TABLE IF EXISTS keythreevalue;";
+                    cmd.ExecuteNonQuery();
+                }
+                
                 cmd.CommandText =
-                    @"CREATE TABLE keythreevalue(
+                    @"CREATE TABLE if not exists keythreevalue(
                      key1   BLOB UNIQUE NOT NULL,
                      key2   BLOB NOT NULL,
                      key3   BLOB NOT NULL,

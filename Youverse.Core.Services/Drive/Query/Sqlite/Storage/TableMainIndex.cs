@@ -78,15 +78,18 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             }
         }
 
-        public override void CreateTable()
+        public override void EnsureTableExists(bool dropExisting = false)
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
-                cmd.ExecuteNonQuery();
-
+                if(dropExisting)
+                {
+                    cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
+                    cmd.ExecuteNonQuery();
+                }
+                
                 cmd.CommandText =
-                    @"CREATE TABLE mainindex(
+                    @"CREATE TABLE if not exists mainindex(
                      fileid BLOB UNIQUE PRIMARY KEY NOT NULL,
                      createdtimestamp INTEGER NOT NULL,
                      updatedtimestamp INTEGER,

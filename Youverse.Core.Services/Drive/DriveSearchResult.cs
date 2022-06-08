@@ -24,13 +24,6 @@ namespace Youverse.Core.Services.Drive
         public ulong UserDate { get; set; }
         public ulong LastUpdatedTimestamp { get; set; }
         
-        public long PayloadSize { get; set; }
-        
-        /// <summary>
-        /// When true, the payload was too large to return
-        /// </summary>
-        public bool PayloadTooLarge { get; set; }
-        public string PayloadContent { get; set; }
         public AccessControlList AccessControlList { get; set; }
         
         /// <summary>

@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         }
 
 
-        public virtual void CreateTable()
+        public virtual void EnsureTableExists(bool dropExisting = false)
         {
             throw new Exception("You must implement the CreateTable class");
         }

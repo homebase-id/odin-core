@@ -7,7 +7,6 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
-using KeyValueDatabase;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -20,6 +19,9 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.SystemStorage.KeyValue;
+using Youverse.Core.Util;
+using KeyValueDatabase = Youverse.Core.SystemStorage.KeyValue.KeyValueDatabase;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -36,7 +38,9 @@ namespace Youverse.Core.Services.Drive
         private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private const string DriveCollectionName = "drives";
         private readonly ILoggerFactory _loggerFactory;
-        
+
+        private readonly TableKeyUniqueThreeValue _driveStorage;
+
         public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
@@ -49,12 +53,26 @@ namespace Youverse.Core.Services.Drive
             _tenantContext = tenantContext;
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
+
+            ////
+
+            string dbPath = tenantContext.StorageConfig.DataStoragePath;
+            if (!Directory.Exists(dbPath))
+            {
+                Directory.CreateDirectory(dbPath);
+            }
             
-            
+            string finalPath = PathUtil.Combine(dbPath, $"{DriveCollectionName}.db");
+            var db = new KeyValueDatabase($"URI=file:{finalPath}");
+            _driveStorage = new TableKeyUniqueThreeValue(db);
+            _driveStorage.EnsureTableExists();
+
+            ////
+
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
-        private static object _createDriveLock = new object();
+        private readonly object _createDriveLock = new object();
 
         public Task<StorageDrive> CreateDrive(string name, TargetDrive targetDrive, string metadata, bool allowAnonymousReads = false)
         {
@@ -70,11 +88,18 @@ namespace Youverse.Core.Services.Drive
                 var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
                         DriveCollectionName, s => s.Find(drive => drive.Type == targetDrive.Type && drive.Alias == targetDrive.Alias, PageOptions.All))
                     .GetAwaiter().GetResult();
-
+                
                 if (existingDrives.Results.Count > 0)
                 {
                     throw new ConfigException("Drive Alias and type must be unique");
                 }
+
+                // var existingDriveBytes = _driveStorage.GetByKeyTwoThree(targetDrive.Type.ToByteArray(), targetDrive.Alias.ToByteArray());
+                //
+                // if (null != existingDriveBytes)
+                // {
+                //     throw new ConfigException("Drive Alias and type must be unique");
+                // }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
 
@@ -272,7 +297,7 @@ namespace Youverse.Core.Services.Drive
 
             return GetTempStorageManager(file.DriveId).Delete(file.FileId);
         }
-        
+
         public Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
@@ -298,7 +323,7 @@ namespace Youverse.Core.Services.Drive
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
-        
+
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
@@ -307,7 +332,7 @@ namespace Youverse.Core.Services.Drive
 
             // var acl = await GetAcl(file);
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
-            
+
             //return the acl as a separate value for any internal code that needs to use it
             return header;
         }

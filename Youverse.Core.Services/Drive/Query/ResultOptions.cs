@@ -8,5 +8,4 @@ public class ResultOptions
     public int MaxRecords { get; set; } = 100;
     public bool IncludeMetadataHeader { get; set; }
 
-    public bool IncludePayload { get; set; }
 }

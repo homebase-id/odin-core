@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Youverse.Core.SystemStorage.KeyValue;
 
 namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
 {
@@ -9,7 +10,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void InsertTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest1.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest1.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -45,7 +46,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void InsertDuplicateTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest2.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest2.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -82,7 +83,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void UpdateTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest3.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest3.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -107,7 +108,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void Update2Test()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest4.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest4.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -142,7 +143,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void DeleteTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest5.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest5.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -173,7 +174,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void UpsertTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\kv3tbltest6.db");
+            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest6.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -212,7 +213,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
         [Test]
         public void TableKeyThreeValueTest()
         {
-            var db = new KeyValueDatabase.KeyValueDatabase("URI=file:.\\ctest31.db");
+            var db = new KeyValueDatabase("URI=file:.\\ctest31.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();

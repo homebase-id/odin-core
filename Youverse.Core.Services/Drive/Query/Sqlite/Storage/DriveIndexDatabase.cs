@@ -124,11 +124,11 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         }
 
 
-        public void CreateDatabase()
+        public void CreateDatabase(bool dropExistingTables = true)
         {
-            TblMainIndex.CreateTable();
-            TblAclIndex.CreateTable();
-            TblTagIndex.CreateTable();
+            TblMainIndex.EnsureTableExists(dropExistingTables);
+            TblAclIndex.EnsureTableExists(dropExistingTables);
+            TblTagIndex.EnsureTableExists(dropExistingTables);
             Vacuum();
         }
 

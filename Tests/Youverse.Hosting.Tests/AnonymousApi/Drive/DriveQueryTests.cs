@@ -50,7 +50,6 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = false
                 };
 
@@ -81,7 +80,6 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = true
                 };
 
@@ -105,15 +103,11 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 Assert.NotNull(firstResult.JsonContent);
                 Assert.IsNotEmpty(firstResult.JsonContent);
 
-                Assert.NotNull(firstResult.PayloadContent);
-                Assert.IsNotEmpty(firstResult.PayloadContent);
-
                 Assert.IsTrue(firstResult.FileType == uploadContext.FileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.DataType == uploadContext.FileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.UserDate == uploadContext.FileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.ContentType == uploadContext.FileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
-                Assert.IsFalse(firstResult.PayloadTooLarge);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -137,7 +131,6 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = false
                 };
 

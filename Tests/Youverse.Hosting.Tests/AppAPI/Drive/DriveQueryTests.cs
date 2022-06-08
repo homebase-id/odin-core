@@ -101,14 +101,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = false
                 };
 
                 var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                
+
                 Assert.IsNotNull(batch);
                 Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
             }
@@ -153,7 +152,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = true
                 };
 
@@ -177,15 +175,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.NotNull(firstResult.JsonContent);
                 Assert.IsNotEmpty(firstResult.JsonContent);
 
-                Assert.NotNull(firstResult.PayloadContent);
-                Assert.IsNotEmpty(firstResult.PayloadContent);
-
                 Assert.IsTrue(firstResult.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.UserDate == uploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.ContentType == uploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
-                Assert.IsFalse(firstResult.PayloadTooLarge);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -231,7 +225,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var resultOptions = new ResultOptions()
                 {
                     MaxRecords = 10,
-                    IncludePayload = true,
                     IncludeMetadataHeader = false
                 };
 
@@ -240,6 +233,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
+                Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
         }
