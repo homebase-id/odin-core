@@ -55,13 +55,13 @@ namespace Youverse.Core.Services.Drive
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
             ////
-
+            //
             string dbPath = tenantContext.StorageConfig.DataStoragePath;
             if (!Directory.Exists(dbPath))
             {
                 Directory.CreateDirectory(dbPath);
             }
-            
+
             string finalPath = PathUtil.Combine(dbPath, $"{DriveCollectionName}.db");
             var db = new KeyValueDatabase($"URI=file:{finalPath}");
             _driveStorage = new TableKeyUniqueThreeValue(db);
@@ -85,21 +85,13 @@ namespace Youverse.Core.Services.Drive
             lock (_createDriveLock)
             {
                 //driveAlias and type must be unique
-                var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
-                        DriveCollectionName, s => s.Find(drive => drive.Type == targetDrive.Type && drive.Alias == targetDrive.Alias, PageOptions.All))
-                    .GetAwaiter().GetResult();
-                
-                if (existingDrives.Results.Count > 0)
+
+                var existingDriveBytes = _driveStorage.GetByKeyTwoThree(targetDrive.Type.ToByteArray(), targetDrive.Alias.ToByteArray());
+
+                if (null != existingDriveBytes)
                 {
                     throw new ConfigException("Drive Alias and type must be unique");
                 }
-
-                // var existingDriveBytes = _driveStorage.GetByKeyTwoThree(targetDrive.Type.ToByteArray(), targetDrive.Alias.ToByteArray());
-                //
-                // if (null != existingDriveBytes)
-                // {
-                //     throw new ConfigException("Drive Alias and type must be unique");
-                // }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
 
@@ -123,7 +115,8 @@ namespace Youverse.Core.Services.Drive
 
                 secret.Wipe();
 
-                _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
+                var json = JsonConvert.SerializeObject(sdb);
+                _driveStorage.UpsertRow(sdb.Id.ToByteArray(), sdb.Alias.ToByteArray(), sdb.Type.ToByteArray(), json.ToUtf8ByteArray());
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
@@ -134,8 +127,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.Get(driveId));
-            if (null == sdb)
+            var bytes = _driveStorage.Get(driveId.ToByteArray());
+            if (null == bytes)
             {
                 if (failIfInvalid)
                 {
@@ -145,22 +138,27 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
+            var sdb = ToStorageDriveBase(bytes);
             var drive = ToStorageDrive(sdb);
             return drive;
         }
 
-        public async Task<Guid?> GetDriveIdByAlias(TargetDrive drive, bool failIfInvalid = false)
+        public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.FindOne(d => d.Alias == drive.Alias && d.Type == drive.Type));
-            if (null == sdb)
+            var bytes = _driveStorage.GetByKeyTwoThree(targetDrive.Alias.ToByteArray(), targetDrive.Type.ToByteArray());
+            if (null == bytes)
             {
                 if (failIfInvalid)
                 {
-                    throw new InvalidDriveException(drive.Alias);
+                    throw new InvalidDriveException(targetDrive.Alias);
                 }
+
+                return null;
             }
 
-            return sdb?.Id;
+            var sdb = ToStorageDriveBase(bytes);
+            var drive = ToStorageDrive(sdb);
+            return drive.Id;
         }
 
         public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
@@ -170,27 +168,28 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.Type == type;
+            Func<StorageDrive, bool> predicate = drive => drive.Type == type;
 
             if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
             {
                 predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
             }
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
+            var page = await this.GetDrivesInternal(false, pageOptions);
+                
+            var storageDrives = page.Results.Where(predicate).ToList();
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+            return results;
         }
 
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.AllowAnonymousReads == true;
-
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
+            Func<StorageDrive, bool> predicate = drive => drive.AllowAnonymousReads;
+            var page = await this.GetDrivesInternal(false, pageOptions);
+                
+            var storageDrives = page.Results.Where(predicate).ToList();
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+            return results;
         }
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
@@ -417,8 +416,9 @@ namespace Youverse.Core.Services.Drive
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => true;
+            var driveByteList = _driveStorage.GetAll();
 
+            var predicate = new Func<StorageDriveBase, bool>(drive => true);
             if (enforceSecurity)
             {
                 if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
@@ -427,12 +427,16 @@ namespace Youverse.Core.Services.Drive
                 }
             }
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
+            var storageDrives = driveByteList.Select(ToStorageDriveBase);
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
+            return results;
         }
 
+
+        private StorageDriveBase ToStorageDriveBase(byte[] bytes)
+        {
+            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUTF8Bytes());
+        }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)
         {

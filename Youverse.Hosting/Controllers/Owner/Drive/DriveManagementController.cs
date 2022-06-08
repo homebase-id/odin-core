@@ -43,18 +43,12 @@ namespace Youverse.Hosting.Controllers.Owner.Drive
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return new JsonResult(page);
         }
-        
+
         [HttpPost("create")]
         public async Task<IActionResult> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
         {
-            var existingDrive = await _driveService.GetDriveIdByAlias(targetDrive, false);
-            
-            if(null == existingDrive)
-            {
-                //create a drive on the drive service
-                var drive = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);
-            }
-            
+            //create a drive on the drive service
+            var _ = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);
             return Ok();
         }
 

@@ -13,40 +13,43 @@ namespace Youverse.Core.SystemStorage.KeyValue
         private SQLiteParameter _iparam2 = null;
         private SQLiteParameter _iparam3 = null;
         private SQLiteParameter _iparam4 = null;
-        private  Object _insertLock = new Object();
+        private Object _insertLock = new Object();
 
         private SQLiteCommand _upsertCommand = null;
         private SQLiteParameter _zparam1 = null;
         private SQLiteParameter _zparam2 = null;
         private SQLiteParameter _zparam3 = null;
         private SQLiteParameter _zparam4 = null;
-        private  Object _upsertLock = new Object();
+        private Object _upsertLock = new Object();
 
         private SQLiteCommand _updateCommand = null;
         private SQLiteParameter _uparam1 = null;
         private SQLiteParameter _uparam2 = null;
-        private  Object _updateLock = new Object();
+        private Object _updateLock = new Object();
 
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _dparam1 = null;
-        private  Object _deleteLock = new Object();
+        private Object _deleteLock = new Object();
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
-        private  Object _selectLock = new Object();
+        private Object _selectLock = new Object();
 
+        private SQLiteCommand _selectAllCommand = null;
+        private object _selectAllLock = new object();
+        
         private SQLiteCommand _selectTwoCommand = null;
         private SQLiteParameter _sparamTwo1 = null;
-        private  Object _selectTwoLock = new Object();
+        private Object _selectTwoLock = new Object();
 
         private SQLiteCommand _selectThreeCommand = null;
         private SQLiteParameter _sparamThree1 = null;
-        private  Object _selectThreeLock = new Object();
+        private Object _selectThreeLock = new Object();
 
         private SQLiteCommand _selectTwoThreeCommand = null;
         private SQLiteParameter _sparamTwoThree1 = null;
         private SQLiteParameter _sparamTwoThree2 = null;
-        private  Object _selectTwoThreeLock = new Object();
+        private Object _selectTwoThreeLock = new Object();
 
         public TableKeyUniqueThreeValue(KeyValueDatabase db) : base(db)
         {
@@ -108,7 +111,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
         {
             using (var cmd = _keyValueDatabase.CreateCommand())
             {
-                if(dropExisting)
+                if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keyuniquethreevalue;";
                     cmd.ExecuteNonQuery();
@@ -172,6 +175,43 @@ namespace Youverse.Core.SystemStorage.KeyValue
             }
         }
 
+        public List<byte[]> GetAll()
+        {
+            lock (_selectAllLock)
+            {
+                // Make sure we only prep once 
+                if (_selectAllCommand == null)
+                {
+                    _selectAllCommand = _keyValueDatabase.CreateCommand();
+                    _selectAllCommand.CommandText = $"SELECT value FROM keyuniquethreevalue";
+                    _selectAllCommand.Prepare();
+                }
+
+                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
+
+                using (SQLiteDataReader rdr = _selectAllCommand.ExecuteReader())
+                {
+                    List<byte[]> values = new List<byte[]>();
+                    byte[] value = null;
+
+                    while (rdr.Read())
+                    {
+                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
+                        if (n < 1)
+                            throw new Exception("I suppose 0 might be OK, but negative not. No description in docs if it can be zero or negative");
+
+                        if (n >= MAX_VALUE_LENGTH)
+                            throw new Exception("Too much data...");
+
+                        value = new byte[n];
+                        Buffer.BlockCopy(_tmpbuf, 0, value, 0, (int)n);
+                        values.Add(value);
+                    }
+
+                    return values;
+                }
+            }
+        }
 
         public List<byte[]> GetByKeyTwo(byte[] key2)
         {
@@ -292,7 +332,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 _sparamTwoThree1.Value = key2;
                 _sparamTwoThree2.Value = key3;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                
+
                 using (SQLiteDataReader rdr = _selectTwoThreeCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())

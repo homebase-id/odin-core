@@ -69,9 +69,8 @@ public class DriveManagementTests
             Assert.IsTrue(page.Results.Any());
             Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
             
-            TargetDrive duplicateDrive = TargetDrive.NewTargetDrive();
-            var createDuplicateDriveResponse = await svc.CreateDrive(duplicateDrive, "drive 02", "some metadata", false);
-            Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode, $"Create drive with duplicate alias and type shoudl have failed");
+            var createDuplicateDriveResponse = await svc.CreateDrive(targetDrive, "drive 02", "some metadata", false);
+            Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode, $"Create drive with duplicate alias and type should have failed");
             
         }
     }

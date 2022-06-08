@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
-    [Route(OwnerApiPathConstants.DrivesV1)]
+    // [Route(OwnerApiPathConstants.DrivesV1)]
     [AuthorizeOwnerConsoleOrApp]
     public class DriveMetadataController : ControllerBase
     {
@@ -47,18 +47,5 @@ namespace Youverse.Hosting.Controllers.Apps.Drive
             return new JsonResult(page);
         }
 
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
-        {
-            var existingDrive = await _driveService.GetDriveIdByAlias(targetDrive, false);
-            
-            if(null == existingDrive)
-            {
-                //create a drive on the drive service
-                var drive = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);
-            }
-            
-            return Ok();
-        }
     }
 }

@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Drive
 
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
-        Task<Guid?> GetDriveIdByAlias(TargetDrive drive, bool failIfInvalid = false);
+        Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false);
 
         /// <summary>
         /// Returns a list of the storage drives in the system
