@@ -12,13 +12,11 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -47,10 +45,9 @@ namespace Youverse.Core.Services.Transit
             IOutboxService outboxService,
             IDriveService driveService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
-            ITransitAuditWriterService auditWriter,
             ITransitBoxService transitBoxService,
             ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base(auditWriter)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base()
         {
             _contextAccessor = contextAccessor;
             _outboxService = outboxService;

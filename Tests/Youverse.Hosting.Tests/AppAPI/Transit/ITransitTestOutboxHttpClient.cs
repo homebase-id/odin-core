@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit

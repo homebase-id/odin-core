@@ -1,6 +1,5 @@
 using System;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Transit.Audit;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {

@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -24,10 +23,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
             ILogger<ITransitPerimeterService> logger,
-            ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             IAppRegistrationService appRegService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base(auditWriter)
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;

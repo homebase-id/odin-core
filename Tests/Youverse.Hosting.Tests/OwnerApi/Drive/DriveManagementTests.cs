@@ -20,7 +20,7 @@ public class DriveManagementTests
     }
 
     [Test]
-    public async Task CanCreateDrive()
+    public async Task CanCreateAndGetDrive()
     {
         using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
@@ -29,9 +29,8 @@ public class DriveManagementTests
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
             string name = "test drive 01";
             string metadata = "{some:'json'}";
-            bool allowAnonymousReads = false;
 
-            var response = await svc.CreateDrive(targetDrive, name, metadata, allowAnonymousReads);
+            var response = await svc.CreateDrive(targetDrive, name, metadata, false);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
@@ -55,9 +54,8 @@ public class DriveManagementTests
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
             string name = "test drive 01";
             string metadata = "{some:'json'}";
-            bool allowAnonymousReads = false;
 
-            var response = await svc.CreateDrive(targetDrive, name, metadata, allowAnonymousReads);
+            var response = await svc.CreateDrive(targetDrive, name, metadata, false);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);

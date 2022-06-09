@@ -27,7 +27,6 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -88,8 +87,7 @@ namespace Youverse.Hosting
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
-            cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>().SingleInstance();
-            cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>().SingleInstance();
+            
 
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
