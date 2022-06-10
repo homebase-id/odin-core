@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.SystemStorage.KeyValue
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
 {
-    public class TableKeyThreeValue : TableKeyValueBase // Make it IDisposable??
+    public class TableKeyUniqueThreeValue : TableKeyValueBase // Make it IDisposable??
     {
         const int MAX_VALUE_LENGTH = 65535; // Stored value cannot be longer than this
 
@@ -35,6 +35,9 @@ namespace Youverse.Core.SystemStorage.KeyValue
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
+        private SQLiteCommand _selectAllCommand = null;
+        private object _selectAllLock = new object();
+        
         private SQLiteCommand _selectTwoCommand = null;
         private SQLiteParameter _sparamTwo1 = null;
         private Object _selectTwoLock = new Object();
@@ -48,11 +51,11 @@ namespace Youverse.Core.SystemStorage.KeyValue
         private SQLiteParameter _sparamTwoThree2 = null;
         private Object _selectTwoThreeLock = new Object();
 
-        public TableKeyThreeValue(KeyValueDatabase db) : base(db)
+        public TableKeyUniqueThreeValue(KeyValueDatabase db) : base(db)
         {
         }
 
-        ~TableKeyThreeValue()
+        ~TableKeyUniqueThreeValue()
         {
             if (_insertCommand != null)
             {
@@ -108,21 +111,22 @@ namespace Youverse.Core.SystemStorage.KeyValue
         {
             using (var cmd = _keyValueDatabase.CreateCommand())
             {
-                if(dropExisting)
+                if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS keythreevalue;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS keyuniquethreevalue;";
                     cmd.ExecuteNonQuery();
                 }
-                
+
                 cmd.CommandText =
-                    @"CREATE TABLE if not exists keythreevalue(
+                    @"CREATE TABLE if not exists keyuniquethreevalue(
                      key1   BLOB UNIQUE NOT NULL,
                      key2   BLOB NOT NULL,
                      key3   BLOB NOT NULL,
-                     value BLOB); "
-                    + "CREATE INDEX idxkeythree1 ON keythreevalue(key1);"
-                    + "CREATE INDEX idxkeythree2 ON keythreevalue(key2); "
-                    + "CREATE INDEX idxkeythree3 ON keythreevalue(key3); ";
+                     value BLOB,
+                     UNIQUE (key2,key3)); "
+                    + "CREATE INDEX idxkeyuniquethree1 ON keyuniquethreevalue(key1);"
+                    + "CREATE INDEX idxkeyuniquethree2 ON keyuniquethreevalue(key2); "
+                    + "CREATE INDEX idxkeyuniquethree3 ON keyuniquethreevalue(key3); ";
 
                 cmd.ExecuteNonQuery();
             }
@@ -138,7 +142,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 {
                     _selectCommand = _keyValueDatabase.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT value FROM keythreevalue WHERE key1=$key1";
+                        $"SELECT value FROM keyuniquethreevalue WHERE key1=$key1";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$key1";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -171,6 +175,43 @@ namespace Youverse.Core.SystemStorage.KeyValue
             }
         }
 
+        public List<byte[]> GetAll()
+        {
+            lock (_selectAllLock)
+            {
+                // Make sure we only prep once 
+                if (_selectAllCommand == null)
+                {
+                    _selectAllCommand = _keyValueDatabase.CreateCommand();
+                    _selectAllCommand.CommandText = $"SELECT value FROM keyuniquethreevalue";
+                    _selectAllCommand.Prepare();
+                }
+
+                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
+
+                using (SQLiteDataReader rdr = _selectAllCommand.ExecuteReader())
+                {
+                    List<byte[]> values = new List<byte[]>();
+                    byte[] value = null;
+
+                    while (rdr.Read())
+                    {
+                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
+                        if (n < 1)
+                            throw new Exception("I suppose 0 might be OK, but negative not. No description in docs if it can be zero or negative");
+
+                        if (n >= MAX_VALUE_LENGTH)
+                            throw new Exception("Too much data...");
+
+                        value = new byte[n];
+                        Buffer.BlockCopy(_tmpbuf, 0, value, 0, (int)n);
+                        values.Add(value);
+                    }
+
+                    return values;
+                }
+            }
+        }
 
         public List<byte[]> GetByKeyTwo(byte[] key2)
         {
@@ -181,7 +222,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 {
                     _selectTwoCommand = _keyValueDatabase.CreateCommand();
                     _selectTwoCommand.CommandText =
-                        $"SELECT value FROM keythreevalue WHERE key2=$key2";
+                        $"SELECT value FROM keyuniquethreevalue WHERE key2=$key2";
 
                     _sparamTwo1 = _selectTwoCommand.CreateParameter();
 
@@ -228,7 +269,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 {
                     _selectThreeCommand = _keyValueDatabase.CreateCommand();
                     _selectThreeCommand.CommandText =
-                        $"SELECT value FROM keythreevalue WHERE key3=$key3";
+                        $"SELECT value FROM keyuniquethreevalue WHERE key3=$key3";
 
                     _sparamThree1 = _selectThreeCommand.CreateParameter();
 
@@ -266,7 +307,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
         }
 
 
-        public List<byte[]> GetByKeyTwoThree(byte[] key2, byte[] key3)
+        public byte[] GetByKeyTwoThree(byte[] key2, byte[] key3)
         {
             lock (_selectTwoThreeLock)
             {
@@ -275,7 +316,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 {
                     _selectTwoThreeCommand = _keyValueDatabase.CreateCommand();
                     _selectTwoThreeCommand.CommandText =
-                        $"SELECT value FROM keythreevalue WHERE key2=$key2 AND key3=$key3";
+                        $"SELECT value FROM keyuniquethreevalue WHERE key2=$key2 AND key3=$key3";
 
                     _sparamTwoThree1 = _selectTwoThreeCommand.CreateParameter();
                     _sparamTwoThree1.ParameterName = "$key2";
@@ -292,26 +333,25 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 _sparamTwoThree2.Value = key3;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectTwoThreeCommand.ExecuteReader())
+                using (SQLiteDataReader rdr = _selectTwoThreeCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
-                    List<byte[]> values = new List<byte[]>();
-                    byte[] value = null;
+                    if (!rdr.Read())
+                        return null;
 
-                    while (rdr.Read())
-                    {
-                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                        if (n < 1)
-                            throw new Exception("I suppose 0 might be OK, but negative not. No description in docs if it can be zero or negative");
+                    if (rdr.IsDBNull(0))
+                        return null;
 
-                        if (n >= MAX_VALUE_LENGTH)
-                            throw new Exception("Too much data...");
+                    long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
+                    if (n < 1)
+                        throw new Exception("I suppose 0 might be OK, but negative not. No description in docs if it can be zero or negative");
 
-                        value = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, value, 0, (int)n);
-                        values.Add(value);
-                    }
+                    if (n >= MAX_VALUE_LENGTH)
+                        throw new Exception("Too much data...");
 
-                    return values;
+                    byte[] value = new byte[n];
+                    Buffer.BlockCopy(_tmpbuf, 0, value, 0, (int)n);
+
+                    return value;
                 }
             }
         }
@@ -328,7 +368,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 if (_insertCommand == null)
                 {
                     _insertCommand = _keyValueDatabase.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO keythreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value)";
+                    _insertCommand.CommandText = @"INSERT INTO keyuniquethreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value)";
 
                     _iparam1 = _insertCommand.CreateParameter();
                     _iparam1.ParameterName = "$key1";
@@ -369,7 +409,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 if (_updateCommand == null)
                 {
                     _updateCommand = _keyValueDatabase.CreateCommand();
-                    _updateCommand.CommandText = @"UPDATE keythreevalue SET value=$value WHERE key1=$key1";
+                    _updateCommand.CommandText = @"UPDATE keyuniquethreevalue SET value=$value WHERE key1=$key1";
 
                     _uparam1 = _updateCommand.CreateParameter();
                     _uparam1.ParameterName = "$key1";
@@ -402,7 +442,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 {
                     _upsertCommand = _keyValueDatabase.CreateCommand();
                     _upsertCommand.CommandText =
-                        @"INSERT INTO keythreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value) ON CONFLICT (key1) DO UPDATE SET key2=$key2, key3=$key3, value=$value";
+                        @"INSERT INTO keyuniquethreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value) ON CONFLICT (key1) DO UPDATE SET key2=$key2, key3=$key3, value=$value";
 
                     _zparam1 = _upsertCommand.CreateParameter();
                     _zparam1.ParameterName = "$key1";
@@ -440,7 +480,7 @@ namespace Youverse.Core.SystemStorage.KeyValue
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _keyValueDatabase.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM keythreevalue WHERE key1=$key1";
+                    _deleteCommand.CommandText = @"DELETE FROM keyuniquethreevalue WHERE key1=$key1";
 
                     _dparam1 = _deleteCommand.CreateParameter();
                     _dparam1.ParameterName = "$key1";

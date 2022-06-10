@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.SystemStorage.KeyValue
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
 {
     public class TableKeyTwoValue : TableKeyValueBase  // Make it IDisposable??
     {

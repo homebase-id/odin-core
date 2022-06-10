@@ -19,9 +19,10 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.SystemStorage.KeyValue;
+using Youverse.Core.SystemStorage;
+using Youverse.Core.SystemStorage.SqliteKeyValue;
 using Youverse.Core.Util;
-using KeyValueDatabase = Youverse.Core.SystemStorage.KeyValue.KeyValueDatabase;
+using KeyValueDatabase = Youverse.Core.SystemStorage.SqliteKeyValue.KeyValueDatabase;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -90,7 +91,7 @@ namespace Youverse.Core.Services.Drive
 
                 if (null != existingDriveBytes)
                 {
-                    throw new ConfigException("Drive Alias and type must be unique");
+                    throw new ConfigException("Drive alias and type must be unique");
                 }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
@@ -435,7 +436,7 @@ namespace Youverse.Core.Services.Drive
 
         private StorageDriveBase ToStorageDriveBase(byte[] bytes)
         {
-            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUTF8Bytes());
+            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
         }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)

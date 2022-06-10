@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 {
                     var clientAuthTokenBytes = response.Content;
 
-                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUTF8Bytes(), out var remoteIcrClientAuthToken))
+                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUtf8Bytes(), out var remoteIcrClientAuthToken))
                     {
                         return (true, remoteIcrClientAuthToken);
                     }

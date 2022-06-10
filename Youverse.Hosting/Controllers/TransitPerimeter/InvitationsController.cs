@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 return new JsonResult(new NoResultResponse(false));
             }
 
-            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.ToStringFromUTF8Bytes());
+            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
 
             Console.Write("ReceiveConnectionRequest 1");
 
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Controllers.TransitPerimeter
                 return new JsonResult(new NoResultResponse(false));
             }
             
-            ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.ToStringFromUTF8Bytes());
+            ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);
             return new JsonResult(new NoResultResponse(true));

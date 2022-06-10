@@ -31,6 +31,7 @@ using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Hosting
 {
@@ -43,7 +44,7 @@ namespace Youverse.Hosting
         {
             RegisterMediator(ref cb);
 
-            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
+            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>().SingleInstance();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()

@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
             var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             
             var jsonBytes = Cryptography.Crypto.AesCbc.Decrypt(encryptedNotification.Data, ref sharedSecret, encryptedNotification.InitializationVector);
-            var json = jsonBytes.ToStringFromUTF8Bytes();
+            var json = jsonBytes.ToStringFromUtf8Bytes();
             return JsonConvert.DeserializeObject<CircleNetworkNotification>(json);
         }
 

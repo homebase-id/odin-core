@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
-using Youverse.Core.SystemStorage.KeyValue;
+using Youverse.Core.SystemStorage.SqliteKeyValue;
 
 namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
 {

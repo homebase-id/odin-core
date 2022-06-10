@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.SystemStorage.KeyValue
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
 {
     public class TableKeyValueBase
     {

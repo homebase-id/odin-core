@@ -7,12 +7,12 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -20,7 +20,6 @@ namespace Youverse.Core.Services.Authorization.Apps
     {
         private const string AppRegistrationStorageName = "ars";
         private const string AppClientRegistrationStorageName = "adrs";
-        private const string AppRsaKeyList = "arsa";
 
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
@@ -44,17 +43,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //TODO: need to build a different overload tha does not create client access token
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.RegisterAppExchangeGrant(applicationId, permissions, driveIds);
-
-            //TODO: start * remove this section when we switch to using shared secrets for the transit encryption
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.GetExchangeGrant(accessRegistration.GrantId);
-            var appKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref appKey, 4);
-            appKey.Wipe();
-            rsaKeyList.Id = applicationId;
-            _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
-            //TODO: end * remove this section when we switch to using shared secrets for the transit encryption
-
+            
             var appReg = new AppRegistration()
             {
                 ApplicationId = applicationId,
@@ -149,32 +138,6 @@ namespace Youverse.Core.Services.Authorization.Apps
             var apps = await _systemStorage.WithTenantSystemStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
             var redactedList = apps.Results.Select(ToAppRegistrationResponse).ToList();
             return new PagedResult<AppRegistrationResponse>(pageOptions, apps.TotalPages, redactedList);
-        }
-
-        public async Task<TransitPublicKey> GetTransitPublicKey(Guid appId)
-        {
-            var rsaKeyList = await this.GetRsaKeyList(appId);
-            var key = RsaKeyListManagement.GetCurrentKey(ref rsaKeyList, out var keyListWasUpdated);
-
-            if (keyListWasUpdated)
-            {
-                _systemStorage.WithTenantSystemStorage<RsaFullKeyListData>(AppRsaKeyList, s => s.Save(rsaKeyList));
-            }
-
-            return new TransitPublicKey
-            {
-                AppId = appId,
-                PublicKeyData = key,
-            };
-        }
-
-        public async Task<RsaFullKeyListData> GetRsaKeyList(Guid appId)
-        {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaFullKeyListData>(AppRsaKeyList, s => s.Get(appId));
-
-            Guard.Argument(result, "App public private keys are null").NotNull();
-
-            return result;
         }
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)

@@ -8,14 +8,13 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.EncryptionKeyService
 {
     public class RsaKeyService : IPublicKeyService
     {
-        private const string RecipientPublicOfflineKeyCache = "pkocache";
-        private const string RsaOfflineKeyStorage = "rks";
-        private readonly Guid RSA_KEY_STORAGE_ID = Guid.Parse("FFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
+        private readonly Guid _rsaKeyStorageId = Guid.Parse("AFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
 
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
@@ -30,10 +29,9 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
         {
-            var rsaKey = await this.GetOfflineKeyInternal();
+            var keys = await this.GetOfflineKeyInternal();
             var key = GetOfflineKeyDecryptionKey();
-            var keyList = rsaKey.Keys;
-            var pk = RsaKeyListManagement.FindKey(keyList, publicKeyCrc32);
+            var pk = RsaKeyListManagement.FindKey(keys, publicKeyCrc32);
 
             if (null == pk)
             {
@@ -70,7 +68,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task InvalidatePublicKey(DotYouIdentity recipient)
         {
-            _systemStorage.WithTenantSystemStorage<RecipientPublicKeyCacheItem>(RecipientPublicOfflineKeyCache, s => s.Delete(recipient));
+            _systemStorage.KeyValueStorage.Delete(recipient.Id.ToUtf8ByteArray());
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)
@@ -80,22 +78,21 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task<RsaFullKeyData> GetOfflinePublicKey(UInt32 crc)
         {
-            var keySet = await this.GetOfflineKeyInternal();
-            var key = RsaKeyListManagement.FindKey(keySet.Keys, crc);
+            var keys = await this.GetOfflineKeyInternal();
+            var key = RsaKeyListManagement.FindKey(keys, crc);
             return key;
         }
 
         public async Task<RsaPublicKeyData> GetOfflinePublicKey()
         {
-            var rsaKey = await this.GetOfflineKeyInternal();
+            var keys = await this.GetOfflineKeyInternal();
 
             var key = GetOfflineKeyDecryptionKey();
-            var keyList = rsaKey.Keys;
-            var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keyList, out var keyListWasUpdated); // TODO
+            
+            var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keys, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
-                rsaKey.Keys = keyList;
-                _systemStorage.WithTenantSystemStorage<RsaOfflineKeySet>(RsaOfflineKeyStorage, s => s.Save(rsaKey));
+                _systemStorage.KeyValueStorage.Upsert(_rsaKeyStorageId.ToByteArray(), keys);
             }
 
             return pk;
@@ -105,11 +102,10 @@ namespace Youverse.Core.Services.EncryptionKeyService
         public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
         {
             //TODO: need to clean up the cache for expired items
-
             //TODO: optimize by reading a dictionary cache
-            var cacheItem = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientPublicKeyCacheItem>(RecipientPublicOfflineKeyCache, s => s.Get(recipient));
+            var cacheItem = _systemStorage.KeyValueStorage.Get<RsaPublicKeyData>(recipient.Id.ToUtf8ByteArray());
 
-            if ((cacheItem == null || cacheItem.PublicKeyData.IsExpired()) && lookupIfInvalid)
+            if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
             {
                 var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
                 var tpkResponse = await svc.GetOfflinePublicKey();
@@ -120,14 +116,9 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     return null;
                 }
 
-                var publicKeyData = tpkResponse.Content;
-                cacheItem = new RecipientPublicKeyCacheItem()
-                {
-                    Id = recipient,
-                    PublicKeyData = publicKeyData
-                };
+                cacheItem = tpkResponse.Content;
 
-                _systemStorage.WithTenantSystemStorage<RecipientPublicKeyCacheItem>(RecipientPublicOfflineKeyCache, s => s.Save(cacheItem));
+                _systemStorage.KeyValueStorage.Upsert(recipient.Id.ToUtf8ByteArray(), cacheItem);
             }
 
             if (null == cacheItem && failIfCannotRetrieve)
@@ -135,12 +126,12 @@ namespace Youverse.Core.Services.EncryptionKeyService
                 throw new MissingDataException("Could not get recipients offline public key");
             }
 
-            return cacheItem?.PublicKeyData;
+            return cacheItem;
         }
 
         public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload)
         {
-            var pk = await this.GetRecipientOfflinePublicKey((DotYouIdentity) recipient);
+            var pk = await this.GetRecipientOfflinePublicKey((DotYouIdentity)recipient);
             var keyHeader = KeyHeader.NewRandom16();
             return new RsaEncryptedPayload()
             {
@@ -150,35 +141,20 @@ namespace Youverse.Core.Services.EncryptionKeyService
             };
         }
 
-
-        /// 
-        private async Task<RsaOfflineKeySet> GetRsaHeader(string storage)
+        private Task<RsaFullKeyListData> GetOfflineKeyInternal()
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaOfflineKeySet>(storage, s => s.Get(RSA_KEY_STORAGE_ID));
-            return result;
-        }
+            var result = _systemStorage.KeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId.ToByteArray());
 
-        private async Task<RsaOfflineKeySet> GetOfflineKeyInternal()
-        {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<RsaOfflineKeySet>(RsaOfflineKeyStorage, s => s.Get(RSA_KEY_STORAGE_ID));
-
-            if (result == null || result.Keys?.ListRSA == null)
+            if (result == null || result.ListRSA == null)
             {
                 var key = GetOfflineKeyDecryptionKey();
                 var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref key, 2);
-
-                var rsa = new RsaOfflineKeySet()
-                {
-                    Id = RSA_KEY_STORAGE_ID,
-                    Keys = rsaKeyList
-                };
-
-                _systemStorage.WithTenantSystemStorage<RsaOfflineKeySet>(RsaOfflineKeyStorage, s => s.Save(rsa));
-
-                return rsa;
+                
+                _systemStorage.KeyValueStorage.Upsert(_rsaKeyStorageId.ToByteArray(), rsaKeyList);
+                return Task.FromResult(rsaKeyList);
             }
 
-            return result;
+            return Task.FromResult(result);
         }
 
         private SensitiveByteArray GetOfflineKeyDecryptionKey()

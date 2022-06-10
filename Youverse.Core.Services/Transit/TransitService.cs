@@ -21,6 +21,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -37,8 +38,6 @@ namespace Youverse.Core.Services.Transit
         private readonly TenantContext _tenantContext;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly IPublicKeyService _publicKeyService;
-        private const string RecipientEncryptedTransferKeyHeaderCache = "retkhc";
-        private const string RecipientTransitPublicKeyCache = "rtpkc";
 
         public TransitService(DotYouContextAccessor contextAccessor,
             ILogger<TransitService> logger,
@@ -147,7 +146,7 @@ namespace Youverse.Core.Services.Transit
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                     UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
-                    
+
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
                 },
@@ -211,16 +210,8 @@ namespace Youverse.Core.Services.Transit
 
                     //TODO: examine how we can avoid using the override hack on GetIdentityConnectionRegistration
                     var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient, true, true).GetAwaiter().GetResult();
-                    var instructionSet = this.CreateEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package.InstructionSet.StorageOptions.Drive);
+                    this.StoreEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, package, recipient);
 
-                    var item = new RecipientTransferInstructionSetItem()
-                    {
-                        Recipient = recipient,
-                        InstructionSet = instructionSet,
-                        File = package.InternalFile
-                    };
-
-                    _systemStorage.WithTenantSystemStorage<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache, s => s.Save(item));
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
                 }
                 catch (Exception)
@@ -235,8 +226,8 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
-            ClientAuthenticationToken clientAuthenticationToken, TargetDrive drive)
+        private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
+            ClientAuthenticationToken clientAuthenticationToken, UploadPackage package, DotYouIdentity recipient)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -252,13 +243,15 @@ namespace Youverse.Core.Services.Transit
             //TODO: need to encrypt the client access token here with something on my server side (therefore, we cannot use RSA encryption)
             var encryptedClientAccessToken = clientAuthenticationToken.ToString().ToUtf8ByteArray();
 
-            return new RsaEncryptedRecipientTransferInstructionSet()
+            var instructionSet = new RsaEncryptedRecipientTransferInstructionSet()
             {
                 PublicKeyCrc = publicKey.crc32c,
                 EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
                 EncryptedClientAuthToken = encryptedClientAccessToken,
-                Drive = drive
+                Drive = package.InstructionSet.StorageOptions.Drive
             };
+
+            _systemStorage.KeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, package.InternalFile), instructionSet);
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
@@ -360,7 +353,7 @@ namespace Youverse.Core.Services.Transit
 
                 //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
-                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUTF8Bytes());
+                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
@@ -411,11 +404,15 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
+        private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<RecipientTransferInstructionSetItem>(RecipientEncryptedTransferKeyHeaderCache,
-                s => s.FindOne(r => r.Recipient == recipient && r.File == file));
-            return item?.InstructionSet;
+            var instructionSet = _systemStorage.KeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
+            return Task.FromResult(instructionSet);
+        }
+
+        private byte[] CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
+        {
+            return ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray());
         }
     }
 }

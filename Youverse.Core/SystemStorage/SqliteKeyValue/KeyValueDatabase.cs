@@ -15,7 +15,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.SystemStorage.KeyValue
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
 {
     public class KeyValueDatabase // IDisposable ?
     {

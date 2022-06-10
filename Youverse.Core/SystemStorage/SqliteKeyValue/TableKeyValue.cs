@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data.SQLite;
 
-namespace Youverse.Core.SystemStorage.KeyValue
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
 {
     public class TableKeyValue : TableKeyValueBase // Make it IDisposable??
     {

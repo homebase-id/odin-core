@@ -1,13 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Transit;
-using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -55,11 +49,5 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// >
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey);
-
-        [Obsolete]
-        Task<TransitPublicKey> GetTransitPublicKey(Guid appId);
-        
-        Task<RsaFullKeyListData> GetRsaKeyList(Guid appId);
-
     }
 }
