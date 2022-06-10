@@ -22,6 +22,7 @@ public class KeyValueStorage
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
         _db = new KeyValueDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
+        
     }
 
     // public T Get<T>(byte[] key, KeyValueStorageType storageType) where T : class
@@ -35,6 +36,9 @@ public class KeyValueStorage
     //     var json = JsonConvert.SerializeObject(value);
     //     _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
     // }
+
+    public TableKeyTwoValue TwoValueStorage => _db.tblKeyTwoValue;
+    public TableKeyThreeValue ThreeKeyStorage => _db.TblKeyThreeValue;
 
     public T Get<T>(byte[] key) where T : class
     {

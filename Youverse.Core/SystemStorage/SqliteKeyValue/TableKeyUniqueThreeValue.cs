@@ -175,44 +175,6 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
             }
         }
 
-        public List<byte[]> GetAll()
-        {
-            lock (_selectAllLock)
-            {
-                // Make sure we only prep once 
-                if (_selectAllCommand == null)
-                {
-                    _selectAllCommand = _keyValueDatabase.CreateCommand();
-                    _selectAllCommand.CommandText = $"SELECT value FROM keyuniquethreevalue";
-                    _selectAllCommand.Prepare();
-                }
-
-                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-
-                using (SQLiteDataReader rdr = _selectAllCommand.ExecuteReader())
-                {
-                    List<byte[]> values = new List<byte[]>();
-                    byte[] value = null;
-
-                    while (rdr.Read())
-                    {
-                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                        if (n < 1)
-                            throw new Exception("I suppose 0 might be OK, but negative not. No description in docs if it can be zero or negative");
-
-                        if (n >= MAX_VALUE_LENGTH)
-                            throw new Exception("Too much data...");
-
-                        value = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, value, 0, (int)n);
-                        values.Add(value);
-                    }
-
-                    return values;
-                }
-            }
-        }
-
         public List<byte[]> GetByKeyTwo(byte[] key2)
         {
             lock (_selectTwoLock)

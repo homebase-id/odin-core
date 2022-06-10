@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
@@ -26,6 +25,11 @@ using KeyValueDatabase = Youverse.Core.SystemStorage.SqliteKeyValue.KeyValueData
 
 namespace Youverse.Core.Services.Drive
 {
+    // Note: drive storage using the ThreeKey KeyValueDatabase
+    // key1 = drive id
+    // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
+    // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
+
     public class DriveService : IDriveService
     {
         const int MaxPayloadMemorySize = 4 * 1000; //TODO: put in config
@@ -37,10 +41,7 @@ namespace Youverse.Core.Services.Drive
         private readonly TenantContext _tenantContext;
         private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
         private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
-        private const string DriveCollectionName = "drives";
         private readonly ILoggerFactory _loggerFactory;
-
-        private readonly TableKeyUniqueThreeValue _driveStorage;
 
         public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
@@ -55,25 +56,11 @@ namespace Youverse.Core.Services.Drive
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
-            ////
-            //
-            string dbPath = tenantContext.StorageConfig.DataStoragePath;
-            if (!Directory.Exists(dbPath))
-            {
-                Directory.CreateDirectory(dbPath);
-            }
-
-            string finalPath = PathUtil.Combine(dbPath, $"{DriveCollectionName}.db");
-            var db = new KeyValueDatabase($"URI=file:{finalPath}");
-            _driveStorage = new TableKeyUniqueThreeValue(db);
-            _driveStorage.EnsureTableExists();
-
-            ////
-
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
         private readonly object _createDriveLock = new object();
+        private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
         public Task<StorageDrive> CreateDrive(string name, TargetDrive targetDrive, string metadata, bool allowAnonymousReads = false)
         {
@@ -86,10 +73,7 @@ namespace Youverse.Core.Services.Drive
             lock (_createDriveLock)
             {
                 //driveAlias and type must be unique
-
-                var existingDriveBytes = _driveStorage.GetByKeyTwoThree(targetDrive.Type.ToByteArray(), targetDrive.Alias.ToByteArray());
-
-                if (null != existingDriveBytes)
+                if (null != this.GetDriveIdByAlias(targetDrive, false).GetAwaiter().GetResult())
                 {
                     throw new ConfigException("Drive alias and type must be unique");
                 }
@@ -117,7 +101,7 @@ namespace Youverse.Core.Services.Drive
                 secret.Wipe();
 
                 var json = JsonConvert.SerializeObject(sdb);
-                _driveStorage.UpsertRow(sdb.Id.ToByteArray(), sdb.Alias.ToByteArray(), sdb.Type.ToByteArray(), json.ToUtf8ByteArray());
+                _systemStorage.KeyValueStorage.ThreeKeyStorage.UpsertRow(sdb.Id.ToByteArray(), targetDrive.ToKey(), _driveDataType, json.ToUtf8ByteArray());
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
@@ -128,7 +112,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var bytes = _driveStorage.Get(driveId.ToByteArray());
+            var bytes = _systemStorage.KeyValueStorage.ThreeKeyStorage.Get(driveId.ToByteArray());
             if (null == bytes)
             {
                 if (failIfInvalid)
@@ -146,8 +130,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var bytes = _driveStorage.GetByKeyTwoThree(targetDrive.Alias.ToByteArray(), targetDrive.Type.ToByteArray());
-            if (null == bytes)
+            var list = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyTwo(targetDrive.ToKey());
+            if (null == list || !list.Any())
             {
                 if (failIfInvalid)
                 {
@@ -157,7 +141,7 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
-            var sdb = ToStorageDriveBase(bytes);
+            var sdb = ToStorageDriveBase(list.Single());
             var drive = ToStorageDrive(sdb);
             return drive.Id;
         }
@@ -177,7 +161,7 @@ namespace Youverse.Core.Services.Drive
             }
 
             var page = await this.GetDrivesInternal(false, pageOptions);
-                
+
             var storageDrives = page.Results.Where(predicate).ToList();
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
             return results;
@@ -187,7 +171,7 @@ namespace Youverse.Core.Services.Drive
         {
             Func<StorageDrive, bool> predicate = drive => drive.AllowAnonymousReads;
             var page = await this.GetDrivesInternal(false, pageOptions);
-                
+
             var storageDrives = page.Results.Where(predicate).ToList();
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
             return results;
@@ -195,7 +179,7 @@ namespace Youverse.Core.Services.Drive
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
-            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //TODO: need a permission specifically for writing to the temp drive
             //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var df = new InternalDriveFileId()
@@ -417,7 +401,7 @@ namespace Youverse.Core.Services.Drive
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
-            var driveByteList = _driveStorage.GetAll();
+            var driveByteList = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyThree(_driveDataType);
 
             var predicate = new Func<StorageDriveBase, bool>(drive => true);
             if (enforceSecurity)

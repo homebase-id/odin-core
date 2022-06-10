@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Drive;
 
@@ -10,6 +11,11 @@ public class TargetDrive
     public Guid Alias { get; set; }
     public Guid Type { get; set; }
 
+    public byte[] ToKey()
+    {
+        return ByteArrayUtil.Combine(Type.ToByteArray(), Alias.ToByteArray());
+    }
+    
     public bool IsValid()
     {
         return this.Alias != Guid.Empty && this.Type != Guid.Empty;
@@ -23,4 +29,5 @@ public class TargetDrive
             Type = Guid.NewGuid()
         };
     }
+    
 }

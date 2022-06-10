@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using NUnit.Framework;
 using Youverse.Core.SystemStorage.SqliteKeyValue;
 
@@ -22,21 +23,21 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v1);
-            db.TblKeyUniqueThreeValue.InsertRow(k2, k22, k222, v2);
+            db.TblKeyThreeValue.InsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.InsertRow(k2, k22, k222, v2);
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             if (SequentialGuid.muidcmp(r, v1) != 0)
                 Assert.Fail();
 
-            var lr = db.TblKeyUniqueThreeValue.GetByKeyTwo(k11);
+            var lr = db.TblKeyThreeValue.GetByKeyTwo(k11);
             if (SequentialGuid.muidcmp(lr[0], v1) != 0)
                 Assert.Fail();
 
-            lr = db.TblKeyUniqueThreeValue.GetByKeyThree(k111);
+            lr = db.TblKeyThreeValue.GetByKeyThree(k111);
             if (SequentialGuid.muidcmp(lr[0], v1) != 0)
                 Assert.Fail();
         }
@@ -55,16 +56,16 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.InsertRow(k1, k11, k111, v1);
 
             bool ok = false;
 
             try
             {
-                db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v2);
+                db.TblKeyThreeValue.InsertRow(k1, k11, k111, v2);
                 ok = true;
             }
             catch
@@ -74,7 +75,7 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
 
             Debug.Assert(ok == false);
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             if (SequentialGuid.muidcmp(r, v1) != 0)
                 Assert.Fail();
         }
@@ -92,13 +93,13 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v1);
-            db.TblKeyUniqueThreeValue.UpdateRow(k1, v2);
+            db.TblKeyThreeValue.InsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.UpdateRow(k1, v2);
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             if (SequentialGuid.muidcmp(r, v2) != 0)
                 Assert.Fail();
         }
@@ -118,16 +119,16 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.InsertRow(k1, k11, k111, v1);
 
             bool ok = false;
 
             try
             {
-                db.TblKeyUniqueThreeValue.UpdateRow(k2, v2);
+                db.TblKeyThreeValue.UpdateRow(k2, v2);
                 ok = true;
             }
             catch
@@ -137,7 +138,6 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
 
             Debug.Assert(ok == true);
         }
-
 
 
         [Test]
@@ -155,18 +155,18 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, k11, k111, v1);
-            db.TblKeyUniqueThreeValue.InsertRow(k2, k22, k222, v2);
+            db.TblKeyThreeValue.InsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.InsertRow(k2, k22, k222, v2);
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             if (SequentialGuid.muidcmp(r, v1) != 0)
                 Assert.Fail();
 
-            db.TblKeyUniqueThreeValue.DeleteRow(k1);
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            db.TblKeyThreeValue.DeleteRow(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
         }
 
@@ -187,27 +187,26 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v2 = Guid.NewGuid().ToByteArray();
             var v3 = Guid.NewGuid().ToByteArray();
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.TblKeyUniqueThreeValue.UpsertRow(k1, k11, k111, v1);
-            db.TblKeyUniqueThreeValue.UpsertRow(k2, k22, k222, v2);
+            db.TblKeyThreeValue.UpsertRow(k1, k11, k111, v1);
+            db.TblKeyThreeValue.UpsertRow(k2, k22, k222, v2);
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
             if (SequentialGuid.muidcmp(r, v1) != 0)
                 Assert.Fail();
 
-            r = db.TblKeyUniqueThreeValue.Get(k2);
+            r = db.TblKeyThreeValue.Get(k2);
             if (SequentialGuid.muidcmp(r, v2) != 0)
                 Assert.Fail();
 
-            db.TblKeyUniqueThreeValue.UpsertRow(k2, k22, k222, v3);
+            db.TblKeyThreeValue.UpsertRow(k2, k22, k222, v3);
 
-            r = db.TblKeyUniqueThreeValue.Get(k2);
+            r = db.TblKeyThreeValue.Get(k2);
             if (SequentialGuid.muidcmp(r, v3) != 0)
                 Assert.Fail();
         }
-
 
 
         [Test]
@@ -225,16 +224,16 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            db.TblKeyUniqueThreeValue.InsertRow(k1, i1, u1, v1);
-            db.TblKeyUniqueThreeValue.InsertRow(k2, i1, u2, v2);
+            db.TblKeyThreeValue.InsertRow(k1, i1, u1, v1);
+            db.TblKeyThreeValue.InsertRow(k2, i1, u2, v2);
 
-            var r = db.TblKeyUniqueThreeValue.Get(k1);
+            var r = db.TblKeyThreeValue.Get(k1);
             if (r == null)
                 Assert.Fail();
             if (SequentialGuid.muidcmp(r, v1) != 0)
                 Assert.Fail();
 
-            var ra = db.TblKeyUniqueThreeValue.GetByKeyTwo(i1);
+            var ra = db.TblKeyThreeValue.GetByKeyTwo(i1);
             if (ra.Count != 2)
                 Assert.Fail();
             if (SequentialGuid.muidcmp(ra[0], v1) != 0)
@@ -242,33 +241,33 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
             if (SequentialGuid.muidcmp(ra[1], v2) != 0)
                 Assert.Fail();
 
-            ra = db.TblKeyUniqueThreeValue.GetByKeyThree(u1);
+            ra = db.TblKeyThreeValue.GetByKeyThree(u1);
             if (ra.Count != 1)
                 Assert.Fail();
             if (SequentialGuid.muidcmp(ra[0], v1) != 0)
                 Assert.Fail();
 
-            var singleRecord = db.TblKeyUniqueThreeValue.GetByKeyTwoThree(i1, u2);
-            Assert.NotNull(singleRecord);
-            if (SequentialGuid.muidcmp(singleRecord, v2) != 0)
+            ra = db.TblKeyThreeValue.GetByKeyTwoThree(i1, u2);
+            Assert.True(ra.Count != 1);
+            if (SequentialGuid.muidcmp(ra[0], v2) != 0)
                 Assert.Fail();
 
-            db.TblKeyUniqueThreeValue.UpdateRow(k1, v2);
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            db.TblKeyThreeValue.UpdateRow(k1, v2);
+            r = db.TblKeyThreeValue.Get(k1);
 
             if (r == null)
                 Assert.Fail();
             if (SequentialGuid.muidcmp(r, v2) != 0)
                 Assert.Fail();
 
-            db.TblKeyUniqueThreeValue.DeleteRow(k1);
-            ra = db.TblKeyUniqueThreeValue.GetByKeyTwo(i1);
+            db.TblKeyThreeValue.DeleteRow(k1);
+            ra = db.TblKeyThreeValue.GetByKeyTwo(i1);
             if (ra.Count != 1)
                 Assert.Fail();
             if (SequentialGuid.muidcmp(ra[0], v2) != 0)
                 Assert.Fail();
 
-            r = db.TblKeyUniqueThreeValue.Get(k1);
+            r = db.TblKeyThreeValue.Get(k1);
 
             if (r != null)
                 Assert.Fail();

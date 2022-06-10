@@ -27,7 +27,7 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
 
         public TableKeyValue tblKeyValue = null;
         public TableKeyTwoValue tblKeyTwoValue = null;
-        public TableKeyUniqueThreeValue TblKeyUniqueThreeValue = null;
+        public TableKeyThreeValue TblKeyThreeValue = null;
 
         private  Object _getConnectionLock = new Object();
         private  Object _getTransactionLock = new Object();
@@ -38,7 +38,7 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
 
             tblKeyValue = new TableKeyValue(this);
             tblKeyTwoValue = new TableKeyTwoValue(this);
-            TblKeyUniqueThreeValue = new TableKeyUniqueThreeValue(this);
+            TblKeyThreeValue = new TableKeyThreeValue(this);
         }
 
         ~KeyValueDatabase()
@@ -101,7 +101,8 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
         {
             tblKeyValue.EnsureTableExists(dropExistingTables);
             tblKeyTwoValue.EnsureTableExists(dropExistingTables);
-            TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
+            TblKeyThreeValue.EnsureTableExists(dropExistingTables);
+            // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
             Vacuum();
         }
 
