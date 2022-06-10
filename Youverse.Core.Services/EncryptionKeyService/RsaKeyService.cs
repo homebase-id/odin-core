@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 {
     public class RsaKeyService : IPublicKeyService
     {
-        private readonly Guid _rsaKeyStorageId = Guid.Parse("AFFFFFCF-0f85-DDDD-a7eb-e8e0b06c2555");
+        private readonly Guid _rsaKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
 
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
