@@ -1,0 +1,98 @@
+﻿using System;
+using System.Linq;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Apps;
+using Youverse.Hosting.Controllers.Owner;
+
+namespace Youverse.Hosting.Controllers.Drive
+{
+    [ApiController]
+    [Route(AppApiPathConstants.DrivesV1)]
+    [Route(OwnerApiPathConstants.DrivesV1)]
+    [AuthorizeOwnerConsoleOrApp]
+    public class DriveUploadController : ControllerBase
+    {
+        private readonly ITransitService _transitService;
+        private readonly IMultipartPackageStorageWriter _packageStorageWriter;
+
+        public DriveUploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService)
+        {
+            _packageStorageWriter = packageStorageWriter;
+            _transitService = transitService;
+        }
+        
+        [HttpPost("files/upload")]
+        public async Task<IActionResult> Upload()
+        {
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new UploadException("Data is not multi-part content");
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Instructions);
+            var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
+            
+            //
+            
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Metadata);
+            await _packageStorageWriter.AddMetadata(packageId, section!.Body);
+            
+            //
+            
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Payload);
+            await _packageStorageWriter.AddPayload(packageId, section!.Body);
+            
+            //
+            
+            var package = await _packageStorageWriter.GetPackage(packageId);
+            var status = await _transitService.AcceptUpload(package);
+            return new JsonResult(status);
+        }
+
+        private void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            {
+                throw new UploadException($"Part must be {Enum.GetName(expectedPart)}");
+            }
+        }
+        
+        private static bool IsMultipartContentType(string contentType)
+        {
+            return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string GetBoundary(string contentType)
+        {
+            var elements = contentType.Split(' ');
+            var element = elements.First(entry => entry.StartsWith("boundary="));
+            var boundary = element.Substring("boundary=".Length);
+            // Remove quotes
+            if (boundary.Length >= 2 && boundary[0] == '"' &&
+                boundary[^1] == '"')
+            {
+                boundary = boundary.Substring(1, boundary.Length - 2);
+            }
+
+            return boundary;
+        }
+
+        private string GetSectionName(string contentDisposition)
+        {
+            var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
+            return cd.Name?.Trim('"');
+        }
+    }
+}
