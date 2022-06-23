@@ -19,9 +19,6 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.SystemStorage;
-using Youverse.Core.SystemStorage.SqliteKeyValue;
-using Youverse.Core.Util;
-using KeyValueDatabase = Youverse.Core.SystemStorage.SqliteKeyValue.KeyValueDatabase;
 
 namespace Youverse.Core.Services.Drive
 {

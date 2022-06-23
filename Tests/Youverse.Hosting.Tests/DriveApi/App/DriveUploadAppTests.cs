@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
             {
-                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -103,7 +103,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var fileId = uploadResult.File.FileId;
                 
                 //retrieve the file that was uploaded; decrypt; 
-                var driveSvc = RestService.For<IDriveStorageHttpClient>(client);
+                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var fileResponse = await driveSvc.GetFileHeader(targetDrive, fileId);
 

@@ -84,9 +84,5 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-    
-  <ItemGroup>
-    <Folder Include="Authentication\YouAuth" />
-  </ItemGroup>
 
 </Project>

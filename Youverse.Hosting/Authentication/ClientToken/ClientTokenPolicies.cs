@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Youverse.Core.Services.Authorization;
 
-namespace Youverse.Hosting.Authentication.YouAuth
+namespace Youverse.Hosting.Authentication.ClientToken
 {
-    public static class YouAuthPolicies
+    public static class ClientTokenPolicies
     {
-        
-        public const string IsIdentified = "MustOwnThisIdentity";
+        public const string IsAuthorizedApp = "IsAuthorizedApp";
 
+        public const string IsIdentified = "IsClientTokenIdentified";
         
         public static void AddPolicies(AuthorizationOptions policy)
         {
@@ -16,6 +16,12 @@ namespace Youverse.Hosting.Authentication.YouAuth
                 pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(ClientTokenConstants.Scheme);
 
+            });
+            
+            policy.AddPolicy(IsAuthorizedApp, pb =>
+            {
+                pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
+                pb.AuthenticationSchemes.Add(ClientTokenConstants.Scheme);
             });
         }
     }

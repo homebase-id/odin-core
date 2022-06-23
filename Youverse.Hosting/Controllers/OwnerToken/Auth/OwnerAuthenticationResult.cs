@@ -1,4 +1,4 @@
-namespace Youverse.Hosting.Controllers.Owner.Auth
+namespace Youverse.Hosting.Controllers.OwnerToken.Auth
 {
     public class OwnerAuthenticationResult
     {

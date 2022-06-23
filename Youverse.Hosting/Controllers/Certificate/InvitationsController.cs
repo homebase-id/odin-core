@@ -4,15 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.TransitPerimeter
+namespace Youverse.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Controller which accepts various invitations.  This controller 

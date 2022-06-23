@@ -1,20 +1,11 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
-using Newtonsoft.Json;
 using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.TransitPerimeter
+namespace Youverse.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

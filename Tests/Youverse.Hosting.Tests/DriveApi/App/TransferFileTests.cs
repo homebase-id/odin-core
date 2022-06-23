@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
@@ -15,10 +14,10 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Tests.DriveApi;
-using Youverse.Hosting.Tests.DriveApi.App;
+using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Transit;
 
-namespace Youverse.Hosting.Tests.AppAPI.Transit
+namespace Youverse.Hosting.Tests.DriveApi.App
 {
     public class TransferFileTests
     {
@@ -102,7 +101,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
             using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
             {
-                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -263,7 +262,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadText);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
-                var driveQueryClient = RestService.For<IDriveQueryAppClient>(recipientClient);
+                var driveQueryClient = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();

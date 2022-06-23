@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Hosting.Authentication.App;
 
-namespace Youverse.Hosting.Controllers.Apps.Transit
+namespace Youverse.Hosting.Controllers.ClientToken.Transit
 {
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/inbox")]
-    [AuthorizeOwnerConsoleOrApp]
+    [AuthorizeValidAppExchangeGrant]
     public class InboxController : ControllerBase
     {
         private readonly IInboxService _inboxService;

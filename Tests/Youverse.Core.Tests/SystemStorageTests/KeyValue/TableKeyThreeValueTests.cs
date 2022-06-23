@@ -248,7 +248,8 @@ namespace Youverse.Core.Tests.SystemStorageTests.KeyValue
                 Assert.Fail();
 
             ra = db.TblKeyThreeValue.GetByKeyTwoThree(i1, u2);
-            Assert.True(ra.Count != 1);
+            if (ra.Count != 1)
+                Assert.Fail();
             if (SequentialGuid.muidcmp(ra[0], v2) != 0)
                 Assert.Fail();
 

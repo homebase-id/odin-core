@@ -1,11 +1,10 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.NotificationPerimeter
+namespace Youverse.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

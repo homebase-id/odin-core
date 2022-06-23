@@ -9,8 +9,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public interface ICircleNetworkProfileCacheClient
     {
-        private const string RootPath = "/api/perimeter/notification";
-        
         [Get("/api/youauth/v1/drive")]
         Task<ApiResponse<NoResultResponse>> GetProfile(Guid profileId);
     }

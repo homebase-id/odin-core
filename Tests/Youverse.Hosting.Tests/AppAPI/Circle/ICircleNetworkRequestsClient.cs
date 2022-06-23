@@ -3,8 +3,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers.Apps;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
 {

@@ -1,14 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
-using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.YouAuth;
+using Youverse.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Controllers;
+namespace Youverse.Hosting.Controllers.ClientToken;
 
 public class AuthorizeValidExchangeGrant : AuthorizeAttribute
 {
     public AuthorizeValidExchangeGrant()
     {
-        AuthenticationSchemes = $"{AppAuthConstants.SchemeName},{YouAuthConstants.Scheme}";
+        AuthenticationSchemes = ClientTokenConstants.Scheme;
         // Policy = OwnerPolicies.IsAuthorizedApp;
     }
 }

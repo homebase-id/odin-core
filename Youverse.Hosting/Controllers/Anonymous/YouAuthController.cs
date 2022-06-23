@@ -1,19 +1,15 @@
-﻿using System;
-using System.Text.Encodings.Web;
+﻿#nullable enable
+using System;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.YouAuth;
+using Youverse.Hosting.Authentication.ClientToken;
 
-#nullable enable
-namespace Youverse.Hosting.Controllers.YouAuth
+namespace Youverse.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]
@@ -83,7 +79,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme, Policy = YouAuthPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme, Policy = ClientTokenPolicies.IsIdentified)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -93,7 +89,7 @@ namespace Youverse.Hosting.Controllers.YouAuth
 
         [HttpGet(YouAuthApiPathConstants.DeleteTokenMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
+        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme)]
         public async Task<ActionResult> DeleteToken()
         {
             if (User?.Identity?.Name != null)

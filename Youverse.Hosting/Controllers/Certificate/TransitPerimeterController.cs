@@ -10,10 +10,9 @@ using Newtonsoft.Json;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
 using Youverse.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.TransitPerimeter
+namespace Youverse.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

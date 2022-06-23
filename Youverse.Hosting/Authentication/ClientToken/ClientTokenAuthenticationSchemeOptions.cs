@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 
-namespace Youverse.Hosting.Authentication.YouAuth
+namespace Youverse.Hosting.Authentication.ClientToken
 {
-    public class YouAuthAuthenticationSchemeOptions : AuthenticationSchemeOptions
+    public class ClientTokenAuthenticationSchemeOptions : AuthenticationSchemeOptions
     {
     }
 }

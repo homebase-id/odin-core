@@ -1,10 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿#nullable enable
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authentication.YouAuth;
 
-#nullable enable
-namespace Youverse.Hosting.Controllers.TransitPerimeter
+namespace Youverse.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route("/api/perimeter/youauth")]

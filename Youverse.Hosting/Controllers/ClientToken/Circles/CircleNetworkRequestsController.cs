@@ -3,18 +3,17 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.Apps.Circles
+namespace Youverse.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]
     [Route(OwnerApiPathConstants.CirclesV1 + "/requests")]
     //v.01 owner console only can send requests due to xtoken
     // [AuthorizeOwnerConsoleOrApp]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly ICircleNetworkRequestService _requestService;

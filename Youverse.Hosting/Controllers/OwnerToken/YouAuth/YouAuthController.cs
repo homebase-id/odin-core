@@ -1,17 +1,15 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Util;
-using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Controllers.YouAuth;
+using Youverse.Hosting.Controllers.Anonymous;
 
-#nullable enable
-namespace Youverse.Hosting.Controllers.Owner.YouAuth
+namespace Youverse.Hosting.Controllers.OwnerToken.YouAuth
 {
     /*
      * This controller handles the aspects of YouAuth that require
@@ -20,7 +18,7 @@ namespace Youverse.Hosting.Controllers.Owner.YouAuth
      * process.
      */
     [ApiController]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.YouAuthV1)]
     public class YouAuthController : Controller
     {

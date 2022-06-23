@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Controllers.Owner.Drive
+namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     public class OwnerClientDriveData
     {

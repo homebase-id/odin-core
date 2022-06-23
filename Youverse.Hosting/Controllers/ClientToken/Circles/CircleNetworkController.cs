@@ -4,16 +4,13 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.Apps.Circles
+namespace Youverse.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
-    [Route(OwnerApiPathConstants.CirclesV1 + "/connections")]
-    //v.01 owner console only can send requests due to xtoken
-    // [AuthorizeOwnerConsoleOrApp]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class CircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;

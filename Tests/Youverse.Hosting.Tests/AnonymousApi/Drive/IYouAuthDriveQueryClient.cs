@@ -3,8 +3,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
-using Youverse.Hosting.Controllers.Apps;
-using Youverse.Hosting.Controllers.YouAuth;
+using Youverse.Hosting.Controllers.Anonymous;
 
 namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 {

@@ -20,10 +20,9 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Authentication.YouAuth;
 using AppContext = Youverse.Core.Services.Base.AppContext;
 
 namespace Youverse.Hosting.Middleware
@@ -68,10 +67,10 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            if (authType == YouAuthConstants.Scheme)
+            if (authType == ClientTokenConstants.Scheme)
             {
                 await LoadYouAuthContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = YouAuthConstants.Scheme;
+                dotYouContext.AuthContext = ClientTokenConstants.Scheme;
 
                 await _next(httpContext);
                 return;

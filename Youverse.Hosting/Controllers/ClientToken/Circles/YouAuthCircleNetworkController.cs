@@ -1,19 +1,18 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Authentication.YouAuth;
+using Youverse.Hosting.Authentication.ClientToken;
+using Youverse.Hosting.Controllers.Anonymous;
 
-namespace Youverse.Hosting.Controllers.YouAuth.CircleNetwork
+namespace Youverse.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(YouAuthApiPathConstants.CircleNetwork)]
-    [Authorize(AuthenticationSchemes = YouAuthConstants.Scheme)]
+    [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme)]
     public class YouAuthCircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetworkService;

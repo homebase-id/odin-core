@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.AppManagement
+namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AppManagementV1 + "/clients")]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class AppClientRegistrationController : Controller
     {
         private readonly IAppRegistrationService _appRegistration;

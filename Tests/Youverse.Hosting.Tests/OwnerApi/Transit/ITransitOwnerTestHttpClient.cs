@@ -3,7 +3,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit
 {

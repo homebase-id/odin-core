@@ -17,6 +17,7 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -29,12 +30,13 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Util;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.DriveApi.App;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Provisioning;
@@ -485,7 +487,7 @@ namespace Youverse.Hosting.Tests
                     Type = Guid.NewGuid()
                 };
             }
-            
+
             //note; this is intentionally not global
 
             this.AddApp(identity, appId, targetDrive, true, canManageConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
@@ -538,7 +540,7 @@ namespace Youverse.Hosting.Tests
                 Alias = Guid.Parse("99888555-0000-0000-0000-000000004445"),
                 Type = Guid.NewGuid()
             };
-            
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = transferIv,
@@ -727,7 +729,7 @@ namespace Youverse.Hosting.Tests
 
             using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthenticationToken))
             {
-                var transitSvc = RestService.For<ITransitTestHttpClient>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -745,7 +747,7 @@ namespace Youverse.Hosting.Tests
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
 
-                    foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+                    foreach (var recipient in recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
                         Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");

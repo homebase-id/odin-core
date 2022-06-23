@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
     /// <summary>
     /// Manages the definition of circles and their access 

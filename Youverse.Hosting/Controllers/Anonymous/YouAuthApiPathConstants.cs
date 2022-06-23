@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.YouAuth
+﻿namespace Youverse.Hosting.Controllers.Anonymous
 {
     public static class YouAuthApiPathConstants
     {

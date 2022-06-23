@@ -1,22 +1,19 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Youverse.Core;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
-using Youverse.Hosting.Authentication.App;
-using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Apps.Transit
+namespace Youverse.Hosting.Controllers.ClientToken.Transit
 {
     /// <summary>
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
     [Route(AppApiPathConstants.TransitV1 + "/outbox")]
-    [AuthorizeOwnerConsoleOrApp]
+    [AuthorizeValidAppExchangeGrant]
     public class OutboxManagementController : ControllerBase
     {
         private readonly ILogger<OutboxManagementController> _logger;

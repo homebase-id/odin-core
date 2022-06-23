@@ -1,9 +1,8 @@
 using System;
-using Microsoft.AspNetCore.Mvc.TagHelpers;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Hosting.Controllers.Owner.AppManagement
+namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     public class AppRegistrationRequest
     {

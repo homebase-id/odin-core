@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Authentication.App
+﻿namespace Youverse.Hosting.Authentication.ClientToken
 {
     public static class AppAuthConstants
     {

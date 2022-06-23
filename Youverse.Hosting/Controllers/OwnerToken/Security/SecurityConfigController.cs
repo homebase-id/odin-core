@@ -4,11 +4,11 @@ using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Hosting.Controllers.Owner.Security
+namespace Youverse.Hosting.Controllers.OwnerToken.Security
 {
     [ApiController]
     [Route(OwnerApiPathConstants.SecurityConfig)]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class SecurityConfigController : Controller
     {
         private readonly ExchangeGrantService _exchangeGrantService;

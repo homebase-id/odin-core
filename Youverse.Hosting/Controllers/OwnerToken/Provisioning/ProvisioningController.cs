@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Registry.Provisioning;
 
-namespace Youverse.Hosting.Controllers.Owner.Provisioning
+namespace Youverse.Hosting.Controllers.OwnerToken.Provisioning
 {
     [ApiController]
     [Route(OwnerApiPathConstants.ProvisioningV1)]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class ProvisioningController : Controller
     {
         private readonly IIdentityProvisioner _identityProvisioner;

@@ -4,8 +4,8 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authentication.Owner;
-using Youverse.Hosting.Controllers.Owner;
-using Youverse.Hosting.Controllers.Owner.Auth;
+using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.OwnerToken.Auth;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {

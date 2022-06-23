@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.Apps
+﻿namespace Youverse.Hosting.Controllers.ClientToken
 {
     public static class AppApiPathConstants
     {

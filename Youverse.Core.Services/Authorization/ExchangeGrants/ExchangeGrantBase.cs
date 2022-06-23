@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             return new ExchangeGrantBaseLiteDbRecord()
             {
-                StorageType = ExchangeGranteeType.Identity,
+                StorageType = ExchangeGranteeType.App,
                 AppId = this.AppId,
                 Id = this.Id,
                 Created = this.Created,

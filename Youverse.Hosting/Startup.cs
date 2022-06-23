@@ -17,10 +17,9 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Authentication.YouAuth;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -78,8 +77,7 @@ namespace Youverse.Hosting
 
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
-                .AddYouAuthAuthentication()
-                .AddAppAuthentication()
+                .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme)
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme);
@@ -87,11 +85,11 @@ namespace Youverse.Hosting
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
-                AppPolicies.AddPolicies(policy);
+                // AppPolicies.AddPolicies(policy);
+                ClientTokenPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
-                YouAuthPolicies.AddPolicies(policy);
             });
 
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();

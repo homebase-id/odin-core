@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Controllers.Drive
+namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
     public class ClientDriveData
     {

@@ -4,18 +4,17 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Apps;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.Anonymous;
+using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.Drive
+namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
-    [Route(OwnerApiPathConstants.DrivesV1)]
-    [AuthorizeOwnerConsoleOrApp]
+    [Route(YouAuthApiPathConstants.DrivesV1)]
+    [AuthorizeValidExchangeGrant]
     public class DriveUploadController : ControllerBase
     {
         private readonly ITransitService _transitService;

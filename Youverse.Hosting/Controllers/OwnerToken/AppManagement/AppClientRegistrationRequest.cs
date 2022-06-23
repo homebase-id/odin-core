@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Controllers.Owner.AppManagement
+namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     public class AppClientRegistrationRequest
     {

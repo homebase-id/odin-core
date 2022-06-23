@@ -4,12 +4,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Auth
+namespace Youverse.Hosting.Controllers.OwnerToken.Auth
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AuthV1)]

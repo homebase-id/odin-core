@@ -8,7 +8,7 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {

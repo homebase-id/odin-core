@@ -1,10 +1,13 @@
-﻿namespace Youverse.Hosting.Authentication.YouAuth
+﻿namespace Youverse.Hosting.Authentication.ClientToken
 {
-    public static class YouAuthConstants
+    public static class ClientTokenConstants
     {
         /// <summary>
         /// Scheme for authenticating external Digital Identity hosts. 
         /// </summary>
-        public const string Scheme = "YouAuth";
+        public const string Scheme = "ClientToken";
+        
+        public const string XTokenCookieName = "XT32";
+
     }
 }

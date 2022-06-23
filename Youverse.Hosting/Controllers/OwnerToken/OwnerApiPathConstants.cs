@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.Owner
+﻿namespace Youverse.Hosting.Controllers.OwnerToken
 {
     public static class OwnerApiPathConstants
     {

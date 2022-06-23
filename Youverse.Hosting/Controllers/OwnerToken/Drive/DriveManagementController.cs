@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.Owner.Drive
+namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
     [Route(OwnerApiPathConstants.DrivesV1)]
-    [AuthorizeOwnerConsole]
+    [AuthorizeValidOwnerToken]
     public class DriveManagementController : ControllerBase
     {
         private readonly IDriveQueryService _queryService;

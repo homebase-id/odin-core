@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
     public class Circle
     {

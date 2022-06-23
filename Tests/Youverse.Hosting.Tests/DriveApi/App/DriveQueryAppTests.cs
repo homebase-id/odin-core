@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
-                var svc = RestService.For<IDriveQueryAppClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
@@ -124,7 +124,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
-                var svc = RestService.For<IDriveQueryAppClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
@@ -197,7 +197,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
             {
-                var svc = RestService.For<IDriveQueryAppClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();

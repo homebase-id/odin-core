@@ -6,14 +6,14 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.Apps;
+using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IDriveStorageHttpClient
+    public interface IDriveTestHttpClientForApps
     {
         private const string RootEndpoint = AppApiPathConstants.DrivesV1;
         
@@ -35,5 +35,9 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
         [Post(RootEndpoint + "/query/batch")]
         Task<ApiResponse<QueryBatchResult>> GetBatch([Query] TargetDrive drive, [Query] byte[] startCursor, [Query] byte[] stopCursor, [Body] QueryParams qp, [Query] ResultOptions options);
+        
+        [Post(RootEndpoint + "/outbox/processor/process")]
+        Task<ApiResponse<bool>> ProcessOutbox();
+        
     }
 }
