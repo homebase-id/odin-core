@@ -16,8 +16,9 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.OwnerApi.Drive;
 
-namespace Youverse.Hosting.Tests.DriveApi.App
+namespace Youverse.Hosting.Tests.OwnerApi.Transit
 {
     public class TransferFileTests
     {
@@ -56,52 +57,52 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 await _scaffold.CreateConnection(sender, recipient);
             }
 
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var keyHeader = KeyHeader.NewRandom16();
-
-            var instructionSet = new UploadInstructionSet()
+            using (var client = _scaffold.CreateOwnerApiHttpClient(sender, out var sharedSecret))
             {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = testContext.TargetDrive,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
-                },
+                var transferIv = ByteArrayUtil.GetRndByteArray(16);
+                var keyHeader = KeyHeader.NewRandom16();
 
-                TransitOptions = new TransitOptions()
+                var instructionSet = new UploadInstructionSet()
                 {
-                    Recipients = recipients
-                }
-            };
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
-            var instructionStream = new MemoryStream(bytes);
-
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
-                FileMetadata = new()
-                {
-                    ContentType = "application/json",
-                    AppData = new()
+                    TransferIv = transferIv,
+                    StorageOptions = new StorageOptions()
                     {
-                        Tags = new List<Guid>() { Guid.NewGuid() },
-                        ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                        Drive = testContext.TargetDrive,
+                        OverwriteFileId = null,
+                        ExpiresTimestamp = null
+                    },
+
+                    TransitOptions = new TransitOptions()
+                    {
+                        Recipients = recipients
                     }
-                },
-            };
+                };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref key);
+                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
 
-            var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+                    FileMetadata = new()
+                    {
+                        ContentType = "application/json",
+                        AppData = new()
+                        {
+                            Tags = new List<Guid>() { Guid.NewGuid() },
+                            ContentIsComplete = true,
+                            JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                        }
+                    },
+                };
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+
+                var payloadData = "{payload:true, image:'b64 data'}";
+                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+
+
+                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -120,10 +121,11 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
                     Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
                 }
+
+                keyHeader.AesKey.Wipe();
+                sharedSecret.Wipe();
             }
 
-            keyHeader.AesKey.Wipe();
-            key.Wipe();
 
             foreach (var recipient in recipientContexts.Keys)
             {
@@ -218,7 +220,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 Assert.IsNotNull(inboxItem);
                 Assert.IsTrue(inboxItem.Id == items.Results.First().Id);
 
-                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
+                var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(recipientClient);
 
                 var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.TargetDrive, inboxItem.File.FileId);
                 Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
@@ -262,7 +264,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadText);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
-                var driveQueryClient = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
+                var driveQueryClient = RestService.For<IDriveTestHttpClientForOwner>(recipientClient);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
@@ -278,7 +280,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 };
 
                 var response = await driveQueryClient.GetBatch(recipientContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
-                
+
 //                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, categoryId, true, 1, 100);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

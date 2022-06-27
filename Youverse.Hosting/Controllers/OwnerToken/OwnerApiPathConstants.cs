@@ -15,6 +15,13 @@
         public const string YouAuthV1 = BasePathV1 + "/youauth";
 
         public const string DrivesV1 = BasePathV1 + "/drive";
+
+        public const string DriveManagementV1 = DrivesV1 + "/mgmt";
+
+        public const string DriveQueryV1 = DrivesV1 + "/query";
+
+        public const string DriveStorageV1 = DrivesV1 + "/files";
+
         
         public const string TransitV1 = BasePathV1 + "/transit";
 

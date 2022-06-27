@@ -29,8 +29,6 @@ namespace Youverse.Core.Services.Tests
 
         public IMediator Mediator { get; private set; }
 
-        public IDriveAclAuthorizationService DriveAclAuthorizationService { get; private set; }
-
         public string? DataStoragePath => _dataStoragePath;
 
         public ServiceTestScaffold(string folder)
@@ -65,11 +63,6 @@ namespace Youverse.Core.Services.Tests
         public void CreateMediator()
         {
             Mediator = Substitute.For<IMediator>();
-        }
-
-        public void CreateAuthorizationService()
-        {
-            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context);
         }
 
         public void LogDataPath()

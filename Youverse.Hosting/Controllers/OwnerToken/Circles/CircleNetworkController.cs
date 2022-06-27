@@ -4,13 +4,12 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Circles
+namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/connections")]
-    [AuthorizeValidAppExchangeGrant]
+    [Route(OwnerApiPathConstants.CirclesV1 + "/connections")]
+    [AuthorizeValidOwnerToken]
     public class CircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;

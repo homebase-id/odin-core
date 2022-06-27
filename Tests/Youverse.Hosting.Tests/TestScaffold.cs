@@ -39,6 +39,8 @@ using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.DriveApi.App;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
+using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 using Youverse.Hosting.Tests.OwnerApi.Transit;
 
@@ -188,7 +190,7 @@ namespace Youverse.Hosting.Tests
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
-        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> LoginToOwnerConsole(string identity, string password)
+        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -335,12 +337,27 @@ namespace Youverse.Hosting.Tests
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
-
+        
         public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
         {
             return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
+        public HttpClient CreateYouAuthApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
+        {
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(YouAuthDefaults.XTokenCookieName, token.ToString(), null, identity));
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
         public Task OutputRequestInfo<T>(ApiResponse<T> response)
         {
             if (null == response.RequestMessage || null == response.RequestMessage.RequestUri)
@@ -498,7 +515,7 @@ namespace Youverse.Hosting.Tests
                 Identity = identity,
                 AppId = appId,
                 ClientAuthenticationToken = authResult,
-                AppSharedSecretKey = sharedSecret,
+                SharedSecret = sharedSecret,
                 TargetDrive = targetDrive
             };
         }
@@ -606,25 +623,25 @@ namespace Youverse.Hosting.Tests
             {
                 foreach (var recipient in recipients)
                 {
-                    await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
+                    await this.DisconnectIdentitiesAsOwner(sender, (DotYouIdentity)recipient);
                 }
             }
 
             return result;
         }
 
-        public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
+        public async Task DisconnectIdentitiesAsOwner(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1))
             {
-                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsClient>(client).Disconnect(dotYouId2);
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(dotYouId2);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(dotYouId2))
             {
-                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsClient>(client).Disconnect(dotYouId1);
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(dotYouId1);
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
             }
@@ -632,7 +649,7 @@ namespace Youverse.Hosting.Tests
 
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
         {
-            var svc = RestService.For<ICircleNetworkConnectionsClient>(client);
+            var svc = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
             var response = await svc.GetStatus(dotYouId);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
@@ -645,7 +662,7 @@ namespace Youverse.Hosting.Tests
             //have frodo send it
             using (var client = this.CreateOwnerApiHttpClient(sender))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -714,7 +731,7 @@ namespace Youverse.Hosting.Tests
             var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var appSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray();
+            var appSharedSecretKey = testAppContext.SharedSecret.ToSensitiveByteArray();
             fileMetadata.PayloadIsEncrypted = true;
             var descriptor = new UploadFileDescriptor()
             {
@@ -836,7 +853,7 @@ namespace Youverse.Hosting.Tests
                 payloadData = options?.PayloadData ?? payloadData;
                 var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-                var transitSvc = RestService.For<ITransitOwnerTestHttpClient>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -891,7 +908,7 @@ namespace Youverse.Hosting.Tests
             {
                 AppId = testAppContext.AppId,
                 AuthenticationResult = testAppContext.ClientAuthenticationToken,
-                AppSharedSecretKey = testAppContext.AppSharedSecretKey.ToSensitiveByteArray(),
+                AppSharedSecretKey = testAppContext.SharedSecret.ToSensitiveByteArray(),
                 InstructionSet = instructionSet,
                 FileMetadata = fileMetadata,
                 RecipientContexts = recipientContexts,

@@ -7,7 +7,5 @@
         /// </summary>
         public const string Scheme = "ClientToken";
         
-        public const string XTokenCookieName = "XT32";
-
     }
 }

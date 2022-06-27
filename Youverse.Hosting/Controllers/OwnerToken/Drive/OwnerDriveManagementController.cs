@@ -8,14 +8,14 @@ using Youverse.Core.Services.Drive;
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
-    [Route(OwnerApiPathConstants.DrivesV1)]
+    [Route(OwnerApiPathConstants.DriveManagementV1)]
     [AuthorizeValidOwnerToken]
-    public class DriveManagementController : ControllerBase
+    public class OwnerDriveManagementController : ControllerBase
     {
         private readonly IDriveQueryService _queryService;
         private readonly IDriveService _driveService;
 
-        public DriveManagementController(IDriveQueryService queryService, IDriveService driveService)
+        public OwnerDriveManagementController(IDriveQueryService queryService, IDriveService driveService)
         {
             _queryService = queryService;
             _driveService = driveService;

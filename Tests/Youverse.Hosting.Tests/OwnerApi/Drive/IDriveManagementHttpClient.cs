@@ -14,8 +14,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
     /// </summary>
     public interface IDriveManagementHttpClient
     {
-        private const string RootEndpoint = OwnerApiPathConstants.DrivesV1;
-        private const string RootPath = "/api/owner/v1/drive/index";
+        private const string RootEndpoint = OwnerApiPathConstants.DriveManagementV1;
 
         [Post(RootEndpoint + "/create")]
         Task<ApiResponse<HttpContent>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads);
@@ -23,10 +22,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         [Get(RootEndpoint)]
         Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives(int pageNumber, int pageSize);
         
-        [Post(RootPath + "/rebuildallindices")]
+        [Post(RootEndpoint + "/rebuildallindices")]
         Task<ApiResponse<bool>> RebuildAll();
 
-        [Post(RootPath + "/rebuildindex")]
+        [Post(RootEndpoint + "/rebuildindex")]
         Task<ApiResponse<bool>> Rebuild(Guid driveId);
     }
 }

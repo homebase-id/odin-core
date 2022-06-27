@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Tests.AppAPI
         public DotYouIdentity Identity { get; set; }
         public Guid AppId { get; set; }
         public ClientAuthenticationToken ClientAuthenticationToken { get; set; }
-        public byte[] AppSharedSecretKey { get; set; }
+        public byte[] SharedSecret { get; set; }
         
         public TargetDrive TargetDrive { get; set; }
     }

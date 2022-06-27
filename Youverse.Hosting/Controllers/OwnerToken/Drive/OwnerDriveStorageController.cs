@@ -1,33 +1,31 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Drive
+namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
-    [Route(AppApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
-    [AuthorizeValidExchangeGrant]
-    public class DriveStorageController : ControllerBase
+    [Route(OwnerApiPathConstants.DriveStorageV1)]
+    [AuthorizeValidOwnerToken]
+    public class OwnerDriveStorageController : ControllerBase
     {
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public DriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
+        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
         {
             _contextAccessor = contextAccessor;
             _driveService = driveService;
             _appService = appService;
         }
 
-        [HttpGet("files/header")]
+        [HttpGet("header")]
         public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
             
@@ -40,7 +38,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new JsonResult(result);
         }
 
-        [HttpGet("files/payload")]
+        [HttpGet("payload")]
         public async Task<IActionResult> StreamPayload([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
             var file = new InternalDriveFileId()
@@ -54,7 +52,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
-        [HttpDelete("files")]
+        [HttpDelete]
         public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
             var file = new InternalDriveFileId()

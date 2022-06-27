@@ -4,13 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Circles
+namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/requests")]
-    [AuthorizeValidAppExchangeGrant]
+    [Route(OwnerApiPathConstants.CirclesV1 + "/requests")]
+    [AuthorizeValidOwnerToken]
     public class CircleNetworkRequestsController : ControllerBase
     {
         readonly ICircleNetworkRequestService _requestService;
