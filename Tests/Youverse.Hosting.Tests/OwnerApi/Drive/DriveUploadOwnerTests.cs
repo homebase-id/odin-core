@@ -15,13 +15,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
     public class DriveUploadOwnerTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -36,9 +36,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         {
             var identity = TestIdentities.Frodo;
 
-            var testContext = await _scaffold.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OwnerTestUtils.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -142,7 +142,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadDataRaw);
                 Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
 
-                var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
 
                 decryptedKeyHeader.AesKey.Wipe();
 

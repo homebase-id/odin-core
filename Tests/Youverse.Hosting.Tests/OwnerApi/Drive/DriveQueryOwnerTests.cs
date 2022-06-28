@@ -13,13 +13,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
     public class DriveQueryOwnerTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -66,9 +66,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 UseOwnerContext = true
             };
 
-            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -122,9 +122,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 UseOwnerContext = true
             };
 
-            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -196,9 +196,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 UseOwnerContext = true
             };
 
-            var uploadContext = await _scaffold.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 

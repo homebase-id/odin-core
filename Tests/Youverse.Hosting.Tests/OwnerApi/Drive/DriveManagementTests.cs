@@ -4,25 +4,32 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive;
 
 public class DriveManagementTests
 {
-    private TestScaffold _scaffold;
+    private WebScaffold _scaffold;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-        _scaffold = new TestScaffold(folder);
+        _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _scaffold.RunAfterAnyTests();
     }
 
     [Test]
     public async Task CanCreateAndGetDrive()
     {
-        using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+        using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
             var svc = RestService.For<IDriveManagementHttpClient>(client);
 
@@ -47,7 +54,7 @@ public class DriveManagementTests
     [Test]
     public async Task CannotCreateDuplicateDriveByAliasAndType()
     {
-        using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+        using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
             var svc = RestService.For<IDriveManagementHttpClient>(client);
 

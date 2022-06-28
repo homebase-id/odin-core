@@ -13,6 +13,6 @@
         public const string DeleteTokenMethodName = "delete-token";
 
         public const string DrivesV1 = BasePathV1 + "/drive";
-        public const string CircleNetwork = BasePathV1 + "/circles";
+        public const string CirclesV1 = BasePathV1 + "/circles";
     }
 }

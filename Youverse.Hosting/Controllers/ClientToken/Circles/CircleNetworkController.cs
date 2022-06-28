@@ -2,52 +2,25 @@
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
+    [Route(YouAuthApiPathConstants.CirclesV1 + "/connections")]
     [AuthorizeValidAppExchangeGrant]
     public class CircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly CircleNetworkNotificationService _circleNetworkNotificationService;
 
-        public CircleNetworkController(ICircleNetworkService cn, CircleNetworkNotificationService circleNetworkNotificationService)
+        public CircleNetworkController(ICircleNetworkService cn)
         {
             _circleNetwork = cn;
-            _circleNetworkNotificationService = circleNetworkNotificationService;
-        }
-
-        [HttpGet("unblock/{dotYouId}")]
-        public async Task<IActionResult> Unblock(string dotYouId)
-        {
-            var result = await _circleNetwork.Unblock((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
-        }
-
-        [HttpGet("block/{dotYouId}")]
-        public async Task<IActionResult> Block(string dotYouId)
-        {
-            var result = await _circleNetwork.Block((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
-        }
-
-        [HttpGet("disconnect/{dotYouId}")]
-        public async Task<IActionResult> Disconnect(string dotYouId)
-        {
-            var result = await _circleNetwork.Disconnect((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
-        }
-
-        //[HttpPost("notify")]
-        public async Task<IActionResult> NotifyConnections(CircleNetworkNotification notification)
-        {
-            await _circleNetworkNotificationService.NotifyConnections(notification);
-            return Ok();
         }
 
         [HttpGet("status/{dotYouId}")]
@@ -61,13 +34,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         public async Task<IActionResult> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
-        }
-
-        [HttpGet("blocked")]
-        public async Task<IActionResult> GetBlockedProfiles(int pageNumber, int pageSize)
-        {
-            var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
             return new JsonResult(result);
         }
     }

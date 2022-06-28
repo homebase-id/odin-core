@@ -17,14 +17,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
         [Post(RootEndpoint + "/app/process")]
         Task<ApiResponse<bool>> ProcessTransfers();
 
-        [Get(InboxRoot)]
-        Task<ApiResponse<PagedResult<InboxItem>>> GetInboxItems(int pageNumber, int pageSize);
-
-        [Get(InboxRoot + "/item")]
-        Task<ApiResponse<InboxItem>> GetInboxItem(Guid id);
-
-        [Delete(InboxRoot + "/item")]
-        Task<ApiResponse<bool>> RemoveInboxItem(Guid id);
 
     }
 }
