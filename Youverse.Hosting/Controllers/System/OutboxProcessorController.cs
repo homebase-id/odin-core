@@ -3,15 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Transit
+namespace Youverse.Hosting.Controllers.System
 {
     /// <summary>
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.TransitV1 + "/outbox/processor")]
-    [AuthorizeValidAppExchangeGrant]
+    [Route(OwnerApiPathConstants.TransitV1 + "/outbox/processor")]
 
     //TODO: !!! need to add a certificate for the system to make calls into itself
     //[Authorize(Policy = OwnerPolicies.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]

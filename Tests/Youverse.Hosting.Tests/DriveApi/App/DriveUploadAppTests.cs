@@ -10,19 +10,20 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Scaffold;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
     public class DriveUploadAppTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -37,7 +38,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         {
             var identity = TestIdentities.Frodo;
 
-            var testContext = await _scaffold.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -77,7 +78,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(

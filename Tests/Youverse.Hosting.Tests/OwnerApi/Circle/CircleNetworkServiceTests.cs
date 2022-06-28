@@ -42,10 +42,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerTestUtils.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
-            var recipient = await _scaffold.OwnerTestUtils.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sender.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Success, "Failed sending the request");
             }
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(recipient.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
                 var response = await svc.GetPendingRequest(sender.Identity);
@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -100,7 +100,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -121,7 +121,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -140,7 +140,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -157,7 +157,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -182,7 +182,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 //
                 // Sam should be in Frodo's contacts network
@@ -207,7 +207,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -234,7 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -263,7 +263,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -279,7 +279,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
                 var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
@@ -301,11 +301,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private async Task<(TestSampleAppContext, TestSampleAppContext)> CreateConnectionRequestFrodoToSam()
         {
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerTestUtils.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
-            var recipient = await _scaffold.OwnerTestUtils.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
             //have frodo send it
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sender.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
@@ -324,7 +324,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
 
             //check that sam got it
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(recipient.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
                 var response = await svc.GetPendingRequest(sender.Identity);
@@ -340,7 +340,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)
         {
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
                 var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
@@ -348,7 +348,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
                 var disconnectResponse = await samConnections.Disconnect(frodo.Identity);

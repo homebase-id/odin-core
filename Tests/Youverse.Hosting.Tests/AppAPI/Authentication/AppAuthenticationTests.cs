@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
     [TestFixture]
     public class AppAuthenticationTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
         public static readonly Guid DefaultDrivePublicId = Guid.Parse("98408493-4440-0888-0000-001260004445");
 
 
@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -35,8 +35,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -53,8 +53,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(validateResponse.Content.IsValid, Is.True);
             }
 
-            await _scaffold.RevokeSampleApp(identity, appId);
+            await _scaffold.OwnerApi.RevokeSampleApp(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -84,8 +84,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -103,8 +103,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var identity = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            await _scaffold.AddApp(identity, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(result.IsValid, Is.True);
             }
 
-            await _scaffold.RevokeSampleApp(identity, appId);
+            await _scaffold.OwnerApi.RevokeSampleApp(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {

@@ -29,7 +29,7 @@ public class DriveManagementTests
     [Test]
     public async Task CanCreateAndGetDrive()
     {
-        using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
             var svc = RestService.For<IDriveManagementHttpClient>(client);
 
@@ -54,7 +54,7 @@ public class DriveManagementTests
     [Test]
     public async Task CannotCreateDuplicateDriveByAliasAndType()
     {
-        using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
             var svc = RestService.For<IDriveManagementHttpClient>(client);
 

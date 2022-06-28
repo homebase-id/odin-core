@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
@@ -19,6 +20,7 @@ namespace Youverse.Core.Services.Transit
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage
         /// </summary>
         /// <returns></returns>
+        [Obsolete("TODO: replace with new outbox process")]
         Task ProcessTransfers();
 
         /// <summary>

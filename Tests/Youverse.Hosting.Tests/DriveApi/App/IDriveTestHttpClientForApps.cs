@@ -36,8 +36,5 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         [Post(RootEndpoint + "/query/batch")]
         Task<ApiResponse<QueryBatchResult>> GetBatch([Query] TargetDrive drive, [Query] byte[] startCursor, [Query] byte[] stopCursor, [Body] QueryParams qp, [Query] ResultOptions options);
         
-        [Post(RootEndpoint + "/outbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessOutbox();
-        
     }
 }

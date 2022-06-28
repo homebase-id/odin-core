@@ -272,6 +272,7 @@ namespace Youverse.Core.Services.Transit
 
         public async Task SendBatchNow(IEnumerable<OutboxItem> items)
         {
+            //TODO: Upgrade with new sqlite outbox from Michael
             var tasks = new List<Task<SendResult>>();
 
             foreach (var item in items)

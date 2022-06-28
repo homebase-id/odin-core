@@ -35,7 +35,7 @@ using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 {
-    public class OwnerTestUtils
+    public class OwnerApiTestUtils
     {
         private readonly string _password = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
@@ -474,6 +474,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             }
         }
 
+        public async Task ProcessOutbox(DotYouIdentity sender)
+        {
+            using (var client = CreateOwnerApiHttpClient(sender))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var resp = await transitSvc.ProcessOutbox();
+                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+            }
+        }
+
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
         {
             var svc = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
@@ -598,6 +608,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
                     foreach (var rCtx in recipientContexts)
                     {
+                        //TODO: this should be a create app http client but it works because the path on ITransitTestAppHttpClient is /apps
                         using (var rClient = CreateOwnerApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
@@ -622,5 +633,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 TestAppContext = testAppContext
             };
         }
+
     }
 }

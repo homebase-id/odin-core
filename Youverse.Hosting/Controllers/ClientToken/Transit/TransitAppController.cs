@@ -1,7 +1,6 @@
-﻿using System.IO;
+﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
 using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Transit
@@ -18,24 +17,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Transit
             _transitAppService = transitAppService;
         }
 
+        [Obsolete("TODO: replace with new outbox process")]
         [HttpPost("process")]
         public async Task<IActionResult> ProcessTransfers()
         {
             await _transitAppService.ProcessTransfers();
             return new JsonResult(true);
         }
-
-        [HttpGet]
-        public Task<JsonResult> GetQuarantinedItems(int pageNumber, int pageSize)
-        {
-            try
-            {
-                return null;
-            }
-            catch (InvalidDataException e)
-            {
-                return Task.FromResult(new JsonResult(new NoResultResponse(false, e.Message)));
-            }
-        }
+        
     }
 }

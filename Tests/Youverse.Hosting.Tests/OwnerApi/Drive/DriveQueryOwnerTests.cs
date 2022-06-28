@@ -62,13 +62,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 PayloadData = "some payload data for good measure",
                 ProcessOutbox = false,
                 ProcessTransitBox = false,
-                DisconnectIdentitiesAfterTransfer = true,
-                UseOwnerContext = true
+                DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -118,13 +117,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 PayloadData = "some payload data for good measure",
                 ProcessOutbox = false,
                 ProcessTransitBox = false,
-                DisconnectIdentitiesAfterTransfer = true,
-                UseOwnerContext = true
+                DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -192,13 +190,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 PayloadData = "some payload data for good measure",
                 ProcessOutbox = false,
                 ProcessTransitBox = false,
-                DisconnectIdentitiesAfterTransfer = true,
-                UseOwnerContext = true
+                DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerTestUtils.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
 

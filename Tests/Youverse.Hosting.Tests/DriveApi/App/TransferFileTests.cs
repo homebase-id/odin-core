@@ -19,13 +19,13 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 {
     public class TransferFileTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -42,16 +42,16 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var recipients = new List<string>() { TestIdentities.Samwise };
 
             Guid appId = Guid.NewGuid();
-            var testContext = await _scaffold.SetupTestSampleApp(appId, sender, false, TargetDrive.NewTargetDrive());
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, TargetDrive.NewTargetDrive());
 
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await _scaffold.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.TargetDrive);
+                var ctx = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.TargetDrive);
                 recipientContexts.Add(recipient, ctx);
 
-                await _scaffold.CreateConnection(sender, recipient);
+                await _scaffold.OwnerApi.CreateConnection(sender, recipient);
             }
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-            using (var client = _scaffold.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -125,43 +125,10 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             foreach (var recipient in recipientContexts.Keys)
             {
-                await _scaffold.DisconnectIdentitiesAsOwner(sender, recipient);
+                await _scaffold.OwnerApi.DisconnectIdentities(sender, recipient);
             }
-
-
-            //connect to all recipients to determine if they received
-
-            // Now connect as frodo to see if he has a recent transfer from sam matching the file contents
-            // using (var client = _scaffold.CreateHttpClient(DotYouIdentities.Frodo, true))
-            // {
-            //     //TODO: query for the message to see if 
-            //
-            //     var expectedMessage = sentMessage;
-            //
-            //     //Check audit 
-            //     var transitSvc = RestService.For<ITransitTestHttpClient>(client);
-            //     var recentAuditResponse = await transitSvc.GetRecentAuditEntries(5, 1, 100);
-            //
-            //     Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-            //     var entry = recentAuditResponse.Content?.Results.FirstOrDefault(entry => entry.EventId == (int) TransitAuditEvent.Accepted);
-            //     Assert.IsNotNull(entry, "Could not find audit event marked as Accepted");
-            //
-            //     //I guess I need an api that says give me all transfers from a given DI
-            //     // so in this case I could ge that transfer and compare the file contents?
-            //     //this api is needed for everything - so yea. let's do that
-            // }
-
-
-            //TODO: determine if we should check outgoing audit to show it was sent
-            // var recentAuditResponse = await transitSvc.GetRecentAuditEntries(60, 1, 100);
-            // Assert.IsTrue(recentAuditResponse.IsSuccessStatusCode);
-
-
-            /*
-             *so i think in a production scenario we will hve signalr sending a notification for a given app that a transfer has been received
-             * but in the case when you're not online.. and sign in.. the signalr notification won't due because it's an 'online thing only'
-             * so i thin it makes sense to have an api call which allows the recipient to query all incoming transfers that have not been processed
-             */
+            
+            //Note: the test below checks that the file was actually received by the recipient.  this test checks that the correct status comes back to the client
         }
 
         [Test(Description = "")]
@@ -174,7 +141,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var jsonMessage = JsonConvert.SerializeObject(new { message = message });
             var payloadText = "lets alllll prraayyy for this world";
 
-            var utilsContext = await _scaffold.TransferFile(sender, recipients, new TransitTestUtilsOptions()
+            var utilsContext = await _scaffold.AppApi.TransferFile(sender, recipients, new TransitTestUtilsOptions()
             {
                 ProcessOutbox = true,
                 ProcessTransitBox = true,
@@ -184,7 +151,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             });
 
             var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            using (var recipientClient = _scaffold.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.ClientAuthenticationToken))
+            using (var recipientClient = _scaffold.AppApi.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.ClientAuthenticationToken))
             {
                 // var svc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
                 // var driveSvc = RestService.For<IDriveTestHttpClientForApps>(recipientClient);

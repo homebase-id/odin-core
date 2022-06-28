@@ -36,9 +36,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         {
             var identity = TestIdentities.Frodo;
 
-            var testContext = await _scaffold.OwnerTestUtils.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.OwnerTestUtils.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

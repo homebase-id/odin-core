@@ -16,13 +16,45 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.DriveApi.App;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.AppAPI.Scaffold
 {
-    public class AppTestUtils
+    public class AppApiTestUtils
     {
-        /*
+        private readonly OwnerApiTestUtils _ownerApi;
+
+        public AppApiTestUtils(OwnerApiTestUtils ownerApi)
+        {
+            _ownerApi = ownerApi;
+        }
+
+        /// <summary>
+        /// Creates a client for use with the app API (/api/apps/v1/...)
+        /// </summary>
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
+        {
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(AppAuthConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
+
+        public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
+        {
+            return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
+        }
+
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -126,35 +158,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
             {
                 foreach (var recipient in recipients)
                 {
-                    await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
+                    await _ownerApi.DisconnectIdentities(sender, (DotYouIdentity)recipient);
                 }
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Creates a client for use with the app API (/api/apps/v1/...)
-        /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
-        {
-            var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(AppAuthConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
-            HttpMessageHandler handler = new HttpClientHandler()
-            {
-                CookieContainer = cookieJar
-            };
-
-            HttpClient client = new(handler);
-            client.Timeout = TimeSpan.FromMinutes(15);
-
-            client.BaseAddress = new Uri($"https://{identity}");
-            return client;
-        }
-
-        public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
-        {
-            return this.CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
         private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
@@ -167,28 +175,30 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
             }
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
+            var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
+                var ctx = await _ownerApi.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
                 recipientContexts.Add(recipient, ctx);
 
-                await this.CreateConnection(sender, recipient);
+                await _ownerApi.CreateConnection(sender, recipient);
             }
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret, testAppContext.AppId))
+            using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthenticationToken))
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
                 var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
+
+                var sharedSecret = testAppContext.SharedSecret.ToSensitiveByteArray();
 
                 fileMetadata.PayloadIsEncrypted = true;
                 var descriptor = new UploadFileDescriptor()
@@ -202,7 +212,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
                 payloadData = options?.PayloadData ?? payloadData;
                 var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
 
-                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -229,10 +239,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
 
                 if (options is { ProcessOutbox: true })
                 {
-                    var resp = await transitSvc.ProcessOutbox();
-                    Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                    await _ownerApi.ProcessOutbox(sender);
                 }
-
 
                 if (options is { ProcessTransitBox: true })
                 {
@@ -241,7 +249,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = CreateOwnerApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
+                        using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessTransfers();
@@ -265,6 +273,5 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
                 TestAppContext = testAppContext
             };
         }
-        */
     }
 }

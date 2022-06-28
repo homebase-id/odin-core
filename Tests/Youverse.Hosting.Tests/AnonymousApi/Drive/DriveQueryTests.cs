@@ -15,13 +15,13 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 {
     public class DriveQueryTests
     {
-        private TestScaffold _scaffold;
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadAnonymousFile(identity, tag);
+            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadAnonymousFile(identity, tag);
+            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -119,7 +119,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadAnonymousFile(identity, tag);
+            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -143,7 +143,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
             }
         }
         
-        private async Task<UploadTestUtilsContext> UploadAnonymousFile(DotYouIdentity identity, Guid tag)
+        private async Task<UploadTestUtilsContext> UploadFileAccessibleToAnonymous(DotYouIdentity identity, Guid tag)
         {
             List<Guid> tags = new List<Guid>() { tag };
 
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 DriveAllowAnonymousReads = true
             };
 
-            return await _scaffold.Upload(identity, uploadFileMetadata, options);
+            return await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
         }
 
     }

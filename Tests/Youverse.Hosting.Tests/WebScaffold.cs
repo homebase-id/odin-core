@@ -1,10 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
+using Youverse.Hosting.Tests.AppAPI.Scaffold;
 using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests
@@ -14,17 +18,18 @@ namespace Youverse.Hosting.Tests
         private readonly string _folder;
         private readonly string _password = "EnSøienØ";
         private IHost _webserver;
-        private readonly OwnerTestUtils _ownerTestUtils;
+        private readonly OwnerApiTestUtils _ownerApi;
+        private AppApiTestUtils _appApi;
         private DevelopmentIdentityContextRegistry _registry;
 
         public WebScaffold(string folder)
         {
             this._folder = folder;
-            _ownerTestUtils = new OwnerTestUtils();
+            _ownerApi = new OwnerApiTestUtils();
         }
 
         [OneTimeSetUp]
-        public void RunBeforeAnyTests(bool startWebserver = true)
+        public void RunBeforeAnyTests()
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
@@ -34,24 +39,23 @@ namespace Youverse.Hosting.Tests
             _registry = new DevelopmentIdentityContextRegistry(TestDataPath, TempDataPath);
             _registry.Initialize();
 
-            if (startWebserver)
+            Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");
+            Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__TempTenantDataRootPath", TempDataPath);
+            Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
+            Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
+            Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
+            Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+
+            _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
+            _webserver.Start();
+
+            foreach (var identity in TestIdentities.All)
             {
-                Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");
-                Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-                Environment.SetEnvironmentVariable("Host__TempTenantDataRootPath", TempDataPath);
-                Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
-                Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
-                Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
-                Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
-
-                _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
-                _webserver.Start();
-
-                foreach (var identity in TestIdentities.All)
-                {
-                    _ownerTestUtils.SetupOwnerAccount(identity).GetAwaiter().GetResult();
-                }
+                _ownerApi.SetupOwnerAccount(identity).GetAwaiter().GetResult();
             }
+            
+            _appApi = new AppApiTestUtils(_ownerApi);
         }
 
         [OneTimeTearDown]
@@ -65,9 +69,29 @@ namespace Youverse.Hosting.Tests
             }
         }
 
+        public OwnerApiTestUtils OwnerApi => this._ownerApi;
 
-        public OwnerTestUtils OwnerTestUtils => this._ownerTestUtils;
+        public AppApiTestUtils AppApi => this._appApi;
         
+        /// <summary>
+        /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
+        /// </summary>
+        /// <returns></returns>
+        public HttpClient CreateAnonymousApiHttpClient(DotYouIdentity identity)
+        {
+            var cookieJar = new CookieContainer();
+            HttpMessageHandler handler = new HttpClientHandler()
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(handler);
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
+
         private void DeleteData()
         {
             if (Directory.Exists(TestDataPath))
@@ -107,6 +131,7 @@ namespace Youverse.Hosting.Tests
                 return x;
             }
         }
+
         private bool isDev => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
         private string home => Environment.GetEnvironmentVariable("HOME") ?? "";
 
