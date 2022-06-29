@@ -8,7 +8,7 @@ using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
-using Youverse.Hosting.Tests.AppAPI.Scaffold;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests

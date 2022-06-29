@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
@@ -122,7 +122,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
@@ -195,7 +195,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.AuthenticationResult))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 

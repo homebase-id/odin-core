@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -30,7 +28,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         [HttpGet("files/header")]
         public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
-            
             var file = new InternalDriveFileId()
             {
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),

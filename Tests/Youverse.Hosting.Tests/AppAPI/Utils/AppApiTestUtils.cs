@@ -17,10 +17,9 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.DriveApi.App;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
-namespace Youverse.Hosting.Tests.AppAPI.Scaffold
+namespace Youverse.Hosting.Tests.AppAPI.Utils
 {
     public class AppApiTestUtils
     {
@@ -207,7 +206,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 payloadData = options?.PayloadData ?? payloadData;
                 var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
@@ -259,19 +258,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Scaffold
                 }
 
                 keyHeader.AesKey.Wipe();
+                
+                return new TransitTestUtilsContext()
+                {
+                    InstructionSet = instructionSet,
+                    FileMetadata = fileMetadata,
+                    RecipientContexts = recipientContexts,
+                    PayloadData = payloadData,
+                    TestAppContext = testAppContext,
+                    UploadedFile = transferResult.File
+                };
             }
-
-            return new TransitTestUtilsContext()
-            {
-                AppId = testAppContext.AppId,
-                AuthenticationResult = testAppContext.ClientAuthenticationToken,
-                AppSharedSecretKey = testAppContext.SharedSecret.ToSensitiveByteArray(),
-                InstructionSet = instructionSet,
-                FileMetadata = fileMetadata,
-                RecipientContexts = recipientContexts,
-                PayloadData = payloadData,
-                TestAppContext = testAppContext
-            };
         }
     }
 }

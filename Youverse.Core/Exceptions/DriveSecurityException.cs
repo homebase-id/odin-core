@@ -1,0 +1,23 @@
+using System;
+using System.Runtime.Serialization;
+
+namespace Youverse.Core.Exceptions;
+
+public class DriveSecurityException : Exception
+{
+    public DriveSecurityException()
+    {
+    }
+
+    public DriveSecurityException(string message) : base(message)
+    {
+    }
+
+    public DriveSecurityException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+
+    protected DriveSecurityException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
+}

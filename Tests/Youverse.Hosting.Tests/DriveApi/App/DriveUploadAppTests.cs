@@ -10,7 +10,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Scaffold;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
@@ -73,7 +72,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             };
 
             var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);

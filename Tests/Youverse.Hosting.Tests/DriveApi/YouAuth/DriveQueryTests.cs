@@ -1,17 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.AnonymousApi.Drive
+namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 {
     public class DriveQueryTests
     {
@@ -32,11 +34,56 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         }
 
         [Test]
+        public async Task ShouldFailToGetSecuredFile()
+        {
+            var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
+
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            {
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                
+                var getHeaderResponse = await svc.GetFileHeader(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
+                Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
+                
+                var getPayloadStreamResponse = await svc.GetPayload(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
+                Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
+                Assert.IsNull(getPayloadStreamResponse.Content);
+                
+                var startCursor = Array.Empty<byte>();
+                var stopCursor = Array.Empty<byte>();
+                var qp = new QueryParams()
+                {
+                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                };
+
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = false
+                };
+                
+                var getBatchResponse = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                Assert.IsTrue(getBatchResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getBatchResponse.StatusCode}");
+                var batch1 = getBatchResponse.Content;
+                Assert.IsNotNull(batch1);
+                Assert.IsEmpty(batch1.SearchResults);
+
+                var getRecentResponse = await svc.GetRecent(uploadContext.TestAppContext.TargetDrive, DateTimeExtensions.UnixTimeMilliseconds(), startCursor, qp, resultOptions);
+                Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
+                var batch2 = getRecentResponse.Content;
+                Assert.IsNotNull(batch2);
+                Assert.IsEmpty(batch2.SearchResults);
+            }
+        }
+        
+        [Test]
         public async Task CanQueryBatchByOneTag()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
+            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -53,7 +100,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                     IncludeMetadataHeader = false
                 };
 
-                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
                 var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -62,17 +109,17 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
             }
         }
-        
+
         [Test]
         public async Task CanQueryDriveRecentItems()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
+            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
@@ -119,11 +166,11 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFileAccessibleToAnonymous(identity, tag);
+            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IYouAuthDriveQueryClient>(client);
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
@@ -142,8 +189,8 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
             }
         }
-        
-        private async Task<UploadTestUtilsContext> UploadFileAccessibleToAnonymous(DotYouIdentity identity, Guid tag)
+
+        private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
 
@@ -162,7 +209,7 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
                 },
                 AccessControlList = new AccessControlList()
                 {
-                    RequiredSecurityGroup = SecurityGroupType.Anonymous
+                    RequiredSecurityGroup = requiredSecurityGroup
                 }
             };
 
@@ -177,6 +224,5 @@ namespace Youverse.Hosting.Tests.AnonymousApi.Drive
 
             return await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
         }
-
     }
 }

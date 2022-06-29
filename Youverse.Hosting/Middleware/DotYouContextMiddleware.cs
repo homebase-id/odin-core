@@ -204,6 +204,9 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
+            
+            //TODO: load the circles to which the caller belongs
+            
             var user = httpContext.User;
 
             var callerDotYouId = (DotYouIdentity) user.Identity!.Name;
@@ -274,6 +277,9 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
+            
+            //TODO: load the circles to which the caller belongs
+
             var user = httpContext.User;
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
             var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();

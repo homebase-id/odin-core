@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 },
             };
 
-            var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Logging.CorrelationId;
 
 namespace Youverse.Hosting.Middleware
@@ -34,6 +35,10 @@ namespace Youverse.Hosting.Middleware
             {
                 await _next(context);
             }
+            catch (DriveSecurityException dex)
+            {
+                await HandleDriveAccessException(context, dex);
+            }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(context, ex);
@@ -41,6 +46,31 @@ namespace Youverse.Hosting.Middleware
         }
 
         //
+
+        private Task HandleDriveAccessException(HttpContext context, Exception exception)
+        {
+            const int status = 403;
+            const string title = "Access Denied";
+
+            _logger.LogError(exception, "{ErrorText}", exception.Message);
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Extensions =
+                {
+                    ["correlationId"] = _correlationContext.Id
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
+        }
+
 
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
@@ -69,6 +99,5 @@ namespace Youverse.Hosting.Middleware
         }
 
         //
-
     }
 }

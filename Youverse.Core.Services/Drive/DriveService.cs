@@ -29,8 +29,6 @@ namespace Youverse.Core.Services.Drive
 
     public class DriveService : IDriveService
     {
-        const int MaxPayloadMemorySize = 4 * 1000; //TODO: put in config
-
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
@@ -252,7 +250,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //TODO: need a permission specifically for writing to the t4mep drive
             //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
@@ -310,41 +308,23 @@ namespace Youverse.Core.Services.Drive
             this.AssertCanReadDrive(file.DriveId);
 
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
-
-            // var acl = await GetAcl(file);
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+            
+            var size = await GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
+            header.FileMetadata.PayloadSize = size;
 
-            //return the acl as a separate value for any internal code that needs to use it
             return header;
         }
-
+        
         public async Task<Stream> GetPayloadStream(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
 
+            //Note: calling to get the file header so we can ensure the caller can read this file
+
+            var _ = await this.GetServerFileHeader(file);
             var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
             return stream;
-        }
-
-        public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(InternalDriveFileId file)
-        {
-            var size = await this.GetPayloadSize(file);
-            if (size > MaxPayloadMemorySize)
-            {
-                return (true, size, new byte[] { });
-            }
-
-            var stream = await this.GetPayloadStream(file);
-            var bytes = stream.ToByteArray();
-            stream.Close();
-            return (false, size, bytes);
-        }
-
-        public Task<long> GetPayloadSize(InternalDriveFileId file)
-        {
-            this.AssertCanReadDrive(file.DriveId);
-
-            return GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)

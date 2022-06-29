@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task AssertCallerHasPermission(AccessControlList acl)
         {
-            //ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
+            ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
 
             return Task.CompletedTask;
         }
@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Acl
                     return Task.FromResult(true);
 
                 case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
-                    return Task.FromResult(caller.IsInYouverseNetwork);
+                    return Task.FromResult(caller!.IsInYouverseNetwork);
 
                 case SecurityGroupType.Connected:
                     return CallerIsConnected();
@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         {
             if (eval == false)
             {
-                throw new YouverseSecurityException();
+                throw new DriveSecurityException();
             }
         }
     }

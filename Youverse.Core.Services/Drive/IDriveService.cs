@@ -93,8 +93,6 @@ namespace Youverse.Core.Services.Drive
 
 
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
-
-        Task<long> GetPayloadSize(InternalDriveFileId file);
         
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
@@ -115,12 +113,5 @@ namespace Youverse.Core.Services.Drive
         Task DeleteLongTermFile(InternalDriveFileId file);
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
-
-        /// <summary>
-        /// Returns the payload bytes.  If the payload is larger than the max size we will
-        /// load into memory, the tooLarge result will be true.
-        /// </summary>
-        /// <returns></returns>
-        Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(InternalDriveFileId file);
     }
 }

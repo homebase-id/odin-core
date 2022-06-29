@@ -113,6 +113,9 @@ namespace Youverse.Core.Services.Drive
                     FileId = fileId
                 };
 
+                //Note: this will fail if the index returns a file the caller cannot access.
+                //this can occur when the index is out of sync w/ the header that's on disk
+                //this failure is a good thing
                 var header = await _driveService.GetServerFileHeader(file);
                 var dsr = FromFileMetadata(header);
 

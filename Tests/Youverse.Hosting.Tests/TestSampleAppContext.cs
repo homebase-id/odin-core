@@ -1,10 +1,9 @@
 ﻿using System;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Hosting.Tests.AppAPI
+namespace Youverse.Hosting.Tests
 {
     public class TestSampleAppContext
     {

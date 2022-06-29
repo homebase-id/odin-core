@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -48,7 +49,12 @@ namespace Youverse.Core.Services.Drive.Storage
         /// The DotYouId of the DI that sent this file.  If null, the file was uploaded by the owner.
         /// </summary>
         public string SenderDotYouId { get; set; }
-        
+
+        /// <summary>
+        /// The size of the payload on disk
+        /// </summary>
+        public long PayloadSize { get; set; }
+
         public AppFileMetaData AppData { get; set; }
     }
 }

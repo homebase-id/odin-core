@@ -140,10 +140,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 await svc.EnsureSystemApps();
             }
         }
-        
+
         public async Task<AppRegistrationResponse> CreateDrive(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool driveAllowAnonymousReads = false)
         {
-
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var driveType = Guid.NewGuid();
@@ -523,7 +522,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
         }
-        
+
         private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
@@ -564,7 +563,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 payloadData = options?.PayloadData ?? payloadData;
                 var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
@@ -600,7 +599,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 }
 
-
                 if (options is { ProcessTransitBox: true })
                 {
                     //wait for process outbox to run
@@ -619,20 +617,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 }
 
                 keyHeader.AesKey.Wipe();
+                
+                return new TransitTestUtilsContext()
+                {
+                    InstructionSet = instructionSet,
+                    FileMetadata = fileMetadata,
+                    RecipientContexts = recipientContexts,
+                    PayloadData = payloadData,
+                    TestAppContext = testAppContext,
+                    UploadedFile = transferResult.File
+                };
             }
-
-            return new TransitTestUtilsContext()
-            {
-                AppId = testAppContext.AppId,
-                AuthenticationResult = testAppContext.ClientAuthenticationToken,
-                AppSharedSecretKey = testAppContext.SharedSecret.ToSensitiveByteArray(),
-                InstructionSet = instructionSet,
-                FileMetadata = fileMetadata,
-                RecipientContexts = recipientContexts,
-                PayloadData = payloadData,
-                TestAppContext = testAppContext
-            };
         }
-
     }
 }

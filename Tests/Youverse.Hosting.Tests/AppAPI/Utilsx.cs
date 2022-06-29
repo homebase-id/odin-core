@@ -5,7 +5,7 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Hosting.Tests.AppAPI
 {
-    public static class Utils
+    public static class Utilsx
     {
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {

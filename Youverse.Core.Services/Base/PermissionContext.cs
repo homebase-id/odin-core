@@ -98,7 +98,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermissions.Write))
             {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new DriveSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
 
@@ -109,7 +109,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
             {
-                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
+                throw new DriveSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 
@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Base
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
-                throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+                throw new DriveSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
             }
 
             return grant.DriveId;
@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Base
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
-                throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+                throw new DriveSecurityException($"No access permitted to drive {driveId}");
             }
 
             var key = this._driveDecryptionKey;

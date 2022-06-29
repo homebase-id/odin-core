@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
