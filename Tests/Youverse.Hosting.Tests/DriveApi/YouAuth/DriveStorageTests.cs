@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
                 
-                var getHeaderResponse = await svc.GetFileHeader(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
+                var getHeaderResponse = await svc.GetFileHeader(uploadContext.UploadedFile.TargetDrive, uploadContext.UploadedFile.FileId);
                 Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
             }
         }
@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
                 
-                var getPayloadStreamResponse = await svc.GetPayload(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
+                var getPayloadStreamResponse = await svc.GetPayload(uploadContext.UploadedFile.TargetDrive, uploadContext.UploadedFile.FileId);
                 Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
                 Assert.IsNull(getPayloadStreamResponse.Content);
             }

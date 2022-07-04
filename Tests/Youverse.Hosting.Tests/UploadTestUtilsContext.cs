@@ -19,9 +19,6 @@ namespace Youverse.Hosting.Tests
         /// The payload data that was uploaded
         /// </summary>
         public string PayloadData { get; set; }
-
-        
-        public TestSampleAppContext TestAppContext { get; set; }
         
         /// <summary>
         /// The uploaded file information.

@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         public List<Guid> CircleIdList { get; set; }
 
         /// <summary>
-        /// The list of DotYouIdentities allowed access when <see cref="RequiredSecurityGroup"/> = <see cref="SecurityGroupType.CustomList"/>
+        /// The list of DotYouIdentities allowed access the file.
         /// </summary>
         public List<string> DotYouIdentityList { get; set; }
 

@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
-        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
@@ -80,10 +80,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 }
             };
 
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -104,14 +104,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 TransitOptions = null
             };
 
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         /// <summary>
         /// Transfers a file using default file metadata
         /// </summary>
         /// <returns></returns>
-        public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
@@ -164,7 +164,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return result;
         }
 
-        private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<AppTransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -259,7 +259,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                 keyHeader.AesKey.Wipe();
                 
-                return new TransitTestUtilsContext()
+                return new AppTransitTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
                     FileMetadata = fileMetadata,

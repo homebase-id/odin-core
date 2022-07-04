@@ -38,9 +38,15 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
+            
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity,targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
-            var securedFileUploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
-            var anonymousFileUploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
+            //overwrite them to ensure the updated timestamp is set
+            securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
+            anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
