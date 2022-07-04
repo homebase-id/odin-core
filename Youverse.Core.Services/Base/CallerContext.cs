@@ -1,6 +1,7 @@
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 
 namespace Youverse.Core.Services.Base
 {
@@ -11,40 +12,42 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, bool isOwner, SensitiveByteArray masterKey, bool isInYouverseNetwork = false, bool isAnonymous = true, bool isConnected = false)
+        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel)
         {
             this.DotYouId = dotYouId;
-            this.IsOwner = isOwner;
             this._masterKey = masterKey;
-            this.IsInYouverseNetwork = isInYouverseNetwork;
-            this.IsAnonymous = isAnonymous;
-            this.IsConnected = isConnected;
+            this.SecurityLevel = securityLevel;
         }
-        
+
+        /// <summary>
+        /// The level of access assigned to this caller
+        /// </summary>
+        public SecurityGroupType SecurityLevel { get; set; }
+
         /// <summary>
         /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
         /// </summary>
         public DotYouIdentity DotYouId { get; }
-
-        /// <summary>
-        /// Specifies if the caller to the service is the owner of the DotYouId being acted upon.
-        /// </summary>
-        public bool IsOwner { get; }
 
         public bool HasMasterKey
         {
             get => this._masterKey != null && !this._masterKey.IsEmpty();
         }
 
-        public bool IsInYouverseNetwork { get; }
-        public bool IsAnonymous { get; }
+        /// <summary>
+        /// Specifies if the caller to the service is the owner of the DotYouId being acted upon.
+        /// </summary>
+        public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
-        public bool IsConnected { get; private set; }
+        public bool IsInYouverseNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
+        public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
+
+        public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
 
         public void SetIsConnected()
         {
             //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
-            this.IsConnected = true;
+            this.SecurityLevel = SecurityGroupType.Connected;
         }
 
         public void AssertHasMasterKey()

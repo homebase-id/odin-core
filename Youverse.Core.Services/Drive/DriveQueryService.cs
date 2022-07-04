@@ -139,18 +139,18 @@ namespace Youverse.Core.Services.Drive
                 case SecurityGroupType.Anonymous:
                     priority = 500;
                     break;
-                case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
+                case SecurityGroupType.Authenticated:
                     priority = 400;
                     break;
                 case SecurityGroupType.Connected:
                     priority = 300;
                     break;
-                case SecurityGroupType.CircleConnected:
-                    priority = 200;
-                    break;
-                case SecurityGroupType.CustomList:
-                    priority = 100;
-                    break;
+                // case SecurityGroupType.CircleConnected:
+                //     priority = 200;
+                //     break;
+                // case SecurityGroupType.CustomList:
+                //     priority = 100;
+                //     break;
                 case SecurityGroupType.Owner:
                     priority = 1;
                     break;

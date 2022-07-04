@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             var dotYouId = new DotYouIdentity(subject);
             var response = await _dotYouHttpClientFactory
-                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId, YouAuthDefaults.AppId)
+                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 
             //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken

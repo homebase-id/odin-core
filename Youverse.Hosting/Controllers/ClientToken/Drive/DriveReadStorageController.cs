@@ -12,13 +12,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [Route(AppApiPathConstants.DrivesV1)]
     [Route(YouAuthApiPathConstants.DrivesV1)]
     [AuthorizeValidExchangeGrant]
-    public class DriveStorageController : ControllerBase
+    public class DriveReadStorageController : ControllerBase
     {
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public DriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
+        public DriveReadStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
         {
             _contextAccessor = contextAccessor;
             _driveService = driveService;
@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
 
         [HttpGet("files/payload")]
-        public async Task<IActionResult> StreamPayload([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        public async Task<IActionResult> GetPayloadStream([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
@@ -50,16 +50,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             return new FileStreamResult(payload, "application/octet-stream");
         }
-
-        [HttpDelete("files")]
-        public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
-        {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
-            };
-            await _driveService.DeleteLongTermFile(file);
-        }
+        
     }
 }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
@@ -103,18 +105,29 @@ namespace Youverse.Core.Services.Transit
                 {
                     Sender = item.Sender,
                     AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                    AppId = item.AppId,
                     File = externalFileIdentifier,
                     Priority = 0 //TODO
                 });
-                await _transitBoxService.Remove(item.AppId, item.Id);
+                await _transitBoxService.Remove(item.TempFile.DriveId, item.Id);
             }
         }
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            return await _transitBoxService.GetPendingItems(appId, pageOptions);
+            //HACK: loop thru all drives until we put in place the new inbox/outbox solution
+            var allDrives = await _driveService.GetDrives(PageOptions.All);
+
+            var list = new List<TransferBoxItem>();
+            foreach (var drive in allDrives.Results)
+            {
+                var l = await _transitBoxService.GetPendingItems(drive.Id, pageOptions);
+                list.AddRange(l.Results);
+            }
+
+            return new PagedResult<TransferBoxItem>(pageOptions,1, list);
+            
+            // var appId = _contextAccessor.GetCurrent().AppContext.AppId;
+            // return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }
 
         public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)

@@ -13,8 +13,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
     public class AppAuthenticationTests
     {
         private WebScaffold _scaffold;
-        public static readonly Guid DefaultDrivePublicId = Guid.Parse("98408493-4440-0888-0000-001260004445");
-
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -31,6 +29,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task CanValidateAppToken()
         {
             Guid appId = Guid.NewGuid();
@@ -49,6 +48,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task FailToValidateOnRevokedApp()
         {
             Guid appId = Guid.NewGuid();
@@ -80,6 +80,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task FailToAuthenticateRevokedClient()
         {
             Guid appId = Guid.NewGuid();
@@ -98,6 +99,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task CanRevokeAppMidSession()
         {
             var identity = TestIdentities.Samwise;

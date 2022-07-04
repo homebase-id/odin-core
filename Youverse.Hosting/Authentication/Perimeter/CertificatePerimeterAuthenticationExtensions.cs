@@ -6,10 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.CertificatePerimeter;
 
@@ -31,7 +28,7 @@ namespace Youverse.Hosting.Authentication.Perimeter
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
 
                     options.RevocationMode = X509RevocationMode.NoCheck; //HACK: need to revisit how revocation works.  it seems some certs are randomly revoked.
-                    
+
                     //options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                     //options.RevocationMode = X509RevocationMode.NoCheck
 
@@ -69,28 +66,8 @@ namespace Youverse.Hosting.Authentication.Perimeter
                 new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.DeviceUid64, string.Empty, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer)
             };
             
-            string appIdValue = context.HttpContext.Request.Headers[DotYouHeaderNames.AppId];
-            
-            if (Guid.TryParse(appIdValue, out var appId) && appId != Guid.Empty)
-            {
-                var appRegSvc = context.HttpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-                var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
-
-                var isValidApp = appReg is {IsRevoked: false};
-                if (!isValidApp)
-                {
-                    throw new YouverseSecurityException($"Invalid AppId {appId}");
-                }
-
-                var c1 = new Claim(DotYouClaimTypes.IsAuthorizedApp, isValidApp.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer);
-                var c2 = new Claim(DotYouClaimTypes.AppId, appId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer);
-                claims.Add(c1);
-                claims.Add(c2);
-            }
-
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
             context.Success();
             return Task.CompletedTask;

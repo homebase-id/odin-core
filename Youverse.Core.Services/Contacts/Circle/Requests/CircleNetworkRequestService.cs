@@ -195,8 +195,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
+            
             var request = await GetPendingRequest(sender);
 
             if (null == request)

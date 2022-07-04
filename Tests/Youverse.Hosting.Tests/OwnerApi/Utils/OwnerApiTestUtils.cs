@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using System.Web;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
@@ -141,36 +143,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             }
         }
 
-        public async Task<AppRegistrationResponse> CreateDrive(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool driveAllowAnonymousReads = false)
-        {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
-            {
-                var driveType = Guid.NewGuid();
-                var svc = RestService.For<IAppRegistrationClient>(client);
-                var request = new AppRegistrationRequest
-                {
-                    Name = $"Test_{appId}",
-                    ApplicationId = appId,
-                    TargetDrive = targetDrive,
-                    DriveMetadata = "{data:'test metadata'}",
-                    DriveName = $"Test Drive name with type {driveType}",
-                    DriveAllowAnonymousReads = driveAllowAnonymousReads
-                };
-
-                var response = await svc.RegisterApp(request);
-
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                var appReg = response.Content;
-                Assert.IsNotNull(appReg);
-
-                var updatedAppResponse = await svc.GetRegisteredApp(appId);
-                Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(updatedAppResponse.Content, Is.Not.Null);
-
-                return updatedAppResponse.Content;
-            }
-        }
-
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -178,10 +150,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, Guid? appId = null)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, appId);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, null);
             sharedSecret = token.SharedSecret;
             return client;
         }
@@ -346,58 +318,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             };
         }
 
-        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
-        {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = TargetDrive.NewTargetDrive(),
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
-                },
-                TransitOptions = null
-            };
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                ContentType = "application/json",
-                AppData = new()
-                {
-                    ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
-                }
-            };
-
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
-        }
-
-        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
-        {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var targetDrive = new TargetDrive()
-            {
-                Alias = Guid.Parse("99888555-0000-0000-0000-000000004445"),
-                Type = Guid.NewGuid()
-            };
-
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = targetDrive,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
-                },
-                TransitOptions = null
-            };
-
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
-        }
 
         /// <summary>
         /// Transfers a file using default file metadata
@@ -405,55 +325,56 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         /// <returns></returns>
         public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
         {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = TargetDrive.NewTargetDrive(),
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null,
-                },
-
-                TransitOptions = new TransitOptions()
-                {
-                    Recipients = recipients
-                }
-            };
-
-            List<Guid> tags = null;
-            if (options?.AppDataCategoryId != null)
-            {
-                tags = new List<Guid>() { options.AppDataCategoryId };
-            }
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                ContentType = "application/json",
-                PayloadIsEncrypted = true,
-                AppData = new()
-                {
-                    Tags = tags,
-                    ContentIsComplete = true,
-                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
-                }
-            };
-
-            var o = options ?? TransitTestUtilsOptions.Default;
-
-            var result = await TransferFile(sender, instructionSet, fileMetadata, o);
-
-            if (o.DisconnectIdentitiesAfterTransfer)
-            {
-                foreach (var recipient in recipients)
-                {
-                    await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
-                }
-            }
-
-            return result;
+            // var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            //
+            // var instructionSet = new UploadInstructionSet()
+            // {
+            //     TransferIv = transferIv,
+            //     StorageOptions = new StorageOptions()
+            //     {
+            //         Drive = TargetDrive.NewTargetDrive(),
+            //         OverwriteFileId = null,
+            //         ExpiresTimestamp = null,
+            //     },
+            //
+            //     TransitOptions = new TransitOptions()
+            //     {
+            //         Recipients = recipients
+            //     }
+            // };
+            //
+            // List<Guid> tags = null;
+            // if (options?.AppDataCategoryId != null)
+            // {
+            //     tags = new List<Guid>() { options.AppDataCategoryId };
+            // }
+            //
+            // var fileMetadata = new UploadFileMetadata()
+            // {
+            //     ContentType = "application/json",
+            //     PayloadIsEncrypted = true,
+            //     AppData = new()
+            //     {
+            //         Tags = tags,
+            //         ContentIsComplete = true,
+            //         JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+            //     }
+            // };
+            //
+            // var o = options ?? TransitTestUtilsOptions.Default;
+            //
+            // var result = await TransferFile(sender, instructionSet, fileMetadata, o);
+            //
+            // if (o.DisconnectIdentitiesAfterTransfer)
+            // {
+            //     foreach (var recipient in recipients)
+            //     {
+            //         await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
+            //     }
+            // }
+            //
+            // return result;
+            return null;
         }
 
         public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
@@ -523,7 +444,117 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             }
         }
 
-        private async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        public async Task CreateDrive(DotYouIdentity identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RestService.For<IDriveManagementHttpClient>(client);
+
+                var response = await svc.CreateDrive(targetDrive, name, metadata, allowAnonymousReads);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                Assert.IsNotNull(response.Content);
+
+                var getDrivesResponse = await svc.GetDrives(1, 100);
+                Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+                var page = getDrivesResponse.Content;
+
+                Assert.NotNull(page);
+                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
+            }
+        }
+
+        public async Task EnsureDriveExists(DotYouIdentity identity, TargetDrive targetDrive, bool allowAnonymousReads)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
+            {
+                //ensure drive
+                var svc = RestService.For<IDriveManagementHttpClient>(client);
+                var getDrivesResponse = await svc.GetDrives(1, 100);
+                Assert.IsNotNull(getDrivesResponse.Content);
+                var drives = getDrivesResponse.Content.Results;
+                var exists = drives.Any(d => d.Alias == targetDrive.Alias && d.Type == targetDrive.Type);
+
+                if (!exists)
+                {
+                    await this.CreateDrive(identity, targetDrive, "test drive", "", allowAnonymousReads);
+                }
+            }
+        }
+        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var targetDrive = new TargetDrive()
+            {
+                Alias = Guid.Parse("99888555-0000-0000-0000-000000004445"),
+                Type = Guid.NewGuid()
+            };
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = targetDrive,
+                    OverwriteFileId = null,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        }
+
+        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData)
+        {
+            Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
+
+            await this.EnsureDriveExists(identity, instructionSet.StorageOptions.Drive, false);
+
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
+            {
+                var keyHeader = KeyHeader.NewRandom16();
+                var instructionStream = new MemoryStream(JsonConvert.SerializeObject(instructionSet).ToUtf8ByteArray());
+
+                fileMetadata.PayloadIsEncrypted = true;
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                    FileMetadata = fileMetadata
+                };
+
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+
+                var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
+
+                keyHeader.AesKey.Wipe();
+
+                return new UploadTestUtilsContext()
+                {
+                    InstructionSet = instructionSet,
+                    FileMetadata = fileMetadata,
+                    PayloadData = payloadData,
+                    TestAppContext = null,
+                    UploadedFile = transferResult.File
+                };
+            }
+        }
+
+        private async Task<UploadTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -532,23 +563,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
-            Guid appId = Guid.NewGuid();
-            var testAppContext = await this.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
+            var targetDrive = instructionSet.StorageOptions.Drive;
+            await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);
 
-            //Setup the app on all recipient DIs
-            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
-            foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
+            //Setup the drives on all recipient DIs
+            foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity)r;
-                var ctx = await this.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
-                recipientContexts.Add(recipient, ctx);
-
+                await this.EnsureDriveExists(recipient, targetDrive, options.DriveAllowAnonymousReads);
+                //Note: this connection needs access to write to the targetDrive on the recipient server
                 await this.CreateConnection(sender, recipient);
             }
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret, testAppContext.AppId))
+            using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret))
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
@@ -604,10 +633,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     //wait for process outbox to run
                     Task.Delay(2000).Wait();
 
-                    foreach (var rCtx in recipientContexts)
+                    foreach (var recipient in recipients)
                     {
                         //TODO: this should be a create app http client but it works because the path on ITransitTestAppHttpClient is /apps
-                        using (var rClient = CreateOwnerApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
+                        using (var rClient = CreateOwnerApiHttpClient((DotYouIdentity)recipient, out var _))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessTransfers();
@@ -617,14 +646,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 }
 
                 keyHeader.AesKey.Wipe();
-                
-                return new TransitTestUtilsContext()
+
+                return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
                     FileMetadata = fileMetadata,
-                    RecipientContexts = recipientContexts,
                     PayloadData = payloadData,
-                    TestAppContext = testAppContext,
                     UploadedFile = transferResult.File
                 };
             }

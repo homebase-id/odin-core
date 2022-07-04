@@ -41,7 +41,6 @@ namespace Youverse.Core.Services.Transit.Incoming
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
-                AppId = item.AppId,
                 TempFile = item.File
             });
 
@@ -79,7 +78,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         private string GetAppCollectionName()
         {
-            return $"ibx_{_contextAccessor.GetCurrent().AppContext.AppId:N}";
+            return $"ibx";
         }
     }
 }

@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -34,23 +34,18 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        public async Task ShouldFailToGetSecuredFile()
+        public async Task ShouldNotReturnSecuredFile_QueryBatch()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
+
+            var securedFileUploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
+            var anonymousFileUploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                
-                var getHeaderResponse = await svc.GetFileHeader(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
-                Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
-                
-                var getPayloadStreamResponse = await svc.GetPayload(uploadContext.TestAppContext.TargetDrive, uploadContext.UploadedFile.FileId);
-                Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
-                Assert.IsNull(getPayloadStreamResponse.Content);
-                
+
                 var startCursor = Array.Empty<byte>();
                 var stopCursor = Array.Empty<byte>();
                 var qp = new QueryParams()
@@ -63,21 +58,60 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
-                
-                var getBatchResponse = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
-                Assert.IsTrue(getBatchResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getBatchResponse.StatusCode}");
-                var batch1 = getBatchResponse.Content;
-                Assert.IsNotNull(batch1);
-                Assert.IsEmpty(batch1.SearchResults);
 
-                var getRecentResponse = await svc.GetRecent(uploadContext.TestAppContext.TargetDrive, DateTimeExtensions.UnixTimeMilliseconds(), startCursor, qp, resultOptions);
-                Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
-                var batch2 = getRecentResponse.Content;
-                Assert.IsNotNull(batch2);
-                Assert.IsEmpty(batch2.SearchResults);
+                var getBatchResponse = await svc.GetBatch(securedFileUploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                Assert.IsTrue(getBatchResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getBatchResponse.StatusCode}");
+                var batch = getBatchResponse.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
-        
+
+        [Test]
+        public async Task ShouldNotReturnSecuredFile_QueryRecent()
+        {
+            var identity = TestIdentities.Samwise;
+            Guid tag = Guid.NewGuid();
+            
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity,targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+
+            //overwrite them to ensure the updated timestamp is set
+            securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
+            anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
+
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            {
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+
+                var startCursor = Array.Empty<byte>();
+                var qp = new QueryParams()
+                {
+                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                };
+
+                var resultOptions = new ResultOptions()
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = false
+                };
+
+                var maxDateInPast = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds();
+
+                var getRecentResponse = await svc.GetRecent(targetDrive, maxDateInPast, startCursor, qp, resultOptions);
+                Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
+                var batch = getRecentResponse.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+            }
+        }
+
         [Test]
         public async Task CanQueryBatchByOneTag()
         {
@@ -223,6 +257,42 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             };
 
             return await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+        }
+
+        private async Task<UploadTestUtilsContext> UploadFile2(DotYouIdentity identity, TargetDrive drive, Guid? overwriteFileId, Guid tag, SecurityGroupType requiredSecurityGroup, string payload)
+        {
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = drive,
+                    OverwriteFileId = overwriteFileId,
+                    ExpiresTimestamp = null
+                },
+                TransitOptions = null
+            };
+
+            var uploadFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = 0,
+                    Tags = new List<Guid>() { tag }
+                },
+                AccessControlList = new AccessControlList()
+                {
+                    RequiredSecurityGroup = requiredSecurityGroup
+                }
+            };
+
+            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload);
         }
     }
 }

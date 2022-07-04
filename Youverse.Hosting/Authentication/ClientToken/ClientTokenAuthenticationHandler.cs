@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
 
-            var (isValid, _, grant) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
+            var (isValid, _, _) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
 
             if (!isValid)
             {
@@ -67,9 +67,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             
             var claims = new List<Claim>();
 
-            var appGrant = (AppExchangeGrant)grant;
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
-            claims.Add(new Claim(DotYouClaimTypes.AppId, appGrant.AppId.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));

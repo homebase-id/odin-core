@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 using Youverse.Core.Services.Drive.Storage;
@@ -64,6 +65,32 @@ public class SqliteQueryManager : IDriveQueryManager
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
+        var requiredSecurityGroup = 1;
+        if (callerContext.IsAnonymous)
+        {
+            requiredSecurityGroup = (int)SecurityGroupType.Anonymous;
+        }
+        
+        if (callerContext.IsInYouverseNetwork)
+        {
+            requiredSecurityGroup = (int)SecurityGroupType.Authenticated;
+        }
+        
+        if (callerContext.IsConnected)
+        {
+            requiredSecurityGroup = (int)SecurityGroupType.Connected;
+        }
+
+        if (callerContext.IsOwner)
+        {
+            requiredSecurityGroup = (int)SecurityGroupType.Owner;
+        }
+        
+        // todo: how to handle these? 
+        // (int)SecurityGroupType.CircleConnected 
+        // (int)SecurityGroupType.CustomList
+
+            
         var aclList = new List<byte[]>();
 
         //if the caller is not owner
@@ -77,6 +104,7 @@ public class SqliteQueryManager : IDriveQueryManager
             out UInt64 cursorUpdatedTimestamp,
             startCursor,
             stopCursor,
+            requiredSecurityGroup, 
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
@@ -104,7 +132,13 @@ public class SqliteQueryManager : IDriveQueryManager
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredIdentities());
+        
+        //TODO: look up identities
+        if (header.ServerMetadata.AccessControlList.GetRequiredIdentities().Any())
+        {
+            throw new NotImplementedException("need to map the identity to its Id");
+            // acl.AddRange(identityGuidList);
+        }
 
         var threadId = Array.Empty<byte>();
 

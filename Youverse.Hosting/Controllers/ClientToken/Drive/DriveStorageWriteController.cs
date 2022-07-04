@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.Anonymous;
@@ -13,17 +15,30 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
     [AuthorizeValidExchangeGrant]
-    public class DriveUploadController : ControllerBase
+    public class DriveStorageWriteController : ControllerBase
     {
         private readonly ITransitService _transitService;
         private readonly IMultipartPackageStorageWriter _packageStorageWriter;
-
-        public DriveUploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService)
+        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IDriveService _driveService;
+        public DriveStorageWriteController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
             _packageStorageWriter = packageStorageWriter;
             _transitService = transitService;
+            _contextAccessor = contextAccessor;
+            _driveService = driveService;
+        }
+        
+        [HttpDelete("files")]
+        public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
+                FileId = fileId
+            };
+            await _driveService.DeleteLongTermFile(file);
         }
         
         [HttpPost("files/upload")]

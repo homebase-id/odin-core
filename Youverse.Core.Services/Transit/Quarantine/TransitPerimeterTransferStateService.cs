@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guid id = Guid.NewGuid();
 
             var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.Drive, true))!.Value;
-            var file = _driveService.CreateInternalFileId(driveId);
+            var file = _driveService.CreateInternalFileId(driveId);  //notice here: we always create a new file Id when receiving a new file.  we might need to add a feature that lets multiple identities collaborate on a the same file.  not sure who this will go.
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());

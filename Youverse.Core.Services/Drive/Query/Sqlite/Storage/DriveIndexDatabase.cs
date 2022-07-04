@@ -328,6 +328,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         /// <param name="resultLastCursor">Output. Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
         /// <param name="startFromCursor">NULL to get the first batch, otherwise the last value you got from resultLastCursor</param>
         /// <param name="stopAtCursor">NULL to stop at end of table, otherwise cursor to where to stop. E.g. when refreshing after coming back after an hour.</param>
+        /// <param name="requiredSecurityGroup"> Less than zero means don't use. If >= 0 then return all items <= specified value. </param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
         /// <param name="senderidAnyOf"></param>
@@ -343,6 +344,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             out UInt64 cursorUpdatedTimestamp,
             byte[] startFromCursor = null,
             byte[] stopAtCursor = null,
+            Int32 requiredSecurityGroup = -1,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
             List<byte[]> senderidAnyOf = null,
@@ -371,6 +373,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                     strWhere += "AND ";
 
                 strWhere += $"fileid > x'{Convert.ToHexString(stopAtCursor)}' ";
+            }
+
+            if (requiredSecurityGroup >= 0)
+            {
+                if (strWhere != "")
+                    strWhere += "AND ";
+                strWhere += $"requiredSecurityGroup <= {requiredSecurityGroup} ";
             }
 
             if (filetypesAnyOf != null)

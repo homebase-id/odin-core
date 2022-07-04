@@ -77,6 +77,8 @@ namespace Youverse.Core.Services.Transit
                 throw new MissingDataException("Access control list must be specified");
             }
 
+            serverMetadata.AccessControlList.Validate();
+
             await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
             var ext = new ExternalFileIdentifier()
@@ -108,7 +110,6 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
                 Priority = 0 //TODO
@@ -178,7 +179,6 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-                AppId = this._contextAccessor.GetCurrent().AppContext.AppId,
                 AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
             }));
 
@@ -260,7 +260,6 @@ namespace Youverse.Core.Services.Transit
             var item = new TransitKeyEncryptionQueueItem()
             {
                 FileId = package.InternalFile.FileId,
-                AppId = _contextAccessor.GetCurrent().AppContext.AppId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
                 Attempts = 1,
@@ -357,7 +356,7 @@ namespace Youverse.Core.Services.Transit
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
 
-                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken, outboxItem.AppId);
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
                 var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 

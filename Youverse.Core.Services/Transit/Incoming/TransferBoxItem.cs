@@ -22,11 +22,6 @@ namespace Youverse.Core.Services.Transit.Incoming
         
         public UInt64 AddedTimestamp { get; set; }
         
-        /// <summary>
-        /// The application that created this outbox item
-        /// </summary>
-        public Guid AppId { get; set; }
-
         public DotYouIdentity Sender { get; set; }
         
         /// <summary>

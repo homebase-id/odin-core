@@ -146,8 +146,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 return null;
             }
-
-            //TODO: workaround while adjusting appreg storage;  need to bind the app reg and the exchange grant together in a better way
+            
+            //TODO: workaround while adjusting app reg storage;  need to bind the app reg and the exchange grant together in a better way
             var isRevoked = _exchangeGrantService.IsExchangeGrantRevoked(appReg.ExchangeGrantId).GetAwaiter().GetResult();
          
             //NOTE: we're not sharing the encrypted app dek, this is crucial
@@ -161,6 +161,18 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
         {
+            //HACK: evaluate if we want to handle the owner console this way?
+            //the main issue is handling where the exchange grant value comes from
+            // if (applicationId == BuiltInAppIdentifiers.OwnerConsole)
+            // {
+            //     return new AppRegistration()
+            //     {
+            //         ApplicationId = BuiltInAppIdentifiers.OwnerConsole,
+            //         ExchangeGrantId = Guid.Empty,
+            //         IsRevoked =false,
+            //         Name = "Owner Console"
+            //     };
+            // }
             var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
             return result;
         }
