@@ -484,15 +484,17 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         /// <summary>
         /// xxxx
         /// </summary>
-        /// <param name="noOfItems">Maximum number of FileId you want back</param>
-        /// <param name="startFromCursor">NULL to get the first batch, otherwise the last value you got from outCursor</param>
-        /// <param name="resultFirstCursor">Set to NULL if no more items, otherwise it's the first cursor of the result set. next value you may pass to </param>
-        /// <param name="resultLastCursor">Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
+        /// 
+        /// <param name="noOfItems">Maximum number of rows you want back</param>
+        /// <param name="outCursor">Is set to the last fileId of the result set or null if none. What is the use? xxxx</param>
+        /// <param name="stopAtModifiedDate">0 gets anything that was ever modified. Otherwise retrieve any modified the supplied UnixTimeMillisecondsUnique() </param>
+        /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
         public List<byte[]> QueryModified(int noOfItems,
             out byte[] outCursor,
             UInt64 stopAtModifiedDate,
             byte[] startFromCursor = null,
+            Int32 requiredSecurityGroup = -1,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
             List<byte[]> senderidAnyOf = null,
@@ -517,6 +519,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 strWhere += "AND ";
 
             strWhere += $"updatedtimestamp > {stopAtModifiedDate} ";
+
+            if (requiredSecurityGroup >= 0)
+            {
+                if (strWhere != "")
+                    strWhere += "AND ";
+                strWhere += $"requiredSecurityGroup <= {requiredSecurityGroup} ";
+            }
 
             if (filetypesAnyOf != null)
             {

@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     IncludeMetadataHeader = false
                 };
 
-                var getBatchResponse = await svc.GetBatch(securedFileUploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var getBatchResponse = await svc.GetBatch(securedFileUploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(getBatchResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getBatchResponse.StatusCode}");
                 var batch = getBatchResponse.Content;
 
@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -164,7 +164,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     IncludeMetadataHeader = true
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -215,7 +215,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

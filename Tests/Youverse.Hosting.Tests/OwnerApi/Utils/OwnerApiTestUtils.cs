@@ -502,7 +502,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 TransitOptions = null
             };
 
-            return (UploadTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
         public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData)
@@ -548,7 +548,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     InstructionSet = instructionSet,
                     FileMetadata = fileMetadata,
                     PayloadData = payloadData,
-                    TestAppContext = null,
                     UploadedFile = transferResult.File
                 };
             }

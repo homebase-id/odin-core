@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Array.Empty<Guid>();
             }
 
-            return this.CircleIdList;
+            return (IEnumerable<Guid>)this.CircleIdList ?? Array.Empty<Guid>();
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Array.Empty<string>();
             }
 
-            return this.DotYouIdentityList;
+            return (IEnumerable<string>)this.DotYouIdentityList ?? Array.Empty<string>();
         }
 
         public void Validate()

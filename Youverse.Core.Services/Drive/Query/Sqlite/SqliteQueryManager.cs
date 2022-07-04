@@ -41,6 +41,8 @@ public class SqliteQueryManager : IDriveQueryManager
             //query without enforcing security
         }
 
+        var requiredSecurityGroup = (int)callerContext.SecurityLevel;
+        
         var aclList = new List<byte[]>();
 
         //TODO: add required security group to the querymodified function
@@ -49,6 +51,7 @@ public class SqliteQueryManager : IDriveQueryManager
             out var cursor,
             maxDate,
             startCursor,
+            requiredSecurityGroup,
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
@@ -65,32 +68,12 @@ public class SqliteQueryManager : IDriveQueryManager
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
-        var requiredSecurityGroup = 1;
-        if (callerContext.IsAnonymous)
-        {
-            requiredSecurityGroup = (int)SecurityGroupType.Anonymous;
-        }
-        
-        if (callerContext.IsInYouverseNetwork)
-        {
-            requiredSecurityGroup = (int)SecurityGroupType.Authenticated;
-        }
-        
-        if (callerContext.IsConnected)
-        {
-            requiredSecurityGroup = (int)SecurityGroupType.Connected;
-        }
+        var requiredSecurityGroup = (int)callerContext.SecurityLevel;
 
-        if (callerContext.IsOwner)
-        {
-            requiredSecurityGroup = (int)SecurityGroupType.Owner;
-        }
-        
         // todo: how to handle these? 
         // (int)SecurityGroupType.CircleConnected 
         // (int)SecurityGroupType.CustomList
 
-            
         var aclList = new List<byte[]>();
 
         //if the caller is not owner
@@ -104,7 +87,7 @@ public class SqliteQueryManager : IDriveQueryManager
             out UInt64 cursorUpdatedTimestamp,
             startCursor,
             stopCursor,
-            requiredSecurityGroup, 
+            requiredSecurityGroup,
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),
             qp.Sender?.ToList(),
@@ -132,7 +115,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        
+
         //TODO: look up identities
         if (header.ServerMetadata.AccessControlList.GetRequiredIdentities().Any())
         {
