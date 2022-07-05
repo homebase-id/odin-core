@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var (grant, _) = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
 
             var appReg = new AppRegistration()
             {

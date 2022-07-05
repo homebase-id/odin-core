@@ -439,7 +439,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(recipient))
             {
                 var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-                var acceptResponse = await svc.AcceptConnectionRequest(sender);
+
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = sender,
+                    Drives = new List<TargetDrive>(),
+                    Permissions = new PermissionSet()
+                };
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
         }

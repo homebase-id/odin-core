@@ -30,13 +30,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpGet("pending/{senderDotYouId}")]
         public async Task<IActionResult> GetPendingRequest(string senderDotYouId)
         {
-            var result = await _requestService.GetPendingRequest((DotYouIdentity) senderDotYouId);
+            var result = await _requestService.GetPendingRequest((DotYouIdentity)senderDotYouId);
 
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int) HttpStatusCode.NotFound
+                    StatusCode = (int)HttpStatusCode.NotFound
                 };
             }
 
@@ -53,12 +53,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpGet("sent/{recipientDotYouId}")]
         public async Task<IActionResult> GetSentRequest(string recipientDotYouId)
         {
-            var result = await _requestService.GetSentRequest((DotYouIdentity) recipientDotYouId);
+            var result = await _requestService.GetSentRequest((DotYouIdentity)recipientDotYouId);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
                 {
-                    StatusCode = (int) HttpStatusCode.NotFound
+                    StatusCode = (int)HttpStatusCode.NotFound
                 };
             }
 
@@ -67,8 +67,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 
         [HttpDelete("sent/{recipientDotYouId}")]
         public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
-        { 
-            await _requestService.DeleteSentRequest((DotYouIdentity) recipientDotYouId);
+        {
+            await _requestService.DeleteSentRequest((DotYouIdentity)recipientDotYouId);
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -80,16 +80,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("pending/accept/{dotYouId}")]
-        public async Task<IActionResult> AcceptConnectionRequest(string dotYouId)
+        public async Task<IActionResult> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
         {
-            await _requestService.AcceptConnectionRequest((DotYouIdentity) dotYouId);
+            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
             return new JsonResult(new NoResultResponse(true));
         }
 
         [HttpDelete("pending/{senderDotYouId}")]
         public async Task<IActionResult> DeletePendingRequest(string senderDotYouId)
         {
-            await _requestService.DeletePendingRequest((DotYouIdentity) senderDotYouId);
+            await _requestService.DeletePendingRequest((DotYouIdentity)senderDotYouId);
             return new JsonResult(new NoResultResponse(true));
         }
     }

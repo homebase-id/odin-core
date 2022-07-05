@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept/{dotYouId}")]
-        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(string dotYouId);
+        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest([Body]AcceptRequestHeader header);
 
         [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequestList([Query] PageOptions pageRequest);

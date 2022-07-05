@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 
@@ -100,10 +101,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Adds the specified dotYouId to your network
         /// </summary>
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
-        /// <param name="accessRegistrationId">The id of the <see cref="AccessRegistration"/> that connects to the access this connection will have</param>
+        /// <param name="grant">The access to be given to this connection</param>
         /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
         /// <returns></returns>
-        Task Connect(string dotYouId, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken);
+        Task Connect(string dotYouId, AccessExchangeGrant grant, ClientAccessToken remoteClientAccessToken);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>

@@ -1,6 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.EncryptionKeyService;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -27,7 +29,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        Task AcceptConnectionRequest(DotYouIdentity sender);
+        /// <param name="sender"></param>
+        /// <param name="drives">The drives which should be accessible to the recipient of this request</param>
+        /// <param name="permissions">The permissions which should be granted to the recipient</param>
+        Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<TargetDrive> drives, PermissionSet permissions);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient
@@ -52,7 +57,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         /// <returns></returns>
         Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender);
-        
+
         /// <summary>
         /// Deletes the sent request record.  If the recipient accepts the request
         /// after it has been delete, the connection will not be established.
