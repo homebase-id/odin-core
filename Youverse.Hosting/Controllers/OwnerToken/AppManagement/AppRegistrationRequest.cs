@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 
@@ -10,16 +11,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         
         public string Name { get; set; }
         
-        public bool CreateDrive { get; set; }
-
+        /// <summary>
+        /// Permissions to be granted to this app
+        /// </summary>
         public PermissionSet PermissionSet { get; set; }
         
-        public TargetDrive TargetDrive { get; set; }
-        
-        public string DriveMetadata { get; set; }
-        
-        public bool DriveAllowAnonymousReads { get; set; }
-        
-        public string DriveName { get; set; }
+        /// <summary>
+        /// The list of drives of which this app should receive access
+        /// </summary>
+        public List<TargetDrive> Drives { get; set; }
     }
 }

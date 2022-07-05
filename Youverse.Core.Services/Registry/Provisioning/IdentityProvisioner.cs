@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
                     permissions: null,
-                    new List<Guid>() { drive.Id, drive2.Id });
+                    new List<TargetDrive>() { profileTargetDrive, financialTargetDrive });
             }
         }
 
@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                     SystemAppConstants.ChatAppId,
                     chatAppName,
                     permissions: null,
-                    new List<Guid>() { drive.Id });
+                    new List<TargetDrive>() { targetDrive });
             }
         }
 
@@ -93,7 +93,7 @@ namespace Youverse.Core.Services.Registry.Provisioning
                     SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
                     permissions: null,
-                    new List<Guid>() { drive.Id });
+                    new List<TargetDrive>() { targetDrive });
             }
         }
     }

@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -10,13 +14,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        // Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, Guid driveAlias, Guid driveType, string driveName, string driveMetadata, bool createDrive = false, bool canManageConnections = false, bool allowAnonymousReadsToDrive = false);
-
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<Guid> driveIds);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<TargetDrive> drives);
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
-        Task<AppRegistrationResponse> GetAppRegistrationByGrant(Guid grantId);
+        Task<(Guid appId, PermissionContext permissionContext)> GetAppExchangeGrant(ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Gets all registered apps
@@ -38,9 +40,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task RemoveAppRevocation(Guid applicationId);
 
-        //Note: apps will also have their own keystore.  it will store the keys of other apps to which it has access
-        Task GetAppKeyStore();
-
         /// <summary>
         /// Registers an application on a given device.  Returns the information required by the device
         /// </summary>
@@ -49,5 +48,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// >
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey);
+
+        Task<PagedResult<RegisteredAppClientResponse>> GetRegisteredClients(PageOptions pageOptions);
     }
 }

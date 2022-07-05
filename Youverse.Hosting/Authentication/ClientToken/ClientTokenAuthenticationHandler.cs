@@ -67,6 +67,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             
             var claims = new List<Claim>();
 
+            
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));

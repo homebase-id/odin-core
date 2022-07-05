@@ -13,8 +13,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public Guid GrantId { get; set; }
         public UInt64 Created { get; set; }
 
-        public UInt64 LastUsed { get; set; }
-
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
 
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedSharedSecret { get; set; }

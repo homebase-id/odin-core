@@ -79,7 +79,6 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.NotificationCertificateAuthScheme)
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme);
 
             services.AddAuthorization(policy =>
@@ -88,7 +87,6 @@ namespace Youverse.Hosting
                 // AppPolicies.AddPolicies(policy);
                 ClientTokenPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
-                CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.NotificationCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
 

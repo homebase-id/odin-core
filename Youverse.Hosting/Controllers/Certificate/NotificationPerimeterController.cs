@@ -11,9 +11,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/notification")]
-    //TODO: determine if we need an app id here
-    // [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetworkWithApp, AuthenticationSchemes = PerimeterAuthConstants.NotificationCertificateAuthScheme)]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.NotificationCertificateAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class NotificationPerimeterController : ControllerBase
     {
         private readonly CircleNetworkNotificationService _systemApiNotificationService;

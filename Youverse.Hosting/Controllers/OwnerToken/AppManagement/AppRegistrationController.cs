@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
@@ -39,19 +38,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost]
         public async Task<IActionResult> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var driveIds = new List<Guid>();
-
-            if (appRegistration.CreateDrive)
-            {
-                var drive = await _driveService.CreateDrive(appRegistration.DriveName, appRegistration.TargetDrive, appRegistration.DriveMetadata, appRegistration.DriveAllowAnonymousReads);
-                driveIds.Add(drive.Id);
-            }
-
             var reg = await _appRegistrationService.RegisterApp(
                 applicationId: appRegistration.ApplicationId,
                 name: appRegistration.Name,
                 permissions: appRegistration.PermissionSet,
-                driveIds: driveIds);
+                drives: appRegistration.Drives);
             return new JsonResult(reg);
         }
 

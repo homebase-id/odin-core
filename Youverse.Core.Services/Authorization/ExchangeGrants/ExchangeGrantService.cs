@@ -463,7 +463,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
                 AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref sharedSecret),
                 IsRevoked = false,
-                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref grantKeyStoreKey)
+                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
             };
 
             grantKeyStoreKey?.Wipe();
@@ -495,7 +495,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             {
                 foreach (var id in driveIdList)
                 {
-                    //Note: fail the whole operation if an invalid drive is specified (the true flag will ensure we throw an exception)
+                    //Note: fail the whole operation (CreateExchangeGrant) if an invalid drive is specified (the true flag will ensure we throw an exception)
                     var drive = await _driveService.GetDrive(id, true);
                     drives.Add(drive);
                 }

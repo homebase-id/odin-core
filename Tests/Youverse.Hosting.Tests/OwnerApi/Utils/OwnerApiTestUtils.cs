@@ -191,18 +191,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var driveType = Guid.NewGuid();
+                if (createDrive)
+                {
+                    var driveSvc = RestService.For<IDriveManagementHttpClient>(client);
+                    var createDriveResponse = await driveSvc.CreateDrive(targetDrive, $"Test Drive name with type {targetDrive.Type}", "{data:'test metadata'}", driveAllowAnonymousReads);
+                }
+
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
                     Name = $"Test_{appId}",
                     ApplicationId = appId,
-                    CreateDrive = createDrive,
                     PermissionSet = permissionSet,
-                    TargetDrive = targetDrive,
-                    DriveMetadata = "{data:'test metadata'}",
-                    DriveName = $"Test Drive name with type {driveType}",
-                    DriveAllowAnonymousReads = driveAllowAnonymousReads
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -481,6 +481,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 }
             }
         }
+
         public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);

@@ -2,11 +2,9 @@
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication.Owner;
@@ -95,11 +93,6 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            if (authType == PerimeterAuthConstants.NotificationCertificateAuthScheme)
-            {
-                await LoadNotificationContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.NotificationCertificateAuthScheme;
-            }
 
             await _next(httpContext);
         }
@@ -193,11 +186,10 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null
             );
 
-            var permissionContext = await exchangeGrantContextService.GetContext(authToken);
+            var (appId, permissionContext) = await appRegSvc.GetAppExchangeGrant(authToken);
+            
             dotYouContext.SetPermissionContext(permissionContext);
-
-            var appReg = await appRegSvc.GetAppRegistrationByGrant(permissionContext.ExchangeGrantId);
-            dotYouContext.AppContext = new AppContext(appReg.ApplicationId, appReg.Name);
+            dotYouContext.AppContext = new AppContext(appId, "");
         }
 
         private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -298,6 +290,10 @@ namespace Youverse.Hosting.Middleware
 
                 dotYouContext.SetPermissionContext(permissionContext);
             }
+            else
+            {
+                dotYouContext.SetPermissionContext(null);
+            }
         }
 
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
@@ -325,38 +321,5 @@ namespace Youverse.Hosting.Middleware
             return Task.CompletedTask;
         }
 
-        private async Task LoadNotificationContext(HttpContext httpContext, DotYouContext dotYouContext)
-        {
-            var user = httpContext.User;
-            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
-            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
-
-            var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
-
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId,
-                securityLevel: SecurityGroupType.Authenticated, //note: this will need to come from a claim: re: best buy/3rd party scenario
-                masterKey: null
-            );
-
-            //the client auth token is coming from one of the following:
-            //  1. an Identity Connection Registration; in this case there is no app associated with the CAT.
-            //  2. a 3rd party connection; in this case there is an app? (TODO: confirm)
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
-            {
-                //connection must be valid
-                var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
-                if (icr.IsConnected() == false)
-                {
-                    throw new YouverseSecurityException("Invalid connection");
-                }
-
-                dotYouContext.Caller.SetIsConnected();
-
-                // if they are connected, we can load the permissions from there.
-                var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
-                dotYouContext.SetPermissionContext(permissionContext);
-            }
-        }
     }
 }

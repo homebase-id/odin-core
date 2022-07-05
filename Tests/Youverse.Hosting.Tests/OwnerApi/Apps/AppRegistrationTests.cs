@@ -18,6 +18,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         // private TestScaffold _scaffold;
 
         private WebScaffold _scaffold;
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -39,7 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var newId = await AddSampleAppNoDrive(appId, name);
         }
-        
+
         [Test]
         public async Task RevokeAppRegistration()
         {
@@ -115,6 +116,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 {
                     ApplicationId = applicationId,
                     Name = name,
+                    PermissionSet = null,
+                    Drives = null
                 };
 
                 var response = await svc.RegisterApp(request);
