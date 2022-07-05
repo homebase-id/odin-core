@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -6,10 +7,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
 {
@@ -161,7 +162,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(frodo.Identity);
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = frodo.Identity,
+                    Drives = new List<TargetDrive>(),
+                    Permissions = new PermissionSet()
+                };
+                
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
@@ -211,7 +219,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(frodo.Identity);
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = frodo.Identity,
+                    Drives = new List<TargetDrive>(),
+                    Permissions = new PermissionSet()
+                };
+                
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
@@ -238,8 +253,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var acceptResponse = await svc.AcceptConnectionRequest(frodo.Identity);
-
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = frodo.Identity,
+                    Drives = new List<TargetDrive>(),
+                    Permissions = new PermissionSet()
+                };
+                
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
+                
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
@@ -266,9 +288,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-
-                var acceptResponse = await svc.AcceptConnectionRequest(frodo.Identity);
-
+                
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = frodo.Identity,
+                    Drives = new List<TargetDrive>(),
+                    Permissions = new PermissionSet()
+                };
+                
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);

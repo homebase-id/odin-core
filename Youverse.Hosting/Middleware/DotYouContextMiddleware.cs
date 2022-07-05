@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Middleware
         private async Task LoadOwnerContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
-            
+
             var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
             var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             var authResult = ClientAuthenticationToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
@@ -187,7 +187,7 @@ namespace Youverse.Hosting.Middleware
             );
 
             var (appId, permissionContext) = await appRegSvc.GetAppExchangeGrant(authToken);
-            
+
             dotYouContext.SetPermissionContext(permissionContext);
             dotYouContext.AppContext = new AppContext(appId, "");
         }
@@ -254,7 +254,6 @@ namespace Youverse.Hosting.Middleware
                 var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
                 var permissionContext = await exchangeGrantContextService.GetYouAuthContext(clientAuthToken);
                 dotYouContext.SetPermissionContext(permissionContext);
-
             }
         }
 
@@ -263,7 +262,6 @@ namespace Youverse.Hosting.Middleware
             //TODO: load the circles to which the caller belongs
 
             var user = httpContext.User;
-            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
             var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
 
             var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
@@ -276,18 +274,13 @@ namespace Youverse.Hosting.Middleware
 
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                //connection must be valid
-                var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, clientAuthToken);
-                if (icr.IsConnected() == false)
+                var (isConnected, permissionContext) = await circleNetworkService.CreatePermissionContext(callerDotYouId, clientAuthToken);
+                if (!isConnected)
                 {
                     throw new YouverseSecurityException("Invalid connection");
                 }
 
                 dotYouContext.Caller.SetIsConnected();
-
-                // if they are connected, we can load the permissions from there.
-                var permissionContext = await exchangeGrantContextService.GetContext(clientAuthToken);
-
                 dotYouContext.SetPermissionContext(permissionContext);
             }
             else
@@ -295,6 +288,7 @@ namespace Youverse.Hosting.Middleware
                 dotYouContext.SetPermissionContext(null);
             }
         }
+
 
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
@@ -320,6 +314,5 @@ namespace Youverse.Hosting.Middleware
 
             return Task.CompletedTask;
         }
-
     }
 }

@@ -43,34 +43,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return (true, registration, grant);
         }
 
-        public async Task<PermissionContext> GetContext(ClientAuthenticationToken token)
-        {
-            var (isValid, accessReg, grant) = await this.ValidateClientAuthToken(token);
-
-            if (!isValid)
-            {
-                throw new YouverseSecurityException("Invalid token");
-            }
-
-            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var key = token.AccessTokenHalfKey;
-            var accessKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
-            var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            
-            var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
-
-            return new PermissionContext(
-                driveGrants: grant.KeyStoreKeyEncryptedDriveGrants,
-                permissionSet: grant.PermissionSet,
-                driveDecryptionKey: grantKeyStoreKey,
-                sharedSecretKey: sharedSecret,
-                exchangeGrantId: accessReg.GrantId,
-                accessRegistrationId: accessReg.Id,
-                isOwner: _contextAccessor.GetCurrent().Caller.IsOwner
-            );
-        }
-        
         
         /// <summary>
         /// Gets context for requests coming in from YouAuth

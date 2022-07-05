@@ -81,6 +81,42 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             throw new Exception($"Unknown notification Id {notification.NotificationId}");
         }
 
+        public async Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken authToken)
+        {
+            var icr = await this.GetIdentityConnectionRegistration(callerDotYouId, authToken);
+            var accessGrant = icr.Grant;
+            
+            if (null == accessGrant || null == accessGrant.Grant)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+
+            if (accessGrant.AccessRegistration.IsRevoked || accessGrant.Grant.IsRevoked)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+
+            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
+            var key = authToken.AccessTokenHalfKey;
+            var accessKey = accessGrant.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
+            var sharedSecret = accessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+
+            var grantKeyStoreKey = accessGrant.AccessRegistration.GetGrantKeyStoreKey(accessKey);
+            accessKey.Wipe();
+
+            var permissionCtx = new PermissionContext(
+                driveGrants: accessGrant.Grant.KeyStoreKeyEncryptedDriveGrants,
+                permissionSet: accessGrant.Grant.PermissionSet,
+                driveDecryptionKey: grantKeyStoreKey,
+                sharedSecretKey: sharedSecret,
+                exchangeGrantId: accessGrant.AccessRegistration.GrantId,
+                accessRegistrationId: accessGrant.AccessRegistration.Id,
+                isOwner: _contextAccessor.GetCurrent().Caller.IsOwner
+            );
+
+            return (icr.IsConnected(), permissionCtx);
+        }
+
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
@@ -283,7 +319,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string dotYouIdentity, AccessExchangeGrant grant, ClientAccessToken remoteClientAccessToken)
+        public async Task Connect(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
         {
             //TODO: need to add security that this method can be called
 
@@ -299,10 +335,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
 
-            await this.StoreConnection(dotYouId, grant, remoteClientAccessToken);
+            await this.StoreConnection(dotYouId, accessGrant, remoteClientAccessToken);
         }
 
-        private async Task StoreConnection(string dotYouIdentity, AccessExchangeGrant grant, ClientAccessToken remoteClientAccessToken)
+        private async Task StoreConnection(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
         {
             var dotYouId = (DotYouIdentity)dotYouIdentity;
 
@@ -312,7 +348,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Grant = grant,
+                Grant = accessGrant,
                 ClientAccessTokenId = remoteClientAccessToken.Id,
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()

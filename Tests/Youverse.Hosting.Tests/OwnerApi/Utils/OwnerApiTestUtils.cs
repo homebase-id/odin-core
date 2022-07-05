@@ -438,7 +438,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             //accept the request
             using (var client = this.CreateOwnerApiHttpClient(recipient))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
                 var header = new AcceptRequestHeader()
                 {
