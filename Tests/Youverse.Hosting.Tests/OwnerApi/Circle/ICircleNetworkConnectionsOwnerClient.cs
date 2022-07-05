@@ -3,6 +3,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Hosting.Controllers.ClientToken;
+using Youverse.Hosting.Controllers.ClientToken.Circles;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
@@ -21,7 +22,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> Disconnect(string dotYouId);
 
         [Get(root_path + "/status/{dotYouId}")]
-        Task<ApiResponse<IdentityConnectionRegistration>> GetStatus(string dotYouId);
+        Task<ApiResponse<ConnectionInfoResponse>> GetStatus(string dotYouId);
 
         [Delete(root_path + "/{dotYouId}")]
         Task<ApiResponse<bool>> Delete(string dotYouId);

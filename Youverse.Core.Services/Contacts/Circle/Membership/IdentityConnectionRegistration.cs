@@ -11,7 +11,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public class AccessExchangeGrant
     {
-        //TODO: this is a horrible name.  fix
+        //TODO: this is a horrible name.  fix. 
+        //TODO: the structure sucks too; fix
 
         public IExchangeGrant Grant { get; set; }
         public AccessRegistration AccessRegistration { get; set; }
@@ -42,7 +43,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
-        public AccessExchangeGrant Grant { get; set; }
+        public AccessExchangeGrant AccessGrant { get; set; }
 
         /// <summary>
         /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this DotYouId's host

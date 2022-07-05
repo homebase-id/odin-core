@@ -26,8 +26,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         [HttpGet("status/{dotYouId}")]
         public async Task<IActionResult> GetConnectionInfo(string dotYouId)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)dotYouId);
+
+            return new JsonResult(new ConnectionInfoResponse()
+            {
+                Status = result.Status,
+                LastUpdated = result.LastUpdated,
+                GrantIsRevoked = result.AccessGrant.Grant.IsRevoked || result.AccessGrant.AccessRegistration.IsRevoked
+            });
         }
 
         [HttpGet("connected")]

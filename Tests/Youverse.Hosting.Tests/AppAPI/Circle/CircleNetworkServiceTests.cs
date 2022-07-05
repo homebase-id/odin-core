@@ -10,6 +10,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Hosting.Tests.OwnerApi.Circle;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
@@ -87,7 +88,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             //have frodo send it
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
+                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()

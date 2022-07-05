@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
@@ -21,17 +22,20 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         }
 
         [HttpGet("pending")]
-        public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(int pageNumber, int pageSize)
+        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
-            return result;
+            var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
+            return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
-        
+
         [HttpGet("sent")]
-        public async Task<PagedResult<ConnectionRequest>> GetSentRequests(int pageNumber, int pageSize)
+        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
-            return result;
+
+            var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
+            return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
     }
 }

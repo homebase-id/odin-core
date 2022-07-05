@@ -132,6 +132,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 //TODO: do we do anything with storage DEK here?
                 appReg.Grant.IsRevoked = true;
             }
+            
+            //TODO: revoke all clients? or is the one flag enough?
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
         }

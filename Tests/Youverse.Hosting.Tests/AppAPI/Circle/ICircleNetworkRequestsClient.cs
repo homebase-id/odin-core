@@ -14,12 +14,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 
-        [Post(SentPathRoot)]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
-
-        [Post(PendingPathRoot + "/accept/{dotYouId}")]
-        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest([Body]AcceptRequestHeader header);
-
         [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequestList([Query] PageOptions pageRequest);
 
