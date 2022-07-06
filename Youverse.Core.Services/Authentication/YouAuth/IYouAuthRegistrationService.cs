@@ -19,6 +19,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);
-        PermissionContext GetContext(ClientAccessToken authToken);
+        ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken);
+        ValueTask<(bool isValid, YouAuthClient? client, YouAuthRegistration? registration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
     }
 }

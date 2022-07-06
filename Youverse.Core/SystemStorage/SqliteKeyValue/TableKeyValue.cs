@@ -82,7 +82,7 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
                 cmd.CommandText =
                     @"CREATE TABLE if not exists keyvalue(
                      key BLOB UNIQUE NOT NULL, value BLOB); "
-                    + "CREATE INDEX idxkey ON keyvalue(key);";
+                    + "CREATE INDEX if not exists idxkey ON keyvalue(key);";
 
                 cmd.ExecuteNonQuery();
             }

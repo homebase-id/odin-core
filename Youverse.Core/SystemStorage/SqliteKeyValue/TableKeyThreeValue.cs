@@ -120,9 +120,9 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
                      key2   BLOB NOT NULL,
                      key3   BLOB NOT NULL,
                      value BLOB); "
-                    + "CREATE INDEX idxkeythree1 ON keythreevalue(key1);"
-                    + "CREATE INDEX idxkeythree2 ON keythreevalue(key2); "
-                    + "CREATE INDEX idxkeythree3 ON keythreevalue(key3); ";
+                    + "CREATE INDEX if not exists idxkeythree1 ON keythreevalue(key1);"
+                    + "CREATE INDEX if not exists idxkeythree2 ON keythreevalue(key2); "
+                    + "CREATE INDEX if not exists idxkeythree3 ON keythreevalue(key3); ";
 
                 cmd.ExecuteNonQuery();
             }

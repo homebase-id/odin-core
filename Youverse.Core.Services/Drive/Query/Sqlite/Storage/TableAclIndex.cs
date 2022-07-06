@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 }
                 
                 cmd.CommandText = @"CREATE TABLE if not exists aclindex(fileid BLOB NOT NULL, aclmember BLOB NOT NULL, UNIQUE(fileid, aclmember));"
-                                  + "CREATE INDEX AclIdx ON aclindex(aclmember);";
+                                  + "CREATE INDEX if not exists AclIdx ON aclindex(aclmember);";
                 cmd.ExecuteNonQuery();
             }
         }

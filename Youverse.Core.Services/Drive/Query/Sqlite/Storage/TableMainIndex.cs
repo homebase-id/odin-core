@@ -101,7 +101,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                      senderid BLOB,
                      threadId BLOB,
                      requiredSecurityGroup INTEGER NOT NULL); "
-                    + "CREATE INDEX idxupdatedtimestamp ON mainindex(updatedtimestamp);";
+                    + "CREATE INDEX if not exists idxupdatedtimestamp ON mainindex(updatedtimestamp);";
 
                 cmd.ExecuteNonQuery();
             }

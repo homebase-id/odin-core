@@ -70,13 +70,13 @@ namespace Youverse.Core.Services.Base
                 switch (pmt)
                 {
                     case SystemApi.Contact:
-                        return ((ContactPermissions) value).HasFlag((ContactPermissions) permission);
+                        return ((ContactPermissions)value).HasFlag((ContactPermissions)permission);
 
                     case SystemApi.CircleNetwork:
-                        return ((CircleNetworkPermissions) value).HasFlag((CircleNetworkPermissions) permission);
+                        return ((CircleNetworkPermissions)value).HasFlag((CircleNetworkPermissions)permission);
 
                     case SystemApi.CircleNetworkRequests:
-                        return ((CircleNetworkRequestPermissions) value).HasFlag((CircleNetworkRequestPermissions) permission);
+                        return ((CircleNetworkRequestPermissions)value).HasFlag((CircleNetworkRequestPermissions)permission);
                 }
             }
 
@@ -144,6 +144,16 @@ namespace Youverse.Core.Services.Base
             if (null == grant)
             {
                 throw new DriveSecurityException($"No access permitted to drive {driveId}");
+            }
+
+            //If we cannot decrypt the storage key BUT the caller has access to the drive,
+            //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
+            if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+            {
+                throw new DriveSecurityException($"Caller has access {driveId} but exchange grant does not have a drive decryption key or KeyStoreKeyEncryptedStorageKey");
+
+                //TODO: evaluate if we should return an empty value instead
+                // return Array.Empty<byte>().ToSensitiveByteArray();
             }
 
             var key = this._driveDecryptionKey;

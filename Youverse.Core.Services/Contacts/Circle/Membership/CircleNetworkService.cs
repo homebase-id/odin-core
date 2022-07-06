@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -26,13 +27,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ExchangeGrantServiceRedux _exchangeGrantService;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantServiceRedux exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _exchangeGrantService = exchangeGrantService;
         }
 
         public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
@@ -94,24 +97,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("Invalid token");
             }
 
-            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var key = authToken.AccessTokenHalfKey;
-            var accessKey = accessGrant.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
-            var sharedSecret = accessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-
-            var grantKeyStoreKey = accessGrant.AccessRegistration.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
-
-            var permissionCtx = new PermissionContext(
-                driveGrants: accessGrant.Grant.KeyStoreKeyEncryptedDriveGrants,
-                permissionSet: accessGrant.Grant.PermissionSet,
-                driveDecryptionKey: grantKeyStoreKey,
-                sharedSecretKey: sharedSecret,
-                exchangeGrantId: accessGrant.AccessRegistration.GrantId,
-                accessRegistrationId: accessGrant.AccessRegistration.Id,
-                isOwner: _contextAccessor.GetCurrent().Caller.IsOwner
-            );
-
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, accessGrant.Grant, accessGrant.AccessRegistration, false);
             return (icr.IsConnected(), permissionCtx);
         }
 

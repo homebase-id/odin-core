@@ -174,8 +174,6 @@ namespace Youverse.Hosting.Middleware
         private async Task LoadAppContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
-
             var value = httpContext.Request.Cookies[AppAuthConstants.ClientAuthTokenCookieName];
             var authToken = ClientAuthenticationToken.Parse(value);
             var user = httpContext.User;
@@ -251,12 +249,11 @@ namespace Youverse.Hosting.Middleware
             //if there's a client auth token, let's add the permissions it grants
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
             {
-                var exchangeGrantContextService = httpContext.RequestServices.GetRequiredService<ExchangeGrantContextService>();
-                var permissionContext = await exchangeGrantContextService.GetYouAuthContext(clientAuthToken);
+                var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+                var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
+
                 dotYouContext.SetPermissionContext(permissionContext);
             }
-
-            throw new NotImplementedException("need to grant anonymous drives to all requests");
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

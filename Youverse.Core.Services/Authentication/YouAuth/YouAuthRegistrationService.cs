@@ -86,45 +86,42 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
-        public PermissionContext GetContext(ClientAccessToken authToken)
+        public ValueTask<(bool isValid, YouAuthClient? client, YouAuthRegistration registration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
         {
             var client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
             var accessReg = client?.AccessRegistration;
-            
+
             if (null == accessReg)
             {
-                throw new YouverseSecurityException("Invalid token");
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
             }
 
             var registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
 
             if (null == registration || null == registration.Grant)
             {
-                throw new YouverseSecurityException("Invalid token");
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
             }
 
             if (accessReg.IsRevoked || registration.Grant.IsRevoked)
             {
-                throw new YouverseSecurityException("Invalid token");
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
             }
 
-            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var key = authToken.AccessTokenHalfKey;
-            var accessKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
-            var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+            return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((true, client, registration));
+        }
 
-            var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
+        public ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken)
+        {
+            var (isValid, client, registration) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();
 
-            return new PermissionContext(
-                driveGrants: registration.Grant.KeyStoreKeyEncryptedDriveGrants,
-                permissionSet: registration.Grant.PermissionSet,
-                driveDecryptionKey: grantKeyStoreKey,
-                sharedSecretKey: sharedSecret,
-                exchangeGrantId: accessReg.GrantId,
-                accessRegistrationId: accessReg.Id,
-                isOwner: false
-            );
+            if (!isValid)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+            
+            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken, registration.Grant, client.AccessRegistration, false).GetAwaiter().GetResult();
+            return new ValueTask<PermissionContext>(permissionCtx);
         }
 
         //

@@ -90,40 +90,41 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
-            var accessRegistration = await _systemStorage.WithTenantSystemStorageReturnSingle<AccessRegistration>(AppAccessTokenReg, s => s.Get(authToken.Id));
-            var appReg = await this.GetAppRegistrationInternal(accessRegistration.GrantId);
+            var (isValid, accessReg, appReg) = await this.ValidateClientAuthToken(authToken);
 
-            if (null == accessRegistration || null == appReg || null == appReg.Grant)
+            if (!isValid)
             {
                 throw new YouverseSecurityException("Invalid token");
+            }
+
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, appReg.Grant, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
+            return (appReg.ApplicationId, permissionCtx);
+        }
+
+        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
+        {
+            var accessRegistration = await _systemStorage.WithTenantSystemStorageReturnSingle<AccessRegistration>(AppAccessTokenReg, s => s.Get(authToken.Id));
+
+            if (null == accessRegistration)
+            {
+                return (false, null, null);
+            }
+
+            var appReg = await this.GetAppRegistrationInternal(accessRegistration.GrantId);
+
+            if (null == appReg || null == appReg.Grant)
+            {
+                return (false, null, null);
             }
 
             if (accessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
-                throw new YouverseSecurityException("Invalid token");
+                return (false, null, null);
             }
 
-            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var key = authToken.AccessTokenHalfKey;
-            var accessKey = accessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
-            var sharedSecret = accessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-
-            var grantKeyStoreKey = accessRegistration.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
-
-            var permissionCtx = new PermissionContext(
-                driveGrants: appReg.Grant.KeyStoreKeyEncryptedDriveGrants,
-                permissionSet: appReg.Grant.PermissionSet,
-                driveDecryptionKey: grantKeyStoreKey,
-                sharedSecretKey: sharedSecret,
-                exchangeGrantId: accessRegistration.GrantId,
-                accessRegistrationId: accessRegistration.Id,
-                isOwner: _contextAccessor.GetCurrent().Caller.IsOwner
-            );
-
-            return (appReg.ApplicationId, permissionCtx);
+            return (true, accessRegistration, appReg);
         }
-        
+
         public async Task RevokeApp(Guid applicationId)
         {
             var appReg = await this.GetAppRegistrationInternal(applicationId);
@@ -132,7 +133,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 //TODO: do we do anything with storage DEK here?
                 appReg.Grant.IsRevoked = true;
             }
-            
+
             //TODO: revoke all clients? or is the one flag enough?
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
@@ -154,7 +155,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public async Task<PagedResult<RegisteredAppClientResponse>> GetRegisteredClients(PageOptions pageOptions)
         {
             var list = await _systemStorage.WithTenantSystemStorageReturnList<AccessRegistration>(AppAccessTokenReg, s => s.GetList(pageOptions));
-            
+
             var resp = list.Results.Select(accessReg => new RegisteredAppClientResponse()
             {
                 IsRevoked = accessReg.IsRevoked,

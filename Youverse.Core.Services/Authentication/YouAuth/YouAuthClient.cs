@@ -7,8 +7,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth;
 
 public sealed class YouAuthClient
 {
+    public YouAuthClient()
+    {
+        //for Litedb
+    }
     public YouAuthClient(Guid id, DotYouIdentity dotYouId, AccessRegistration accessReg)
     {
+        this.Id = id;
+        this.DotYouId = dotYouId;
         this.AccessRegistration = accessReg;
     }
 

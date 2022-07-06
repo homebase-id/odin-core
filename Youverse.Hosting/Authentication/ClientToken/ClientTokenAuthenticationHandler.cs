@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.ClientToken;
@@ -19,17 +21,13 @@ namespace Youverse.Hosting.Authentication.ClientToken
 {
     public class ClientTokenAuthenticationHandler : AuthenticationHandler<ClientTokenAuthenticationSchemeOptions>
     {
-        private readonly ExchangeGrantContextService _exchangeGrantContextService;
-
         public ClientTokenAuthenticationHandler(
             IOptionsMonitor<ClientTokenAuthenticationSchemeOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ISystemClock clock,
-            ExchangeGrantContextService exchangeGrantContextService)
+            ISystemClock clock)
             : base(options, logger, encoder, clock)
         {
-            _exchangeGrantContextService = exchangeGrantContextService;
         }
 
         //
@@ -58,16 +56,15 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
 
-            var (isValid, _, _) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
+            var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
+            var (isValid, _, _) = await appRegService.ValidateClientAuthToken(clientAuthToken);
 
             if (!isValid)
             {
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
-            
-            var claims = new List<Claim>();
 
-            
+            var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
@@ -83,7 +80,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(CreateAnonTicket());
             }
 
-            var (isValid, _, grant) = await _exchangeGrantContextService.ValidateClientAuthToken(clientAuthToken);
+            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+            var (isValid, youAuthClient, _) = await youAuthRegService.ValidateClientAuthToken(clientAuthToken);
 
             if (!isValid)
             {
@@ -91,8 +89,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var claims = new List<Claim>();
-            var youAuthGrant = (YouAuthExchangeGrant)grant;
-            claims.Add(new Claim(ClaimTypes.Name, youAuthGrant.DotYouId));
+            claims.Add(new Claim(ClaimTypes.Name, youAuthClient.DotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsInNetwork, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));

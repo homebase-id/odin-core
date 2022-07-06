@@ -124,9 +124,9 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
                      key3   BLOB NOT NULL,
                      value BLOB,
                      UNIQUE (key2,key3)); "
-                    + "CREATE INDEX idxkeyuniquethree1 ON keyuniquethreevalue(key1);"
-                    + "CREATE INDEX idxkeyuniquethree2 ON keyuniquethreevalue(key2); "
-                    + "CREATE INDEX idxkeyuniquethree3 ON keyuniquethreevalue(key3); ";
+                    + "CREATE INDEX if not exists idxkeyuniquethree1 ON keyuniquethreevalue(key1);"
+                    + "CREATE INDEX if not exists idxkeyuniquethree2 ON keyuniquethreevalue(key2); "
+                    + "CREATE INDEX if not exists idxkeyuniquethree3 ON keyuniquethreevalue(key3); ";
 
                 cmd.ExecuteNonQuery();
             }
