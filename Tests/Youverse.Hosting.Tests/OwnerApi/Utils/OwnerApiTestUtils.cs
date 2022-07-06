@@ -191,10 +191,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
+                var drives = new List<TargetDrive>();
                 if (createDrive)
                 {
                     var driveSvc = RestService.For<IDriveManagementHttpClient>(client);
                     var createDriveResponse = await driveSvc.CreateDrive(targetDrive, $"Test Drive name with type {targetDrive.Type}", "{data:'test metadata'}", driveAllowAnonymousReads);
+                    Assert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
+                    
+                    drives.Add(targetDrive);
+
                 }
 
                 var svc = RestService.For<IAppRegistrationClient>(client);
@@ -203,6 +208,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     Name = $"Test_{appId}",
                     ApplicationId = appId,
                     PermissionSet = permissionSet,
+                    Drives = drives
                 };
 
                 var response = await svc.RegisterApp(request);

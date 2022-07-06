@@ -97,35 +97,6 @@ namespace Youverse.Hosting.Middleware
             await _next(httpContext);
         }
 
-        private static object _sysapps = new object();
-
-        private Task<AppRegistrationResponse> EnsureSystemAppsOrFail(Guid appId, HttpContext httpContext)
-        {
-            lock (_sysapps)
-            {
-                //HACK: this method should be removed when correct provisioning is in place
-                var appRegSvc = httpContext.RequestServices.GetRequiredService<IAppRegistrationService>();
-
-                var appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
-
-                if (null == appReg)
-                {
-                    if (appId == SystemAppConstants.ChatAppId || appId == SystemAppConstants.ProfileAppId || appId == SystemAppConstants.WebHomeAppId)
-                    {
-                        var provService = httpContext.RequestServices.GetRequiredService<IIdentityProvisioner>();
-                        provService.EnsureSystemApps().GetAwaiter().GetResult();
-                        appReg = appRegSvc.GetAppRegistration(appId).GetAwaiter().GetResult();
-                    }
-                    else
-                    {
-                        throw new YouverseSecurityException("App is invalid");
-                    }
-                }
-
-                return Task.FromResult(appReg);
-            }
-        }
-
         private async Task LoadOwnerContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;
@@ -287,8 +258,7 @@ namespace Youverse.Hosting.Middleware
                 dotYouContext.SetPermissionContext(null);
             }
         }
-
-
+        
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             /*
