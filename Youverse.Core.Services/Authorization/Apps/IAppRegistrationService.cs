@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
-        Task<(Guid appId, PermissionContext permissionContext)> GetAppExchangeGrant(ClientAuthenticationToken authToken);
+        Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Gets all registered apps

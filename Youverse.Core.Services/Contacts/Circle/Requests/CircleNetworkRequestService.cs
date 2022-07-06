@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var grant = await _exchangeGrantService.CreateExchangeGrant(header.Permissions, header.Drives, masterKey);
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(grant);
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(grant, masterKey);
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -216,7 +216,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
-            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(grant);
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(grant, masterKey);
 
             ConnectionRequestReply acceptedReq = new()
             {

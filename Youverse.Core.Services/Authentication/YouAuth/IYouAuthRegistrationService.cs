@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
@@ -13,10 +14,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// <summary>
         /// Grants access to the <see cref="dotYouId"/>
         /// </summary>
-        ValueTask<(YouAuthRegistration, ClientAccessToken)> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken);
+        ValueTask<ClientAccessToken> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken);
 
         ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);
+        PermissionContext GetContext(ClientAccessToken authToken);
     }
 }

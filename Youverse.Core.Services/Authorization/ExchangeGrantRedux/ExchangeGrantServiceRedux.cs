@@ -18,16 +18,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrantRedux
     /// </summary>
     public class ExchangeGrantServiceRedux
     {
-        private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
 
-        public ExchangeGrantServiceRedux(DotYouContextAccessor contextAccessor, ILogger<ExchangeGrantService> logger, IDriveService driveService)
+        public ExchangeGrantServiceRedux(ILogger<ExchangeGrantService> logger, IDriveService driveService)
         {
-            _contextAccessor = contextAccessor;
             _driveService = driveService;
         }
-        
-        public async Task<IExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<TargetDrive> targetDriveList, SensitiveByteArray masterKey = null)
+
+        public async Task<IExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<TargetDrive> targetDriveList, SensitiveByteArray? masterKey)
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -81,37 +79,40 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrantRedux
                 KeyStoreKeyEncryptedDriveGrants = grants,
                 PermissionSet = permissionSet
             };
-            
+
             grantKeyStoreKey.Wipe();
-            
+
             return grant;
         }
- 
+
         /// <summary>
         /// Creates a new client access token for the specified grant.
         /// </summary>
         /// <param name="grant"></param>
+        /// <param name="masterKey"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(IExchangeGrant grant)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(IExchangeGrant grant, SensitiveByteArray? masterKey)
         {
-            var context = _contextAccessor.GetCurrent();
-            context.Caller.AssertHasMasterKey();
-
             if (grant.IsRevoked)
             {
                 throw new YouverseSecurityException("Cannot create Client Access Token for a revoked ExchangeGrant");
             }
 
-            var mk = context.Caller.GetMasterKey();
-            var grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref mk);
+            SensitiveByteArray grantKeyStoreKey = null;
 
+            if (masterKey != null)
+            {
+                grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            }
+            
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey);
-            grantKeyStoreKey.Wipe();
+            grantKeyStoreKey?.Wipe();
+            
             return (accessReg, clientAccessToken);
         }
-        
+
         /////
-        
+
 
         /// <summary>
         /// Creates a new <see cref="ClientAuthenticationToken"/> from an existing <see cref="ExchangeGrantBase"/> which can be given to remote callers for access to
@@ -151,5 +152,5 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrantRedux
 
             return Task.FromResult((reg, cat));
         }
-   }
+    }
 }

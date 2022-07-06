@@ -186,7 +186,7 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null
             );
 
-            var (appId, permissionContext) = await appRegSvc.GetAppExchangeGrant(authToken);
+            var (appId, permissionContext) = await appRegSvc.GetPermissionContext(authToken);
 
             dotYouContext.SetPermissionContext(permissionContext);
             dotYouContext.AppContext = new AppContext(appId, "");
@@ -206,7 +206,7 @@ namespace Youverse.Hosting.Middleware
                 securityLevel: securityLevel,
                 masterKey: null
             );
-
+            
             if (securityLevel == SecurityGroupType.Anonymous)
             {
                 var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
@@ -217,7 +217,7 @@ namespace Youverse.Hosting.Middleware
                     DriveAlias = d.Alias,
                     DriveType = d.Type,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                    Permissions = DrivePermissions.All
+                    Permissions = DrivePermissions.Read
                 });
 
                 //HACK: granting ability to see friends list to anon users.
@@ -255,6 +255,8 @@ namespace Youverse.Hosting.Middleware
                 var permissionContext = await exchangeGrantContextService.GetYouAuthContext(clientAuthToken);
                 dotYouContext.SetPermissionContext(permissionContext);
             }
+
+            throw new NotImplementedException("need to grant anonymous drives to all requests");
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(applicationId);
-            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant);
+            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
 
             reg.GrantId = applicationId;
 
@@ -88,7 +88,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return ToAppRegistrationResponse(result);
         }
 
-        public async Task<(Guid appId, PermissionContext permissionContext)> GetAppExchangeGrant(ClientAuthenticationToken authToken)
+        public async Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var accessRegistration = await _systemStorage.WithTenantSystemStorageReturnSingle<AccessRegistration>(AppAccessTokenReg, s => s.Get(authToken.Id));
             var appReg = await this.GetAppRegistrationInternal(accessRegistration.GrantId);

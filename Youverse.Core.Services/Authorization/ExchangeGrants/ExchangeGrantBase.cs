@@ -57,21 +57,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             };
         }
 
-        internal ExchangeGrantBaseLiteDbRecord ToLiteDbRecord()
-        {
-            return new ExchangeGrantBaseLiteDbRecord()
-            {
-                StorageType = ExchangeGranteeType.Identity,
-                DotYouId = this.DotYouId,
-                Id = this.Id,
-                Created = this.Created,
-                Modified = this.Modified,
-                IsRevoked = this.IsRevoked,
-                PermissionSet = this.PermissionSet,
-                KeyStoreKeyEncryptedDriveGrants = this.KeyStoreKeyEncryptedDriveGrants,
-                MasterKeyEncryptedKeyStoreKey = this.MasterKeyEncryptedKeyStoreKey
-            };
-        }
     }
 
     public class YouAuthExchangeGrant : ExchangeGrantBase
@@ -113,44 +98,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
     }
     
-    public class AppExchangeGrant : ExchangeGrantBase
-    {
-        /// <summary>
-        /// The app being granted access
-        /// </summary>
-        public Guid AppId { get; set; }
-
-        internal ExchangeGrantBaseLiteDbRecord ToLiteDbRecord()
-        {
-            return new ExchangeGrantBaseLiteDbRecord()
-            {
-                StorageType = ExchangeGranteeType.App,
-                AppId = this.AppId,
-                Id = this.Id,
-                Created = this.Created,
-                Modified = this.Modified,
-                IsRevoked = this.IsRevoked,
-                PermissionSet = this.PermissionSet,
-                KeyStoreKeyEncryptedDriveGrants = this.KeyStoreKeyEncryptedDriveGrants,
-                MasterKeyEncryptedKeyStoreKey = this.MasterKeyEncryptedKeyStoreKey
-            };
-        }
-
-        internal static AppExchangeGrant FromLiteDbRecord(ExchangeGrantBaseLiteDbRecord record)
-        {
-            return new AppExchangeGrant()
-            {
-                AppId = record.AppId,
-                Id = record.Id,
-                Created = record.Created,
-                Modified = record.Modified,
-                IsRevoked = record.IsRevoked,
-                PermissionSet = record.PermissionSet,
-                KeyStoreKeyEncryptedDriveGrants = record.KeyStoreKeyEncryptedDriveGrants,
-                MasterKeyEncryptedKeyStoreKey = record.MasterKeyEncryptedKeyStoreKey
-            };
-        }
-    }
 
     /// <summary>
     /// Adapter class for storing in litedb.
@@ -166,7 +113,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
     public enum ExchangeGranteeType
     {
-        App = 1,
         Identity = 2,
         YouAuth = 3
     }

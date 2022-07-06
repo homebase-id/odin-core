@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 return (true, null)!;
             }
 
-            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int) response.StatusCode);
+            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int)response.StatusCode);
             return (false, null)!;
         }
 
@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)dotYouId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?
@@ -114,7 +114,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var (registration, browserClientAccessToken) = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
+            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
             return browserClientAccessToken;
         }
 

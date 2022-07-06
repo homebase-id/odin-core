@@ -1,5 +1,4 @@
 using System;
-using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -44,8 +43,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(StorageCollectionName, s => s.Delete(registration.Id));
         }
+        
+        public YouAuthClient? GetYouAuthClient(Guid id)
+        {
+            var task = _systemStorage.WithTenantSystemStorageReturnSingle<YouAuthClient>(StorageCollectionName, s => s.Get(id));
+            return task.GetAwaiter().GetResult();
+        }
 
-        //
-
+        public void SaveClient(YouAuthClient client)
+        {
+            _systemStorage.WithTenantSystemStorage<YouAuthClient>(StorageCollectionName, s => s.Save(client));
+        }
     }
 }
