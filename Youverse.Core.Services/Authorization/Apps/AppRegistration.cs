@@ -1,6 +1,6 @@
 ﻿using System;
 using LiteDB;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {

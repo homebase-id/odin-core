@@ -10,7 +10,6 @@ using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -38,7 +37,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly IPublicKeyService _rsaPublicKeyService;
 
         private readonly IDriveService _driveService;
-        private readonly ExchangeGrantServiceRedux _exchangeGrantService;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
         public CircleNetworkRequestService(
             DotYouContextAccessor contextAccessor,
@@ -48,7 +47,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             IMediator mediator,
             TenantContext tenantContext,
             IPublicKeyService rsaPublicKeyService,
-            ExchangeGrantServiceRedux exchangeGrantService,
+            ExchangeGrantService exchangeGrantService,
             IDriveService driveService)
         {
             _contextAccessor = contextAccessor;

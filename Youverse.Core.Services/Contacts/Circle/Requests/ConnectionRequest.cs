@@ -1,7 +1,6 @@
 ﻿using System;
 using Dawn;
 using Newtonsoft.Json;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 

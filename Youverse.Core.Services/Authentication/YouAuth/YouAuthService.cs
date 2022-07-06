@@ -18,20 +18,18 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly IYouAuthRegistrationService _registrationService;
         private readonly ICircleNetworkService _circleNetwork;
 
-        private readonly ExchangeGrantService _exchangeGrantService;
         //
 
         public YouAuthService(
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService, IYouAuthRegistrationService registrationService)
+            ICircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _exchangeGrantService = exchangeGrantService;
             _registrationService = registrationService;
         }
 

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -24,10 +23,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
-        private readonly ExchangeGrantServiceRedux _exchangeGrantService;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService,
-            ExchangeGrantServiceRedux exchangeGrantService)
+            ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;

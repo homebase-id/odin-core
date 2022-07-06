@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 
@@ -13,10 +12,10 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     {
         private readonly ILogger<YouAuthRegistrationService> _logger;
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
-        private readonly ExchangeGrantServiceRedux _exchangeGrantService;
+        private readonly ExchangeGrantService _exchangeGrantService;
         private readonly object _mutex = new();
 
-        public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantServiceRedux exchangeGrantService)
+        public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService)
         {
             _logger = logger;
             _youAuthRegistrationStorage = youAuthRegistrationStorage;

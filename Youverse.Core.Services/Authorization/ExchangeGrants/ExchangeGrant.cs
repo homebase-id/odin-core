@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrantRedux;
+namespace Youverse.Core.Services.Authorization.ExchangeGrants;
 
 internal class ExchangeGrant : IExchangeGrant
 {

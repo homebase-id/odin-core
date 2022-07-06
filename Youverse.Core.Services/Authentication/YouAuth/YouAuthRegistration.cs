@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 #nullable enable
 namespace Youverse.Core.Services.Authentication.YouAuth

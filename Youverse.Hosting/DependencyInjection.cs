@@ -12,7 +12,6 @@ using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.ClientNotifications;
@@ -105,7 +104,6 @@ namespace Youverse.Hosting
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
-            cb.RegisterType<ExchangeGrantServiceRedux>().AsSelf().SingleInstance();
             
             cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
 

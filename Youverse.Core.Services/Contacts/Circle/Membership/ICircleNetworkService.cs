@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Notification;

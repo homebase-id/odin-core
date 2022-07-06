@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrantRedux;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -27,10 +26,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        private readonly ExchangeGrantServiceRedux _exchangeGrantService;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantServiceRedux exchangeGrantService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
