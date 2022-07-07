@@ -72,6 +72,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.AreEqual(request.Description, circle.Description);
                 CollectionAssert.AreEqual(request.Drives, circle.Drives);
                 Assert.IsTrue(request.Permissions == circle.Permissions);
+                
+                // cleanup
+                await svc.DeleteCircle(circle.Id);
+
             }
         }
 
@@ -110,7 +114,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.IsNotNull(getCircleDefinitionsResponse.Content);
                 var definitionList = getCircleDefinitionsResponse.Content.ToList();
-                
+
                 Assert.IsTrue(definitionList.Count() == 2);
 
                 var circle1 = definitionList[0];
@@ -118,12 +122,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.AreEqual(request1.Description, circle1.Description);
                 CollectionAssert.AreEqual(request1.Drives, circle1.Drives);
                 Assert.IsTrue(request1.Permissions == circle1.Permissions);
-                
+
                 var circle2 = definitionList[1];
                 Assert.AreEqual(request1.Name, circle2.Name);
                 Assert.AreEqual(request1.Description, circle2.Description);
                 CollectionAssert.AreEqual(request1.Drives, circle2.Drives);
                 Assert.IsTrue(request1.Permissions == circle2.Permissions);
+
+                // cleanup
+
+                await svc.DeleteCircle(circle1.Id);
+                await svc.DeleteCircle(circle2.Id);
             }
         }
 
@@ -173,7 +182,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.AreEqual(circle.Description, circle2.Description);
                 CollectionAssert.AreEqual(circle.Drives, circle2.Drives);
                 Assert.IsTrue(circle.Permissions == circle2.Permissions);
-
+                
+                await svc.DeleteCircle(circle.Id);
+                
                 //TODO: test that the changes to the drives and permissions were applied
             }
         }
