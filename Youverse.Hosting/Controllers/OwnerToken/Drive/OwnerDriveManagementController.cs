@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Services.Drive;
 
@@ -21,6 +22,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _driveService = driveService;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet]
         public async Task<IActionResult> GetDrives(int pageNumber, int pageSize)
         {
@@ -41,6 +43,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(page);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("create")]
         public async Task<IActionResult> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
         {
@@ -49,6 +52,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("rebuildallindices")]
         public async Task<bool> RebuildAll()
         {
@@ -56,6 +60,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return true;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("rebuildindex")]
         public async Task<bool> Rebuild(Guid driveId)
         {

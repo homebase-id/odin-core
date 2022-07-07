@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -8,6 +9,9 @@ using Youverse.Hosting.Controllers.Anonymous;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
+    /// <summary>
+    /// Api endpoints for reading drives
+    /// </summary>
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
     [Route(YouAuthApiPathConstants.DrivesV1)]
@@ -18,6 +22,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         private readonly IDriveService _driveService;
         private readonly DotYouContextAccessor _contextAccessor;
 
+        /// <inheritdoc />
         public DriveReadStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
         {
             _contextAccessor = contextAccessor;
@@ -25,6 +30,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _appService = appService;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("files/header")]
         public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
@@ -37,6 +43,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new JsonResult(result);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("files/payload")]
         public async Task<IActionResult> GetPayloadStream([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {

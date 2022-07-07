@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<QueryBatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
+        Task<QueryBatchResult> GetBatch(Guid driveId, QueryParams qp, ResultOptions options);
         
         Task RebuildBackupIndex(Guid driveId);
 

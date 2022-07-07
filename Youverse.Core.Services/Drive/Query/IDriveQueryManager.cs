@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options);
+        Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryParams qp, ResultOptions options);
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild

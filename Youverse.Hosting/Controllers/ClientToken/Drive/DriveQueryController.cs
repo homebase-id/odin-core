@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
@@ -25,7 +26,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _contextAccessor = contextAccessor;
             _driveService = driveService;
         }
-        
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] TargetDrive drive, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
             [FromQuery] ResultOptions options)
@@ -35,12 +37,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new JsonResult(batch);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromQuery] TargetDrive drive, [FromQuery] byte[] startCursor, [FromQuery] byte[] stopCursor, [FromBody] QueryParams qp,
-            [FromQuery] ResultOptions options)
+        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] ResultOptions options)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive);
-            var batch = await _driveQueryService.GetBatch(driveId, startCursor, stopCursor, qp, options);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.Drive);
+            var batch = await _driveQueryService.GetBatch(driveId, qp, options);
             return new JsonResult(batch);
         }
     }

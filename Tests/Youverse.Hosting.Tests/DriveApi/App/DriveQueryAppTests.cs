@@ -71,20 +71,21 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
                 var qp = new QueryParams()
                 {
+                    Drive = uploadContext.TestAppContext.TargetDrive,
                     TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
                 };
 
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(qp, resultOptions);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -126,16 +127,19 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
-                var qp = new QueryParams();
+                var qp = new QueryParams()
+                {
+                    Drive = uploadContext.TestAppContext.TargetDrive,
+                };
+
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
-
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -199,16 +203,20 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
-                var qp = new QueryParams();
+                var qp = new QueryParams()
+                {
+                    Drive = uploadContext.TestAppContext.TargetDrive,
+                };
+
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.TestAppContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

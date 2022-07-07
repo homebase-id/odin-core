@@ -50,24 +50,26 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
                 var qp = new QueryParams()
                 {
+                    Drive = securedFileUploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var getBatchResponse = await svc.GetBatch(securedFileUploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
-                Assert.IsTrue(getBatchResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getBatchResponse.StatusCode}");
-                var batch = getBatchResponse.Content;
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var response = await svc.GetBatch(qp, resultOptions);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
@@ -127,21 +129,24 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
+
                 var qp = new QueryParams()
                 {
+                    Drive = uploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var response = await svc.GetBatch(qp, resultOptions);
+
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -159,18 +164,21 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var qp = new QueryParams()
+                {
+                    Drive = uploadContext.UploadedFile.TargetDrive,
+                };
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
-                var qp = new QueryParams();
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
 
-                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var response = await svc.GetBatch(qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -210,18 +218,21 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var qp = new QueryParams()
+                {
+                    Drive = uploadContext.UploadedFile.TargetDrive,
+                };
 
-                var startCursor = Array.Empty<byte>();
-                var stopCursor = Array.Empty<byte>();
-                var qp = new QueryParams();
                 var resultOptions = new ResultOptions()
                 {
+                    StartCursor = Array.Empty<byte>(),
+                    StopCursor = Array.Empty<byte>(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(uploadContext.UploadedFile.TargetDrive, startCursor, stopCursor, qp, resultOptions);
+                var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
+                var response = await svc.GetBatch(qp, resultOptions);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

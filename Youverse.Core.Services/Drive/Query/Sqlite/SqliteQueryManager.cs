@@ -64,7 +64,7 @@ public class SqliteQueryManager : IDriveQueryManager
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
 
-    public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+    public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryParams qp, ResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
@@ -85,8 +85,8 @@ public class SqliteQueryManager : IDriveQueryManager
             out byte[] resultFirstCursor,
             out byte[] resultLastCursor,
             out UInt64 cursorUpdatedTimestamp,
-            startCursor,
-            stopCursor,
+            options.StartCursor,
+            options.StopCursor,
             requiredSecurityGroup,
             qp.FileType?.ToList(),
             qp.DataType?.ToList(),

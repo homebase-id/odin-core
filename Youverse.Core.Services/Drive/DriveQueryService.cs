@@ -82,11 +82,11 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, byte[] startCursor, byte[] stopCursor, QueryParams qp, ResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, startCursor, stopCursor, qp, options);
+                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 return new QueryBatchResult()

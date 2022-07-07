@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
@@ -30,6 +31,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
         
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpDelete("files")]
         public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
@@ -41,6 +43,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             await _driveService.DeleteLongTermFile(file);
         }
         
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("files/upload")]
         public async Task<IActionResult> Upload()
         {

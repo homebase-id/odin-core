@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
@@ -23,6 +24,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("metadata/type")]
         public async Task<IActionResult> GetDrivesByType(Guid type, int pageNumber, int pageSize)
         {

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Autofac;
 using LiteDB;
@@ -74,6 +75,18 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
+
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(c =>
+            {
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,  $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+                c.EnableAnnotations();
+                c.SwaggerDoc("v1", new()
+                {
+                    Title = "DotYouCore API",
+                    Version = "v1"
+                });
+            });
 
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
@@ -155,20 +168,23 @@ namespace Youverse.Hosting
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-            
+
 
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
+                app.UseSwagger();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
-            
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
             }
             else
             {
-                logger.LogInformation("Mapping SPA paths on local disk <-");
+                logger.LogInformation("Mapping SPA paths on local disk");
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     ownerApp =>
                     {
@@ -193,7 +209,7 @@ namespace Youverse.Hosting
                     FileProvider = new PhysicalFileProvider(publicPath),
                     RequestPath = "/home"
                 });
-            
+
                 app.Run(async context =>
                 {
                     await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
@@ -218,7 +234,7 @@ namespace Youverse.Hosting
                 if (memberMapper.DataType == typeof(DotYouIdentity))
                 {
                     //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity) obj);
+                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
                     memberMapper.Deserialize = (value, mapper) => deserialize(value);
                 }
             };

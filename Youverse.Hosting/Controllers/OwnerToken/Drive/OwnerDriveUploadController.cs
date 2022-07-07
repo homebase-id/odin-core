@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -23,6 +24,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _transitService = transitService;
         }
         
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("upload")]
         public async Task<IActionResult> Upload()
         {

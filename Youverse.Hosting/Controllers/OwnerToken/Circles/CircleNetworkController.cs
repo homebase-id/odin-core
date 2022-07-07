@@ -43,11 +43,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         //[HttpPost("notify")]
-        public async Task<IActionResult> NotifyConnections(CircleNetworkNotification notification)
-        {
-            await _circleNetworkNotificationService.NotifyConnections(notification);
-            return Ok();
-        }
+        // public async Task<IActionResult> NotifyConnections(CircleNetworkNotification notification)
+        // {
+        //     await _circleNetworkNotificationService.NotifyConnections(notification);
+        //     return Ok();
+        // }
 
         [HttpGet("status/{dotYouId}")]
         public async Task<IActionResult> GetConnectionInfo(string dotYouId)

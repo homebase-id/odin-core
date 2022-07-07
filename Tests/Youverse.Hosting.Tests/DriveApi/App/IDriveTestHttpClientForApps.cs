@@ -32,9 +32,10 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         
         [Post(RootEndpoint + "/query/recent")]
         Task<ApiResponse<QueryBatchResult>> GetRecent([Query] TargetDrive drive, [Query] UInt64 maxDate, [Query] byte[] startCursor, [Body] QueryParams qp, [Query] ResultOptions options);
-
+        
         [Post(RootEndpoint + "/query/batch")]
-        Task<ApiResponse<QueryBatchResult>> GetBatch([Query] TargetDrive drive, [Query] byte[] startCursor, [Query] byte[] stopCursor, [Body] QueryParams qp, [Query] ResultOptions options);
+        Task<ApiResponse<QueryBatchResult>> GetBatch([Body] QueryParams qp, [Query] ResultOptions options);
+
         
     }
 }

@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         Task<ApiResponse<QueryBatchResult>> GetRecent([Query] TargetDrive drive, [Query] UInt64 maxDate, [Query] byte[] startCursor, [Body] QueryParams qp, [Query] ResultOptions options);
 
         [Post(RootQueryEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResult>> GetBatch([Query] TargetDrive drive, [Query] byte[] startCursor, [Query] byte[] stopCursor, [Body] QueryParams qp, [Query] ResultOptions options);
+        Task<ApiResponse<QueryBatchResult>> GetBatch([Body] QueryParams qp, [Query] ResultOptions options);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox();

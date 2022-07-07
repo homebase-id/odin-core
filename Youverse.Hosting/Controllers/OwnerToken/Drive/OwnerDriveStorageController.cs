@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -25,6 +26,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _appService = appService;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("header")]
         public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
@@ -38,6 +40,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(result);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("payload")]
         public async Task<IActionResult> StreamPayload([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
@@ -52,6 +55,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpDelete]
         public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
         {
