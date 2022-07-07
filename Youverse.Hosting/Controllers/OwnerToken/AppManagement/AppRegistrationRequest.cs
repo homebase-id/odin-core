@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
@@ -19,6 +20,6 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// <summary>
         /// The list of drives of which this app should receive access
         /// </summary>
-        public List<TargetDrive> Drives { get; set; }
+        public List<DriveGrantRequest> Drives { get; set; }
     }
 }

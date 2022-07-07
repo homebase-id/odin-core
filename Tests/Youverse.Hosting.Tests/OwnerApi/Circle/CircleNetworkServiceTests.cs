@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
@@ -165,7 +166,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<TargetDrive>(),
+                    Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
                 
@@ -222,7 +223,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<TargetDrive>(),
+                    Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
                 
@@ -256,7 +257,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<TargetDrive>(),
+                    Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
                 
@@ -292,7 +293,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<TargetDrive>(),
+                    Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
                 

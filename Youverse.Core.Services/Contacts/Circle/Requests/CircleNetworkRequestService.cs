@@ -196,7 +196,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         }
 
 
-        public async Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<TargetDrive> drives, PermissionSet permissions)
+        public async Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<DriveGrantRequest> drives, PermissionSet permissions)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             _contextAccessor.GetCurrent().AssertCanManageConnections();

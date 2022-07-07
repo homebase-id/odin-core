@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Base
 
         public Guid AccessRegistrationId { get; }
 
-        public bool HasDrivePermission(Guid driveId, DrivePermissions permission)
+        public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
             if (this._isOwner)
             {
@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Base
             }
 
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-            return grant != null && grant.Permissions.HasFlag(permission);
+            return grant != null && grant.Permission.HasFlag(permission);
         }
 
         public bool HasPermission(SystemApi pmt, int permission)
@@ -96,7 +96,7 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public void AssertCanWriteToDrive(Guid driveId)
         {
-            if (!this.HasDrivePermission(driveId, DrivePermissions.Write))
+            if (!this.HasDrivePermission(driveId, DrivePermission.Write))
             {
                 throw new DriveSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
@@ -107,7 +107,7 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public void AssertCanReadDrive(Guid driveId)
         {
-            if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
+            if (!this.HasDrivePermission(driveId, DrivePermission.Read))
             {
                 throw new DriveSecurityException($"Unauthorized to read to drive [{driveId}]");
             }

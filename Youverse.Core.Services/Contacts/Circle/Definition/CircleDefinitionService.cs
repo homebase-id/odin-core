@@ -1,16 +1,16 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Newtonsoft.Json;
+using Youverse.Core.Exceptions;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.SystemStorage.SqliteKeyValue;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
-    public class CircleDefinitionService : ICircleDefinitionService
+    public class CircleDefinitionService
     {
         private readonly byte[] _circleDataType = "circle".ToLower().ToUtf8ByteArray();
 
@@ -21,32 +21,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             _circleStorage = systemStorage.KeyValueStorage.ThreeKeyStorage;
         }
 
-        public Circle GetRootCircle()
-        {
-            var defaultCircle = new Circle()
-            {
-                Id = Guid.Parse("11111118-0000-0000-0001-000000008733"),
-                Name = "Anonymous",
-            };
-
-            return defaultCircle;
-        }
-
-
-        public Task CreateCircle(CreateCircleRequest request)
+        public Task Create(CreateCircleRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
 
             var id = Guid.NewGuid();
 
-            var circle = new Circle()
+            var circle = new CircleDefinition()
             {
                 Id = id,
+                Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
-                Description = request.Description
-
-                //TODO: handle circle access
+                Description = request.Description,
+                Drives = request.Drives,
+                Permissions = request.Permissions
             };
 
             var json = JsonConvert.SerializeObject(circle);
@@ -55,11 +44,79 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<Circle>> GetCircles()
+        public Task Update(CircleDefinition newCircleDefinition)
+        {
+            Guard.Argument(newCircleDefinition, nameof(newCircleDefinition)).NotNull();
+
+            var existingCircle = this.GetCircle(newCircleDefinition.Id);
+
+            if (null == existingCircle)
+            {
+                throw new MissingDataException($"Invalid circle {newCircleDefinition.Id}");
+            }
+
+            var permissionChanges = newCircleDefinition.Permissions != existingCircle.Permissions;
+            //var driveChanges = (newCircleDefinition.Drives?.Count() ?? 0) != (existingCircle.Drives?.Count() ?? 0);
+            bool driveChanges = (existingCircle.Drives != null && newCircleDefinition.Drives != null) &&
+                                (newCircleDefinition.Drives.Except(existingCircle.Drives)).Any();
+            
+            //TODO: apply new permissions to all circle members
+            if (permissionChanges || driveChanges)
+            {
+                //TODO: for each member of this circle, update their permissions
+            }
+
+            existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
+            existingCircle.Description = newCircleDefinition.Description;
+            existingCircle.Name = newCircleDefinition.Name;
+            existingCircle.Drives = newCircleDefinition.Drives;
+            existingCircle.Permissions = newCircleDefinition.Permissions;
+
+            var json = JsonConvert.SerializeObject(newCircleDefinition);
+            _circleStorage.UpsertRow(existingCircle.Id.ToByteArray(), Array.Empty<byte>(), _circleDataType, json.ToUtf8ByteArray());
+
+            return Task.CompletedTask;
+        }
+
+        public CircleDefinition GetCircle(Guid circleId)
+        {
+            var bytes = _circleStorage.Get(circleId.ToByteArray());
+            if (null == bytes)
+            {
+                return null;
+            }
+
+            return FromBytes(bytes);
+        }
+
+        public Task<IEnumerable<CircleDefinition>> GetCircles()
         {
             var list = _circleStorage.GetByKeyThree(_circleDataType);
-            var circles = list.Select(bytes => JsonConvert.DeserializeObject<Circle>(bytes.ToStringFromUtf8Bytes()));
+            var circles = list.Select(FromBytes);
             return Task.FromResult(circles);
+        }
+
+        public Task Delete(Guid id)
+        {
+            var circle = GetCircle(id);
+
+            if (null == circle)
+            {
+                throw new MissingDataException($"Invalid circle {id}");
+            }
+
+            //TODO: update the circle.Permissions and circle.Drives for all members of the circle
+
+
+            _circleStorage.DeleteRow(id.ToByteArray());
+            return Task.CompletedTask;
+        }
+
+        //
+
+        private CircleDefinition FromBytes(byte[] bytes)
+        {
+            return JsonConvert.DeserializeObject<CircleDefinition>(bytes.ToStringFromUtf8Bytes());
         }
     }
 }

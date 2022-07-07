@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Middleware
                 DriveAlias = d.Alias,
                 DriveType = d.Type,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                Permissions = DrivePermissions.All
+                Permission = DrivePermission.All
             });
 
             //HACK: giving this the master key makes my hairs raise >:-[
@@ -186,7 +186,7 @@ namespace Youverse.Hosting.Middleware
                     DriveAlias = d.Alias,
                     DriveType = d.Type,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                    Permissions = DrivePermissions.Read
+                    Permission = DrivePermission.Read
                 });
 
                 //HACK: granting ability to see friends list to anon users.

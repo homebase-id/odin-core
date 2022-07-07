@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Drive
     /// Permissions for operations on a drive.
     /// </summary>
     [Flags]
-    public enum DrivePermissions
+    public enum DrivePermission
     {
         None = 0,
         

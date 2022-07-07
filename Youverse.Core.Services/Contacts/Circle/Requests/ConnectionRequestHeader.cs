@@ -6,21 +6,6 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
-    public class AcceptRequestHeader
-    {
-        public string Sender { get; set; }
-        
-        /// <summary>
-        /// The drives which should be accessible to the recipient of this request
-        /// </summary>
-        public IEnumerable<TargetDrive> Drives { get; set; }
-        
-        /// <summary>
-        /// The permissions which should be granted to the recipient
-        /// </summary>
-        public PermissionSet Permissions { get; set; }
-    }
-    
     public class ConnectionRequestHeader
     {
         private string _recipient;
@@ -57,7 +42,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// The drives which should be accessible to the recipient of this request
         /// </summary>
-        public IEnumerable<TargetDrive> Drives { get; set; }
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
         
         /// <summary>
         /// The permissions which should be granted to the recipient

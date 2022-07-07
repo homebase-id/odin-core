@@ -20,6 +20,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// The type of access allowed for this drive grant
         /// </summary>
-        public DrivePermissions Permissions { get; set; }
+        public DrivePermission Permission { get; set; }
     }
 }

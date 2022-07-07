@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// The type of access allowed for this drive grant
         /// </summary>
-        public DrivePermissions Permissions { get; set; }
+        public DrivePermission Permission { get; set; }
         
     }
 }

@@ -18,6 +18,7 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
@@ -191,15 +192,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var drives = new List<TargetDrive>();
+                var drives = new List<DriveGrantRequest>();
                 if (createDrive)
                 {
                     var driveSvc = RestService.For<IDriveManagementHttpClient>(client);
                     var createDriveResponse = await driveSvc.CreateDrive(targetDrive, $"Test Drive name with type {targetDrive.Type}", "{data:'test metadata'}", driveAllowAnonymousReads);
+
                     Assert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
                     
-                    drives.Add(targetDrive);
-
+                    drives.Add(new DriveGrantRequest()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read
+                    });
                 }
 
                 var svc = RestService.For<IAppRegistrationClient>(client);
@@ -449,7 +454,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    Drives = new List<TargetDrive>(),
+                    Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);

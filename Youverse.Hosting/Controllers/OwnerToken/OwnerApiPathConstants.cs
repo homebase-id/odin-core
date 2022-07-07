@@ -8,10 +8,6 @@
 
         public const string AppManagementV1 = BasePathV1 + "/appmanagement";
 
-        public const string AppManagementDrivesV1 = AppManagementV1 + "/drives";
-        
-        public const string SecurityConfig = BasePathV1 + "/securityconfig";
-
         public const string YouAuthV1 = BasePathV1 + "/youauth";
 
         public const string DrivesV1 = BasePathV1 + "/drive";

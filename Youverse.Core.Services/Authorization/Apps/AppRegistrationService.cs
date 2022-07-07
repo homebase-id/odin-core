@@ -10,6 +10,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.SystemStorage;
 
@@ -34,7 +35,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _exchangeGrantService = exchangeGrantService;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<TargetDrive> drives)
+        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);

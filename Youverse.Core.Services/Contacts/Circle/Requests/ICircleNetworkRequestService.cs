@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <param name="sender"></param>
         /// <param name="drives">The drives which should be accessible to the recipient of this request</param>
         /// <param name="permissions">The permissions which should be granted to the recipient</param>
-        Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<TargetDrive> drives, PermissionSet permissions);
+        Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<DriveGrantRequest> drives, PermissionSet permissions);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient

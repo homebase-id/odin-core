@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -13,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, List<TargetDrive> drives);
+        Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
 
         Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId);
 
