@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
@@ -73,14 +75,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
@@ -129,13 +131,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
@@ -206,13 +208,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };

@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
@@ -73,14 +74,14 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.TestAppContext.TargetDrive,
+                    TargetDrive = uploadContext.TestAppContext.TargetDrive,
                     TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
@@ -129,13 +130,13 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.TestAppContext.TargetDrive,
+                    TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
@@ -205,13 +206,13 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.TestAppContext.TargetDrive,
+                    TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };

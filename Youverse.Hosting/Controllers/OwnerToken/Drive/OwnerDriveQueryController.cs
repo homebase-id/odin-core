@@ -36,10 +36,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] ResultOptions options)
+        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] QueryResultOptions options)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.Drive);
-            var batch = await _driveQueryService.GetBatch(driveId, qp, options);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
+            var batch = await _driveQueryService.GetBatch(driveId, qp, options.ToResultOptions());
             return new JsonResult(batch);
         }
     }

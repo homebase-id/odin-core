@@ -40,8 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //runs before each test 
             //_scaffold.DeleteData(); 
         }
-
-
+        
         [Test]
         public async Task CanCreateCircle()
         {

@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 {
@@ -53,14 +54,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var qp = new QueryParams()
                 {
-                    Drive = securedFileUploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = securedFileUploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
@@ -132,14 +133,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
@@ -166,13 +167,13 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             {
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
@@ -220,13 +221,13 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             {
                 var qp = new QueryParams()
                 {
-                    Drive = uploadContext.UploadedFile.TargetDrive,
+                    TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new QueryResultOptions()
                 {
-                    StartCursor = Array.Empty<byte>(),
-                    StopCursor = Array.Empty<byte>(),
+                    StartCursor = "",
+                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };

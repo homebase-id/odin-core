@@ -1,11 +1,10 @@
-using System;
 using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Drive.Query;
 
 public class QueryParams
 {
-    public TargetDrive Drive { get; set; }
+    public TargetDrive TargetDrive { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;
     public IEnumerable<byte[]> Sender { get; set; } = null;
