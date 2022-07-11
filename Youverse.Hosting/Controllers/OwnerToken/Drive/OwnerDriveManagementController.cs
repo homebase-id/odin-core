@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
+        public async Task<IActionResult> CreateDrive([FromBody]TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
         {
             //create a drive on the drive service
             var _ = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);

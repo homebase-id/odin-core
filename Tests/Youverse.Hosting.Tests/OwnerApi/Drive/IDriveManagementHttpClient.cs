@@ -17,7 +17,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         private const string RootEndpoint = OwnerApiPathConstants.DriveManagementV1;
 
         [Post(RootEndpoint + "/create")]
-        Task<ApiResponse<HttpContent>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads);
+        Task<ApiResponse<HttpContent>> CreateDrive([Body]TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads);
 
         [Get(RootEndpoint)]
         Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives(int pageNumber, int pageSize);

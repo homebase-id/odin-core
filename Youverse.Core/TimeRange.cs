@@ -6,7 +6,6 @@ public class TimeRange
 {
     public UInt64 Start { get; set; }
     public UInt64 End { get; set; }
-
     
     public bool IsValid()
     {

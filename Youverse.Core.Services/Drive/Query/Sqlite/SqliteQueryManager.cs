@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
@@ -42,7 +43,7 @@ public class SqliteQueryManager : IDriveQueryManager
         }
 
         var requiredSecurityGroup = (int)callerContext.SecurityLevel;
-        
+
         var aclList = new List<byte[]>();
 
         //TODO: add required security group to the querymodified function
@@ -68,18 +69,16 @@ public class SqliteQueryManager : IDriveQueryManager
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
+        //TODO: update to use IntRange
         var requiredSecurityGroup = (int)callerContext.SecurityLevel;
 
-        // todo: how to handle these? 
-        // (int)SecurityGroupType.CircleConnected 
-        // (int)SecurityGroupType.CustomList
-
         var aclList = new List<byte[]>();
-
-        //if the caller is not owner
-        // we have to pass the data thru a filter where the only files returned are those which match
-        //TODO: add required security group to the query modified function
-
+        if (callerContext.IsOwner == false)
+        {
+            aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
+            //TODO: add the circles
+        }
+        
         var results = _indexDb.QueryBatch(
             options.MaxRecords,
             out byte[] resultFirstCursor,
@@ -93,7 +92,7 @@ public class SqliteQueryManager : IDriveQueryManager
             qp.Sender?.ToList(),
             null, //thread id list
             qp.UserDate,
-            null, //acl list  
+            aclAnyOf: aclList,
             qp.TagsMatchAtLeastOne?.ToList(),
             qp.TagsMatchAll?.ToList());
 
@@ -114,14 +113,12 @@ public class SqliteQueryManager : IDriveQueryManager
         var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
 
         var acl = new List<Guid>();
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
 
-        //TODO: look up identities
-        if (header.ServerMetadata.AccessControlList.GetRequiredIdentities().Any())
-        {
-            throw new NotImplementedException("need to map the identity to its Id");
-            // acl.AddRange(identityGuidList);
-        }
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
+            ((DotYouIdentity)dotYouId).ToGuid()
+        );
+        acl.AddRange(ids.ToList());
 
         var threadId = Array.Empty<byte>();
 

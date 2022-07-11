@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 using LiteDB;
+using Serilog.Sinks.File;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Identity
 {
+
+
     /// <summary>
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
@@ -19,6 +22,8 @@ namespace Youverse.Core.Identity
             _identifier = identifier?.ToLower().Trim();
             if (string.IsNullOrEmpty(_identifier) == false)
             {
+                //TODO: change to use yousha
+                // new Guid(YouSHA.ReduceSHA256Hash(dotYouId.ToUtf8ByteArray()))
                 _id = MiscUtils.MD5HashToGuid(_identifier);
             }
             else
@@ -59,7 +64,7 @@ namespace Youverse.Core.Identity
 
         public override bool Equals(object obj)
         {
-            var d2 = (DotYouIdentity) obj;
+            var d2 = (DotYouIdentity)obj;
             return this == d2;
         }
 
@@ -79,8 +84,9 @@ namespace Youverse.Core.Identity
         /// <returns></returns>
         public Guid ToGuid()
         {
+            // new Guid(YouSHA.ReduceSHA256Hash(dotYouId.ToUtf8ByteArray()))
+
             return this._id;
         }
-
     }
 }
