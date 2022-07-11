@@ -10,9 +10,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
     /// </summary>
     public interface IEncryptionKeyServiceHttpClient
     {
-        private const string HostRootEndpoint = "/api/perimeter/transit/encryption";
-
-        [Get(HostRootEndpoint + "/offlineKey")]
+        [Get("/api/perimeter/transit/encryption/offlineKey")]
         Task<ApiResponse<RsaPublicKeyData>> GetOfflinePublicKey();
     }
 }

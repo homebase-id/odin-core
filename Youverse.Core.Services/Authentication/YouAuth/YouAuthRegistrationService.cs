@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
@@ -23,7 +24,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<(YouAuthRegistration, ClientAccessToken)> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken)
+        public ValueTask<ClientAccessToken> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken)
         {
             if (string.IsNullOrWhiteSpace(dotYouId))
             {
@@ -33,59 +34,13 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             // NOTE: this lock only works because litedb isn't async
             lock (_mutex)
             {
-                YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+                var registration = GetOrCreateRegistration(dotYouId);
+                var (accessRegistration, clientAccessToken) = _exchangeGrantService.CreateClientAccessToken(registration.Grant, null).GetAwaiter().GetResult();
 
-                //if this dotYouId has no registration
-                if (registration == null)
-                {
-                    var (grant, clientAccessToken) = this.EnsureGrant(dotYouId, remoteIcrClientAuthToken);
+                var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
+                _youAuthRegistrationStorage.SaveClient(client);
 
-                    registration = new YouAuthRegistration(Guid.NewGuid(), dotYouId);
-
-                    _youAuthRegistrationStorage.Save(registration);
-                    return ValueTask.FromResult<(YouAuthRegistration, ClientAccessToken)>((registration, clientAccessToken));
-                }
-
-                //
-                // There is a registration so let's see if we need to add a new client
-                // 
-                if (remoteIcrClientAuthToken == null)
-                {
-                    //We need to add a new client
-                    
-                    //need to create a new EGR for this browser and identity
-
-                    var (grant, clientAccessToken) = _exchangeGrantService.CreateYouAuthExchangeGrant((DotYouIdentity) dotYouId, null, null, AccessRegistrationClientType.Cookies).GetAwaiter().GetResult();
-                    registration = new YouAuthRegistration(registration.Id, dotYouId);
-
-                    _youAuthRegistrationStorage.Save(registration);
-                    return new ValueTask<(YouAuthRegistration, ClientAccessToken)>((registration, clientAccessToken));
-                }
-                
-                //
-                // There is a remoteIcrClientAuthToken so we need to upgrade
-                // 
-
-                var (newGrant, newClientAccessToken) = _exchangeGrantService.SpawnYouAuthExchangeGrant(remoteIcrClientAuthToken, AccessRegistrationClientType.Cookies).GetAwaiter().GetResult();
-                registration = new YouAuthRegistration(registration.Id, registration.Subject);
-                _youAuthRegistrationStorage.Save(registration);
-                return ValueTask.FromResult<(YouAuthRegistration, ClientAccessToken)>((registration, newClientAccessToken));
-
-            }
-        }
-
-        private (YouAuthExchangeGrant, ClientAccessToken) EnsureGrant(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken)
-        {
-            if (remoteIcrClientAuthToken == null)
-            {
-                var (grant, clientAccessToken) = _exchangeGrantService.CreateYouAuthExchangeGrant((DotYouIdentity) dotYouId, null, null, AccessRegistrationClientType.Cookies).GetAwaiter().GetResult();
-                return (grant, clientAccessToken);
-            }
-            else
-            {
-                //create a grant based on the ICR
-                var (grant, clientAccessToken) = _exchangeGrantService.SpawnYouAuthExchangeGrant(remoteIcrClientAuthToken, AccessRegistrationClientType.Cookies).GetAwaiter().GetResult();
-                return (grant, clientAccessToken);
+                return new ValueTask<ClientAccessToken>(clientAccessToken);
             }
         }
 
@@ -130,6 +85,58 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
+        public ValueTask<(bool isValid, YouAuthClient? client, YouAuthRegistration registration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
+        {
+            var client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
+            var accessReg = client?.AccessRegistration;
+
+            if (null == accessReg)
+            {
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
+            }
+
+            var registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
+
+            if (null == registration || null == registration.Grant)
+            {
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
+            }
+
+            if (accessReg.IsRevoked || registration.Grant.IsRevoked)
+            {
+                return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
+            }
+
+            return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((true, client, registration));
+        }
+
+        public ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken)
+        {
+            var (isValid, client, registration) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();
+
+            if (!isValid)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+            
+            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken, registration.Grant, client.AccessRegistration, false).GetAwaiter().GetResult();
+            return new ValueTask<PermissionContext>(permissionCtx);
+        }
+
         //
+
+        private YouAuthRegistration GetOrCreateRegistration(string dotYouId)
+        {
+            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+
+            if (registration == null)
+            {
+                var grant = _exchangeGrantService.CreateExchangeGrant(null, null, null).GetAwaiter().GetResult();
+                registration = new YouAuthRegistration(Guid.NewGuid(), dotYouId, grant);
+                _youAuthRegistrationStorage.Save(registration);
+            }
+
+            return registration;
+        }
     }
 }

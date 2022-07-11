@@ -4,13 +4,6 @@ namespace Youverse.Core.Cryptography.Data
 {
     public class PasswordData
     {
-        public static Guid Key => Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-        /// <summary>
-        /// There should only be one password key stored
-        /// </summary>
-        public Guid Id => Key;
-
         /// <summary>
         /// The 16 byte salt used for the password
         /// </summary>

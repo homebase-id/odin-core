@@ -8,19 +8,22 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.Owner.AppManagement;
+using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
+using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Apps
 {
     public class AppRegistrationTests
     {
-        private TestScaffold _scaffold;
+        // private TestScaffold _scaffold;
+
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -37,7 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var newId = await AddSampleAppNoDrive(appId, name);
         }
-        
+
         [Test]
         public async Task RevokeAppRegistration()
         {
@@ -46,7 +49,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var sharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var sharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var revokeResponse = await svc.RevokeApp(appId);
@@ -71,7 +74,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
 
@@ -106,18 +109,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
                     ApplicationId = applicationId,
                     Name = name,
+                    PermissionSet = null,
+                    Drives = null
                 };
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
@@ -131,7 +136,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<AppRegistrationResponse> GetSampleApp(Guid applicationId)
         {
-            using (var client = _scaffold.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var appResponse = await svc.GetRegisteredApp(applicationId);

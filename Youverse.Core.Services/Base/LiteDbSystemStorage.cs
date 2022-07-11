@@ -10,11 +10,13 @@ namespace Youverse.Core.Services.Base
     {
         private readonly ILogger<LiteDbSystemStorage> _logger;
         private readonly TenantContext _tenantContext;
+        private readonly KeyValueStorage _keyValueStorage;
 
         public LiteDbSystemStorage(ILogger<LiteDbSystemStorage> logger, TenantContext tenantContext)
         {
             _logger = logger;
             _tenantContext = tenantContext;
+            _keyValueStorage = new KeyValueStorage(tenantContext.StorageConfig.DataStoragePath, "sys.db");
         }
 
         public void WithTenantSystemStorage<T>(string collection, Action<IStorage<T>> action)
@@ -41,6 +43,14 @@ namespace Youverse.Core.Services.Base
             using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
             {
                 return func(storage);
+            }
+        }
+
+        public KeyValueStorage KeyValueStorage
+        {
+            get
+            {
+                return this._keyValueStorage;
             }
         }
     }

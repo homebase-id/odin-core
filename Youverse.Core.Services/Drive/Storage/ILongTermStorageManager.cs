@@ -34,13 +34,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         /// <returns></returns>
         Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart);
-
-        /// <summary>
-        /// Returns the <see cref="EncryptedKeyHeader"/> for a given file.
-        /// </summary>
-        /// <returns></returns>
-        Task<EncryptedKeyHeader> GetKeyHeader(Guid fileId);
-
+        
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
@@ -65,20 +59,12 @@ namespace Youverse.Core.Services.Drive.Storage
         Task MoveToLongTerm(Guid fileId, string filePath, FilePart part);
 
         /// <summary>
-        /// Writes an <see cref="EncryptedKeyHeader"/> to storage
-        /// </summary>
-        /// <param name="fileId"></param>
-        /// <param name="encryptedKeyHeader"></param>
-        /// <returns></returns>
-        Task WriteEncryptedKeyHeader(Guid fileId, EncryptedKeyHeader encryptedKeyHeader);
-        
-        /// <summary>
         /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
         /// </summary>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<IEnumerable<FileMetadata>> GetMetadataFiles(PageOptions pageOptions);
+        Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions);
 
-        Task<FileMetadata> GetMetadata(Guid fileId);
+        Task<ServerFileHeader> GetServerFileHeader(Guid fileId);
     }
 }

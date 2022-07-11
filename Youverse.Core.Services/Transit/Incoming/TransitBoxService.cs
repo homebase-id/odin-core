@@ -6,6 +6,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
@@ -31,11 +32,12 @@ namespace Youverse.Core.Services.Transit.Incoming
         public Task Add(TransferBoxItem item)
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
-            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(item.AppId), s => s.Save(item));
+            
+            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(item.TempFile.DriveId), s => s.Save(item));
 
             var ext =  new ExternalFileIdentifier()
             {
-                DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.GetTargetDrive(),
                 FileId = item.TempFile.FileId
             };
             
@@ -43,33 +45,32 @@ namespace Youverse.Core.Services.Transit.Incoming
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
-                AppId = item.AppId,
                 TempFile = ext
             });
 
             return Task.CompletedTask;
         }
 
-        public async Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid appId, PageOptions pageOptions)
+        public async Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid driveId, PageOptions pageOptions)
         {
-            return await _systemStorage.WithTenantSystemStorageReturnList<TransferBoxItem>(GetAppCollectionName(appId), s => s.GetList(pageOptions));
+            return await _systemStorage.WithTenantSystemStorageReturnList<TransferBoxItem>(GetAppCollectionName(driveId), s => s.GetList(pageOptions));
         }
 
-        public async Task<TransferBoxItem> GetItem(Guid appId, Guid id)
+        public async Task<TransferBoxItem> GetItem(Guid driveId, Guid id)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<TransferBoxItem>(GetAppCollectionName(appId), s => s.Get(id));
+            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<TransferBoxItem>(GetAppCollectionName(driveId), s => s.Get(id));
             return item;
         }
 
-        public Task Remove(Guid appId, Guid id)
+        public Task Remove(Guid driveId, Guid id)
         {
-            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(appId), s => s.Delete(id));
+            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(driveId), s => s.Delete(id));
             return Task.CompletedTask;
         }
 
-        private string GetAppCollectionName(Guid appId)
+        private string GetAppCollectionName(Guid driveId)
         {
-            return $"tbox_{appId:N}";
+            return $"tbox_{driveId:N}";
         }
     }
 }

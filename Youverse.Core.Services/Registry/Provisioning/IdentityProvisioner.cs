@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Registry.Provisioning
@@ -31,14 +32,35 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ProfileAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Standard Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppStandardProfileDriveAlias, "", true);
-                var drive2 = await _driveService.CreateDrive("Financial Profile", SystemAppConstants.ProfileDriveType, SystemAppConstants.ProfileAppFinancialProfileDriveAlias, "", false);
+                var profileDriveReq = new DriveGrantRequest()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = SystemAppConstants.ProfileAppStandardProfileDriveAlias,
+                        Type = SystemAppConstants.ProfileDriveType
+                    },
+                    Permission = DrivePermission.All
+                };
+              
+                var drive = await _driveService.CreateDrive("Standard Profile", profileDriveReq.Drive, "", true);
+
+                var financialDriveReq = new DriveGrantRequest()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = SystemAppConstants.ProfileAppFinancialProfileDriveAlias,
+                        Type = SystemAppConstants.ProfileDriveType
+                    },
+                    Permission = DrivePermission.All
+                };
+                
+                var drive2 = await _driveService.CreateDrive("Financial Profile", financialDriveReq.Drive, "", false);
 
                 var appReg = await _appRegService.RegisterApp(
                     SystemAppConstants.ProfileAppId,
                     profileAppName,
-                    permissions:null,
-                    new List<Guid>() {drive.Id, drive2.Id});
+                    permissions: null,
+                    new List<DriveGrantRequest>() { profileDriveReq, financialDriveReq });
             }
         }
 
@@ -49,12 +71,22 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.ChatAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Default Chat Drive", SystemAppConstants.ChatDriveType, SystemAppConstants.ChatAppDefaultDriveAlias, "", true);
+                var req = new DriveGrantRequest()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = SystemAppConstants.ChatAppDefaultDriveAlias,
+                        Type = SystemAppConstants.ChatDriveType
+                    },
+                    Permission = DrivePermission.All
+                };
+                
+                var drive = await _driveService.CreateDrive("Default Chat Drive", req.Drive, "", true);
                 await _appRegService.RegisterApp(
                     SystemAppConstants.ChatAppId,
                     chatAppName,
                     permissions: null,
-                    new List<Guid>() {drive.Id});
+                    new List<DriveGrantRequest>() { req });
             }
         }
 
@@ -64,12 +96,23 @@ namespace Youverse.Core.Services.Registry.Provisioning
             var existingApp = await _appRegService.GetAppRegistration(SystemAppConstants.WebHomeAppId);
             if (null == existingApp)
             {
-                var drive = await _driveService.CreateDrive("Web Home Default Drive", SystemAppConstants.WebHomeDriveType, SystemAppConstants.WebHomeDefaultDriveAlias, "", true);
+                var req = new DriveGrantRequest()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = SystemAppConstants.WebHomeDefaultDriveAlias,
+                        Type = SystemAppConstants.WebHomeDriveType
+                    },
+                    Permission = DrivePermission.All
+                };
+                
+                var drive = await _driveService.CreateDrive("Web Home Default Drive", req.Drive, "", true);
+                
                 await _appRegService.RegisterApp(
                     SystemAppConstants.WebHomeAppId,
                     webHomeAppName,
                     permissions: null,
-                    new List<Guid>() {drive.Id});
+                    new List<DriveGrantRequest>() { req });
             }
         }
     }

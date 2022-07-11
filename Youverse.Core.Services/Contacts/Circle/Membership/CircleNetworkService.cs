@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -24,15 +25,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ExchangeGrantService _exchangeGrantService;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
-            _exchangeGrantService = exchangeGrantService;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _exchangeGrantService = exchangeGrantService;
         }
 
         public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
@@ -45,7 +47,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var response = await client.GetProfile(Guid.Empty);
             if (response.IsSuccessStatusCode)
             {
-                
             }
         }
 
@@ -72,7 +73,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             // processing them here means they're going to be called using the senderDI's context
 
             //TODO: need to expand on these numbers by using an enum or something
-            if (notification.NotificationId == (int) CircleNetworkNotificationType.ProfileDataChanged)
+            if (notification.NotificationId == (int)CircleNetworkNotificationType.ProfileDataChanged)
             {
                 await this.UpdateConnectionProfileCache(senderDotYouId);
             }
@@ -80,15 +81,34 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             throw new Exception($"Unknown notification Id {notification.NotificationId}");
         }
 
+        public async Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken authToken)
+        {
+            var icr = await this.GetIdentityConnectionRegistration(callerDotYouId, authToken);
+            var accessGrant = icr.AccessGrant;
+
+            if (null == accessGrant || null == accessGrant.Grant)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+
+            if (accessGrant.AccessRegistration.IsRevoked || accessGrant.Grant.IsRevoked)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, accessGrant.Grant, accessGrant.AccessRegistration, false);
+            return (icr.IsConnected(), permissionCtx);
+        }
+
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
-            if (info is {Status: ConnectionStatus.Connected})
+            if (info is { Status: ConnectionStatus.Connected })
             {
-                await _exchangeGrantService.RevokeIdentityExchangeGrantAccess(dotYouId);
-
+                //destroy all access
+                info.AccessGrant = null;
                 info.Status = ConnectionStatus.None;
                 _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
 
@@ -148,7 +168,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Read);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Read);
 
             var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(
@@ -190,19 +210,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            if (connection?.AccessRegistrationId == null)
+            if (connection?.AccessGrant.AccessRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            // var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
-            var accessReg = await _exchangeGrantService.GetAccessRegistration(remoteClientAuthenticationToken.Id);
-            if (null == accessReg)
-            {
-                throw new YouverseSecurityException("Unauthorized Action");
-            }
-
-            accessReg.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
+            connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
 
             return connection;
         }
@@ -211,20 +224,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            if (connection?.AccessRegistrationId == null || connection?.IsConnected() == false)
+            if (connection?.AccessGrant.AccessRegistration == null || connection?.IsConnected() == false)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
 
-            var accessReg = await _exchangeGrantService.GetAccessRegistration(connection.AccessRegistrationId);
-            if (null == accessReg)
-            {
-                throw new YouverseSecurityException("Unauthorized Action");
-            }
+            connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
-            accessReg.AssertValidRemoteKey(remoteIdentityConnectionKey);
-
-            return accessReg;
+            return connection.AccessGrant.AccessRegistration;
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray exchangeRegistrationKsk)
@@ -289,11 +296,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string dotYouIdentity, Guid accessRegistrationId, ClientAccessToken remoteClientAccessToken)
+        public async Task Connect(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
         {
             //TODO: need to add security that this method can be called
 
-            var dotYouId = (DotYouIdentity) dotYouIdentity;
+            var dotYouId = (DotYouIdentity)dotYouIdentity;
 
             //1. validate current connection state
             var info = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
@@ -302,15 +309,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 throw new YouverseSecurityException("invalid connection state");
             }
-            
+
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
 
-            await this.StoreConnection(dotYouId, accessRegistrationId, remoteClientAccessToken);
+            await this.StoreConnection(dotYouId, accessGrant, remoteClientAccessToken);
         }
 
-        private async Task StoreConnection(string dotYouIdentity, Guid accessRegId, ClientAccessToken remoteClientAccessToken)
+        private async Task StoreConnection(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
         {
-            var dotYouId = (DotYouIdentity) dotYouIdentity;
+            var dotYouId = (DotYouIdentity)dotYouIdentity;
 
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
@@ -318,7 +325,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                AccessRegistrationId = accessRegId,
+                AccessGrant = accessGrant,
                 ClientAccessTokenId = remoteClientAccessToken.Id,
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
@@ -337,7 +344,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
             Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == status;
-            PagedResult<IdentityConnectionRegistration> results = await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
+            PagedResult<IdentityConnectionRegistration> results =
+                await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
             return results;
         }
     }

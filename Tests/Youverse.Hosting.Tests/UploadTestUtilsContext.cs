@@ -1,19 +1,10 @@
-﻿using System;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+﻿using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Tests.AppAPI;
 
 namespace Youverse.Hosting.Tests
 {
     public class UploadTestUtilsContext
     {
-        public Guid AppId { get; set; }
-        public byte[] DeviceUid { get; set; }
-        public ClientAuthenticationToken AuthenticationResult { get; set; }
-        public SensitiveByteArray AppSharedSecretKey { get; set; }
-
         /// <summary>
         /// The instruction set that was uploaded
         /// </summary>
@@ -24,8 +15,15 @@ namespace Youverse.Hosting.Tests
         /// </summary>
         public UploadFileMetadata FileMetadata { get; set; }
 
+        /// <summary>
+        /// The payload data that was uploaded
+        /// </summary>
         public string PayloadData { get; set; }
+        
+        /// <summary>
+        /// The uploaded file information.
+        /// </summary>
+        public ExternalFileIdentifier UploadedFile { get; set; }
 
-        public TestSampleAppContext TestAppContext { get; set; }
     }
 }

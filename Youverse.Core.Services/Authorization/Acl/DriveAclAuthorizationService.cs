@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task AssertCallerHasPermission(AccessControlList acl)
         {
-            //ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
+            ThrowWhenFalse(CallerHasPermission(acl).GetAwaiter().GetResult());
 
             return Task.CompletedTask;
         }
@@ -41,24 +41,26 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Task.FromResult(false);
             }
 
+            if (acl.GetRequiredCircles().Any())
+            {
+                throw new NotImplementedException("TODO: enforce logic for circles");
+            }
+            
+            if (acl.GetRequiredIdentities().Any())
+            {
+                throw new NotImplementedException("TODO: enforce logic for required identities");
+            }
+            
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     return Task.FromResult(true);
 
-                case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
-                    return Task.FromResult(caller.IsInYouverseNetwork);
+                case SecurityGroupType.Authenticated:
+                    return Task.FromResult(caller!.IsInYouverseNetwork);
 
                 case SecurityGroupType.Connected:
                     return CallerIsConnected();
-
-                case SecurityGroupType.CircleConnected:
-                    return Task.FromResult(CallerIsConnected().GetAwaiter().GetResult() &&
-                                           CallerIsInCircle(acl.CircleId).GetAwaiter().GetResult());
-
-                case SecurityGroupType.CustomList:
-                    return Task.FromResult(CallerIsInYouverseNetwork().GetAwaiter().GetResult() &&
-                                           CallerIsInList(acl.DotYouIdentityList).GetAwaiter().GetResult());
             }
 
             return Task.FromResult(false);
@@ -90,7 +92,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         {
             if (eval == false)
             {
-                throw new YouverseSecurityException();
+                throw new DriveSecurityException();
             }
         }
     }

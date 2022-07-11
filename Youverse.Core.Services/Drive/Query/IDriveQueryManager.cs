@@ -1,9 +1,7 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic.FileIO;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
@@ -23,44 +21,30 @@ namespace Youverse.Core.Services.Drive.Query
         /// </summary>
         IndexReadyState IndexReadyState { get; set; }
 
+        /// <summary>
+        /// Returns the fileId of recently modified files
+        /// </summary>
+        /// <param name="startCursor"></param>
+        /// <param name="qp"></param>
+        /// <param name="options"></param>
+        /// <param name="callerContext"></param>
+        /// <param name="maxDate"></param>
+        /// <returns>(cursor, file Id List)</returns>
+        Task<(byte[], IEnumerable<Guid>)> GetRecent(CallerContext callerContext, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options);
+
 
         /// <summary>
-        /// Returns the most recently created <see cref="IndexedItem"/>s.  Items are returned CreateTimestamp descending
+        /// Returns a batch of file Ids
         /// </summary>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetRecentlyCreatedItems(bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
-
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="fileType">The type of file to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByFileType(int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-        
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="tag">The category to match</param>
-        /// <param name="fileType">The type of file to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByTag(Guid tag, int fileType, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
-        /// <summary>
-        /// Returns all <see cref="IndexedItem"/>s matching the given category. Items are returned CreateTimestamp descending
-        /// </summary>
-        /// <param name="tag">The category to match</param>
-        /// <param name="includeMetadataHeader">if true, the value of JsonContent will be included in the result.</param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<IndexedItem>> GetByAlias(Guid alias, bool includeMetadataHeader, PageOptions pageOptions, IDriveAclAuthorizationService driveAclAuthorizationService);
-
+        /// <param name="callerContext"></param>
+        /// <param name="startCursor"></param>
+        /// <param name="stopCursor"></param>
+        /// <param name="qp"></param>
+        /// <param name="options"></param>
+        /// <returns>
+        /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
+        /// </returns>
+        Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryParams qp, ResultOptions options);
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild
@@ -71,7 +55,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Updates the current index that is in use.
         /// </summary>
-        Task UpdateCurrentIndex(FileMetadata metadata);
+        Task UpdateCurrentIndex(ServerFileHeader metadata);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
@@ -91,7 +75,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// Updates the index that is not currently in use.  Use when performing a rebuild.
         /// </summary>
         /// <param name="metadata"></param>
-        Task UpdateSecondaryIndex(FileMetadata metadata);
+        Task UpdateSecondaryIndex(ServerFileHeader metadata);
 
         /// <summary>
         /// Prepares backup index for rebuild; clears and instantiates a new instance.

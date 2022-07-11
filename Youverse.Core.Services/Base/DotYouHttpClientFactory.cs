@@ -23,31 +23,28 @@ namespace Youverse.Core.Services.Base
             _certificateResolver = certificateResolver;
         }
 
-        public T CreateClientUsingAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
+        public T CreateClientUsingAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
             Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
             Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
 
-            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken, appIdOverride);
+            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken);
         }
 
-        public T CreateClient<T>(DotYouIdentity dotYouId, Guid? appIdOverride = null)
+        public T CreateClient<T>(DotYouIdentity dotYouId)
         {
 
-            return this.CreateClientInternal<T>(dotYouId, null, appIdOverride);
+            return this.CreateClientInternal<T>(dotYouId, null);
         }
 
         ///
         
-        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken, Guid? appIdOverride = null)
+        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
             
-            var appId = appIdOverride.HasValue ? appIdOverride.ToString() : _contextAccessor.GetCurrent().AppContext?.AppId.ToString() ?? "";
-            Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
-
             var handler = new HttpClientHandler();
 
             //HACK: this appIdOverride is strange but required so the background sender
@@ -73,7 +70,7 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
 
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
+            // client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
             if (null != clientAuthenticationToken)
             {
                 //TODO: need to encrypt this token somehow? (shared secret?)

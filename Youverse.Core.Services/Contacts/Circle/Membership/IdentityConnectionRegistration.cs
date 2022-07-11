@@ -1,7 +1,6 @@
 using System;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -29,9 +28,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         }
 
         /// <summary>
-        /// The Id on this Host to the access registration which defines this DotYouId's permissions on this host
+        /// The drives and permissions granted to this connection
         /// </summary>
-        public Guid AccessRegistrationId { get; set; }
+        public AccessExchangeGrant AccessGrant { get; set; }
 
         /// <summary>
         /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this DotYouId's host

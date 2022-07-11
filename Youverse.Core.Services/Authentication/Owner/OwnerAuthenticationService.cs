@@ -8,6 +8,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.SystemStorage;
 
 /// <summary>
 /// Goals here are that:
@@ -23,7 +24,7 @@ namespace Youverse.Core.Services.Authentication.Owner
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
-    public class OwnerAuthenticationService :  IOwnerAuthenticationService
+    public class OwnerAuthenticationService : IOwnerAuthenticationService
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IOwnerSecretService _secretService;
@@ -45,30 +46,26 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             if (keyListWasUpdated)
             {
-                
             }
-            
+
             var publicKey = key.publicPem();
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);
-
-            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Save(nonce));
+            _systemStorage.KeyValueStorage.Upsert(nonce.Id.ToByteArray(), nonce);
             return nonce;
         }
 
         public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply)
         {
-            
-            Guid key = new Guid(Convert.FromBase64String(reply.Nonce64));
-
+            byte[] key = Convert.FromBase64String(reply.Nonce64);
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = await _systemStorage.WithTenantSystemStorageReturnSingle<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Get(key));
+            var noncePackage = _systemStorage.KeyValueStorage.Get<NonceData>(key);
 
             // TODO TEST Make sure an exception is thrown if it does not exist. 
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _systemStorage.WithTenantSystemStorage<NonceData>(AUTH_TOKEN_COLLECTION, s => s.Delete(key));
+            _systemStorage.KeyValueStorage.Delete(key);
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
@@ -77,8 +74,8 @@ namespace Youverse.Core.Services.Authentication.Owner
             var keys = await this._secretService.GetRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
             
-            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Save(serverToken));
-
+            _systemStorage.KeyValueStorage.Upsert(serverToken.Id.ToByteArray(), serverToken);
+            
             // TODO - where do we set the MasterKek and MasterDek?
 
             // TODO: audit login some where, or in helper class below
@@ -95,17 +92,15 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
-            
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            
-            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var entry = _systemStorage.KeyValueStorage.Get<OwnerConsoleToken>(sessionToken.ToByteArray());
             return IsAuthTokenEntryValid(entry);
         }
-        
+
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+            var loginToken = _systemStorage.KeyValueStorage.Get<OwnerConsoleToken>(sessionToken.ToByteArray());
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
@@ -122,7 +117,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             loginToken.Dispose();
             return (mk, clone.ToSensitiveByteArray());
         }
-        
+
         // public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         // {
         //     //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
@@ -141,19 +136,19 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Save(entry));
+            _systemStorage.KeyValueStorage.Upsert(entry.Id.ToByteArray(), entry);
         }
 
         public void ExpireToken(Guid token)
         {
-            _systemStorage.WithTenantSystemStorage<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Delete(token));
+            _systemStorage.KeyValueStorage.Delete(token.ToByteArray());
         }
 
-        private async Task<OwnerConsoleToken> GetValidatedEntry(Guid token)
+        private Task<OwnerConsoleToken> GetValidatedEntry(Guid token)
         {
-            var entry = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(token));
+            var entry = _systemStorage.KeyValueStorage.Get<OwnerConsoleToken>(token.ToByteArray());
             AssertTokenIsValid(entry);
-            return entry;
+            return Task.FromResult(entry);
         }
 
         private bool IsAuthTokenEntryValid(OwnerConsoleToken entry)
@@ -174,7 +169,5 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new YouverseSecurityException();
             }
         }
-
-       
     }
 }

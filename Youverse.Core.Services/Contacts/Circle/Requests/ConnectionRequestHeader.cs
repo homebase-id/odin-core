@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -35,5 +38,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>
         public string Message { get; set; }
+        
+        /// <summary>
+        /// The drives which should be accessible to the recipient of this request
+        /// </summary>
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
+        
+        /// <summary>
+        /// The permissions which should be granted to the recipient
+        /// </summary>
+        public PermissionSet Permissions { get; set; }
     }
 }

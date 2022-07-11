@@ -14,6 +14,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Tests
 {
@@ -27,8 +28,6 @@ namespace Youverse.Core.Services.Tests
         public ILoggerFactory LoggerFactory { get; private set; }
 
         public IMediator Mediator { get; private set; }
-
-        public IDriveAclAuthorizationService DriveAclAuthorizationService { get; private set; }
 
         public string? DataStoragePath => _dataStoragePath;
 
@@ -64,11 +63,6 @@ namespace Youverse.Core.Services.Tests
         public void CreateMediator()
         {
             Mediator = Substitute.For<IMediator>();
-        }
-
-        public void CreateAuthorizationService()
-        {
-            DriveAclAuthorizationService = new DriveAclAuthorizationService(this.Context);
         }
 
         public void LogDataPath()

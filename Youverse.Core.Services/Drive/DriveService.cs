@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
@@ -19,13 +18,17 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Drive
 {
+    // Note: drive storage using the ThreeKey KeyValueDatabase
+    // key1 = drive id
+    // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
+    // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
+
     public class DriveService : IDriveService
     {
-        const int MaxPayloadMemorySize = 4 * 1000; //TODO: put in config
-
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
@@ -33,10 +36,10 @@ namespace Youverse.Core.Services.Drive
         private readonly TenantContext _tenantContext;
         private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
         private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
-        private const string DriveCollectionName = "drives";
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator, IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
+        public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
@@ -51,9 +54,10 @@ namespace Youverse.Core.Services.Drive
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
-        private static object _createDriveLock = new object();
+        private readonly object _createDriveLock = new object();
+        private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
-        public Task<StorageDrive> CreateDrive(string name, Guid type, Guid driveAlias, string metadata, bool allowAnonymousReads = false)
+        public Task<StorageDrive> CreateDrive(string name, TargetDrive targetDrive, string metadata, bool allowAnonymousReads = false)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
 
@@ -64,13 +68,9 @@ namespace Youverse.Core.Services.Drive
             lock (_createDriveLock)
             {
                 //driveAlias and type must be unique
-                var existingDrives = _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(
-                        DriveCollectionName, s => s.Find(drive => drive.Type == type && drive.Alias == driveAlias, PageOptions.All))
-                    .GetAwaiter().GetResult();
-
-                if (existingDrives.Results.Count > 0)
+                if (null != this.GetDriveIdByAlias(targetDrive, false).GetAwaiter().GetResult())
                 {
-                    throw new ConfigException("Drive Alias and type must be unique");
+                    throw new ConfigException("Drive alias and type must be unique");
                 }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
@@ -84,8 +84,8 @@ namespace Youverse.Core.Services.Drive
                 {
                     Id = id,
                     Name = name,
-                    Alias = driveAlias,
-                    Type = type,
+                    Alias = targetDrive.Alias,
+                    Type = targetDrive.Type,
                     Metadata = metadata,
                     MasterKeyEncryptedStorageKey = driveKey,
                     EncryptedIdIv = encryptedIdIv,
@@ -95,7 +95,8 @@ namespace Youverse.Core.Services.Drive
 
                 secret.Wipe();
 
-                _systemStorage.WithTenantSystemStorage<StorageDriveBase>(DriveCollectionName, s => s.Save(sdb));
+                var json = JsonConvert.SerializeObject(sdb);
+                _systemStorage.KeyValueStorage.ThreeKeyStorage.UpsertRow(sdb.Id.ToByteArray(), targetDrive.ToKey(), _driveDataType, json.ToUtf8ByteArray());
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
@@ -106,8 +107,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.Get(driveId));
-            if (null == sdb)
+            var bytes = _systemStorage.KeyValueStorage.ThreeKeyStorage.Get(driveId.ToByteArray());
+            if (null == bytes)
             {
                 if (failIfInvalid)
                 {
@@ -117,76 +118,63 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
+            var sdb = ToStorageDriveBase(bytes);
             var drive = ToStorageDrive(sdb);
             return drive;
         }
 
-        public async Task<Guid?> GetDriveIdByAlias(Guid driveAlias, bool failIfInvalid = false)
+        public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var sdb = await _systemStorage.WithTenantSystemStorageReturnSingle<StorageDriveBase>(DriveCollectionName, s => s.FindOne(d => d.Alias == driveAlias));
-            if (null == sdb)
+            var list = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyTwo(targetDrive.ToKey());
+            if (null == list || !list.Any())
             {
                 if (failIfInvalid)
                 {
-                    throw new InvalidDriveException(driveAlias);
+                    throw new InvalidDriveException(targetDrive.Alias);
                 }
+
+                return null;
             }
 
-            return sdb?.Id;
+            var sdb = ToStorageDriveBase(list.Single());
+            var drive = ToStorageDrive(sdb);
+            return drive.Id;
         }
 
         public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
         {
             return await this.GetDrivesInternal(true, pageOptions);
         }
-        
+
         public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.Type == type;
+            Func<StorageDrive, bool> predicate = drive => drive.Type == type;
 
             if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
             {
                 predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
             }
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
+            var page = await this.GetDrivesInternal(false, pageOptions);
+
+            var storageDrives = page.Results.Where(predicate).ToList();
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+            return results;
         }
-        
+
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => drive.AllowAnonymousReads == true; 
+            Func<StorageDrive, bool> predicate = drive => drive.AllowAnonymousReads;
+            var page = await this.GetDrivesInternal(false, pageOptions);
 
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
+            var storageDrives = page.Results.Where(predicate).ToList();
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+            return results;
         }
-        
-        private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
-        {
-            Expression<Func<StorageDriveBase, bool>> predicate = drive => true;
-
-            if (enforceSecurity)
-            {
-                if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
-                {
-                    predicate = drive => drive.AllowAnonymousReads == true;
-                }
-            }
-
-            var page = await _systemStorage.WithTenantSystemStorageReturnList<StorageDriveBase>(DriveCollectionName, s => s.Find(predicate, pageOptions));
-            var storageDrives = page.Results.Select(ToStorageDrive).ToList();
-            var converted = new PagedResult<StorageDrive>(pageOptions, page.TotalPages, storageDrives);
-            return converted;
-        }
-
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
-            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //TODO: need a permission specifically for writing to the temp drive
             //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
 
             var df = new InternalDriveFileId()
@@ -198,47 +186,34 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public async Task WriteMetaData(InternalDriveFileId file, FileMetadata metadata)
+        public async Task WriteFileHeader(InternalDriveFileId file, ServerFileHeader header)
         {
-            Guard.Argument(metadata, nameof(metadata)).NotNull();
-            Guard.Argument(metadata.ContentType, nameof(metadata.ContentType)).NotNull().NotEmpty();
+            Guard.Argument(header, nameof(header)).NotNull();
+            Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
 
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+
+            var metadata = header.FileMetadata;
 
             //TODO: need to encrypt the metadata parts
             metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embedded
 
             if (this.FileExists(file))
             {
-                var existingMetadata = await this.GetMetadata(file);
+                var existingHeader = await this.GetServerFileHeader(file);
                 metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
-                metadata.Created = existingMetadata.Created;
+                metadata.Created = existingHeader.FileMetadata.Created;
             }
             else
             {
                 metadata.Created = DateTimeExtensions.UnixTimeMilliseconds();
             }
 
-            var json = JsonConvert.SerializeObject(metadata);
+            var json = JsonConvert.SerializeObject(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Metadata, stream);
+            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Header, stream);
 
-            OnLongTermFileChanged(file, metadata);
-        }
-
-        public async Task WritePayload(InternalDriveFileId file, Stream stream)
-        {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
-
-            await GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Payload, stream);
-
-            //update the metadata file - updated date
-            var metadata = await GetMetadata(file);
-            metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
-
-            //TODO: who sets the checksum?
-            //metadata.FileChecksum
-            await this.WriteMetaData(file, metadata);
+            OnLongTermFileChanged(file, header);
         }
 
         public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
@@ -275,7 +250,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            //TODO: need a permission specificallyt for writing to the t4mep drive
+            //TODO: need a permission specifically for writing to the t4mep drive
             //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
@@ -302,14 +277,14 @@ namespace Youverse.Core.Services.Drive
             return GetTempStorageManager(file.DriveId).Delete(file.FileId);
         }
 
-        public Task<IEnumerable<FileMetadata>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
+        public Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
 
-            return GetLongTermStorageManager(driveId).GetMetadataFiles(pageOptions);
+            return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<EncryptedKeyHeader> WriteKeyHeader(InternalDriveFileId file, KeyHeader keyHeader)
+        private async Task<EncryptedKeyHeader> EncryptKeyHeader(InternalDriveFileId file, KeyHeader keyHeader)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
@@ -325,65 +300,31 @@ namespace Youverse.Core.Services.Drive
             }
 
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
-
-            await manager.WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
             return encryptedKeyHeader;
         }
 
-        public Task<EncryptedKeyHeader> GetEncryptedKeyHeader(InternalDriveFileId file)
-        {
-            this.AssertCanReadDrive(file.DriveId);
-            return GetLongTermStorageManager(file.DriveId).GetKeyHeader(file.FileId);
-        }
-
-        public async Task<FileMetadata> GetMetadata(InternalDriveFileId file)
+        public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
 
-            var metadata = await GetLongTermStorageManager(file.DriveId).GetMetadata(file.FileId);
+            var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
+            await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+            
+            var size = await GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
+            header.FileMetadata.PayloadSize = size;
 
-            // var acl = await GetAcl(file);
-            await _driveAclAuthorizationService.AssertCallerHasPermission(metadata.AccessControlList);
-
-            if (!_contextAccessor.GetCurrent().Caller.IsOwner)
-            {
-                metadata.AccessControlList = null;
-            }
-
-            return metadata;
+            return header;
         }
-
-        // public Task<AccessControlList> GetAcl(DriveFileId)
-        // {
-        // }
-
+        
         public async Task<Stream> GetPayloadStream(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
 
+            //Note: calling to get the file header so we can ensure the caller can read this file
+
+            var _ = await this.GetServerFileHeader(file);
             var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
             return stream;
-        }
-
-        public async Task<(bool tooLarge, long size, byte[] bytes)> GetPayloadBytes(InternalDriveFileId file)
-        {
-            var size = await this.GetPayloadSize(file);
-            if (size > MaxPayloadMemorySize)
-            {
-                return (true, size, new byte[] { });
-            }
-
-            var stream = await this.GetPayloadStream(file);
-            var bytes = stream.ToByteArray();
-            stream.Close();
-            return (false, size, bytes);
-        }
-
-        public Task<long> GetPayloadSize(InternalDriveFileId file)
-        {
-            this.AssertCanReadDrive(file.DriveId);
-
-            return GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)
@@ -413,36 +354,58 @@ namespace Youverse.Core.Services.Drive
             return result;
         }
 
-        public async Task StoreLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, string payloadExtension)
+        public async Task CommitTempFileToLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
             //TODO: this method is so hacky 🤢
-
             metadata.File = file;
-
-            await this.WriteKeyHeader(file, keyHeader);
-            await this.WriteMetaData(file, metadata);
 
             string sourceFile = await GetTempStorageManager(file.DriveId).GetPath(file.FileId, payloadExtension);
             await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
 
-            OnLongTermFileChanged(file, metadata);
+            //TODO: calculate payload checksum, put on file metadata
+            var serverHeader = new ServerFileHeader()
+            {
+                EncryptedKeyHeader = await this.EncryptKeyHeader(file, keyHeader),
+                FileMetadata = metadata,
+                ServerMetadata = serverMetadata
+            };
+
+            //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
+            await this.WriteFileHeader(file, serverHeader);
         }
 
-        public Task WriteEncryptedKeyHeader(InternalDriveFileId file, EncryptedKeyHeader encryptedKeyHeader)
+        private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            var driveByteList = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyThree(_driveDataType);
 
-            return GetLongTermStorageManager(file.DriveId).WriteEncryptedKeyHeader(file.FileId, encryptedKeyHeader);
+            var predicate = new Func<StorageDriveBase, bool>(drive => true);
+            if (enforceSecurity)
+            {
+                if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
+                {
+                    predicate = drive => drive.AllowAnonymousReads == true;
+                }
+            }
+
+            var storageDrives = driveByteList.Select(ToStorageDriveBase);
+            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
+            return results;
         }
 
-        private void OnLongTermFileChanged(InternalDriveFileId file, FileMetadata metadata)
+
+        private StorageDriveBase ToStorageDriveBase(byte[] bytes)
+        {
+            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
+        }
+
+        private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)
         {
             var notification = new DriveFileChangedNotification()
             {
                 File = file,
-                FileMetadata = metadata
+                FileHeader = header
             };
 
             _mediator.Publish(notification);

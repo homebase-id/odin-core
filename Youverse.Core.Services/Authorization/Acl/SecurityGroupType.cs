@@ -1,41 +1,31 @@
+using System;
+
 namespace Youverse.Core.Services.Authorization.Acl
 {
-    //TODO: should we have an OwnerOnly?
+
     public enum SecurityGroupType
     {
         /// <summary>
         /// Indicates anyone on the internet (i.e. public)
         /// </summary>
-        Anonymous = 11,
+        Anonymous = 111,
 
-        /// <summary>
-        /// TODO: Requests where the caller is not on the youverse network yet holds an xtoken for accessing data
-        /// </summary>
-        //YouAuthExchange = 17,
+        // TODO: Requests where the caller is not on the youverse network yet holds an x-token for accessing data
+        //YouAuthExchange = 333,
 
         /// <summary>
         /// Requests where a caller a YouAuth authenticated or Certificate (via transit) 
         /// </summary>
-        YouAuthOrTransitCertificateIdentified = 22,
+        Authenticated = 444,
 
         /// <summary>
         /// Requests where the caller is marked as connected and holds a connected token
         /// </summary>
-        Connected = 33,
-
-        /// <summary>
-        /// Requests where the caller is <see cref="SecurityGroupType.Connected"/> and with-in a specified circle.
-        /// </summary>
-        CircleConnected = 44,
-
-        /// <summary>
-        /// Requests where the caller is <see cref="SecurityGroupType.YouAuthOrTransitCertificateIdentified"/> and with-in a specific list
-        /// </summary>
-        CustomList = 55,
-
+        Connected = 777,
+        
         /// <summary>
         /// Specifies that only the owner can access a file
         /// </summary>
-        Owner = 111
+        Owner = 999
     }
 }

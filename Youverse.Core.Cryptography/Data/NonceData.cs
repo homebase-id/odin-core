@@ -53,10 +53,6 @@ namespace Youverse.Core.Cryptography.Data
             {
                 return new Guid(Convert.FromBase64String(this.Nonce64));
             }
-            set
-            {
-
-            }
         }
         public string SaltPassword64 { get; set; }
         public string SaltKek64 { get; set; }

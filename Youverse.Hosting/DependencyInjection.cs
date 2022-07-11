@@ -15,11 +15,11 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.ClientNotifications;
+using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Security;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
@@ -28,11 +28,11 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Hosting
 {
@@ -45,7 +45,7 @@ namespace Youverse.Hosting
         {
             RegisterMediator(ref cb);
 
-            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>();
+            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>().SingleInstance();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()
@@ -76,7 +76,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
-            cb.RegisterType<GranteeResolver>().As<IGranteeResolver>().SingleInstance();
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()
@@ -90,8 +89,7 @@ namespace Youverse.Hosting
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
-            cb.RegisterType<LiteDbTransitAuditReaderService>().As<ITransitAuditReaderService>().SingleInstance();
-            cb.RegisterType<LiteDbTransitAuditWriterService>().As<ITransitAuditWriterService>().SingleInstance();
+            
 
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
@@ -106,10 +104,8 @@ namespace Youverse.Hosting
             cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<ExchangeGrantContextService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<CircleDefinitionService>().As<ICircleDefinitionService>().SingleInstance();
+            
+            cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 

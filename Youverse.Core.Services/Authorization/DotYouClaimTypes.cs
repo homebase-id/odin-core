@@ -9,10 +9,6 @@ namespace Youverse.Core.Services.Authorization
     {
         public static string YouFoundationIssuer = "YouFoundation";
 
-        public static string AppId = "https://schemas.youfoundation.id/2021/11/apps/AppId";
-        
-        public static string DeviceUid64 = "https://schemas.youfoundation.id/2021/11/apps/DeviceUid";
-
         /// <summary>
         /// Indicates the current <see cref="ClaimsPrincipal"/> owns this identity website
         /// </summary>
@@ -27,13 +23,6 @@ namespace Youverse.Core.Services.Authorization
         /// Indicates the caller is on the Youverse network
         /// </summary>
         public static string IsInNetwork = "https://schemas.youfoundation.id/2021/3/identity/IsInNetwork";
-
-        public static string SessionId = "https://schemas.youfoundation.id/2021/3/identity/SessionId";
-
-        /// <summary>
-        /// Specifies the identity performing actions on a given identity
-        /// </summary>
-        public static string Actor = "https://schemas.youfoundation.id/2021/3/identity/Actor";
 
         public static string AuthResult  = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
         

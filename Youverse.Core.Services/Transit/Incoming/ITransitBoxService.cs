@@ -19,13 +19,13 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// Gets a list of all items
         /// </summary>
         /// <returns></returns>
-        Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid appId, PageOptions pageOptions);
+        Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid driveId, PageOptions pageOptions);
 
-        Task<TransferBoxItem> GetItem(Guid appId, Guid id);
+        Task<TransferBoxItem> GetItem(Guid driveId, Guid id);
 
         /// <summary>
         /// Removes an item from the Inbox.
         /// </summary>
-        Task Remove(Guid appId, Guid id);
+        Task Remove(Guid driveId, Guid id);
     }
 }

@@ -19,11 +19,6 @@ namespace Youverse.Core.Services.Transit.Outbox
         public Guid Id { get; set; }
 
         /// <summary>
-        /// The application that created this outbox item
-        /// </summary>
-        public Guid AppId { get; set; }
-
-        /// <summary>
         /// The app client that created this outbox item
         /// </summary>
         public Guid AccessRegistrationId { get; set; }

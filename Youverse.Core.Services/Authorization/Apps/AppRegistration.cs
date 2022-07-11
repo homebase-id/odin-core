@@ -1,5 +1,6 @@
 ﻿using System;
 using LiteDB;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -12,12 +13,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         
         public string Name { get; set; }
 
-        public bool IsRevoked { get; set; }
-        
-        /// <summary>
-        /// The exchange grant tied to this app, which gives the app its drive access and permissions.
-        /// </summary>
-        public Guid ExchangeGrantId { get; set; }
-
+        public IExchangeGrant Grant { get; set; }
     }
 }

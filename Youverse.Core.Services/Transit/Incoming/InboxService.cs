@@ -8,6 +8,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
@@ -40,7 +41,6 @@ namespace Youverse.Core.Services.Transit.Incoming
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
-                AppId = item.AppId,
                 TempFile = item.File
             });
 
@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         private string GetAppCollectionName()
         {
-            return $"ibx_{_contextAccessor.GetCurrent().AppContext.AppId:N}";
+            return $"ibx";
         }
     }
 }

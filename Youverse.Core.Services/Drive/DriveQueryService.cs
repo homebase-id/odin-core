@@ -4,34 +4,29 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Query.LiteDb;
+using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>, INotificationHandler<DriveFileDeletedNotification>
+    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>,
+        INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
-        private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly IHttpContextAccessor _accessor;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, IDriveAclAuthorizationService driveAclAuthorizationService, DotYouContextAccessor contextAccessor, IHttpContextAccessor accessor = null)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
-            _driveAclAuthorizationService = driveAclAuthorizationService;
-            _accessor = accessor;
             _contextAccessor = contextAccessor;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
@@ -58,160 +53,128 @@ namespace Youverse.Core.Services.Drive
 
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             await manager.PrepareSecondaryIndexForRebuild();
-            foreach (FileMetadata md in metaDataList)
+            foreach (ServerFileHeader header in metaDataList)
             {
                 //intentionally letting this run w/o await
-                manager.UpdateSecondaryIndex(md);
+                manager.UpdateSecondaryIndex(header);
             }
 
             await manager.SwitchIndex();
         }
 
-        public async Task<PagedResult<DriveSearchResult>> GetRecentlyCreatedItems(Guid driveId, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
+        public async Task<QueryBatchResult> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var page = await queryManager.GetRecentlyCreatedItems(includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                return await CreateSearchResult(driveId, page, includePayload);
-            }
+                var (cursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, maxDate, startCursor, qp, options);
+                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
-            throw new NoValidIndexException(driveId);
-        }
-
-        public async Task<PagedResult<DriveSearchResult>> GetByFileType(Guid driveId, int fileType, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
-            {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
+                //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
+                return new QueryBatchResult()
                 {
-                    var page = await queryManager.GetByFileType(fileType, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload);
-                    return pageResult;
-                }
-
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
+                    StartCursor = cursor,
+                    StopCursor = null,
+                    CursorUpdatedTimestamp = 0,
+                    SearchResults = searchResults
+                };
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<PagedResult<DriveSearchResult>> GetByTag(Guid driveId, Guid tag, int fileType, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, QueryParams qp, ResultOptions options)
         {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
+            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
-                {
-                    var page = await queryManager.GetByTag(tag, fileType, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload);
-                    return pageResult;
-                }
+                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
+                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
+                return new QueryBatchResult()
+                {
+                    StartCursor = resultStartCursor,
+                    StopCursor = resultStopCursor,
+                    CursorUpdatedTimestamp = cursorUpdatedTimestamp,
+                    SearchResults = searchResults
+                };
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<PagedResult<DriveSearchResult>> GetByAlias(Guid driveId, Guid alias, bool includeMetadataHeader, bool includePayload, PageOptions pageOptions)
-        {
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager, false))
-            {
-                //HACK: need to figure out what it means for an index to be valid or not
-                if (queryManager.IndexReadyState == IndexReadyState.Ready)
-                {
-                    var page = await queryManager.GetByAlias(alias, includeMetadataHeader, pageOptions, _driveAclAuthorizationService);
-                    var pageResult = await CreateSearchResult(driveId, page, includePayload);
-                    return pageResult;
-                }
-
-                return new PagedResult<DriveSearchResult>(pageOptions, 0, new List<DriveSearchResult>());
-            }
-
-            throw new NoValidIndexException(driveId);
-        }
-
-        private async Task<PagedResult<DriveSearchResult>> CreateSearchResult(Guid driveId, PagedResult<IndexedItem> page, bool includePayload)
+        private async Task<IEnumerable<DriveSearchResult>> CreateSearchResult(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
         {
             var results = new List<DriveSearchResult>();
 
-            foreach (var item in page.Results)
+            foreach (var fileId in fileIdList)
             {
-                var dsr = FromIndexedItem(item);
-                if (includePayload)
+                var file = new InternalDriveFileId()
                 {
-                    var file = new InternalDriveFileId()
-                    {
-                        DriveId = driveId,
-                        FileId = dsr.FileId
-                    };
+                    DriveId = driveId,
+                    FileId = fileId
+                };
 
-                    var (tooLarge, size, bytes) = await _driveService.GetPayloadBytes(file);
-                    dsr.PayloadTooLarge = tooLarge;
-                    dsr.PayloadSize = size;
+                //Note: this will fail if the index returns a file the caller cannot access.
+                //this can occur when the index is out of sync w/ the header that's on disk
+                //this failure is a good thing
+                var header = await _driveService.GetServerFileHeader(file);
+                var dsr = FromFileMetadata(header);
 
-                    if (!tooLarge)
-                    {
-                        dsr.PayloadContent = bytes.ToBase64();
-                    }
+                if (!options.IncludeMetadataHeader)
+                {
+                    dsr.JsonContent = "";
                 }
 
                 results.Add(dsr);
             }
 
-            var newResult = new PagedResult<DriveSearchResult>()
-            {
-                Request = page.Request,
-                TotalPages = page.TotalPages,
-                Results = results
-            };
-
-            return newResult;
+            return results;
         }
 
-        private DriveSearchResult FromIndexedItem(IndexedItem item)
+        private DriveSearchResult FromFileMetadata(ServerFileHeader header)
         {
             int priority = 1000;
 
-            switch (item.AccessControlList.RequiredSecurityGroup)
+            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     priority = 500;
                     break;
-                case SecurityGroupType.YouAuthOrTransitCertificateIdentified:
+                case SecurityGroupType.Authenticated:
                     priority = 400;
                     break;
                 case SecurityGroupType.Connected:
                     priority = 300;
                     break;
-                case SecurityGroupType.CircleConnected:
-                    priority = 200;
-                    break;
-                case SecurityGroupType.CustomList:
-                    priority = 100;
-                    break;
+                // case SecurityGroupType.CircleConnected:
+                //     priority = 200;
+                //     break;
+                // case SecurityGroupType.CustomList:
+                //     priority = 100;
+                //     break;
                 case SecurityGroupType.Owner:
                     priority = 1;
                     break;
             }
 
+            var metadata = header.FileMetadata;
+
             //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
             return new DriveSearchResult()
             {
-                FileId = item.FileId,
-                ContentIsComplete = item.ContentIsComplete,
-                PayloadIsEncrypted = item.PayloadIsEncrypted,
-                FileType = item.FileType,
-                DataType = item.DataType,
-                JsonContent = item.JsonContent,
-                Tags = item.Tags,
-                CreatedTimestamp = item.CreatedTimestamp,
-                LastUpdatedTimestamp = item.LastUpdatedTimestamp,
-                SenderDotYouId = item.SenderDotYouId,
-                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? item.AccessControlList : null,
-                Priority = priority,
-                Alias = item.Alias
+                ContentType = metadata.ContentType,
+                FileId = metadata.File.FileId,
+                ContentIsComplete = metadata.AppData.ContentIsComplete,
+                PayloadIsEncrypted = metadata.PayloadIsEncrypted,
+                FileType = metadata.AppData.FileType,
+                DataType = metadata.AppData.DataType,
+                UserDate = metadata.AppData.UserDate,
+                JsonContent = metadata.AppData.JsonContent,
+                Tags = metadata.AppData.Tags,
+                CreatedTimestamp = metadata.Created,
+                LastUpdatedTimestamp = metadata.Updated,
+                SenderDotYouId = metadata.SenderDotYouId,
+                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? header.ServerMetadata.AccessControlList : null,
+                Priority = priority
             };
         }
 
@@ -233,16 +196,17 @@ namespace Youverse.Core.Services.Drive
             await this.TryGetOrLoadQueryManager(driveId, out var manager, false);
             manager.IndexReadyState = IndexReadyState.IsRebuilding;
 
-            foreach (FileMetadata md in metaDataList)
+            foreach (ServerFileHeader header in metaDataList)
             {
                 //intentionally letting this run w/o await
-                manager.UpdateCurrentIndex(md);
+                manager.UpdateCurrentIndex(header);
             }
 
             manager.IndexReadyState = IndexReadyState.Ready;
         }
 
-        private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
+        private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager,
+            bool onlyReadyManagers = true)
         {
             if (_queryManagers.TryGetValue(driveId, out manager))
             {
@@ -270,10 +234,9 @@ namespace Youverse.Core.Services.Drive
         private Task LoadQueryManager(StorageDrive drive, out IDriveQueryManager manager)
         {
             var logger = _loggerFactory.CreateLogger<IDriveQueryManager>();
-            var x = _contextAccessor;
 
-            manager = new LiteDbDriveQueryManager(drive, logger, _accessor);
-
+//            manager = new LiteDbDriveQueryManager(drive, logger, _accessor);
+            manager = new SqliteQueryManager(drive, logger);
             //add it first in case load latest fails.  we want to ensure the
             //rebuild process can still access this manager to rebuild its index
             _queryManagers.TryAdd(drive.Id, manager);
@@ -290,7 +253,7 @@ namespace Youverse.Core.Services.Drive
         public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
-            return manager.UpdateCurrentIndex(notification.FileMetadata);
+            return manager.UpdateCurrentIndex(notification.FileHeader);
         }
 
         public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)

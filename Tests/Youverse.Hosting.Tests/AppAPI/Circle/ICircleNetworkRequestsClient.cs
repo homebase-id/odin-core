@@ -3,8 +3,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers.Apps;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
 {
@@ -14,12 +13,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
-
-        [Post(SentPathRoot)]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
-
-        [Post(PendingPathRoot + "/accept/{dotYouId}")]
-        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest(string dotYouId);
 
         [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequest>>> GetSentRequestList([Query] PageOptions pageRequest);

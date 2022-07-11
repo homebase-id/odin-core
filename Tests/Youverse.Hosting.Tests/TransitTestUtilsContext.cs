@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using Youverse.Core.Identity;
-using Youverse.Hosting.Tests.AppAPI;
 
 namespace Youverse.Hosting.Tests
 {

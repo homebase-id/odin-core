@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
@@ -14,6 +16,7 @@ using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -28,7 +31,8 @@ namespace Youverse.Core.Services.Transit
 
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService, ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
+        public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService,
+            ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -41,17 +45,18 @@ namespace Youverse.Core.Services.Transit
 
         public async Task StoreLongTerm(InternalDriveFileId file)
         {
-            var transferInstructionSet = await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+            var transferInstructionSet =
+                await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
-            var (isValidPublicKey, decryptedAesKeyHeaderBytes) = await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+            var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
+                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
 
             if (!isValidPublicKey)
             {
                 //TODO: handle when isValidPublicKey = false
                 throw new YouverseSecurityException("Public key was invalid");
             }
-            
-            
+
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
             decryptedAesKeyHeaderBytes.WriteZeros();
 
@@ -71,12 +76,15 @@ namespace Youverse.Core.Services.Transit
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
             metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
 
-            metadata.AccessControlList = new AccessControlList()
+            var serverMetadata = new ServerMetadata()
             {
-                RequiredSecurityGroup = SecurityGroupType.Owner
+                AccessControlList = new AccessControlList()
+                {
+                    RequiredSecurityGroup = SecurityGroupType.Owner
+                }
             };
 
-            await _driveService.StoreLongTerm(file, keyHeader, metadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitTempFileToLongTerm(file, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
         }
 
         public async Task ProcessTransfers()
@@ -89,7 +97,7 @@ namespace Youverse.Core.Services.Transit
 
                 var externalFileIdentifier = new ExternalFileIdentifier()
                 {
-                    DriveAlias = _driveService.GetDrive(item.TempFile.DriveId).Result.Alias,
+                    TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.GetTargetDrive(),
                     FileId = item.TempFile.FileId
                 };
 
@@ -97,18 +105,29 @@ namespace Youverse.Core.Services.Transit
                 {
                     Sender = item.Sender,
                     AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                    AppId = item.AppId,
                     File = externalFileIdentifier,
                     Priority = 0 //TODO
                 });
-                await _transitBoxService.Remove(item.AppId, item.Id);
+                await _transitBoxService.Remove(item.TempFile.DriveId, item.Id);
             }
         }
 
         public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
         {
-            var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            return await _transitBoxService.GetPendingItems(appId, pageOptions);
+            //HACK: loop thru all drives until we put in place the new inbox/outbox solution
+            var allDrives = await _driveService.GetDrives(PageOptions.All);
+
+            var list = new List<TransferBoxItem>();
+            foreach (var drive in allDrives.Results)
+            {
+                var l = await _transitBoxService.GetPendingItems(drive.Id, pageOptions);
+                list.AddRange(l.Results);
+            }
+
+            return new PagedResult<TransferBoxItem>(pageOptions,1, list);
+            
+            // var appId = _contextAccessor.GetCurrent().AppContext.AppId;
+            // return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }
 
         public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)

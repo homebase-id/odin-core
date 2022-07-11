@@ -1,7 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Authorization;
 using Youverse.Core.Services.Authorization;
-using Youverse.Hosting.Authentication.App;
+using Youverse.Hosting.Authentication.ClientToken;
 
 namespace Youverse.Hosting.Authentication.Owner
 {
@@ -24,8 +24,7 @@ namespace Youverse.Hosting.Authentication.Owner
             {
                 pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
                 pb.RequireClaim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower());
-
-                pb.AuthenticationSchemes.Add(AppAuthConstants.SchemeName);
+                
                 pb.AuthenticationSchemes.Add(OwnerAuthConstants.SchemeName);
 
             });

@@ -1,5 +1,5 @@
 using System;
-using Youverse.Core.Services.Authorization.Acl;
+using System.Threading.Tasks;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -50,9 +50,11 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         public string SenderDotYouId { get; set; }
 
+        /// <summary>
+        /// The size of the payload on disk
+        /// </summary>
+        public long PayloadSize { get; set; }
 
-        public AccessControlList AccessControlList { get; set; }
-        
         public AppFileMetaData AppData { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
@@ -14,6 +15,6 @@ namespace Youverse.Core.Services.Transit.Encryption
         
         public byte[] EncryptedClientAuthToken { get; set; }
 
-        public Guid DriveAlias { get; set; }
+        public TargetDrive Drive { get; set; }
     }
 }

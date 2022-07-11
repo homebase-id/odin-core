@@ -5,9 +5,9 @@ namespace Youverse.Core.Services.Workers.Transit
 {
     public interface IOutboxHttpClient
     {
-        private const string TransitRootEndpoint = "/api/apps/v1/transit";
+        private const string TransitRootEndpoint = "/api/owner/v1/outbox/processor";
 
-        [Post(TransitRootEndpoint + "/outbox/processor/process")]
+        [Post(TransitRootEndpoint + "/process")]
         Task<ApiResponse<bool>> ProcessOutbox();
     }
 }

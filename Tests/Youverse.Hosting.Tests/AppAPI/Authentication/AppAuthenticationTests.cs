@@ -4,6 +4,7 @@ using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
@@ -11,15 +12,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
     [TestFixture]
     public class AppAuthenticationTests
     {
-        private TestScaffold _scaffold;
-        public static readonly Guid DefaultDrivePublicId = Guid.Parse("98408493-4440-0888-0000-001260004445");
-
+        private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
-            _scaffold = new TestScaffold(folder);
+            _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
 
@@ -30,12 +29,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task CanValidateAppToken()
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -48,12 +48,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task FailToValidateOnRevokedApp()
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -65,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(validateResponse.Content.IsValid, Is.True);
             }
 
-            await _scaffold.RevokeSampleApp(identity, appId);
+            await _scaffold.OwnerApi.RevokeSampleApp(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -79,12 +80,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task FailToAuthenticateRevokedClient()
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.AddApp(identity, appId, Guid.NewGuid());
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -97,13 +99,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
+        [Ignore("convert to test the exchange grant")]
         public async Task CanRevokeAppMidSession()
         {
             var identity = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            await _scaffold.AddApp(identity, appId, AppAuthenticationTests.DefaultDrivePublicId);
-            var (clientAuthToken, sharedSecret) = await _scaffold.AddAppClient(identity, appId);
+            await _scaffold.OwnerApi.AddApp(identity, appId, TargetDrive.NewTargetDrive());
+            var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -116,7 +119,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
                 Assert.That(result.IsValid, Is.True);
             }
 
-            await _scaffold.RevokeSampleApp(identity, appId);
+            await _scaffold.OwnerApi.RevokeSampleApp(identity, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity))
             {

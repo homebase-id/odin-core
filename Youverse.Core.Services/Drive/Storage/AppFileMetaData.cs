@@ -13,12 +13,15 @@ namespace Youverse.Core.Services.Drive.Storage
         public int FileType { get; set; }
         
         public int DataType { get; set; }
+        
+        public ulong UserDate { get; set; }
 
         public bool ContentIsComplete { get; set; }
         
         public string JsonContent { get; set; }
         
-        public Guid Alias { get; set; }
+        //TODO: add thread id, isArchived, and isHistory support
+        
     }
 
 }

@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="Refit" Version="6.0.38" />
+    <PackageReference Include="System.Data.SQLite" Version="1.0.116" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
   </ItemGroup>
 

@@ -2,6 +2,7 @@
 using Dawn;
 using Newtonsoft.Json;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -24,14 +25,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public string Name { get; set; }
 
         public Int64 ReceivedTimestampMilliseconds { get; set; }
-        
+
         public string RSAEncryptedExchangeCredentials { get; set; }
 
         /// <summary>
-        /// The Id to the <see cref="AccessRegistration"/> which will be used to give the recipient access if the recipient accepts the connection request
+        /// The exchange grant which will be given to the recipient if the connection request is accepted
         /// </summary>
-        public Guid PendingAccessRegistrationId { get; set; }
-
+        public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
+        
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.
         /// </summary>

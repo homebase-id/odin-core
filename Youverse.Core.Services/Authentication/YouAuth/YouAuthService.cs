@@ -18,20 +18,18 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly IYouAuthRegistrationService _registrationService;
         private readonly ICircleNetworkService _circleNetwork;
 
-        private readonly ExchangeGrantService _exchangeGrantService;
         //
 
         public YouAuthService(
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ICircleNetworkService circleNetwork, ExchangeGrantService exchangeGrantService, IYouAuthRegistrationService registrationService)
+            ICircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _exchangeGrantService = exchangeGrantService;
             _registrationService = registrationService;
         }
 
@@ -62,7 +60,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             var dotYouId = new DotYouIdentity(subject);
             var response = await _dotYouHttpClientFactory
-                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId, YouAuthDefaults.AppId)
+                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 
             //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken
@@ -73,7 +71,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 {
                     var clientAuthTokenBytes = response.Content;
 
-                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUTF8Bytes(), out var remoteIcrClientAuthToken))
+                    if (ClientAuthenticationToken.TryParse(clientAuthTokenBytes.ToStringFromUtf8Bytes(), out var remoteIcrClientAuthToken))
                     {
                         return (true, remoteIcrClientAuthToken);
                     }
@@ -85,7 +83,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 return (true, null)!;
             }
 
-            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int) response.StatusCode);
+            _logger.LogError("Validation of authorization code failed. HTTP status = {HttpStatusCode}", (int)response.StatusCode);
             return (false, null)!;
         }
 
@@ -99,7 +97,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId, isValid);
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)dotYouId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?
@@ -114,7 +112,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var (registration, browserClientAccessToken) = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
+            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
             return browserClientAccessToken;
         }
 

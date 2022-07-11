@@ -19,8 +19,4 @@
       <ProjectReference Include="..\..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Authentication\YouAuth" />
-    </ItemGroup>
-
 </Project>

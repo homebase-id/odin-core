@@ -60,14 +60,6 @@ namespace Youverse.Core.SystemStorage
         Task Save(T item);
 
         /// <summary>
-        /// Updates a set of items matching the <param name="predicate">predicate</param> using the <param name="extend">extend</param>
-        /// </summary>
-        /// <param name="extend"></param>
-        /// <param name="predicate"></param>
-        /// <returns></returns>
-        Task<int> UpdateMany(Expression<Func<T, T>> extend, Expression<Func<T, bool>> predicate);
-        
-        /// <summary>
         /// Delete the specified record by id
         /// </summary>
         /// <param name="id"></param>
@@ -80,12 +72,6 @@ namespace Youverse.Core.SystemStorage
         /// <param name="predicate"></param>
         /// <returns></returns>
         Task<int> DeleteMany(Expression<Func<T, bool>> predicate);
-        
-        /// <summary>
-        /// Deletes all records; careful now :)
-        /// </summary>
-        /// <returns></returns>
-        Task<int> DeleteAll();
 
         /// <summary>
         /// Creates an index

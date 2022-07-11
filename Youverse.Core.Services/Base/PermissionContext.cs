@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Base
 
         public Guid AccessRegistrationId { get; }
 
-        public bool HasDrivePermission(Guid driveId, DrivePermissions permission)
+        public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
             if (this._isOwner)
             {
@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Base
             }
 
             var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-            return grant != null && grant.Permissions.HasFlag(permission);
+            return grant != null && grant.Permission.HasFlag(permission);
         }
 
         public bool HasPermission(SystemApi pmt, int permission)
@@ -70,13 +70,13 @@ namespace Youverse.Core.Services.Base
                 switch (pmt)
                 {
                     case SystemApi.Contact:
-                        return ((ContactPermissions) value).HasFlag((ContactPermissions) permission);
+                        return ((ContactPermissions)value).HasFlag((ContactPermissions)permission);
 
                     case SystemApi.CircleNetwork:
-                        return ((CircleNetworkPermissions) value).HasFlag((CircleNetworkPermissions) permission);
+                        return ((CircleNetworkPermissions)value).HasFlag((CircleNetworkPermissions)permission);
 
                     case SystemApi.CircleNetworkRequests:
-                        return ((CircleNetworkRequestPermissions) value).HasFlag((CircleNetworkRequestPermissions) permission);
+                        return ((CircleNetworkRequestPermissions)value).HasFlag((CircleNetworkRequestPermissions)permission);
                 }
             }
 
@@ -96,9 +96,9 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public void AssertCanWriteToDrive(Guid driveId)
         {
-            if (!this.HasDrivePermission(driveId, DrivePermissions.Write))
+            if (!this.HasDrivePermission(driveId, DrivePermission.Write))
             {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new DriveSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
 
@@ -107,9 +107,9 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public void AssertCanReadDrive(Guid driveId)
         {
-            if (!this.HasDrivePermission(driveId, DrivePermissions.Read))
+            if (!this.HasDrivePermission(driveId, DrivePermission.Read))
             {
-                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
+                throw new DriveSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 
@@ -118,14 +118,14 @@ namespace Youverse.Core.Services.Base
         /// when the owner is making an HttpRequest.
         /// </summary>
         /// <returns></returns>
-        public Guid GetDriveId(Guid driveAlias)
+        public Guid GetDriveId(TargetDrive drive)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == driveAlias);
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == drive.Alias && g.DriveType == drive.Type);
 
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
-                throw new YouverseSecurityException($"No access permitted to drive alias {driveAlias}");
+                throw new DriveSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
             }
 
             return grant.DriveId;
@@ -143,7 +143,17 @@ namespace Youverse.Core.Services.Base
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)
             {
-                throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+                throw new DriveSecurityException($"No access permitted to drive {driveId}");
+            }
+
+            //If we cannot decrypt the storage key BUT the caller has access to the drive,
+            //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
+            if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+            {
+                throw new DriveSecurityException($"Caller has access {driveId} but exchange grant does not have a drive decryption key or KeyStoreKeyEncryptedStorageKey");
+
+                //TODO: evaluate if we should return an empty value instead
+                // return Array.Empty<byte>().ToSensitiveByteArray();
             }
 
             var key = this._driveDecryptionKey;

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Drive.Storage;
 
@@ -87,6 +86,15 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public TargetDrive GetTargetDrive()
+        {
+            return new TargetDrive()
+            {
+                Alias = this.Alias,
+                Type = this.Type
+            };
+        }
+        
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
@@ -133,7 +141,7 @@ namespace Youverse.Core.Services.Drive
         public virtual bool IsReadonly { get; set; }
 
         /// <summary>
-        /// The encryption key used to encrypt the <see cref="FilePart.Header"/>
+        /// The encryption key used to encrypt the <see cref="ServerFileHeader.EncryptedKeyHeader"/>
         /// </summary>
         public virtual SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
 

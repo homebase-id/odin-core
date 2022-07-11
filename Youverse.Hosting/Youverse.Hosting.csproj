@@ -8,6 +8,7 @@
     <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
     <IsPackable>false</IsPackable>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -32,6 +33,8 @@
     <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
     <PackageReference Include="Quartz.AspNetCore" Version="3.3.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="4.1.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.3.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.3.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -83,10 +86,6 @@
     <None Update="dotyoucore.service">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-    
-  <ItemGroup>
-    <Folder Include="Authentication\YouAuth" />
   </ItemGroup>
 
 </Project>

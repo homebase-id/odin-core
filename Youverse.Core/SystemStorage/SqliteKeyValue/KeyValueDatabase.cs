@@ -1,0 +1,142 @@
+﻿using System;
+using System.Data.SQLite;
+
+
+/*
+=====
+Query notes:
+
+https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
+
+https://stackoverflow.com/questions/50826767/sqlite-index-performance
+
+https://www.sqlitetutorial.net/sqlite-index/
+
+*/
+
+
+namespace Youverse.Core.SystemStorage.SqliteKeyValue
+{
+    public class KeyValueDatabase // IDisposable ?
+    {
+        private string _connectionString;
+
+        private SQLiteConnection _connection = null;
+
+        private SQLiteTransaction _Transaction = null;
+
+        public TableKeyValue tblKeyValue = null;
+        public TableKeyTwoValue tblKeyTwoValue = null;
+        public TableKeyThreeValue TblKeyThreeValue = null;
+
+        private  Object _getConnectionLock = new Object();
+        private  Object _getTransactionLock = new Object();
+        
+        public KeyValueDatabase(string connectionString)
+        {
+            _connectionString = connectionString;
+
+            tblKeyValue = new TableKeyValue(this);
+            tblKeyTwoValue = new TableKeyTwoValue(this);
+            TblKeyThreeValue = new TableKeyThreeValue(this);
+        }
+
+        ~KeyValueDatabase()
+        {
+            if (_Transaction != null)
+            {
+                throw new Exception("Transaction in progress not completed.");
+            }
+
+            if (_connection != null)
+            {
+                _connection.Dispose();
+                _connection = null;
+            }
+
+            // Oh no, I can't delete objects. Blast :-)
+            // I need help making the tables disposable so I can trigger them here
+        }
+
+        public SQLiteCommand CreateCommand()
+        {
+            return new SQLiteCommand(GetConnection());
+        }
+
+        public void Vacuum()
+        {
+            using (var cmd = CreateCommand())
+            {
+                cmd.CommandText = "VACUUM;";
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// Create and return the database connection if it's not already created.
+        /// Otherwise simply return the already created connection (one object needed per
+        /// thread). 
+        /// There's ONE connection per database object.
+        /// </summary>
+        /// <returns></returns>
+        public SQLiteConnection GetConnection()
+        {
+            lock (_getConnectionLock)
+            {
+                if (_connection == null)
+                {
+                    _connection = new SQLiteConnection(_connectionString);
+                    _connection.Open();
+                }
+
+                return _connection;
+            }
+        }
+
+
+        /// <summary>
+        /// Will destroy all your data and create a fresh database
+        /// </summary>
+        public void CreateDatabase(bool dropExistingTables = true)
+        {
+            tblKeyValue.EnsureTableExists(dropExistingTables);
+            tblKeyTwoValue.EnsureTableExists(dropExistingTables);
+            TblKeyThreeValue.EnsureTableExists(dropExistingTables);
+            // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
+            Vacuum();
+        }
+
+
+        /// <summary>
+        /// You can only have one transaction per connection. Create a new database object
+        /// if you want a second transaction.
+        /// </summary>
+        public void BeginTransaction()
+        {
+            lock (_getTransactionLock)
+            {
+                if (_Transaction == null)
+                {
+                    _Transaction = GetConnection().BeginTransaction();
+                }
+                else
+                {
+                    throw new Exception("Transaction already in use");
+                }
+            }
+        }
+
+        public void Commit()
+        {
+            lock (_getTransactionLock)
+            {
+                if (_Transaction != null)
+                {
+                    _Transaction.Commit();
+                    _Transaction.Dispose();  // I believe these objects need to be disposed
+                    _Transaction = null;
+                }
+            }
+        }
+    }
+}   

@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Hosting.Controllers.Owner;
+using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Provisioning
 {

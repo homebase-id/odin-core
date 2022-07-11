@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Transit.Audit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -24,10 +23,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
             ILogger<ITransitPerimeterService> logger,
-            ITransitAuditWriterService auditWriter,
             ITransitService transitService,
             IAppRegistrationService appRegService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base(auditWriter)
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
@@ -41,11 +39,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guard.Argument(transferInstructionSet, nameof(transferInstructionSet)).NotNull();
             Guard.Argument(transferInstructionSet!.PublicKeyCrc, nameof(transferInstructionSet.PublicKeyCrc)).NotEqual<uint>(0);
             Guard.Argument(transferInstructionSet.EncryptedAesKeyHeader.Length, nameof(transferInstructionSet.EncryptedAesKeyHeader)).NotEqual(0);
-            // Guard.Argument(transferInstructionSet.EncryptedClientAuthToken.Length, nameof(transferInstructionSet.EncryptedClientAuthToken)).NotEqual(0);
 
-            
-            //TODO: switch to using the public key sevice var key = await _publicKeyService.GetOfflinePublicKey();
-            
             if (!await _publicKeyService.IsValidPublicKey(transferInstructionSet.PublicKeyCrc))
             {
                 throw new TransitException("Invalid Public Key CRC provided");

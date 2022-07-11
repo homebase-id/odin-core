@@ -19,6 +19,11 @@ namespace Youverse.Core.Services.Drive.Storage
         /// A data type specific to an app.  This is indexed and be used to query data
         /// </summary>
         int DataType { get; set; }
+        
+        /// <summary>
+        /// A date specified in UnixTime for the file such as date photo captured, etc.
+        /// </summary>
+        ulong UserDate { get; set; }
 
         /// <summary>
         /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)
@@ -30,10 +35,5 @@ namespace Youverse.Core.Services.Drive.Storage
         /// when querying the index so you do not have to retrieve the whole payload
         /// </summary>
         string JsonContent { get; set; }
-
-        /// <summary>
-        /// An alternative identifier for this file.  This can be used when you need a fixed handle in your client app to find this file.
-        /// </summary>
-        Guid Alias { get; set; }
     }
 }

@@ -7,7 +7,6 @@ namespace Youverse.Core.Services.Authorization.Apps
     /// </summary>
     public class AppClientRegistrationResponse
     {
-     
         /// <summary>
         /// The version of the encryption used to RSA encrypt <see cref="Data"/>.
         /// </summary>

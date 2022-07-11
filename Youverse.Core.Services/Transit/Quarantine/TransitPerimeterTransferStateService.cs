@@ -6,6 +6,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
@@ -14,22 +15,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private const string IncomingTransferStateItemCollection = "transit_incoming";
 
         private readonly ISystemStorage _systemStorage;
-        private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
 
-        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
+        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService)
         {
             _systemStorage = systemStorage;
             _driveService = driveService;
-            _contextAccessor = contextAccessor;
         }
 
         public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guid id = Guid.NewGuid();
 
-            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.DriveAlias, true))!.Value;
-            var file = _driveService.CreateInternalFileId(driveId);
+            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.Drive, true))!.Value;
+            var file = _driveService.CreateInternalFileId(driveId);  //notice here: we always create a new file Id when receiving a new file.  we might need to add a feature that lets multiple identities collaborate on a the same file.  not sure who this will go.
             var item = new IncomingTransferStateItem(id, file);
 
             await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());
