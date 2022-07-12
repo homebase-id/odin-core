@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
-using System.Diagnostics;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 {
@@ -67,7 +66,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 }
 
                 cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
-                                  + "CREATE INDEX if not exists TagIdx ON tagindex(tagid);";
+                                  + "CREATE INDEX TagIdx ON tagindex(tagid);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -111,7 +110,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             }
         }
 
-        public void InsertRows(Guid FileId, List<Guid> TagIdList)
+        public void InsertRows(Guid FileId, List<byte[]> TagIdList)
         {
             if (TagIdList == null)
                 return;
@@ -135,14 +134,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 _iparam1.Value = FileId;
                 for (int i = 0; i < TagIdList.Count; i++)
                 {
-                    _iparam2.Value = TagIdList[i].ToByteArray();
-                   int rows =  _insertCommand.ExecuteNonQuery();
-                   Debugger.Launch();
+                    _iparam2.Value = TagIdList[i];
+                    _insertCommand.ExecuteNonQuery();
                 }
             }
         }
 
-        public void DeleteRow(Guid FileId, List<Guid> TagIdList)
+        public void DeleteRow(Guid FileId, List<byte[]> TagIdList)
         {
             if (TagIdList == null)
                 return;
@@ -166,7 +164,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 for (int i = 0; i < TagIdList.Count; i++)
                 {
                     _dparam1.Value = FileId;
-                    _dparam2.Value = TagIdList[i].ToByteArray();
+                    _dparam2.Value = TagIdList[i];
                     _deleteCommand.ExecuteNonQuery();
                 }
             }

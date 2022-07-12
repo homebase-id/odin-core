@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 }
                 
                 cmd.CommandText = @"CREATE TABLE if not exists aclindex(fileid BLOB NOT NULL, aclmember BLOB NOT NULL, UNIQUE(fileid, aclmember));"
-                                  + "CREATE INDEX if not exists AclIdx ON aclindex(aclmember);";
+                                  + "CREATE INDEX AclIdx ON aclindex(aclmember);";
                 cmd.ExecuteNonQuery();
             }
         }
@@ -111,7 +111,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         }
 
 
-        public void InsertRows(Guid FileId, List<Guid> AccessControlList)
+        public void InsertRows(Guid FileId, List<byte[]> AccessControlList)
         {
             if (AccessControlList == null)
                 return;
@@ -135,13 +135,13 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 for (int i = 0; i < AccessControlList.Count; i++)
                 {
                     _iparam1.Value = FileId;
-                    _iparam2.Value = AccessControlList[i].ToByteArray();
+                    _iparam2.Value = AccessControlList[i];
                     _insertCommand.ExecuteNonQuery();
                 }
             }
         }
 
-        public void DeleteRow(Guid FileId, List<Guid> AccessControlList)
+        public void DeleteRow(Guid FileId, List<byte[]> AccessControlList)
         {
             if (AccessControlList == null)
                 return;
@@ -165,7 +165,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 _dparam1.Value = FileId;
                 for (int i = 0; i < AccessControlList.Count; i++)
                 {
-                    _dparam2.Value = AccessControlList[i].ToByteArray();
+                    _dparam2.Value = AccessControlList[i];
                     _deleteCommand.ExecuteNonQuery();
                 }
             }

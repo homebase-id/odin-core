@@ -15,15 +15,10 @@ namespace Youverse.Core.Services.Authorization
         public static string IsIdentityOwner = "https://schemas.youfoundation.id/2021/3/identity/IsIdentityOwner";
 
         /// <summary>
-        /// Indicates the current <see cref="ClaimsPrincipal"/> is a user with a valid certificate
+        /// Indicates the current <see cref="ClaimsPrincipal"/> is a user with a valid certificate or has been authenticated via YouAuth
         /// </summary>
-        public static string IsIdentified = "https://schemas.youfoundation.id/2021/3/identity/IsIdentified";
+        public static string IsAuthenticated = "https://schemas.youfoundation.id/2021/3/identity/IsAuthenticated";
         
-        /// <summary>
-        /// Indicates the caller is on the Youverse network
-        /// </summary>
-        public static string IsInNetwork = "https://schemas.youfoundation.id/2021/3/identity/IsInNetwork";
-
         public static string AuthResult  = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
         
         public static string IsAuthorizedApp = "https://schemas.youfoundation.id/2021/3/identity/IsAuthorizedApp";

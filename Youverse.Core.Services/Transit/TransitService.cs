@@ -147,6 +147,7 @@ namespace Youverse.Core.Services.Transit
                     FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                     DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                     UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
+                    ThreadId = uploadDescriptor.FileMetadata.AppData.ThreadId,
 
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete

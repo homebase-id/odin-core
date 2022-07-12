@@ -1,15 +1,20 @@
-using System;
-
 namespace Youverse.Core;
 
-public class TimeRange
+public class IntRange
 {
-    public UInt64 Start { get; set; }
-    public UInt64 End { get; set; }
+    public IntRange(int start, int end)
+    {
+        this.Start = start;
+        this.End = end;
+    }
     
+    public int Start { get; set; }
+    public int End { get; set; }
+
+
     public bool IsValid()
     {
-        return this.Start < this.End;
+        return this.Start <= this.End;
     }
 
     public void Validate()

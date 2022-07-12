@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Util;
 
 
@@ -37,6 +38,41 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
     {
         TimeSeries,
         Random,
+    }
+
+    public class QueryBatchCursor
+    {
+        public byte[] pagingCursor;
+        public byte[] currentBoundaryCursor;
+        public byte[] nextBoundaryCursor;
+
+        public string ToState()
+        {
+            var bytes = ByteArrayUtil.Combine(
+                this.pagingCursor ?? Array.Empty<byte>(),
+                this.currentBoundaryCursor ?? Array.Empty<byte>(),
+                this.nextBoundaryCursor ?? Array.Empty<byte>());
+            
+            return bytes.ToBase64();
+        }
+
+        public static QueryBatchCursor FromState(string cursorState)
+        {
+            if (string.IsNullOrWhiteSpace(cursorState))
+            {
+                return null;
+            }
+
+            var bytes = Convert.FromBase64String(cursorState);
+            var (p1, p2, p3) = ByteArrayUtil.Split(bytes, 16, 16, 16);
+
+            return new QueryBatchCursor()
+            {
+                pagingCursor = p1,
+                currentBoundaryCursor = p2,
+                nextBoundaryCursor = p3
+            };
+        }
     }
 
     public class DriveIndexDatabase
@@ -185,8 +221,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             byte[] threadId,
             UInt64 userDate,
             Int32 requiredSecurityGroup,
-            IEnumerable<Guid> accessControlList,
-            IEnumerable<Guid> tagIdList)
+            IEnumerable<Byte[]> accessControlList,
+            IEnumerable<Byte[]> tagIdList)
         {
             bool isLocalTransaction = false;
 
@@ -245,10 +281,10 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             byte[] threadId = null,
             UInt64? userDate = null,
             Int32? requiredSecurityGroup = null,
-            List<Guid> addAccessControlList = null,
-            List<Guid> deleteAccessControlList = null,
-            List<Guid> addTagIdList = null,
-            List<Guid> deleteTagIdList = null)
+            List<Byte[]> addAccessControlList = null,
+            List<Byte[]> deleteAccessControlList = null,
+            List<Byte[]> addTagIdList = null,
+            List<Byte[]> deleteTagIdList = null)
         {
             bool isLocalTransaction = false;
 
@@ -287,8 +323,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             byte[] threadId = null,
             UInt64? userDate = null,
             Int32? requiredSecurityGroup = null,
-            List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null)
+            List<Byte[]> accessControlList = null,
+            List<Byte[]> tagIdList = null)
         {
             bool isLocalTransaction = false;
 
@@ -320,15 +356,31 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         }
 
 
+        public UInt64 GetTimestamp()
+        {
+            return UnixTime.UnixTimeMillisecondsUnique();
+        }
+
         /// <summary>
-        /// 
+        /// Creates a cursor that doesn't go back farther than the supplied timestamp.
+        /// No tests written, function not needed (yet).
+        /// </summary>
+        /// <param name="unixTimeSecondsStopAt">The UNIX time in seconds at which to go back no further</param>
+        /// <returns>A cursor that will go back no further in time than the supplied parameter</returns>
+        public QueryBatchCursor CreateCursorStopAtTime(UInt64 unixTimeSecondsStopAt)
+        {
+            var c = new QueryBatchCursor();
+            c.currentBoundaryCursor = SequentialGuid.CreateGuid(unixTimeSecondsStopAt * 1000);
+            return c;
+        }
+
+
+        /// <summary>
+        /// Will get the newest item first as specified by the cursor.
         /// </summary>
         /// <param name="noOfItems">Maximum number of results you want back</param>
-        /// <param name="resultFirstCursor">Output. Set to NULL if no more items, otherwise it's the first cursor of the result set. You may need this in stopAtCursor.</param>
-        /// <param name="resultLastCursor">Output. Set to NULL if no more items, otherwise it's the last cursor of the result set. next value you may pass to getFromCursor.</param>
-        /// <param name="startFromCursor">NULL to get the first batch, otherwise the last value you got from resultLastCursor</param>
-        /// <param name="stopAtCursor">NULL to stop at end of table, otherwise cursor to where to stop. E.g. when refreshing after coming back after an hour.</param>
-        /// <param name="requiredSecurityGroup"> Less than zero means don't use. If >= 0 then return all items <= specified value. </param>
+        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page.</param>
+        /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
         /// <param name="senderidAnyOf"></param>
@@ -339,12 +391,8 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
         public List<byte[]> QueryBatch(int noOfItems,
-            out byte[] resultFirstCursor,
-            out byte[] resultLastCursor,
-            out UInt64 cursorUpdatedTimestamp,
-            byte[] startFromCursor = null,
-            byte[] stopAtCursor = null,
-            Int32 requiredSecurityGroup = -1,
+            ref QueryBatchCursor cursor,
+            IntRange requiredSecurityGroup = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
             List<byte[]> senderidAnyOf = null,
@@ -360,27 +408,36 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             string stm;
             string strWhere = "";
 
+            if (cursor == null)
+            {
+                cursor = new QueryBatchCursor();
+            }
+
+            // var list = new List<string>();
+            // var query = string.Join(" ", list);
+
             stopWatch.Start();
 
-            cursorUpdatedTimestamp = UnixTime.UnixTimeMillisecondsUnique();
+            if (cursor.pagingCursor != null)
+                strWhere += $"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}' ";
 
-            if (startFromCursor != null)
-                strWhere += $"fileid < x'{Convert.ToHexString(startFromCursor)}' ";
-
-            if (stopAtCursor != null)
+            if (cursor.currentBoundaryCursor != null)
             {
                 if (strWhere != "")
                     strWhere += "AND ";
 
-                strWhere += $"fileid > x'{Convert.ToHexString(stopAtCursor)}' ";
+                strWhere += $"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}' ";
             }
 
-            if (requiredSecurityGroup >= 0)
+            if (requiredSecurityGroup == null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"requiredSecurityGroup <= {requiredSecurityGroup} ";
+                throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
+
+            if (strWhere != "")
+                strWhere += "AND ";
+            strWhere += $"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
+
 
             if (filetypesAnyOf != null)
             {
@@ -465,15 +522,29 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 i++;
             }
 
-            if (i <= 0)
-                resultFirstCursor = null;
+            if (i > 0)
+            {
+                // If we are getting a set with the newest chat, then set the resultFirstCursor
+                if (cursor.pagingCursor == null)
+                    cursor.nextBoundaryCursor = result[0]; // Set to the newest cursor
+                cursor.pagingCursor = result[result.Count - 1]; // The oldest cursor
+            }
             else
-                resultFirstCursor = result[0];
+            {
+                if (cursor.nextBoundaryCursor != null)
+                {
+                    cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
+                    cursor.nextBoundaryCursor = null;
+                    cursor.pagingCursor = null;
+                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, threadidAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+                }
+                else
+                {
+                    cursor.nextBoundaryCursor = null;
+                    cursor.pagingCursor = null;
+                }
+            }
 
-            if (i < noOfItems)
-                resultLastCursor = null; // No more items
-            else
-                resultLastCursor = result[result.Count - 1];
 
             stopWatch.Stop();
             Utils.StopWatchStatus("QueryBatch() " + stm, stopWatch);
@@ -482,19 +553,18 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         }
 
         /// <summary>
-        /// xxxx
+        /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
         /// 
         /// <param name="noOfItems">Maximum number of rows you want back</param>
-        /// <param name="outCursor">Is set to the last fileId of the result set or null if none. What is the use? xxxx</param>
-        /// <param name="stopAtModifiedDate">0 gets anything that was ever modified. Otherwise retrieve any modified the supplied UnixTimeMillisecondsUnique() </param>
+        /// <param name="cursor">Set to null to get any item ever modified. Keep passing.</param>
+        /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
         public List<byte[]> QueryModified(int noOfItems,
-            out byte[] outCursor,
-            UInt64 stopAtModifiedDate,
-            byte[] startFromCursor = null,
-            Int32 requiredSecurityGroup = -1,
+            ref UInt64 cursor,
+            UInt64 stopAtModifiedUnixTimeSeconds = 0,
+            IntRange requiredSecurityGroup = null,
             List<int> filetypesAnyOf = null,
             List<int> datatypesAnyOf = null,
             List<byte[]> senderidAnyOf = null,
@@ -512,47 +582,38 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
             stopWatch.Start();
 
-            if (startFromCursor != null)
-                strWhere += $"fileid < x'{Convert.ToHexString(startFromCursor)}' ";
+            strWhere += $"updatedtimestamp > {cursor} ";
 
-            if (strWhere != "")
-                strWhere += "AND ";
-
-            strWhere += $"updatedtimestamp > {stopAtModifiedDate} ";
-
-            if (requiredSecurityGroup >= 0)
+            if (stopAtModifiedUnixTimeSeconds > 0)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"requiredSecurityGroup <= {requiredSecurityGroup} ";
+                strWhere += $"AND updatedtimestamp >= {stopAtModifiedUnixTimeSeconds} ";
             }
+
+            if (requiredSecurityGroup == null)
+            {
+                throw new Exception($"{nameof(requiredSecurityGroup)} is required");
+            }
+
+            strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
 
             if (filetypesAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"filetype IN ({IntList(filetypesAnyOf)}) ";
+                strWhere += $"AND filetype IN ({IntList(filetypesAnyOf)}) ";
             }
 
             if (datatypesAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"datatype IN ({IntList(filetypesAnyOf)}) ";
+                strWhere += $"AND datatype IN ({IntList(filetypesAnyOf)}) ";
             }
 
             if (senderidAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"senderid IN ({HexList(senderidAnyOf)}) ";
+                strWhere += $"AND senderid IN ({HexList(senderidAnyOf)}) ";
             }
 
             if (threadidAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"threadid IN ({HexList(threadidAnyOf)}) ";
+                strWhere += $"AND threadid IN ({HexList(threadidAnyOf)}) ";
             }
 
             if (userdateSpan != null)
@@ -566,25 +627,18 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
             if (tagsAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
+                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
             }
 
             if (aclAnyOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmember IN ({HexList(aclAnyOf)})) ";
+                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmember IN ({HexList(aclAnyOf)})) ";
             }
 
             if (tagsAllOf != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-
                 // TODO: This will return 0 matches. Figure out the right query.
-                strWhere += $"{AndHexList(tagsAllOf)} ";
+                strWhere += $"AND {AndHexList(tagsAllOf)} ";
             }
 
             if (strWhere != "")
@@ -592,7 +646,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 strWhere = "WHERE " + strWhere;
             }
 
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems}";
+            stm = $"SELECT fileid, updatedtimestamp FROM mainindex " + strWhere + $"ORDER BY updatedtimestamp ASC LIMIT {noOfItems}";
 
             var cmd = new SQLiteCommand(stm, con);
             var rdr = cmd.ExecuteReader();
@@ -602,24 +656,25 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             byte[] fileid;
 
             int i = 0;
+            long ts = 0;
             while (rdr.Read())
             {
                 fileid = new byte[16];
                 rdr.GetBytes(0, 0, fileid, 0, 16);
                 result.Add(fileid);
+                ts = rdr.GetInt64(1);
                 i++;
             }
 
-            if (i <= 0)
-                outCursor = null;
-            else
-                outCursor = result[result.Count - 1];
+            if (i > 0)
+                cursor = (UInt64)ts;
 
             stopWatch.Stop();
-            Utils.StopWatchStatus("QueryBatch() " + stm, stopWatch);
+            Utils.StopWatchStatus("QueryModified() " + stm, stopWatch);
 
             return result;
         }
+
 
         private string IntList(List<int> list)
         {
@@ -694,6 +749,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             }
             else
             {
+                // Ensure even distribution
                 byte[] ba = fileid.ToByteArray();
                 var b1 = ba[ba.Length - 1] & (byte)0x0F;
                 var b2 = (ba[ba.Length - 1] & (byte)0xF0) >> 4;

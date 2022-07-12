@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
@@ -33,70 +32,71 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(byte[], IEnumerable<Guid>)> GetRecent(CallerContext callerContext, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, FileQueryParams qp, GetRecentResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
-        if (callerContext.IsOwner)
-        {
-            //query without enforcing security
-        }
+        var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
+        var aclList = GetAcl(callerContext);
+        var cursor = options.Cursor;
 
-        var requiredSecurityGroup = (int)callerContext.SecurityLevel;
-
-        var aclList = new List<byte[]>();
-
-        //TODO: add required security group to the querymodified function
         var results = _indexDb.QueryModified(
-            options.MaxRecords,
-            out var cursor,
-            maxDate,
-            startCursor,
-            requiredSecurityGroup,
-            qp.FileType?.ToList(),
-            qp.DataType?.ToList(),
-            qp.Sender?.ToList(),
-            null,
-            qp.UserDate,
-            null,
-            qp.TagsMatchAtLeastOne?.ToList(),
-            qp.TagsMatchAll?.ToList());
+            noOfItems: options.MaxRecords,
+            cursor: ref cursor,
+            stopAtModifiedUnixTimeSeconds: options.MaxDate,
+            requiredSecurityGroup: requiredSecurityGroup,
+            filetypesAnyOf: qp.FileType?.ToList(),
+            datatypesAnyOf: qp.DataType?.ToList(),
+            senderidAnyOf: qp.Sender?.ToList(),
+            threadidAnyOf: qp.ThreadId?.ToList(),
+            userdateSpan: qp.UserDate,
+            aclAnyOf: aclList,
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
 
-    public Task<(byte[], byte[], ulong, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryParams qp, ResultOptions options)
+
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, GetBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
-        //TODO: update to use IntRange
-        var requiredSecurityGroup = (int)callerContext.SecurityLevel;
+        var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
 
+        var aclList = GetAcl(callerContext);
+
+        var cursor = options.Cursor;
+        var results = _indexDb.QueryBatch(
+            noOfItems: options.MaxRecords,
+            cursor: ref cursor,
+            requiredSecurityGroup: securityRange,
+            filetypesAnyOf: qp.FileType?.ToList(),
+            datatypesAnyOf: qp.DataType?.ToList(),
+            senderidAnyOf: qp.Sender?.ToList(),
+            threadidAnyOf: qp.ThreadId?.ToList(),
+            userdateSpan: qp.UserDate,
+            aclAnyOf: aclList,
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList());
+
+        return Task.FromResult((cursor, results.Select(r => new Guid(r))));
+    }
+
+    private List<byte[]> GetAcl(CallerContext callerContext)
+    {
         var aclList = new List<byte[]>();
         if (callerContext.IsOwner == false)
         {
-            aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
-            //TODO: add the circles
-        }
-        
-        var results = _indexDb.QueryBatch(
-            options.MaxRecords,
-            out byte[] resultFirstCursor,
-            out byte[] resultLastCursor,
-            out UInt64 cursorUpdatedTimestamp,
-            options.StartCursor,
-            options.StopCursor,
-            requiredSecurityGroup,
-            qp.FileType?.ToList(),
-            qp.DataType?.ToList(),
-            qp.Sender?.ToList(),
-            null, //thread id list
-            qp.UserDate,
-            aclAnyOf: aclList,
-            qp.TagsMatchAtLeastOne?.ToList(),
-            qp.TagsMatchAll?.ToList());
+            if (!callerContext.IsAnonymous)
+            {
+                aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
+            }
 
-        return Task.FromResult((resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, results.Select(r => new Guid(r))));
+            aclList.AddRange(callerContext.Circles?.Select(c => c.ToByteArray()) ?? Array.Empty<byte[]>());
+        }
+
+        return aclList.Any() ? aclList : null;
     }
 
     public Task SwitchIndex()
@@ -112,15 +112,15 @@ public class SqliteQueryManager : IDriveQueryManager
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
         var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
 
-        var acl = new List<Guid>();
+        var acl = new List<byte[]>();
 
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((DotYouIdentity)dotYouId).ToGuid()
+            ((DotYouIdentity)dotYouId).ToGuid().ToByteArray()
         );
         acl.AddRange(ids.ToList());
 
-        var threadId = Array.Empty<byte>();
+        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
 
         if (exists)
         {
@@ -129,11 +129,11 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                threadId,
+                metadata.AppData.ThreadId,
                 metadata.AppData.UserDate,
                 securityGroup,
                 acl,
-                metadata.AppData.Tags);
+                tags);
         }
         else
         {
@@ -141,11 +141,11 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                threadId,
+                metadata.AppData.ThreadId,
                 metadata.AppData.UserDate,
                 securityGroup,
                 acl,
-                metadata.AppData.Tags);
+                tags);
         }
 
         return Task.CompletedTask;

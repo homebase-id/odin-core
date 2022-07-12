@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
         {
             policy.AddPolicy(IsIdentified, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
+                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 // pb.RequireRole()
                 pb.AuthenticationSchemes.Add(ClientTokenConstants.Scheme);
 

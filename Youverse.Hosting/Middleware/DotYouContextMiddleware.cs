@@ -168,14 +168,16 @@ namespace Youverse.Hosting.Middleware
             var user = httpContext.User;
 
             var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
-            bool isInNetwork = user.HasClaim(DotYouClaimTypes.IsInNetwork, bool.TrueString.ToLower());
-            var securityLevel = isInNetwork ? SecurityGroupType.Authenticated : SecurityGroupType.Anonymous;
+            var securityLevel = user.HasClaim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower())
+                ? SecurityGroupType.Authenticated
+                : SecurityGroupType.Anonymous;
+            
             dotYouContext.Caller = new CallerContext(
                 dotYouId: callerDotYouId,
                 securityLevel: securityLevel,
                 masterKey: null
             );
-            
+
             if (securityLevel == SecurityGroupType.Anonymous)
             {
                 var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
@@ -258,7 +260,7 @@ namespace Youverse.Hosting.Middleware
                 dotYouContext.SetPermissionContext(null);
             }
         }
-        
+
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             /*

@@ -35,9 +35,6 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        private SQLiteCommand _selectAllCommand = null;
-        private object _selectAllLock = new object();
-        
         private SQLiteCommand _selectTwoCommand = null;
         private SQLiteParameter _sparamTwo1 = null;
         private Object _selectTwoLock = new Object();
