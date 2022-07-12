@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
             return CreateAuthenticationResult(claims, AppAuthConstants.SchemeName);
@@ -91,8 +91,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, youAuthClient.DotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsInNetwork, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsIdentified, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
             return CreateAuthenticationResult(claims, ClientTokenConstants.Scheme);
         }
@@ -114,9 +113,9 @@ namespace Youverse.Hosting.Authentication.ClientToken
         {
             var claims = new[]
             {
-                new Claim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier), //TODO: figure out a better way to communicate this visitor is anonymous
+                // new Claim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier), //TODO: figure out a better way to communicate this visitor is anonymous
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsIdentified, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.Scheme);

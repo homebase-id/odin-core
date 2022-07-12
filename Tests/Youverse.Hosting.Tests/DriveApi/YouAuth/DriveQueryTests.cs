@@ -101,6 +101,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var qp = new FileQueryParams()
                 {
+                    TargetDrive = targetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
@@ -144,7 +145,8 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    CursorState = "", MaxRecords = 10,
+                    CursorState = "",
+                    MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 

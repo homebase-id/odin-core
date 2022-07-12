@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 using Youverse.Core.Services.Drive.Storage;
@@ -47,7 +48,7 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            threadidAnyOf: qp.ThreadId.ToList(),
+            threadidAnyOf: qp.ThreadId?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
@@ -64,6 +65,7 @@ public class SqliteQueryManager : IDriveQueryManager
         var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
 
         var aclList = GetAcl(callerContext);
+
         var cursor = options.Cursor;
         var results = _indexDb.QueryBatch(
             noOfItems: options.MaxRecords,
@@ -86,11 +88,15 @@ public class SqliteQueryManager : IDriveQueryManager
         var aclList = new List<byte[]>();
         if (callerContext.IsOwner == false)
         {
-            aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
+            if (!callerContext.IsAnonymous)
+            {
+                aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
+            }
+
             aclList.AddRange(callerContext.Circles?.Select(c => c.ToByteArray()) ?? Array.Empty<byte[]>());
         }
 
-        return aclList;
+        return aclList.Any() ? aclList : null;
     }
 
     public Task SwitchIndex()
@@ -114,7 +120,7 @@ public class SqliteQueryManager : IDriveQueryManager
         );
         acl.AddRange(ids.ToList());
 
-        var tags = metadata.AppData.Tags.Select(t => t.ToByteArray()).ToList();
+        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
 
         if (exists)
         {

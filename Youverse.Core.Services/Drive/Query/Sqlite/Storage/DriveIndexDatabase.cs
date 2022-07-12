@@ -48,12 +48,21 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
         public string ToState()
         {
-            var bytes = ByteArrayUtil.Combine(this.pagingCursor, this.currentBoundaryCursor, this.nextBoundaryCursor);
+            var bytes = ByteArrayUtil.Combine(
+                this.pagingCursor ?? Array.Empty<byte>(),
+                this.currentBoundaryCursor ?? Array.Empty<byte>(),
+                this.nextBoundaryCursor ?? Array.Empty<byte>());
+            
             return bytes.ToBase64();
         }
 
         public static QueryBatchCursor FromState(string cursorState)
         {
+            if (string.IsNullOrWhiteSpace(cursorState))
+            {
+                return null;
+            }
+
             var bytes = Convert.FromBase64String(cursorState);
             var (p1, p2, p3) = ByteArrayUtil.Split(bytes, 16, 16, 16);
 
