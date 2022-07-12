@@ -26,12 +26,12 @@ namespace Youverse.Core.Services.Drive.Query
         /// Returns the fileId of recently modified files
         /// </summary>
         /// <param name="callerContext"></param>
-        /// <param name="maxDate"></param>
-        /// <param name="cursor"></param>
         /// <param name="qp"></param>
         /// <param name="options"></param>
+        /// <param name="maxDate"></param>
+        /// <param name="cursor"></param>
         /// <returns>(cursor, file Id List)</returns>
-        Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, ulong maxDate, ulong cursor, QueryParams qp, ResultOptions options);
+        Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, FileQueryParams qp, GetRecentResultOptions options);
 
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryBatchCursor cursor, QueryParams qp, ResultOptions options);
+        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, GetBatchResultOptions options);
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild

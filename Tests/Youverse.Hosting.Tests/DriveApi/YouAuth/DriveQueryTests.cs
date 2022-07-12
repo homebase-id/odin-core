@@ -39,11 +39,11 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            
+
             var targetDrive = TargetDrive.NewTargetDrive();
             await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
             var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity,targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
             securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
@@ -51,8 +51,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = securedFileUploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
@@ -60,15 +59,18 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(qp, resultOptions);
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
 
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -83,11 +85,11 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            
+
             var targetDrive = TargetDrive.NewTargetDrive();
             await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
             var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity,targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
             securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
@@ -97,21 +99,25 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
-                var startCursor = Array.Empty<byte>();
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new ResultOptions()
+                var resultOptions = new GetRecentResultOptions()
                 {
+                    MaxDate = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var maxDateInPast = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds();
-
-                var getRecentResponse = await svc.GetRecent(targetDrive, maxDateInPast, startCursor, qp, resultOptions);
+                var request = new GetRecentRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
+                
+                var getRecentResponse = await svc.GetRecent(request);
                 Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
                 var batch = getRecentResponse.Content;
 
@@ -130,8 +136,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
@@ -139,15 +144,18 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
-                    MaxRecords = 10,
+                    CursorState = "", MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(qp, resultOptions);
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
 
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -165,21 +173,26 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
+                    CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(qp, resultOptions);
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
+
+                var response = await svc.GetBatch(request);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
@@ -187,11 +200,8 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 //TODO: what to test here?
                 Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.StartCursor);
-                //TODO: test that star cursor is not zeros
-
-                //TODO: ensure cursor was updated sometime in the last 10 minutes?
-                Assert.IsTrue(batch.CursorUpdatedTimestamp > 0);
+                Assert.IsNotNull(batch.CursorState);
+                Assert.IsNotEmpty(batch.CursorState);
 
                 var firstResult = batch.SearchResults.First();
 
@@ -219,21 +229,27 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
+                    CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var response = await svc.GetBatch(qp, resultOptions);
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
+
+                var response = await svc.GetBatch(request);
+
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;

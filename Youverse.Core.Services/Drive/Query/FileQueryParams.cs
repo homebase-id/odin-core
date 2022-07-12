@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Drive.Query;
 
-public class QueryParams
+public class FileQueryParams
 {
     public TargetDrive TargetDrive { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;

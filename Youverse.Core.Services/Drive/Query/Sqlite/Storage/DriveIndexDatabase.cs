@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Util;
 
 
@@ -44,6 +45,25 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         public byte[] pagingCursor;
         public byte[] currentBoundaryCursor;
         public byte[] nextBoundaryCursor;
+
+        public string ToState()
+        {
+            var bytes = ByteArrayUtil.Combine(this.pagingCursor, this.currentBoundaryCursor, this.nextBoundaryCursor);
+            return bytes.ToBase64();
+        }
+
+        public static QueryBatchCursor FromState(string cursorState)
+        {
+            var bytes = Convert.FromBase64String(cursorState);
+            var (p1, p2, p3) = ByteArrayUtil.Split(bytes, 16, 16, 16);
+
+            return new QueryBatchCursor()
+            {
+                pagingCursor = p1,
+                currentBoundaryCursor = p2,
+                nextBoundaryCursor = p3
+            };
+        }
     }
 
     public class DriveIndexDatabase
@@ -297,7 +317,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             List<Byte[]> accessControlList = null,
             List<Byte[]> tagIdList = null)
         {
-             bool isLocalTransaction = false;
+            bool isLocalTransaction = false;
 
             lock (_getTransactionLock)
             {
@@ -391,7 +411,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
             if (cursor.pagingCursor != null)
                 strWhere += $"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}' ";
-            
+
             if (cursor.currentBoundaryCursor != null)
             {
                 if (strWhere != "")
@@ -638,7 +658,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             }
 
             if (i > 0)
-                cursor = (UInt64) ts;
+                cursor = (UInt64)ts;
 
             stopWatch.Stop();
             Utils.StopWatchStatus("QueryModified() " + stm, stopWatch);

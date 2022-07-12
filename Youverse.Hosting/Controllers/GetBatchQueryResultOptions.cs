@@ -1,33 +1,16 @@
+using System;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 
 namespace Youverse.Hosting.Controllers;
-
-public class GetRecentQueryResultOptions
-{
-    public ulong MaxDate { get; set; }
-    
-    public ulong Cursor { get; set; }
-    
-    public int MaxRecords { get; set; } = 100;
-    
-    public bool IncludeMetadataHeader { get; set; }
-    
-    public ResultOptions ToResultOptions()
-    {
-        return new ResultOptions()
-        {
-            MaxRecords = this.MaxRecords,
-            IncludeMetadataHeader = this.IncludeMetadataHeader
-        };
-    }
-}
 
 public class GetBatchQueryResultOptions
 {
     /// <summary>
-    /// Base64 encoded value of the cursor 
+    /// Base64 encoded value of the cursor state used when paging/chunking through records
     /// </summary>
-    public string Cursor64 { get; set; }
+    public string CursorState { get; set; }
 
     /// <summary>
     /// Max number of records to return
@@ -36,10 +19,12 @@ public class GetBatchQueryResultOptions
 
     public bool IncludeMetadataHeader { get; set; }
 
-    public ResultOptions ToResultOptions()
+    public GetBatchResultOptions ToGetBatchResultOptions()
     {
-        return new ResultOptions()
+        
+        return new GetBatchResultOptions()
         {
+            Cursor =  QueryBatchCursor.FromState(this.CursorState),
             MaxRecords = this.MaxRecords,
             IncludeMetadataHeader = this.IncludeMetadataHeader
         };

@@ -72,21 +72,23 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var qp = new QueryParams()
+                var request = new GetBatchRequest()
                 {
-                    TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                    TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = uploadContext.TestAppContext.TargetDrive,
+                        TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
+                    },
+
+                    ResultOptions = new GetBatchQueryResultOptions()
+                    {
+                        CursorState = "",
+                        MaxRecords = 10,
+                        IncludeMetadataHeader = false
+                    }
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
-                {
-                    StartCursor = "",
-                    StopCursor = "",
-                    MaxRecords = 10,
-                    IncludeMetadataHeader = false
-                };
-
-                var response = await svc.GetBatch(qp, resultOptions);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -128,31 +130,33 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
+                    CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
-                var response = await svc.GetBatch(qp, resultOptions);
 
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
+
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
 
                 //TODO: what to test here?
                 Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.StartCursor);
-                //TODO: test that star cursor is not zeros
-
-                //TODO: ensure cursor was updated sometime in the last 10 minutes?
-                Assert.IsTrue(batch.CursorUpdatedTimestamp > 0);
+                Assert.IsNotNull(batch.CursorState);
+                Assert.IsNotEmpty(batch.CursorState);
 
                 var firstResult = batch.SearchResults.First();
 
@@ -204,21 +208,24 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             {
                 var svc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var qp = new QueryParams()
+                var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
                 var resultOptions = new GetBatchQueryResultOptions()
                 {
-                    StartCursor = "",
-                    StopCursor = "",
-                    MaxRecords = 10,
+                    CursorState = "", MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var response = await svc.GetBatch(qp, resultOptions);
+                var request = new GetBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptions = resultOptions
+                };
 
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);

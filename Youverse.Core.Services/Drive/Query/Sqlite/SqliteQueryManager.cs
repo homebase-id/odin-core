@@ -31,17 +31,18 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, ulong maxDate, ulong cursor, QueryParams qp, ResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, FileQueryParams qp, GetRecentResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
+        var cursor = options.Cursor;
 
         var results = _indexDb.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
-            stopAtModifiedUnixTimeSeconds: maxDate,
+            stopAtModifiedUnixTimeSeconds: options.MaxDate,
             requiredSecurityGroup: requiredSecurityGroup,
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
@@ -55,15 +56,15 @@ public class SqliteQueryManager : IDriveQueryManager
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
 
-    
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryBatchCursor cursor, QueryParams qp, ResultOptions options)
+
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, GetBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
         var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
 
         var aclList = GetAcl(callerContext);
-
+        var cursor = options.Cursor;
         var results = _indexDb.QueryBatch(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,

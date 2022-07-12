@@ -1,4 +1,3 @@
-
 namespace Youverse.Core.Services.Drive.Query;
 
 public class ResultOptions
@@ -9,5 +8,4 @@ public class ResultOptions
     public int MaxRecords { get; set; } = 100;
 
     public bool IncludeMetadataHeader { get; set; }
-    
 }

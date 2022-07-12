@@ -62,11 +62,11 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<QueryRecentResult> GetRecent(Guid driveId, ulong maxDate, ulong cursor, QueryParams qp, ResultOptions options)
+        public async Task<QueryRecentResult> GetRecent(Guid driveId, FileQueryParams qp, GetRecentResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, maxDate, cursor, qp, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -80,11 +80,11 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, QueryParams qp, ResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, GetBatchResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, cursor, qp, options);
+                var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 return new QueryBatchResult()

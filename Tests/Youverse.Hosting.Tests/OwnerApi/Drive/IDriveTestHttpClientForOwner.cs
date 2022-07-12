@@ -7,6 +7,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
@@ -31,10 +32,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         Task<ApiResponse<HttpContent>> GetPayload(TargetDrive drive, Guid fileId);
 
         [Post(RootQueryEndpoint + "/recent")]
-        Task<ApiResponse<QueryBatchResult>> GetRecent([Query] TargetDrive drive, [Query] UInt64 maxDate, [Query] byte[] startCursor, [Body] QueryParams qp, [Query] ResultOptions options);
+        Task<ApiResponse<QueryRecentResult>> GetRecent(GetRecentRequest request);
 
         [Post(RootQueryEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResult>> GetBatch([Body] QueryParams qp, [Query] GetBatchQueryResultOptions options);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch(GetBatchRequest request);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox();
