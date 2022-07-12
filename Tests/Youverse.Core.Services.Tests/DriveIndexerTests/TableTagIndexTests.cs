@@ -16,8 +16,8 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            var a1 = new List<byte[]>();
+            a1.Add(Guid.NewGuid().ToByteArray());
 
             var md = db.TblTagIndex.Get(k1);
 
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
             if (md.Count != 1)
                 Assert.Fail();
 
-            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0].ToByteArray()) != 0)
+            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0]) != 0)
                 Assert.Fail();
         }
 
@@ -47,9 +47,9 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
-            a1.Add(Guid.NewGuid());
+            var a1 = new List<byte[]>();
+            a1.Add(Guid.NewGuid().ToByteArray());
+            a1.Add(Guid.NewGuid().ToByteArray());
 
             db.TblTagIndex.InsertRows(k1, a1);
 
@@ -62,16 +62,16 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
                 Assert.Fail();
 
             // We don't know what order it comes back in :o) Quick hack.
-            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0].ToByteArray()) != 0)
+            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0]) != 0)
             {
-                if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[1].ToByteArray()) != 0)
+                if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[1]) != 0)
                     Assert.Fail();
-                if (SequentialGuid.muidcmp(md[1].ToByteArray(), a1[0].ToByteArray()) != 0)
+                if (SequentialGuid.muidcmp(md[1].ToByteArray(), a1[0]) != 0)
                     Assert.Fail();
             }
             else
             {
-                if (SequentialGuid.muidcmp(md[1].ToByteArray(), a1[1].ToByteArray()) != 0)
+                if (SequentialGuid.muidcmp(md[1].ToByteArray(), a1[1]) != 0)
                     Assert.Fail();
             }
         }
@@ -85,8 +85,8 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            var a1 = new List<byte[]>();
+            a1.Add(Guid.NewGuid().ToByteArray());
             a1.Add(a1[0]);
 
             bool ok = false;
@@ -113,18 +113,18 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            var a1 = new List<byte[]>();
+            a1.Add(Guid.NewGuid().ToByteArray());
 
             db.TblTagIndex.InsertRows(k1, a1);
             db.TblTagIndex.InsertRows(k2, a1);
 
             var md = db.TblTagIndex.Get(k1);
-            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0].ToByteArray()) != 0)
+            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0]) != 0)
                 Assert.Fail();
 
             md = db.TblTagIndex.Get(k2);
-            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0].ToByteArray()) != 0)
+            if (SequentialGuid.muidcmp(md[0].ToByteArray(), a1[0]) != 0)
                 Assert.Fail();
         }
 
@@ -136,8 +136,8 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
-            var a1 = new List<Guid>();
-            a1.Add(Guid.NewGuid());
+            var a1 = new List<byte[]>();
+            a1.Add(Guid.NewGuid().ToByteArray());
 
             db.TblTagIndex.InsertRows(k1, a1);
             bool ok = false;
@@ -164,12 +164,12 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var a1 = new List<Guid>();
+            var a1 = new List<byte[]>();
             var v1 = Guid.NewGuid();
             var v2 = Guid.NewGuid();
 
-            a1.Add(v1);
-            a1.Add(v2);
+            a1.Add(v1.ToByteArray());
+            a1.Add(v2.ToByteArray());
 
             db.TblTagIndex.InsertRows(k1, a1);
             db.TblTagIndex.InsertRows(k2, a1);

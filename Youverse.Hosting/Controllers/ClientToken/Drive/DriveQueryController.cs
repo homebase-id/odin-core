@@ -33,13 +33,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             [FromQuery] ResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive);
-            var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
+            var batch = await _driveQueryService.GetRecent(driveId, maxDate, TODO, qp, options);
             return new JsonResult(batch);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] QueryResultOptions options)
+        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] GetBatchQueryResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
             var batch = await _driveQueryService.GetBatch(driveId, qp, options.ToResultOptions());

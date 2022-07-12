@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
                 };
 
-                var resultOptions = new QueryResultOptions()
+                var resultOptions = new GetBatchQueryResultOptions()
                 {
                     StartCursor = "",
                     StopCursor = "",
@@ -134,7 +134,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new QueryResultOptions()
+                var resultOptions = new GetBatchQueryResultOptions()
                 {
                     StartCursor = "",
                     StopCursor = "",
@@ -211,7 +211,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new QueryResultOptions()
+                var resultOptions = new GetBatchQueryResultOptions()
                 {
                     StartCursor = "",
                     StopCursor = "",

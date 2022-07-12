@@ -14,6 +14,8 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public int DataType { get; set; }
         
+        public byte[] ThreadId { get; set; }
+        
         public ulong UserDate { get; set; }
 
         public bool ContentIsComplete { get; set; }

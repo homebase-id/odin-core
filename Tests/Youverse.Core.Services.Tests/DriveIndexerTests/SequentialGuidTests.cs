@@ -1,6 +1,5 @@
 ﻿using System;
 using NUnit.Framework;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Tests.DriveIndexerTests
 {
@@ -29,12 +28,12 @@ namespace Youverse.Core.Services.Tests.DriveIndexerTests
             var id = new Guid(SequentialGuid.CreateGuid());
             UInt64 t = SequentialGuid.FileIdToUnixTime(id);
 
-            if (t != UnixTime.GetUnixTimeSeconds())
+            if (t/1000 != UnixTime.GetUnixTimeSeconds())
             {
-                // Ok, we might have been unlucky and passed that nanosecond where
+                // Ok, we might have been unlucky and passed that milisecond where
                 // the second switched, so try again.
                 id = new Guid(SequentialGuid.CreateGuid());
-                t = SequentialGuid.FileIdToUnixTime(id);
+                t = SequentialGuid.FileIdToUnixTime(id)/1000;
 
                 if (t != UnixTime.GetUnixTimeSeconds())
                     Assert.Fail();

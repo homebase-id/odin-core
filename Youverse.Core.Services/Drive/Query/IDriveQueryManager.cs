@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive.Query
@@ -24,27 +25,22 @@ namespace Youverse.Core.Services.Drive.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        /// <param name="startCursor"></param>
-        /// <param name="qp"></param>
-        /// <param name="options"></param>
         /// <param name="callerContext"></param>
         /// <param name="maxDate"></param>
+        /// <param name="cursor"></param>
+        /// <param name="qp"></param>
+        /// <param name="options"></param>
         /// <returns>(cursor, file Id List)</returns>
-        Task<(byte[], IEnumerable<Guid>)> GetRecent(CallerContext callerContext, UInt64 maxDate, byte[] startCursor, QueryParams qp, ResultOptions options);
+        Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, ulong maxDate, ulong cursor, QueryParams qp, ResultOptions options);
 
 
         /// <summary>
         /// Returns a batch of file Ids
         /// </summary>
-        /// <param name="callerContext"></param>
-        /// <param name="startCursor"></param>
-        /// <param name="stopCursor"></param>
-        /// <param name="qp"></param>
-        /// <param name="options"></param>
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(byte[], byte[], UInt64, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryParams qp, ResultOptions options);
+        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, QueryBatchCursor cursor, QueryParams qp, ResultOptions options);
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild

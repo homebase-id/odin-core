@@ -8,9 +8,8 @@ public class QueryParams
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;
     public IEnumerable<byte[]> Sender { get; set; } = null;
-
-    //TODO: implement in indexer
-    // public IEnumerable<byte[]> ThreadId { get; set; } = null;
+    
+    public IEnumerable<byte[]> ThreadId { get; set; } = null;
 
     public TimeRange UserDate { get; set; } = null;
 
