@@ -2,9 +2,12 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
@@ -26,21 +29,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("recent")]
-        public async Task<IActionResult> GetRecent([FromQuery] TargetDrive drive, [FromQuery] UInt64 maxDate, [FromQuery] byte[] startCursor, [FromBody] QueryParams qp,
-            [FromQuery] ResultOptions options)
+        public async Task<IActionResult> GetRecent([FromBody] GetRecentRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive);
-            var batch = await _driveQueryService.GetRecent(driveId, maxDate, startCursor, qp, options);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var batch = await _driveQueryService.GetRecent(driveId, request.QueryParams, request.ResultOptions);
             return new JsonResult(batch);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromBody] QueryParams qp, [FromQuery] QueryResultOptions options)
+        public async Task<IActionResult> GetBatch([FromBody] GetBatchRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, qp, options.ToResultOptions());
-            return new JsonResult(batch);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptions.ToGetBatchResultOptions());
+
+            var response = new QueryBatchResponse()
+            {
+                CursorState = batch.Cursor.ToState(),
+                SearchResults = batch.SearchResults
+            };
+
+            return new JsonResult(response);
         }
     }
 }

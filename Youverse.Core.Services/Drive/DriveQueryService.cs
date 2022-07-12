@@ -62,19 +62,17 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<QueryBatchResult> GetRecent(Guid driveId, ulong maxDate, byte[] startCursor, QueryParams qp, ResultOptions options)
+        public async Task<QueryRecentResult> GetRecent(Guid driveId, FileQueryParams qp, GetRecentResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, maxDate, startCursor, qp, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
-                //TODO: can we put a stop cursor and udpate time on this too?  does that make any sense? probably not
-                return new QueryBatchResult()
+                //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
+                return new QueryRecentResult()
                 {
-                    StartCursor = cursor,
-                    StopCursor = null,
-                    CursorUpdatedTimestamp = 0,
+                    Cursor = updatedCursor,
                     SearchResults = searchResults
                 };
             }
@@ -82,18 +80,16 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, QueryParams qp, ResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, GetBatchResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (resultStartCursor, resultStopCursor, cursorUpdatedTimestamp, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
+                var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
                 var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
                 return new QueryBatchResult()
                 {
-                    StartCursor = resultStartCursor,
-                    StopCursor = resultStopCursor,
-                    CursorUpdatedTimestamp = cursorUpdatedTimestamp,
+                    Cursor = cursor,
                     SearchResults = searchResults
                 };
             }
@@ -165,6 +161,7 @@ namespace Youverse.Core.Services.Drive
                 FileId = metadata.File.FileId,
                 ContentIsComplete = metadata.AppData.ContentIsComplete,
                 PayloadIsEncrypted = metadata.PayloadIsEncrypted,
+                ThreadId = metadata.AppData.ThreadId,
                 FileType = metadata.AppData.FileType,
                 DataType = metadata.AppData.DataType,
                 UserDate = metadata.AppData.UserDate,

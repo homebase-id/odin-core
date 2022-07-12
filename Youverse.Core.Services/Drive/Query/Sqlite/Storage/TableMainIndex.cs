@@ -49,6 +49,11 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
         private SQLiteParameter _uparam7 = null;
         private Object _updateLock = new Object();
 
+        private SQLiteCommand _touchCommand = null;
+        private SQLiteParameter _tparam1 = null;
+        private SQLiteParameter _tparam2 = null;
+        private Object _touchLock = new Object();
+
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
@@ -101,7 +106,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                      senderid BLOB,
                      threadId BLOB,
                      requiredSecurityGroup INTEGER NOT NULL); "
-                    + "CREATE INDEX if not exists idxupdatedtimestamp ON mainindex(updatedtimestamp);";
+                    + "CREATE INDEX idxupdatedtimestamp ON mainindex(updatedtimestamp);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -290,6 +295,39 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
                 _dparam1.Value = fileId;
                 _deleteCommand.ExecuteNonQuery();
+            }
+        }
+
+
+        /// <summary>
+        /// For testing only. Updates the updatedTimestamp for the supplied item.
+        /// </summary>
+        /// <param name="fileId">Item to touch</param>
+        public void TestTouch(Guid fileId)
+        {
+            lock (_touchLock)
+            {
+                // Make sure we only prep once 
+                if (_touchCommand == null)
+                {
+                    _touchCommand = _driveIndexDatabase.CreateCommand();
+
+                    _touchCommand.CommandText =
+                        $"UPDATE mainindex SET updatedtimestamp=$updatedtimestamp WHERE fileid = $fileid;";
+
+                    _tparam1 = _touchCommand.CreateParameter();
+                    _tparam1.ParameterName = "$fileid";
+                    _touchCommand.Parameters.Add(_tparam1);
+
+                    _tparam2 = _touchCommand.CreateParameter();
+                    _tparam2.ParameterName = "$updatedtimestamp";
+                    _touchCommand.Parameters.Add(_tparam2);
+                }
+
+                _tparam1.Value = fileId;
+                _tparam2.Value = UnixTime.UnixTimeMillisecondsUnique();
+
+                _touchCommand.ExecuteNonQuery();
             }
         }
 

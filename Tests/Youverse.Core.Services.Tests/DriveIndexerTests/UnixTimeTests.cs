@@ -1,6 +1,5 @@
 ﻿using System;
 using NUnit.Framework;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Tests.DriveIndexerTests
 {

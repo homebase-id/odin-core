@@ -8,6 +8,7 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
@@ -32,10 +33,10 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         Task<ApiResponse<HttpContent>> GetPayload(TargetDrive drive, Guid fileId);
         
         [Post(RootEndpoint + "/query/recent")]
-        Task<ApiResponse<QueryBatchResult>> GetRecent([Query] TargetDrive drive, [Query] UInt64 maxDate, [Query] byte[] startCursor, [Body] QueryParams qp, [Query] ResultOptions options);
+        Task<ApiResponse<QueryRecentResult>> GetRecent(GetRecentRequest request);
         
         [Post(RootEndpoint + "/query/batch")]
-        Task<ApiResponse<QueryBatchResult>> GetBatch([Body] QueryParams qp, [Query] QueryResultOptions options);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch(GetBatchRequest request);
 
         
     }

@@ -12,13 +12,13 @@ namespace Youverse.Hosting.Authentication.Perimeter
         {
             policy.AddPolicy(IsInYouverseNetwork, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
+                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(scheme);
             });
             
             policy.AddPolicy(IsInYouverseNetworkWithApp, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsIdentified, true.ToString().ToLower());
+                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(scheme);
             });

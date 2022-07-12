@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
@@ -25,14 +24,15 @@ namespace Youverse.Core.Services.Transit.Outbox
         private readonly TenantContext _tenantContext;
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ISystemStorage systemStorage, TenantContext tenantContext)
+        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ISystemStorage systemStorage,
+            TenantContext tenantContext)
         {
             _contextAccessorAccessor = contextAccessor;
             _pendingTransfers = pendingTransfers;
             _systemStorage = systemStorage;
             _tenantContext = tenantContext;
         }
-        
+
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
@@ -66,8 +66,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             {
                 return;
             }
-            
-            
+
+
             //TODO: check all other fields on the item;
             item.IsCheckedOut = false;
             item.Attempts.Add(new TransferAttempt()
@@ -77,14 +77,15 @@ namespace Youverse.Core.Services.Transit.Outbox
             });
 
             //TODO:this puts it at the end of the queue however we need to decide if we want to push it forward for various reasons (i.e. it's a chat message, etc.)
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection,s=>s.Save(item));
+            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
         }
 
         public async Task<PagedResult<OutboxItem>> GetNextBatch()
         {
             //TODO: update logic to handle things like priority and other bits
             var pageOptions = new PageOptions(1, 10);
-            var pagedResult = await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
+            var pagedResult = await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection,
+                s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
 
             //check out the items
             foreach (var item in pagedResult.Results)
@@ -112,7 +113,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
             _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
         }
-        
+
         public Task Remove(Guid id)
         {
             _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));

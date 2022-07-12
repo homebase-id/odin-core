@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using Youverse.Core.Util;
 
 namespace Youverse.Core
 {
@@ -12,26 +11,26 @@ namespace Youverse.Core
     {
         static private Object _lock = new Object();
         static private Random _rnd = new Random();
-        static private UInt64 _lastSecond = 0;
+        static private UInt64 _lastMilisecond = 0;
         static private int _counter = 0;
 
-        public static byte[] CreateGuid()
+        public static byte[] CreateGuid(UInt64 unixTimeMiliseconds)
         {
-            // One year is 3600*24*365.25 = 31557600 seconds
-            // With 34 bits we can hold ~544 years since 1970-01-01
-            // 
-
-            UInt64 seconds = UnixTime.GetUnixTimeSeconds();
+            // One year is 3600*24*365.25*1000 = 31,557,600,000 miliseconds (35 bits)
+            // Use 9 bits for the years, for a total of 44 bits (5½ bytes)
+            // Thus able to hold 557 years since 1970-01-01
+            // The counter is 12 bits, for a total of 4096, which gets us to ~1/4ns per guid before clash / wait()
+            // Total bit usage of milisecond time+counter is thus 44+12=56 bits aka 7 bytes
 
             lock (_lock)
             {
-                if (seconds == _lastSecond)
+                if (unixTimeMiliseconds == _lastMilisecond)
                 {
-                    // 22 bits counter, aka 11-1111-1111-1111-1111-1111 / 0x3F FFFF; 4.1M max / second, 1/4 ns
+                    //  bits counter 12 bits, aka 1111-1111-1111 / 0xFFF; 4.1M max / second, 1/4 ns
                     _counter++;
-                    if (_counter >= 0x3F_FFFF)
+                    if (_counter >= 0xFFF)
                     {
-                        Thread.Sleep(500);
+                        Thread.Sleep(1);
                         // http://msdn.microsoft.com/en-us/library/c5kehkcz.aspx
                         // A lock knows which thread locked it. If the same thread comes again it just increments a counter and does not block.
                         return CreateGuid();
@@ -39,22 +38,22 @@ namespace Youverse.Core
                 }
                 else
                 {
-                    _lastSecond = seconds;
+                    _lastMilisecond = unixTimeMiliseconds;
                     _counter = 0;
                 }
             }
 
-            // Create 56 bits (7 bytes) {seconds (34bit), _counter(22bit)}
-            UInt64 secondsctr = (UInt64) (seconds << 22) | (UInt32) _counter;
+            // Create 56 bits (7 bytes) {miliseconds (44 bits), _counter(12 bits)}
+            UInt64 milisecondsctr = (UInt64)(unixTimeMiliseconds << 12) | (UInt32)_counter;
 
             byte[] byte16 = new byte[16] {
-            (byte) ((secondsctr  >> 48) & 0xFF),
-            (byte) ((secondsctr  >> 40) & 0xFF),
-            (byte) ((secondsctr  >> 32) & 0xFF),
-            (byte) ((secondsctr  >> 24) & 0xFF),
-            (byte) ((secondsctr  >> 16) & 0xFF),
-            (byte) ((secondsctr  >>  8) & 0xFF),
-            (byte) ((secondsctr  >>  0) & 0xFF),
+            (byte) ((milisecondsctr  >> 48) & 0xFF),
+            (byte) ((milisecondsctr  >> 40) & 0xFF),
+            (byte) ((milisecondsctr  >> 32) & 0xFF),
+            (byte) ((milisecondsctr  >> 24) & 0xFF),
+            (byte) ((milisecondsctr  >> 16) & 0xFF),
+            (byte) ((milisecondsctr  >>  8) & 0xFF),
+            (byte) ((milisecondsctr  >>  0) & 0xFF),
             (byte) _rnd.Next(0,255),
             (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
             (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
@@ -64,15 +63,21 @@ namespace Youverse.Core
             return byte16;
         }
 
+
+        public static byte[] CreateGuid()
+        {
+            return CreateGuid(UnixTime.GetUnixTimeMilliseconds());
+        }
+
         public static UInt64 FileIdToUnixTime(Guid fileid)
         {
             byte[] fibytes = fileid.ToByteArray();
 
-            UInt64 i = (((UInt64)fibytes[0]) << 48) + (((UInt64)fibytes[1]) << 40) + (((UInt64)fibytes[2]) << 32) +
-                        (((UInt64)fibytes[3]) << 24) + (((UInt64)fibytes[4]) << 16) + (((UInt64)fibytes[5]) << 8) +
+            UInt64 i = (((UInt64)fibytes[0]) << 48) | (((UInt64)fibytes[1]) << 40) | (((UInt64)fibytes[2]) << 32) |
+                        (((UInt64)fibytes[3]) << 24) | (((UInt64)fibytes[4]) << 16) | (((UInt64)fibytes[5]) << 8) |
                         (UInt64)fibytes[6];
 
-            i = i >> 22;
+            i = i >> 12;
 
             return i;
         }

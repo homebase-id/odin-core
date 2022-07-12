@@ -28,6 +28,11 @@ namespace Youverse.Core.Services.Transit.Upload
         public ulong UserDate { get; set; }
 
         /// <summary>
+        /// A value tying together this file to other files of the same thread (i.e. email thread).  Can be used to group files together
+        /// </summary>
+        public byte[] ThreadId { get; set; }
+
+        /// <summary>
         /// A flag indicating if the <see cref="JsonContent"/> contains the whole of the file and therefore you do not need to retrieve the payload.
         /// </summary>
         public bool ContentIsComplete { get; set; }

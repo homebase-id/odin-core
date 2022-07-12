@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -23,6 +25,9 @@ namespace Youverse.Core.Services.Base
         /// The level of access assigned to this caller
         /// </summary>
         public SecurityGroupType SecurityLevel { get; set; }
+        
+        
+        public IEnumerable<Guid> Circles { get; set; }
 
         /// <summary>
         /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
