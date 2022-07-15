@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         
         private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
-            List<Guid> tags = new List<Guid>() { tag };
+            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {

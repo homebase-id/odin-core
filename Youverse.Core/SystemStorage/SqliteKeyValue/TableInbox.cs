@@ -109,16 +109,16 @@ namespace Youverse.Core.SystemStorage.SqliteKeyValue
                 }
 
                 cmd.CommandText =
-                    @"CREATE TABLE inbox(
+                    @"CREATE TABLE if not exists inbox(
                      fileid BLOB UNIQUE NOT NULL, 
                      boxid BLOB NOT NULL,
                      priority INT NOT NULL,
                      timestamp INT NOT NULL,
                      value BLOB,
                      popstamp BLOB); "
-                    + "CREATE INDEX timestampidx ON inbox(timestamp);"
-                    + "CREATE INDEX boxidx ON inbox(boxid);"
-                    + "CREATE INDEX popidx ON inbox(popstamp);";
+                    + "CREATE INDEX if not exists timestampidx ON inbox(timestamp);"
+                    + "CREATE INDEX if not exists boxidx ON inbox(boxid);"
+                    + "CREATE INDEX if not exists popidx ON inbox(popstamp);";
 
                 // Get() is only used for testing. We don't have an index on fileId
                 // because only Get() retrieves by the fileId()

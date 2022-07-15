@@ -120,7 +120,8 @@ public class SqliteQueryManager : IDriveQueryManager
         );
         acl.AddRange(ids.ToList());
 
-        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
+        // var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
+        var tags = metadata.AppData.Tags;
 
         if (exists)
         {

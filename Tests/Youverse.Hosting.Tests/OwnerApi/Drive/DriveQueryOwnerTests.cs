@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            List<Guid> tags = new List<Guid>() { tag };
+            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
-                    TagsMatchAtLeastOne = tags.Select(t => t.ToByteArray())
+                    TagsMatchAtLeastOne = tags
                 };
 
                 var resultOptions = new GetBatchQueryResultOptions()
@@ -98,7 +98,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 

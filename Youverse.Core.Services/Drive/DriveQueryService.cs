@@ -72,6 +72,7 @@ namespace Youverse.Core.Services.Drive
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryRecentResult()
                 {
+                    IncludeMetadataHeader = options.IncludeMetadataHeader,
                     Cursor = updatedCursor,
                     SearchResults = searchResults
                 };
@@ -89,6 +90,7 @@ namespace Youverse.Core.Services.Drive
 
                 return new QueryBatchResult()
                 {
+                    IncludeMetadataHeader = options.IncludeMetadataHeader,
                     Cursor = cursor,
                     SearchResults = searchResults
                 };

@@ -131,10 +131,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 }
             };
 
-            List<Guid> tags = null;
+            List<byte[]> tags = null;
             if (options?.AppDataCategoryId != null)
             {
-                tags = new List<Guid>() { options.AppDataCategoryId };
+                tags = new List<byte[]>() { options.AppDataCategoryId.ToByteArray() };
             }
 
             var fileMetadata = new UploadFileMetadata()

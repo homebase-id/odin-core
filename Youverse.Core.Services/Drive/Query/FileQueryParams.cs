@@ -13,6 +13,10 @@ public class FileQueryParams
 
     public TimeRange UserDate { get; set; } = null;
 
+    // public IEnumerable<byte[]> TagsMatchAtLeastOne { get; set; } = null;
+    //
+    // public IEnumerable<byte[]> TagsMatchAll { get; set; } = null;
+    
     public IEnumerable<byte[]> TagsMatchAtLeastOne { get; set; } = null;
 
     public IEnumerable<byte[]> TagsMatchAll { get; set; } = null;

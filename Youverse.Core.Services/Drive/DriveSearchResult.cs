@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Drive
     {
         public Guid FileId { get; set; }
 
-        public List<Guid> Tags { get; set; }
+        public List<byte[]> Tags { get; set; }
         public int FileType { get; set; }
         
         public byte[] ThreadId { get; set; }

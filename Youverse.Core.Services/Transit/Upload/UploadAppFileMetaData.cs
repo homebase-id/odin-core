@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// Any number of tags describing the data
         /// </summary>
-        public List<Guid> Tags { get; set; }
+        public List<byte[]> Tags { get; set; }
 
         /// <summary>
         /// A user specified value to indicate the type of file.  Avoid confusion with content-type.  This is specific to the application

@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        Tags = new List<Guid>() { Guid.NewGuid() },
+                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray() },
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                     }

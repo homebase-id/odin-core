@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
                 }
 
                 cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
-                                  + "CREATE INDEX TagIdx ON tagindex(tagid);";
+                                  + "CREATE INDEX if not exists TagIdx ON tagindex(tagid);";
 
                 cmd.ExecuteNonQuery();
             }

@@ -45,6 +45,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
             var response = new QueryBatchResponse()
             {
+                IncludeMetadataHeader = batch.IncludeMetadataHeader,
                 CursorState = batch.Cursor.ToState(),
                 SearchResults = batch.SearchResults
             };

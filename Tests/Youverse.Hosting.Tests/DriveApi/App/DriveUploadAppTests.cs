@@ -64,7 +64,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {
-                        Tags = new List<Guid>() {Guid.NewGuid(), Guid.NewGuid()},
+                        Tags = new List<byte[]>() {Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray()},
                         ContentIsComplete = true,
                         JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
                     }

@@ -21,6 +21,7 @@ using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
+using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -68,7 +69,11 @@ namespace Youverse.Hosting
                     // options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
-            ).AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+            ).AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+            });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
 

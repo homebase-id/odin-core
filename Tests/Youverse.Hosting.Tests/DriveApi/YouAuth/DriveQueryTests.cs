@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     QueryParams = qp,
                     ResultOptions = resultOptions
                 };
-                
+
                 var getRecentResponse = await svc.GetRecent(request);
                 Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
                 var batch = getRecentResponse.Content;
@@ -162,7 +162,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Contains(tag)));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 
@@ -262,7 +262,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
         private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
-            List<Guid> tags = new List<Guid>() { tag };
+            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -320,7 +320,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0,
-                    Tags = new List<Guid>() { tag }
+                    Tags = new List<byte[]>() { tag.ToByteArray() }
                 },
                 AccessControlList = new AccessControlList()
                 {

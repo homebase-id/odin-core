@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Tags for describing the file.  this is indexed and can be used to find files by one or more tags
         /// </summary>
-        List<Guid> Tags { get; set; }
+        List<byte[]> Tags { get; set; }
 
         /// <summary>
         /// A file type specific to an app.  This is indexed and be used to query data
