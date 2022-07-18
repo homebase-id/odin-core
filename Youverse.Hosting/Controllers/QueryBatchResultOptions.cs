@@ -1,11 +1,8 @@
-using System;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 
 namespace Youverse.Hosting.Controllers;
 
-public class GetBatchQueryResultOptions
+public class QueryBatchResultOptions
 {
     /// <summary>
     /// Base64 encoded value of the cursor state used when paging/chunking through records
@@ -17,12 +14,15 @@ public class GetBatchQueryResultOptions
     /// </summary>
     public int MaxRecords { get; set; } = 100;
 
+    /// <summary>
+    /// Specifies if the result set includes the metadata header (assuming the file has one)
+    /// </summary>
     public bool IncludeMetadataHeader { get; set; }
 
-    public GetBatchResultOptions ToGetBatchResultOptions()
+    public Core.Services.Drive.Query.QueryBatchResultOptions ToQueryBatchResultOptions()
     {
         
-        return new GetBatchResultOptions()
+        return new Core.Services.Drive.Query.QueryBatchResultOptions()
         {
             Cursor =  QueryBatchCursor.FromState(this.CursorState),
             MaxRecords = this.MaxRecords,

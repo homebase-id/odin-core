@@ -15,12 +15,12 @@ namespace Youverse.Core.Services.Transit.Encryption
             return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.AesKey.GetKey()));
         }
 
-        public Stream GetEncryptedStreamAes(string data)
+        public Stream EncryptDataAes(string data)
         {
-            return this.GetEncryptedStreamAes(data.ToUtf8ByteArray());
+            return this.EncryptDataAes(data.ToUtf8ByteArray());
         }
         
-        public Stream GetEncryptedStreamAes(byte[] data)
+        public Stream EncryptDataAes(byte[] data)
         {
             var key = this.AesKey;
             var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(

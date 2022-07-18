@@ -10,6 +10,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
@@ -80,14 +81,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TagsMatchAtLeastOne = tags
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -103,7 +104,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItems()
+        public async Task CanQueryDriveModifiedItems()
         {
             var identity = TestIdentities.Samwise;
 
@@ -140,14 +141,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -181,7 +182,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItemsRedactedContent()
+        public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
 
@@ -218,14 +219,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions

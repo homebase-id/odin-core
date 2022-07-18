@@ -8,6 +8,7 @@ using Youverse.Core;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -26,9 +27,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpGet("metadata/type")]
-        public async Task<IActionResult> GetDrivesByType(Guid type, int pageNumber, int pageSize)
+        public async Task<IActionResult> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
         {
-            var drives = await _driveService.GetDrives(type, new PageOptions(pageNumber, pageSize));
+            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()

@@ -5,7 +5,8 @@ namespace Youverse.Core.Services.Apps
 {
     public class ClientFileHeader
     {
-        public EncryptedKeyHeader EncryptedKeyHeader { get; set; }
+        public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
+
         public FileMetadata FileMetadata { get; set; }
         
         public ServerMetadata ServerMetadata { get; set; }

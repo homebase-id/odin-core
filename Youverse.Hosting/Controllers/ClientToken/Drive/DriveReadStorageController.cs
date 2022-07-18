@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
@@ -31,32 +30,31 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        [HttpPost("files/header")]
+        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
             return new JsonResult(result);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadStream([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        [HttpPost("files/payload")]
+        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
-    
+
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
         }
-        
     }
 }

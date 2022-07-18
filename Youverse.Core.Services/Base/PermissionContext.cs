@@ -151,8 +151,6 @@ namespace Youverse.Core.Services.Base
             if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
                 throw new DriveSecurityException($"Caller has access {driveId} but exchange grant does not have a drive decryption key or KeyStoreKeyEncryptedStorageKey");
-
-                //TODO: evaluate if we should return an empty value instead
                 // return Array.Empty<byte>().ToSensitiveByteArray();
             }
 

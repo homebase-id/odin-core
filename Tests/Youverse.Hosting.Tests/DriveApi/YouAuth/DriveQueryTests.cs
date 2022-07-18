@@ -13,6 +13,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 {
@@ -57,14 +58,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -81,7 +82,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        public async Task ShouldNotReturnSecuredFile_QueryRecent()
+        public async Task ShouldNotReturnSecuredFile_QueryModified()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -105,14 +106,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetRecentResultOptions()
+                var resultOptions = new QueryModifiedResultOptions()
                 {
                     MaxDate = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var request = new GetRecentRequest()
+                var request = new QueryModifiedRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -143,7 +144,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -151,7 +152,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -167,7 +168,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItems()
+        public async Task CanQueryDriveModifiedItems()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -180,7 +181,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -188,7 +189,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -223,7 +224,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItemsRedactedContent()
+        public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -236,7 +237,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptions()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -244,7 +245,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
@@ -285,6 +286,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
+                EncryptPayload = false,
                 PayloadData = "some payload data for good measure",
                 ProcessOutbox = false,
                 ProcessTransitBox = false,
@@ -328,7 +330,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 }
             };
 
-            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload);
+            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
         }
     }
 }

@@ -95,7 +95,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+            var payloadCipher = keyHeader.EncryptDataAes(payloadData);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
             {

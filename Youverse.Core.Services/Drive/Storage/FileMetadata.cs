@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Youverse.Core.Services.Drive.Storage
@@ -54,7 +55,12 @@ namespace Youverse.Core.Services.Drive.Storage
         /// The size of the payload on disk
         /// </summary>
         public long PayloadSize { get; set; }
-
+        
+        /// <summary>
+        /// Specifies the list of recipients set when the file was uploaded
+        /// </summary>
+        public List<string> OriginalRecipientList { get; set; }
+        
         public AppFileMetaData AppData { get; set; }
     }
 }

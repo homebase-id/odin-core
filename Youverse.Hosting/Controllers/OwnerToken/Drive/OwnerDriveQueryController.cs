@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("recent")]
-        public async Task<IActionResult> GetRecent([FromBody] GetRecentRequest request)
+        public async Task<IActionResult> GetRecent([FromBody] QueryModifiedRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetRecent(driveId, request.QueryParams, request.ResultOptions);
@@ -38,10 +38,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromBody] GetBatchRequest request)
+        public async Task<IActionResult> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptions.ToGetBatchResultOptions());
+            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptions.ToQueryBatchResultOptions());
 
             var response = new QueryBatchResponse()
             {

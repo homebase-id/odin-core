@@ -25,17 +25,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> Upload([AliasAs("instructions")] StreamPart instructionSet, [AliasAs("metaData")] StreamPart metaData, [AliasAs("payload")] StreamPart payload);
 
-        [Get(RootStorageEndpoint + "/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(TargetDrive drive, Guid fileId);
+        [Post(RootStorageEndpoint + "/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
-        [Get(RootStorageEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(TargetDrive drive, Guid fileId);
+        [Post(RootStorageEndpoint + "/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
 
         [Post(RootQueryEndpoint + "/recent")]
-        Task<ApiResponse<QueryRecentResult>> GetRecent(GetRecentRequest request);
+        Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);
 
         [Post(RootQueryEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(GetBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox();

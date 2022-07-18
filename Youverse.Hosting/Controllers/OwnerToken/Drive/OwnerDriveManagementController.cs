@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -13,20 +12,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveManagementController : ControllerBase
     {
-        private readonly IDriveQueryService _queryService;
         private readonly IDriveService _driveService;
 
-        public OwnerDriveManagementController(IDriveQueryService queryService, IDriveService driveService)
+        public OwnerDriveManagementController( IDriveService driveService)
         {
-            _queryService = queryService;
             _driveService = driveService;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet]
-        public async Task<IActionResult> GetDrives(int pageNumber, int pageSize)
+        [HttpPost]
+        public async Task<IActionResult> GetDrives([FromBody]GetDrivesRequest request)
         {
-            var drives = await _driveService.GetDrives(new PageOptions(pageNumber, pageSize));
+            var drives = await _driveService.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -45,27 +42,31 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive([FromBody]TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
+        public async Task<IActionResult> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
-            var _ = await _driveService.CreateDrive(name, targetDrive, metadata, allowAnonymousReads);
+            var _ = await _driveService.CreateDrive(request.Name, request.TargetDrive, request.Metadata, request.AllowAnonymousReads);
             return Ok();
         }
-
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpPost("rebuildallindices")]
-        public async Task<bool> RebuildAll()
+        [HttpPost("type")]
+        public async Task<IActionResult> GetDrivesByType(GetDrivesByTypeRequest request)
         {
-            await _queryService.RebuildAllIndices();
-            return true;
-        }
+            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
+            var clientDriveData = drives.Results.Select(drive =>
+                new OwnerClientDriveData()
+                {
+                    Name = drive.Name,
+                    Type = drive.Type,
+                    Alias = drive.Alias,
+                    Metadata = drive.Metadata,
+                    IsReadonly = drive.IsReadonly,
+                    AllowAnonymousReads = drive.AllowAnonymousReads
+                }).ToList();
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpPost("rebuildindex")]
-        public async Task<bool> Rebuild(Guid driveId)
-        {
-            await _queryService.RebuildBackupIndex(driveId);
-            return true;
+            var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
+            return new JsonResult(page);
         }
     }
 }

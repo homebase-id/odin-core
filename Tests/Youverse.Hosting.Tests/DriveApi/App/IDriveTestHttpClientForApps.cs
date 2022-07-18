@@ -26,17 +26,17 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
         
-        [Get(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(TargetDrive drive, Guid fileId);
+        [Post(RootEndpoint + "/files/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
-        [Get(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(TargetDrive drive, Guid fileId);
+        [Post(RootEndpoint + "/files/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
         
         [Post(RootEndpoint + "/query/recent")]
-        Task<ApiResponse<QueryRecentResult>> GetRecent(GetRecentRequest request);
+        Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);
         
         [Post(RootEndpoint + "/query/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(GetBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
 
         
     }

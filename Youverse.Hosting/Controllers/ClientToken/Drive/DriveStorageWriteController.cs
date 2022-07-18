@@ -32,13 +32,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpDelete("files")]
-        public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        [HttpPost("files/delete")]
+        public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
             await _driveService.DeleteLongTermFile(file);
         }

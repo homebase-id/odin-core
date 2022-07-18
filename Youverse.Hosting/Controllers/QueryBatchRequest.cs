@@ -2,8 +2,9 @@ using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Hosting.Controllers;
 
-public class GetRecentRequest
+public class QueryBatchRequest
 {
     public FileQueryParams QueryParams { get; set; }
-    public GetRecentResultOptions ResultOptions { get; set; }
+
+    public QueryBatchResultOptions ResultOptions { get; set; }
 }

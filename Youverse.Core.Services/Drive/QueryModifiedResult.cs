@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Drive;
 
-public class QueryRecentResult
+public class QueryModifiedResult
 {
     /// <summary>
     /// Set to true if the metadata header was included in the results (based on the result options)

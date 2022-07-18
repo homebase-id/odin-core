@@ -39,5 +39,7 @@ namespace Youverse.Hosting.Tests
         /// The data to be uploaded as the payload
         /// </summary>
         public string PayloadData { get; set; }
+
+        public bool EncryptPayload { get; set; } = true;
     }
 }

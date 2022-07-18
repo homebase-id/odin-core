@@ -17,15 +17,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         private const string RootEndpoint = OwnerApiPathConstants.DriveManagementV1;
 
         [Post(RootEndpoint + "/create")]
-        Task<ApiResponse<HttpContent>> CreateDrive([Body]TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads);
+        Task<ApiResponse<HttpContent>> CreateDrive([Body]CreateDriveRequest request);
 
-        [Get(RootEndpoint)]
-        Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives(int pageNumber, int pageSize);
+        [Post(RootEndpoint)]
+        Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives([Body] GetDrivesRequest request);
         
-        [Post(RootEndpoint + "/rebuildallindices")]
-        Task<ApiResponse<bool>> RebuildAll();
-
-        [Post(RootEndpoint + "/rebuildindex")]
-        Task<ApiResponse<bool>> Rebuild(Guid driveId);
     }
 }

@@ -27,6 +27,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.AppAPI.Transit;
@@ -196,10 +197,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 if (createDrive)
                 {
                     var driveSvc = RestService.For<IDriveManagementHttpClient>(client);
-                    var createDriveResponse = await driveSvc.CreateDrive(targetDrive, $"Test Drive name with type {targetDrive.Type}", "{data:'test metadata'}", driveAllowAnonymousReads);
+                    var createDriveResponse = await driveSvc.CreateDrive(
+                        new CreateDriveRequest()
+                        {
+                            TargetDrive = targetDrive,
+                            Name = $"Test Drive name with type {targetDrive.Type}",
+                            Metadata = "{data:'test metadata'}",
+                            AllowAnonymousReads = driveAllowAnonymousReads
+                        });
 
                     Assert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
-                    
+
                     drives.Add(new DriveGrantRequest()
                     {
                         Drive = targetDrive,
@@ -468,12 +476,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             {
                 var svc = RestService.For<IDriveManagementHttpClient>(client);
 
-                var response = await svc.CreateDrive(targetDrive, name, metadata, allowAnonymousReads);
+                var response = await svc.CreateDrive(new CreateDriveRequest()
+                {
+                    TargetDrive = targetDrive,
+                    Name = name,
+                    Metadata = metadata,
+                    AllowAnonymousReads = allowAnonymousReads
+                });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 Assert.IsNotNull(response.Content);
 
-                var getDrivesResponse = await svc.GetDrives(1, 100);
+                var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+
                 Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
                 var page = getDrivesResponse.Content;
 
@@ -488,7 +503,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             {
                 //ensure drive
                 var svc = RestService.For<IDriveManagementHttpClient>(client);
-                var getDrivesResponse = await svc.GetDrives(1, 100);
+                var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 Assert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;
                 var exists = drives.Any(d => d.Alias == targetDrive.Alias && d.Type == targetDrive.Type);
@@ -524,7 +539,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData)
+        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData, bool encryptPayload = true)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 
@@ -534,8 +549,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var instructionStream = new MemoryStream(JsonConvert.SerializeObject(instructionSet).ToUtf8ByteArray());
-
-                fileMetadata.PayloadIsEncrypted = true;
+    
+                fileMetadata.PayloadIsEncrypted = encryptPayload;
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
@@ -544,7 +559,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+                var payloadCipher = encryptPayload ? keyHeader.EncryptDataAes(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(
@@ -603,7 +618,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
-                fileMetadata.PayloadIsEncrypted = true;
+                fileMetadata.PayloadIsEncrypted = options.EncryptPayload;
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
@@ -612,8 +627,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
+
                 payloadData = options?.PayloadData ?? payloadData;
-                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+                Stream payloadCipher = options.EncryptPayload ? keyHeader.EncryptDataAes(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(

@@ -10,6 +10,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -43,12 +44,17 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                
-                var getHeaderResponse = await svc.GetFileHeader(uploadContext.UploadedFile.TargetDrive, uploadContext.UploadedFile.FileId);
+
+                var getHeaderResponse = await svc.GetFileHeader(
+                    new ExternalFileIdentifier()
+                    {
+                        TargetDrive = uploadContext.UploadedFile.TargetDrive,
+                        FileId = uploadContext.UploadedFile.FileId
+                    });
                 Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
             }
         }
-        
+
         [Test]
         public async Task ShouldFailToGetSecuredFile_Payload()
         {
@@ -59,13 +65,18 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                
-                var getPayloadStreamResponse = await svc.GetPayload(uploadContext.UploadedFile.TargetDrive, uploadContext.UploadedFile.FileId);
+
+                var getPayloadStreamResponse = await svc.GetPayload(
+                    new ExternalFileIdentifier()
+                    {
+                        TargetDrive = uploadContext.UploadedFile.TargetDrive,
+                        FileId = uploadContext.UploadedFile.FileId
+                    });
                 Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
                 Assert.IsNull(getPayloadStreamResponse.Content);
             }
         }
-        
+
         private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };

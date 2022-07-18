@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 payloadData = options?.PayloadData ?? payloadData;
-                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+                var payloadCipher = keyHeader.EncryptDataAes(payloadData);
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(

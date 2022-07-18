@@ -154,12 +154,15 @@ namespace Youverse.Core.Services.Transit
                 },
 
                 PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId
+                OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
+
+                // SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId  
+                SenderDotYouId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
             };
 
             var serverMetadata = new ServerMetadata()
             {
-                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
+                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
             };
 
             return (keyHeader, metadata, serverMetadata);
@@ -341,7 +344,8 @@ namespace Youverse.Core.Services.Transit
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
-                    SenderDotYouId = string.Empty
+                    SenderDotYouId = string.Empty,
+                    OriginalRecipientList = null
                 };
 
                 var json = JsonConvert.SerializeObject(redactedMetadata);

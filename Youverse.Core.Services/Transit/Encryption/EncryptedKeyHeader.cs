@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
@@ -8,10 +9,10 @@ namespace Youverse.Core.Services.Transit.Encryption
     public class EncryptedKeyHeader
     {
         public int EncryptionVersion { get; set; }
-        
+
         public EncryptionType Type { get; set; }
 
-        
+
         public byte[] Iv { get; set; }
 
         /// <summary>
@@ -44,6 +45,19 @@ namespace Youverse.Core.Services.Transit.Encryption
                 Iv = iv,
                 EncryptedAesKey = data
             };
+        }
+
+        public SensitiveByteArray Combine()
+        {
+            //TODO: I Dont know the length of encrypted AES Key so maybe base64 encode this instead?
+            return new SensitiveByteArray(ByteArrayUtil.Combine(this.Iv, this.EncryptedAesKey));
+        }
+
+        public static EncryptedKeyHeader Empty()
+        {
+            var empty = Guid.Empty.ToByteArray();
+            var emptySba = empty.ToSensitiveByteArray();
+            return EncryptKeyHeaderAes(KeyHeader.Empty(), empty, ref emptySba);
         }
     }
 }
