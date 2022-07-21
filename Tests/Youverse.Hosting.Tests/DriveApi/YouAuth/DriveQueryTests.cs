@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             _scaffold.RunAfterAnyTests();
         }
-
+        
         [Test]
         public async Task ShouldNotReturnSecuredFile_QueryBatch()
         {

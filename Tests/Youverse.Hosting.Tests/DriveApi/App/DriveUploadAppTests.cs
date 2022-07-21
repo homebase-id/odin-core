@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -153,6 +154,70 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
 
                 decryptedKeyHeader.AesKey.Wipe();
+            }
+
+            keyHeader.AesKey.Wipe();
+            key.Wipe();
+        }
+
+        [Test(Description = "")]
+        public async Task CannotUploadEncryptedFileForAnonymousGroups()
+        {
+            var identity = TestIdentities.Frodo;
+
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = testContext.TargetDrive
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var sba = testContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sba),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    PayloadIsEncrypted = true,
+                    AppData = new()
+                    {
+                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                        ContentIsComplete = true,
+                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    },
+                    AccessControlList = new AccessControlList()
+                    {
+                        RequiredSecurityGroup = SecurityGroupType.Anonymous
+                    }
+                }
+            };
+
+            var key = testContext.SharedSecret.ToSensitiveByteArray();
+            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadDataRaw = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAes(payloadDataRaw);
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.False(response.IsSuccessStatusCode);
             }
 
             keyHeader.AesKey.Wipe();

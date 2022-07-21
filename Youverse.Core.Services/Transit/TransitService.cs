@@ -17,11 +17,13 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.SystemStorage;
+using JsonConverter = System.Text.Json.Serialization.JsonConverter;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -64,12 +66,13 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<UploadResult> AcceptUpload(UploadPackage package)
         {
+            //TODO: need to handle when files are being updated.  remove old thumbnails, etc.
+
             if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
             {
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
 
-            //hacky sending the extension for the payload file.  need a proper convention
             var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
 
             if (null == serverMetadata.AccessControlList)
@@ -79,7 +82,14 @@ namespace Youverse.Core.Services.Transit
 
             serverMetadata.AccessControlList.Validate();
 
+            if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
+            {
+                //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
+                throw new UploadException("Cannot upload an encrypted file that is accessible to anonymous visitors");
+            }
+
             await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
+
 
             var ext = new ExternalFileIdentifier()
             {
@@ -126,6 +136,14 @@ namespace Youverse.Core.Services.Transit
             var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+
+            //new JsonStringEnumConverter()
+            //new ByteArrayConverter()
+            // var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json);
+            
+            //
+            //TODO: we need to have this serializer convert base64 encoded byte arrays correctly.
+            //
             var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
@@ -150,7 +168,10 @@ namespace Youverse.Core.Services.Transit
                     ThreadId = uploadDescriptor.FileMetadata.AppData.ThreadId,
 
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
+
+                    PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
+                    AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails
                 },
 
                 PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
@@ -162,7 +183,7 @@ namespace Youverse.Core.Services.Transit
 
             var serverMetadata = new ServerMetadata()
             {
-                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
+                AccessControlList = uploadDescriptor.FileMetadata.AccessControlList
             };
 
             return (keyHeader, metadata, serverMetadata);

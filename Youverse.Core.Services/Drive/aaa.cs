@@ -17,7 +17,7 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive
 {
-    public class DriveQueryService : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>,
+    public class DriveQueryServicex : IDriveQueryService, INotificationHandler<DriveFileChangedNotification>,
         INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ILoggerFactory _loggerFactory;
         private readonly IAppService _appService;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService)
+        public DriveQueryServicex(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
@@ -117,47 +117,14 @@ namespace Youverse.Core.Services.Drive
 
                 var header = await _appService.GetClientEncryptedFileHeader(file);
 
-                int priority = 1000;
+                //HACK: waiting for indexer to be updated to include payload is encrypted flag
+                // if (header.FileMetadata.PayloadIsEncrypted && _contextAccessor.GetCurrent().Caller.SecurityLevel == SecurityGroupType.Anonymous)
+                // {
+                //     //HACK: skip this file in the search results since anonymous users cannot decrypt files
+                //     continue;
+                // }
 
-                switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
-                {
-                    case SecurityGroupType.Anonymous:
-                        priority = 500;
-                        break;
-                    case SecurityGroupType.Authenticated:
-                        priority = 400;
-                        break;
-                    case SecurityGroupType.Connected:
-                        priority = 300;
-                        break;
-                    case SecurityGroupType.Owner:
-                        priority = 1;
-                        break;
-                }
-
-                var metadata = header.FileMetadata;
-                
-                var dsr = new DriveSearchResult()
-                {
-                    SharedSecretEncryptedKeyHeader = header.SharedSecretEncryptedKeyHeader,
-                    ContentType = metadata.ContentType,
-                    FileId = metadata.File.FileId,
-                    ContentIsComplete = metadata.AppData.ContentIsComplete,
-                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                    ThreadId = metadata.AppData.ThreadId,
-                    FileType = metadata.AppData.FileType,
-                    DataType = metadata.AppData.DataType,
-                    UserDate = metadata.AppData.UserDate,
-                    JsonContent = metadata.AppData.JsonContent,
-                    Tags = metadata.AppData.Tags,
-                    CreatedTimestamp = metadata.Created,
-                    LastUpdatedTimestamp = metadata.Updated,
-                    SenderDotYouId = metadata.SenderDotYouId,
-                    AccessControlList = header.ServerMetadata?.AccessControlList,
-                    Priority = priority,
-                    PreviewThumbnail = metadata.AppData.PreviewThumbnail,
-                    AdditionalThumbnails = metadata.AppData.AdditionalThumbnails
-                };
+                var dsr = FromFileMetadata(header);
 
                 if (!options.IncludeMetadataHeader)
                 {
@@ -170,6 +137,50 @@ namespace Youverse.Core.Services.Drive
             return results;
         }
 
+        private DriveSearchResult FromFileMetadata(ClientFileHeader header)
+        {
+            int priority = 1000;
+
+            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
+            {
+                case SecurityGroupType.Anonymous:
+                    priority = 500;
+                    break;
+                case SecurityGroupType.Authenticated:
+                    priority = 400;
+                    break;
+                case SecurityGroupType.Connected:
+                    priority = 300;
+                    break;
+                case SecurityGroupType.Owner:
+                    priority = 1;
+                    break;
+            }
+
+            var metadata = header.FileMetadata;
+            
+            return new DriveSearchResult()
+            {
+                ContentType = metadata.ContentType,
+                FileId = metadata.File.FileId,
+                ContentIsComplete = metadata.AppData.ContentIsComplete,
+                PayloadIsEncrypted = metadata.PayloadIsEncrypted,
+                ThreadId = metadata.AppData.ThreadId,
+                FileType = metadata.AppData.FileType,
+                DataType = metadata.AppData.DataType,
+                UserDate = metadata.AppData.UserDate,
+                JsonContent = metadata.AppData.JsonContent,
+                Tags = metadata.AppData.Tags,
+                CreatedTimestamp = metadata.Created,
+                LastUpdatedTimestamp = metadata.Updated,
+                SenderDotYouId = metadata.SenderDotYouId,
+                AccessControlList = header.ServerMetadata?.AccessControlList,
+                Priority = priority,
+                PreviewThumbnail = metadata.AppData.PreviewThumbnail,
+                AdditionalThumbnails = metadata.AppData.AdditionalThumbnails
+            };
+        }
+        
 
         private async void InitializeQueryManagers()
         {

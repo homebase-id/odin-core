@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
@@ -20,13 +19,7 @@ namespace Youverse.Core.Services.Apps
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var header = await _driveService.GetServerFileHeader(file);
-
-            // //HACK: waiting for indexer to be updated to include payload is encrypted flag
-            // if (header.FileMetadata.PayloadIsEncrypted && _contextAccessor.GetCurrent().Caller.SecurityLevel == SecurityGroupType.Anonymous)
-            // {
-            //     //HACK: skip this file in the search results since anonymous users cannot decrypt files
-            // }
-
+            
             EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
             if (header.FileMetadata.PayloadIsEncrypted)
             {
@@ -39,8 +32,7 @@ namespace Youverse.Core.Services.Apps
             {
                 sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
             }
-
-
+            
             if (_contextAccessor.GetCurrent().Caller.IsOwner)
             {
                 return new ClientFileHeader()

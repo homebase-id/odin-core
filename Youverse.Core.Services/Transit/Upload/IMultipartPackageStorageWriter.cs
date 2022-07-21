@@ -15,9 +15,11 @@ namespace Youverse.Core.Services.Transit.Upload
         /// </summary>
         /// <returns></returns>
         Task<Guid> CreatePackage(Stream data);
-        
+
         Task AddPayload(Guid packageId, Stream data);
-        
+
+        Task AddThumbnail(Guid packageId, int width, int height, string contentType, Stream data);
+
         Task AddMetadata(Guid packageId, Stream data);
 
         /// <summary>

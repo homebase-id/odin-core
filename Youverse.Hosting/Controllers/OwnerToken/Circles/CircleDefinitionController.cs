@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Definition;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 {
@@ -21,7 +17,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _circleDefinitionService = circleDefinitionService;
         }
 
-        [HttpGet]
+        [HttpPost]
         public async Task<IActionResult> GetCircleDefinitions()
         {
             var result = await _circleDefinitionService.GetCircles();
@@ -35,14 +31,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return Ok();
         }
         
-        [HttpPut]
+        [HttpPost("update")]
         public async Task<IActionResult> UpdateCircle(CircleDefinition circleDefinition)
         { 
             await _circleDefinitionService.Update(circleDefinition);
             return Ok();
         }
         
-        [HttpDelete]
+        [HttpPost("delete")]
         public async Task<IActionResult> CreateCircle(Guid id)
         {
             await _circleDefinitionService.Delete(id);

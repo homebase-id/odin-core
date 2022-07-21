@@ -22,8 +22,9 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public string JsonContent { get; set; }
         
-        //TODO: add thread id, isArchived, and isHistory support
+        public ThumbnailContent PreviewThumbnail { get; set; }
         
+        public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
     }
 
 }

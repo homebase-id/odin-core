@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
@@ -284,6 +285,30 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
+        public async Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height)
+        {
+            this.AssertCanReadDrive(file.DriveId);
+
+            //Note: calling to get the file header so we can ensure the caller can read this file
+            var _ = await this.GetServerFileHeader(file);
+
+            var stream = await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
+            return stream;
+        }
+
+        public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            await GetLongTermStorageManager(file.DriveId).WriteThumbnail(file.FileId, width, height, stream);
+        }
+
+        public string GetThumbnailFileExtension(int width, int height)
+        {
+            //TODO: move this down into the long term storage manager
+            string extenstion = $"-{width}x{height}.thumb";
+            return extenstion;
+        }
+
         private async Task<EncryptedKeyHeader> EncryptKeyHeader(InternalDriveFileId file, KeyHeader keyHeader)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
@@ -309,13 +334,13 @@ namespace Youverse.Core.Services.Drive
 
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
-            
+
             var size = await GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
             header.FileMetadata.PayloadSize = size;
 
             return header;
         }
-        
+
         public async Task<Stream> GetPayloadStream(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
@@ -361,8 +386,18 @@ namespace Youverse.Core.Services.Drive
             //TODO: this method is so hacky 🤢
             metadata.File = file;
 
-            string sourceFile = await GetTempStorageManager(file.DriveId).GetPath(file.FileId, payloadExtension);
-            await GetLongTermStorageManager(file.DriveId).MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
+            var storageManager = GetLongTermStorageManager(file.DriveId);
+            var tempStorageManager = GetTempStorageManager(file.DriveId);
+
+            string sourceFile = await tempStorageManager.GetPath(file.FileId, payloadExtension);
+            await storageManager.MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
+
+            foreach (var thumb in metadata.AppData.AdditionalThumbnails)
+            {
+                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                var sourceThumbnail = await tempStorageManager.GetPath(file.FileId, extension);
+                await storageManager.MoveThumbnailToLongTerm(file.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+            }
 
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
@@ -393,7 +428,6 @@ namespace Youverse.Core.Services.Drive
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
             return results;
         }
-
 
         private StorageDriveBase ToStorageDriveBase(byte[] bytes)
         {

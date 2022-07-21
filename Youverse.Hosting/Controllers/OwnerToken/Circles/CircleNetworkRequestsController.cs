@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _requestService = cn;
         }
 
-        [HttpGet("pending")]
+        [HttpPost("pending")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
-        [HttpGet("pending/{senderDotYouId}")]
+        [HttpPost("pending")]
         public async Task<IActionResult> GetPendingRequest(string senderDotYouId)
         {
             var result = await _requestService.GetPendingRequest((DotYouIdentity)senderDotYouId);
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
         }
 
-        [HttpGet("sent")]
+        [HttpPost("sent")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 
         }
 
-        [HttpGet("sent/{recipientDotYouId}")]
+        [HttpPost("sent")]
         public async Task<IActionResult> GetSentRequest(string recipientDotYouId)
         {
             var result = await _requestService.GetSentRequest((DotYouIdentity)recipientDotYouId);
@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
         }
 
-        [HttpDelete("sent/{recipientDotYouId}")]
+        [HttpPost("sent/delete")]
         public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
         {
             await _requestService.DeleteSentRequest((DotYouIdentity)recipientDotYouId);
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpDelete("pending/{senderDotYouId}")]
+        [HttpPost("pending/delete")]
         public async Task<IActionResult> DeletePendingRequest(string senderDotYouId)
         {
             await _requestService.DeletePendingRequest((DotYouIdentity)senderDotYouId);

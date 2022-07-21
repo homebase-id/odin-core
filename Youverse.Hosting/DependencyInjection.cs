@@ -25,7 +25,6 @@ using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Incoming;
@@ -100,8 +99,6 @@ namespace Youverse.Hosting
             cb.RegisterType<InboxService>().As<IInboxService>().SingleInstance();
             
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
-
-            cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
             

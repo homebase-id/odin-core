@@ -69,37 +69,9 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Task WritePartStream(Guid fileId, FilePart part, Stream stream)
         {
-            //TODO: this is probably highly inefficient and probably need to revisit 
             string filePath = GetFilenameAndPath(fileId, part, true);
-            string tempFilePath = GetTempFilePath(fileId, part);
-
-            try
-            {
-                //Process: if there's a file, we write to a temp file then rename.
-                if (File.Exists(filePath))
-                {
-                    WriteStream(stream, tempFilePath);
-                    lock (filePath)
-                    {
-                        //TODO: need to know if this replace method is faster than renaming files
-                        File.Replace(tempFilePath, filePath, null, true);
-                    }
-                }
-                else
-                {
-                    WriteStream(stream, filePath);
-                }
-            }
-            finally
-            {
-                //TODO: should clean up the temp file in case of failure?
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
-
-            return Task.CompletedTask;
+            string tempFilePath = GetTempFilePath(fileId, part, null);
+            return WriteFile(filePath, tempFilePath, stream);
         }
 
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
@@ -107,6 +79,23 @@ namespace Youverse.Core.Services.Drive.Storage
             string path = GetFilenameAndPath(fileId, filePart);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
+        }
+
+        public Task<Stream> GetThumbnail(Guid fileId, int width, int height)
+        {
+            string fileName = GetThumbnailFileName(fileId, width, height);
+            string dir = GetFilePath(fileId, false);
+            string path = Path.Combine(dir, fileName);
+
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return Task.FromResult((Stream)fileStream);
+        }
+
+        private string GetThumbnailFileName(Guid fileId, int width, int height)
+        {
+            string suffix = $"-{width}x{height}";
+            string fileName = this.GetFilename(fileId, suffix, FilePart.Thumb);
+            return fileName;
         }
 
         public void AssertFileIsValid(Guid fileId)
@@ -153,11 +142,20 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.CompletedTask;
         }
 
-        public Task MoveToLongTerm(Guid fileId, string filePath, FilePart part)
+        public Task MoveToLongTerm(Guid fileId, string sourcePath, FilePart part)
         {
             var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
-            File.Move(filePath, dest, true);
+            File.Move(sourcePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
+            return Task.CompletedTask;
+        }
+
+        public Task MoveThumbnailToLongTerm(Guid fileId, string sourceThumbnail, int width, int height)
+        {
+            var dest = GetThumbnailPath(fileId, width, height);
+            File.Move(sourceThumbnail, dest, true);
+            _logger.LogInformation($"File Moved to {dest}");
+            
             return Task.CompletedTask;
         }
 
@@ -202,7 +200,23 @@ namespace Youverse.Core.Services.Drive.Storage
             return header;
         }
 
-        private string GetFileDirectory(Guid fileId, bool ensureExists = false)
+        public Task WriteThumbnail(Guid fileId, int width, int height, Stream stream)
+        {
+            var thumbnailPath = GetThumbnailPath(fileId, width, height);
+            var tempPath = GetTempFilePath(fileId, FilePart.Thumb, $"-{width}x{height}", true);
+
+            return WriteFile(thumbnailPath, tempPath, stream);
+        }
+
+        private string GetThumbnailPath(Guid fileId, int width, int height)
+        {
+            var thumbnailFileName = GetThumbnailFileName(fileId, width, height);
+            var filePath = GetFilePath(fileId);
+            var thumbnailPath = Path.Combine(filePath, thumbnailFileName);
+            return thumbnailPath;
+        }
+
+        private string GetFilePath(Guid fileId, bool ensureExists = false)
         {
             string path = _drive.GetStoragePath(StorageDisposition.LongTerm);
 
@@ -229,21 +243,21 @@ namespace Youverse.Core.Services.Drive.Storage
             return dir;
         }
 
-        private string GetFilename(Guid fileId, FilePart part)
+        private string GetFilename(Guid fileId, string suffix, FilePart part)
         {
-            return $"{fileId.ToString()}.{part.ToString().ToLower()}";
+            return $"{fileId.ToString()}{suffix}.{part.ToString().ToLower()}";
         }
 
         private string GetFilenameAndPath(Guid fileId, FilePart part, bool ensureDirectoryExists = false)
         {
-            string dir = GetFileDirectory(fileId, ensureDirectoryExists);
-            return Path.Combine(dir, GetFilename(fileId, part));
+            string dir = GetFilePath(fileId, ensureDirectoryExists);
+            return Path.Combine(dir, GetFilename(fileId, string.Empty, part));
         }
 
-        private string GetTempFilePath(Guid fileId, FilePart part, bool ensureExists = false)
+        private string GetTempFilePath(Guid fileId, FilePart part, string suffix, bool ensureExists = false)
         {
-            string dir = GetFileDirectory(fileId, ensureExists);
-            string filename = $"{Guid.NewGuid()}{part}.tmp";
+            string dir = GetFilePath(fileId, ensureExists);
+            string filename = $"{Guid.NewGuid()}{part}{suffix}.tmp";
             return Path.Combine(dir, filename);
         }
 
@@ -252,6 +266,38 @@ namespace Youverse.Core.Services.Drive.Storage
             //TODO: This really won't perform
             var dirs = Directory.GetDirectories(_drive.GetStoragePath(StorageDisposition.LongTerm));
             return Task.FromResult(dirs.LongLength);
+        }
+
+        private Task WriteFile(string targetFilePath, string tempFilePath, Stream stream)
+        {
+            //TODO: this is probably highly inefficient and probably need to revisit 
+            try
+            {
+                //Process: if there's a file, we write to a temp file then rename.
+                if (File.Exists(targetFilePath))
+                {
+                    WriteStream(stream, tempFilePath);
+                    lock (targetFilePath)
+                    {
+                        //TODO: need to know if this replace method is faster than renaming files
+                        File.Replace(tempFilePath, targetFilePath, null, true);
+                    }
+                }
+                else
+                {
+                    WriteStream(stream, targetFilePath);
+                }
+            }
+            finally
+            {
+                //TODO: should clean up the temp file in case of failure?
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         private void WriteStream(Stream stream, string filePath)

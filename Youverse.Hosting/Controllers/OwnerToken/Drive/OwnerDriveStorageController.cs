@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
@@ -55,6 +56,25 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [HttpPost("thumb")]
+        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
+                FileId = request.File.FileId
+            };
+
+            //TODO: should i write headers indicating the content type for this thumbnail?
+            // this.Response.Headers.Add("x-AppData-content-type", new StringValues(""));
+            
+            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            
+            return new FileStreamResult(payload, "application/octet-stream");
+        }
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
         [HttpPost("delete")]
         public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
@@ -66,5 +86,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             };
             await _driveService.DeleteLongTermFile(file);
         }
+    }
+
+    public class GetThumbnailRequest
+    {
+        public ExternalFileIdentifier File { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+    
+    public class SaveThumbnailRequest
+    {
+        public ExternalFileIdentifier File { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
     }
 }

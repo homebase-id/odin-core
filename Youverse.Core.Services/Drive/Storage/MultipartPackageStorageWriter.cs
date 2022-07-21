@@ -99,6 +99,20 @@ namespace Youverse.Core.Services.Transit.Upload
             await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         }
 
+        public async Task AddThumbnail(Guid packageId, int width, int height, string contentType, Stream data)
+        {
+            if (!_packages.TryGetValue(packageId, out var pkg))
+            {
+                throw new UploadException("Invalid package Id");
+            }
+
+            //TODO: How to store the content type for later usage?  is it even needed?
+            
+            //TODO: should i validate width and height are > 0?
+            string extenstion = _driveService.GetThumbnailFileExtension(width, height);
+            await _driveService.WriteTempStream(pkg.InternalFile, extenstion, data);
+        }
+
         public async Task<UploadPackage> GetPackage(Guid packageId)
         {
             if (_packages.TryGetValue(packageId, out var package))

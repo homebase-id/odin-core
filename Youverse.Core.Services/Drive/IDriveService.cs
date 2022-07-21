@@ -113,5 +113,11 @@ namespace Youverse.Core.Services.Drive
         Task DeleteLongTermFile(InternalDriveFileId file);
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
+     
+        Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
+        
+        Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream);
+       
+        string GetThumbnailFileExtension(int width, int height);
     }
 }
