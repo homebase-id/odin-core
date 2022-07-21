@@ -5,6 +5,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -54,6 +55,24 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             var payload = await _driveService.GetPayloadStream(file);
 
+            return new FileStreamResult(payload, "application/octet-stream");
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [HttpPost("thumb")]
+        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
+                FileId = request.File.FileId
+            };
+
+            //TODO: should i write headers indicating the content type for this thumbnail?
+            // this.Response.Headers.Add("x-AppData-content-type", new StringValues(""));
+            
+            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            
             return new FileStreamResult(payload, "application/octet-stream");
         }
     }

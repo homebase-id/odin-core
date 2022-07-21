@@ -88,13 +88,6 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
     }
 
-    public class GetThumbnailRequest
-    {
-        public ExternalFileIdentifier File { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
-    }
-    
     public class SaveThumbnailRequest
     {
         public ExternalFileIdentifier File { get; set; }

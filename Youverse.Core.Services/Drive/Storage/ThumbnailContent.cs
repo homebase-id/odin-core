@@ -5,5 +5,5 @@ public class ThumbnailContent : ThumbnailHeader
     /// <summary>
     /// The thumbnail data
     /// </summary>
-    byte[] Content { get; set; }
+    public byte[] Content { get; set; }
 }
