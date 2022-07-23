@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     }
                 };
 
-                var response = await svc.GetBatch(request);
+                var response = await svc.QueryBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -149,7 +149,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     ResultOptions = resultOptions
                 };
 
-                var response = await svc.GetBatch(request);
+                var response = await svc.QueryBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
@@ -226,7 +226,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     ResultOptions = resultOptions
                 };
 
-                var response = await svc.GetBatch(request);
+                var response = await svc.QueryBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);

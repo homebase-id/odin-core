@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _requestService = cn;
         }
 
-        [HttpPost("pending")]
+        [HttpGet("pending")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
         }
 
-        [HttpPost("sent")]
+        [HttpGet("sent")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpPost("sent")]
+        [HttpPost("sendrequest")]
         public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
             await _requestService.SendConnectionRequest(requestHeader);

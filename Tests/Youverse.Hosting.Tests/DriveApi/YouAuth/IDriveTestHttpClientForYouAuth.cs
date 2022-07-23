@@ -20,18 +20,15 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
     {
         private const string RootEndpoint = YouAuthApiPathConstants.DrivesV1;
 
-        [Multipart]
-        [Post(RootEndpoint + "/files/upload")]
-        Task<ApiResponse<UploadResult>> Upload(
-            [AliasAs("instructions")] StreamPart instructionSet,
-            [AliasAs("metaData")] StreamPart metaData,
-            [AliasAs("payload")] StreamPart payload);
-
+ 
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
+        
+        [Post(RootEndpoint + "/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
 
         [Post(RootEndpoint + "/query/recent")]
         Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);

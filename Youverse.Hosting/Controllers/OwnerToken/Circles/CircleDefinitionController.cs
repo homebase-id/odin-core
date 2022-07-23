@@ -17,14 +17,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _circleDefinitionService = circleDefinitionService;
         }
 
-        [HttpPost]
+        [HttpPost("definition")]
         public async Task<IActionResult> GetCircleDefinitions()
         {
             var result = await _circleDefinitionService.GetCircles();
             return new JsonResult(result);
         }
 
-        [HttpPost]
+        [HttpPost("circle")]
         public async Task<IActionResult> CreateCircle([FromBody]CreateCircleRequest request)
         {
             await _circleDefinitionService.Create(request);

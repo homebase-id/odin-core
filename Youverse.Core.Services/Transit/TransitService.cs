@@ -93,7 +93,6 @@ namespace Youverse.Core.Services.Transit
 
             await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
-
             var ext = new ExternalFileIdentifier()
             {
                 TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.GetTargetDrive(),

@@ -20,16 +20,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         private const string RootEndpoint = OwnerApiPathConstants.DrivesV1;
         private const string RootQueryEndpoint = OwnerApiPathConstants.DriveQueryV1;
         private const string RootStorageEndpoint = OwnerApiPathConstants.DriveStorageV1;
-        
+
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> Upload([AliasAs("instructions")] StreamPart instructionSet, [AliasAs("metaData")] StreamPart metaData, [AliasAs("payload")] StreamPart payload);
+
+        [Multipart]
+        [Post(RootStorageEndpoint + "/upload")]
+        Task<ApiResponse<UploadResult>> UploadWithThumbnails([AliasAs("instructions")] StreamPart instructionSet, [AliasAs("metaData")] StreamPart metaData, [AliasAs("payload")] StreamPart payload,
+            [AliasAs("thumbnail")] StreamPart thumbnail1, [AliasAs("thumbnail")] StreamPart thumbnail2);
 
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
         [Post(RootStorageEndpoint + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
+
+        
+        [Post(RootStorageEndpoint + "/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
 
         [Post(RootQueryEndpoint + "/recent")]
         Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);

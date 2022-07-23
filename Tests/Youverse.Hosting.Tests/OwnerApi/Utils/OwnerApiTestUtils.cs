@@ -559,7 +559,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-                var payloadCipher = encryptPayload ? keyHeader.EncryptDataAes(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
+                var payloadCipher = encryptPayload ? keyHeader.EncryptDataAesAsStream(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(
@@ -629,7 +629,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
 
                 payloadData = options?.PayloadData ?? payloadData;
-                Stream payloadCipher = options.EncryptPayload ? keyHeader.EncryptDataAes(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
+                Stream payloadCipher = options.EncryptPayload ? keyHeader.EncryptDataAesAsStream(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(

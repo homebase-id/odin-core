@@ -26,17 +26,25 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             [AliasAs("metaData")] StreamPart metaData,
             [AliasAs("payload")] StreamPart payload);
         
+        [Multipart]
+        [Post(RootEndpoint + "/upload")]
+        Task<ApiResponse<UploadResult>> UploadWithThumbnails([AliasAs("instructions")] StreamPart instructionSet, [AliasAs("metaData")] StreamPart metaData, [AliasAs("payload")] StreamPart payload,
+            [AliasAs("thumbnail")] StreamPart thumbnail1, [AliasAs("thumbnail")] StreamPart thumbnail2);
+        
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
         
+        [Post(RootEndpoint + "/files/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
+        
         [Post(RootEndpoint + "/query/recent")]
-        Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);
+        Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);
         
         [Post(RootEndpoint + "/query/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request);
 
         
     }

@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAes(payloadDataRaw);
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
             {
@@ -207,7 +207,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAes(payloadDataRaw);
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
             {

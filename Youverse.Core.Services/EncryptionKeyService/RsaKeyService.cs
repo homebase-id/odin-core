@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             {
                 Crc32 = pk.crc32c,
                 KeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
-                Data = keyHeader.EncryptDataAes(payload).ToByteArray()
+                Data = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
             };
         }
 
