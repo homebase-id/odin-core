@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
@@ -151,7 +152,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 decryptedKeyHeader.AesKey.Wipe();
 
                 keyHeader.AesKey.Wipe();
-                ownerSharedSecret.Wipe();
             }
         }
 
@@ -186,7 +186,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     ContentType = "image/jpeg"
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
-                
+
                 var thumbnail2 = new ThumbnailHeader()
                 {
                     PixelHeight = 400,
@@ -231,8 +231,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), "application/json", Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), "application/json", Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -329,7 +329,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
                 Assert.IsNotNull(thumbnailResponse1.Content);
-                
+
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
 
                 //validate thumbnail 2

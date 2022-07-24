@@ -64,8 +64,9 @@ namespace Youverse.Core.Services.Workers.Transit
             _logger.LogInformation($"Stoke running for {sender}");
             
             _client.BaseAddress = uri;
-            
+            _client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
             var svc = RestService.For<IOutboxHttpClient>(_client);
+            
             var response = await svc.ProcessOutbox();
             //TODO: needs information to determine if it should stoke again; and when
 

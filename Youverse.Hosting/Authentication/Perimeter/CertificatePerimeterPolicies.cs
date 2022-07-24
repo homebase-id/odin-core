@@ -6,7 +6,6 @@ namespace Youverse.Hosting.Authentication.Perimeter
     public static class CertificatePerimeterPolicies
     {
         public const string IsInYouverseNetwork = "IsInYouverseNetwork";
-        public const string IsInYouverseNetworkWithApp = "IsInYouverseNetworkWithApp";
 
         public static void AddPolicies(AuthorizationOptions policy, string scheme)
         {
@@ -16,12 +15,6 @@ namespace Youverse.Hosting.Authentication.Perimeter
                 pb.AuthenticationSchemes.Add(scheme);
             });
             
-            policy.AddPolicy(IsInYouverseNetworkWithApp, pb =>
-            {
-                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
-                pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
-                pb.AuthenticationSchemes.Add(scheme);
-            });
         }
     }
 }

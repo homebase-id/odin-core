@@ -11,5 +11,7 @@ namespace Youverse.Core.Services.Apps
         
         public ServerMetadata ServerMetadata { get; set; }
         
+        public int Priority { get; set; }
+        
     }
 }

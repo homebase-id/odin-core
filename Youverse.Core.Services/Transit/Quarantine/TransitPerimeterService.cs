@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
         }
 
-        public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
+        public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -60,7 +60,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             if (item.HasAcquiredQuarantinedPart())
             {
                 //quarantine the rest
-                await _transitPerimeterTransferStateService.Quarantine(item.Id, part, data);
+                await _transitPerimeterTransferStateService.Quarantine(item.Id, part, fileExtension, data);
             }
 
             var filterResponse = await ApplyFilters(part, data);
@@ -68,11 +68,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
             switch (filterResponse)
             {
                 case FilterAction.Accept:
-                    await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, data);
+                    await _transitPerimeterTransferStateService.AcceptPart(item.Id, part, fileExtension, data);
                     break;
 
                 case FilterAction.Quarantine:
-                    await _transitPerimeterTransferStateService.Quarantine(item.Id, part, data);
+                    await _transitPerimeterTransferStateService.Quarantine(item.Id, part, fileExtension, data);
                     break;
 
                 case FilterAction.Reject:
@@ -101,20 +101,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 //TODO: how do i know which filter quarantined it??
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() {Code = TransitResponseCode.QuarantinedPayload};
+                return new HostTransferResponse() { Code = TransitResponseCode.QuarantinedPayload };
             }
 
             if (item.HasAcquiredRejectedPart())
             {
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() {Code = TransitResponseCode.Rejected};
+                return new HostTransferResponse() { Code = TransitResponseCode.Rejected };
             }
 
             if (item.IsCompleteAndValid())
             {
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() {Code = TransitResponseCode.Accepted};
+                return new HostTransferResponse() { Code = TransitResponseCode.Accepted };
             }
 
             throw new HostToHostTransferException("Unhandled error");
@@ -135,8 +135,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             var context = new FilterContext()
             {
-                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                AppId = ""
+                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId
             };
 
             //TODO: this should be executed in parallel

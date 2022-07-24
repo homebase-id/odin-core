@@ -21,6 +21,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             
             policy.AddPolicy(IsAuthorizedApp, pb =>
             {
+                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(ClientTokenConstants.Scheme);
             });

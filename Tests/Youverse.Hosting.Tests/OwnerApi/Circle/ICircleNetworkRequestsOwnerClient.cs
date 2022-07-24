@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 
-        [Post(SentPathRoot)]
+        [Post(RootPath + "/sendrequest")]
         Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept")]

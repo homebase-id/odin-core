@@ -418,6 +418,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = CreateOwnerApiHttpClient(sender))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
                 var resp = await transitSvc.ProcessOutbox();
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
@@ -673,6 +674,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                         using (var rClient = CreateOwnerApiHttpClient((DotYouIdentity)recipient, out var _))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
+                            rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+
                             var resp = await transitAppSvc.ProcessTransfers();
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }

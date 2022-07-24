@@ -18,11 +18,6 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public Guid Id { get; set; }
 
-        /// <summary>
-        /// The app client that created this outbox item
-        /// </summary>
-        public Guid AccessRegistrationId { get; set; }
-        
         public DotYouIdentity Recipient { get; set; }
         
         public InternalDriveFileId File { get; set; }

@@ -207,9 +207,9 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-                AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
+                
+                //TODO: can i put something else here to allow me to access the files?
             }));
-
             return keyStatus;
         }
 
@@ -352,9 +352,7 @@ namespace Youverse.Core.Services.Transit
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var header = await _driveService.GetServerFileHeader(file);
-
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
@@ -362,6 +360,7 @@ namespace Youverse.Core.Services.Transit
                 //if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
+                    //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                     File = InternalDriveFileId.Redacted(),
                     Created = metadata.Created,
                     Updated = metadata.Updated,
@@ -369,8 +368,9 @@ namespace Youverse.Core.Services.Transit
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
                     SenderDotYouId = string.Empty,
-                    OriginalRecipientList = null
+                    OriginalRecipientList = null,
                 };
+
 
                 var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
@@ -378,15 +378,21 @@ namespace Youverse.Core.Services.Transit
 
                 var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
+                var thumbnails = new List<StreamPart>();
+                foreach (var thumb in redactedMetadata.AppData.AdditionalThumbnails)
+                {
+                    var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                    thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
+                
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
-                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                var response = client.SendHostToHostT(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 
                 // var result = response.Content;

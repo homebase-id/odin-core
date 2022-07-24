@@ -132,8 +132,6 @@ namespace Youverse.Hosting.Middleware
                     permissionSet: permissionSet,
                     driveDecryptionKey: masterKey,
                     sharedSecretKey: clientSharedSecret,
-                    exchangeGrantId: Guid.Empty,
-                    accessRegistrationId: Guid.Empty,
                     isOwner: true
                 ));
 
@@ -200,8 +198,6 @@ namespace Youverse.Hosting.Middleware
                         permissionSet: permissionSet,
                         driveDecryptionKey: null,
                         sharedSecretKey: null,
-                        exchangeGrantId: Guid.Empty,
-                        accessRegistrationId: Guid.Empty,
                         isOwner: false
                     ));
 

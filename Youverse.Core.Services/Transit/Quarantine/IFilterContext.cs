@@ -10,11 +10,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
     {
         DotYouIdentity Sender { get; init; }
         
-        /// <summary>
-        /// The Application Id sending the transfer
-        /// </summary>
-        string AppId { get; init; }
-
         //TODO: what else is needed here?
     }
 }

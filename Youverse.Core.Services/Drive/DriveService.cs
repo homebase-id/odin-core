@@ -392,12 +392,13 @@ namespace Youverse.Core.Services.Drive
             string sourceFile = await tempStorageManager.GetPath(file.FileId, payloadExtension);
             await storageManager.MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
 
-            foreach (var thumb in metadata.AppData.AdditionalThumbnails)
-            {
-                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
-                var sourceThumbnail = await tempStorageManager.GetPath(file.FileId, extension);
-                await storageManager.MoveThumbnailToLongTerm(file.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
-            }
+            if (metadata.AppData.AdditionalThumbnails != null)
+                foreach (var thumb in metadata.AppData.AdditionalThumbnails)
+                {
+                    var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                    var sourceThumbnail = await tempStorageManager.GetPath(file.FileId, extension);
+                    await storageManager.MoveThumbnailToLongTerm(file.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                }
 
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()

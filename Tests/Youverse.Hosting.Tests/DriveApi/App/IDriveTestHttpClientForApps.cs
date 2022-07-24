@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             [AliasAs("payload")] StreamPart payload);
         
         [Multipart]
-        [Post(RootEndpoint + "/upload")]
+        [Post(RootEndpoint + "/files/upload")]
         Task<ApiResponse<UploadResult>> UploadWithThumbnails([AliasAs("instructions")] StreamPart instructionSet, [AliasAs("metaData")] StreamPart metaData, [AliasAs("payload")] StreamPart payload,
             [AliasAs("thumbnail")] StreamPart thumbnail1, [AliasAs("thumbnail")] StreamPart thumbnail2);
         

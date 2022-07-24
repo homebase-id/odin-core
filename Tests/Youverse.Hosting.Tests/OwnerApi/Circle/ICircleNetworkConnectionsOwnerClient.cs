@@ -12,25 +12,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
     {
         private const string root_path = OwnerApiPathConstants.CirclesV1 + "/connections";
 
-        [Get(root_path + "/unblock/{dotYouId}")]
+        [Post(root_path + "/unblock")]
         Task<ApiResponse<bool>> Unblock(string dotYouId);
 
-        [Get(root_path + "/block/{dotYouId}")]
+        [Post(root_path + "/block")]
         Task<ApiResponse<bool>> Block(string dotYouId);
 
-        [Get(root_path + "/disconnect/{dotYouId}")]
+        [Post(root_path + "/disconnect")]
         Task<ApiResponse<bool>> Disconnect(string dotYouId);
 
-        [Get(root_path + "/status/{dotYouId}")]
+        [Post(root_path + "/status")]
         Task<ApiResponse<ConnectionInfoResponse>> GetStatus(string dotYouId);
 
         [Delete(root_path + "/{dotYouId}")]
         Task<ApiResponse<bool>> Delete(string dotYouId);
 
-        [Get(root_path + "/connected")]
+        [Post(root_path + "/connected")]
         Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(int pageNumber, int pageSize);
 
-        [Get(root_path + "/blocked")]
+        [Post(root_path + "/blocked")]
         Task<ApiResponse<PagedResult<DotYouProfile>>> GetBlockedProfiles(int pageNumber, int pageSize);
     }
 }

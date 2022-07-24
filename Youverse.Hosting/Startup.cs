@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -23,7 +22,7 @@ using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -99,12 +98,13 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme);
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
+                .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
-                // AppPolicies.AddPolicies(policy);
+                SystemPolicies.AddPolicies(policy);
                 ClientTokenPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);

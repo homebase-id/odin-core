@@ -117,24 +117,6 @@ namespace Youverse.Core.Services.Drive
 
                 var header = await _appService.GetClientEncryptedFileHeader(file);
 
-                int priority = 1000;
-
-                switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
-                {
-                    case SecurityGroupType.Anonymous:
-                        priority = 500;
-                        break;
-                    case SecurityGroupType.Authenticated:
-                        priority = 400;
-                        break;
-                    case SecurityGroupType.Connected:
-                        priority = 300;
-                        break;
-                    case SecurityGroupType.Owner:
-                        priority = 1;
-                        break;
-                }
-
                 var metadata = header.FileMetadata;
                 
                 var dsr = new DriveSearchResult()
@@ -154,7 +136,7 @@ namespace Youverse.Core.Services.Drive
                     LastUpdatedTimestamp = metadata.Updated,
                     SenderDotYouId = metadata.SenderDotYouId,
                     AccessControlList = header.ServerMetadata?.AccessControlList,
-                    Priority = priority,
+                    Priority = header.Priority,
                     PreviewThumbnail = metadata.AppData.PreviewThumbnail,
                     AdditionalThumbnails = metadata.AppData.AdditionalThumbnails
                 };

@@ -21,23 +21,17 @@ namespace Youverse.Core.Services.Base
             PermissionSet permissionSet,
             SensitiveByteArray driveDecryptionKey,
             SensitiveByteArray sharedSecretKey,
-            Guid exchangeGrantId,
-            Guid accessRegistrationId,
             bool isOwner)
         {
             this._driveGrants = driveGrants;
             this._permissionSet = permissionSet;
             this._driveDecryptionKey = driveDecryptionKey;
             this.SharedSecretKey = sharedSecretKey;
-            this.ExchangeGrantId = exchangeGrantId;
-            this.AccessRegistrationId = accessRegistrationId;
 
             //HACK: need to actually assign the permission
             this._isOwner = isOwner;
         }
-
-        public Guid ExchangeGrantId { get; }
-
+        
         public SensitiveByteArray SharedSecretKey { get; }
 
         public Guid AccessRegistrationId { get; }

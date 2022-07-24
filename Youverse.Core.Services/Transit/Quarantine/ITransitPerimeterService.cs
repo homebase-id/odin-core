@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Filters, Triages, and distributes the incoming payload the right handler
         /// </summary>
         /// <returns></returns>
-        Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, Stream data);
+        Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
 
         /// <summary>
         /// Indicates if the file has all required parts and all parts are valid

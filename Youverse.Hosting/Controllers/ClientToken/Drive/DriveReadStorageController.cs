@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpPost("thumb")]
+        [HttpPost("files/thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
             var file = new InternalDriveFileId()
