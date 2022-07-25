@@ -12,6 +12,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
 {
@@ -68,7 +69,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(sender.Identity);
+                var response = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sender.Identity});
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
@@ -87,10 +88,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var deleteResponse = await svc.DeletePendingRequest(sam.Identity);
+                var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                var getResponse = await svc.GetPendingRequest(sam.Identity);
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
@@ -146,7 +147,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var response = await svc.GetSentRequest(sam.Identity);
+                var response = await svc.GetSentRequest(new DotYouIdRequest(){DotYouId = sam.Identity});
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
@@ -177,7 +178,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 // The pending request should be removed
                 //
-                var getResponse = await svc.GetPendingRequest(frodo.Identity);
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = frodo.Identity});
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {frodo.Identity} still exists");
 
                 //
@@ -204,7 +205,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
 
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var getResponse = await svc.GetSentRequest(sam.Identity);
+                var getResponse = await svc.GetSentRequest(new DotYouIdRequest(){DotYouId = sam.Identity});
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
             }
 
@@ -356,7 +357,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(sender.Identity);
+                var response = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sender.Identity});
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 

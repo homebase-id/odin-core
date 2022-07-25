@@ -41,8 +41,8 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             _scaffold.RunAfterAnyTests();
         }
 
-        [Test(Description = "Test basic transfer")]
-        public async Task CanSendTransferAndSeeStatus()
+        [Test(Description = "Test basic transfer; includes thumbnails")]
+        public async Task CanSendTransferAndRecipientCanGetFilesByTag()
         {
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { TestIdentities.Samwise }
+                    Recipients = new List<string>() { recipient }
                 }
             };
 
@@ -99,6 +99,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
+                    //todo: maybe rename to payload content type
                     ContentType = "application/json",
                     AppData = new()
                     {
@@ -127,7 +128,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.UploadWithThumbnails(
+                var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
@@ -297,105 +298,31 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             await _scaffold.OwnerApi.DisconnectIdentities(sender, recipientContext.Identity);
         }
 
-        [Test(Description = "")]
+        // [Test(Description = "Updates a thumbnail")]
+        public async Task UpdateThumbnail()
+        {
+            //upload a file with a thumbnail
+
+        }
+
+        // [Test(Description = "Updates a thumbnail; and transfer it")]
+        public async Task UpdateThumbnailWithTransfer()
+        {
+            //upload a file with a thumbnail
+
+            //transfer the thumbnail
+
+            //upload an updated thumbnail
+
+            //transfer that update
+
+            //NOTE: I think this requires supporting file collaboration in transit where I can send you updates for an existing file
+        }
+
+        //[Test(Description = "")]
         public async Task RecipientCanGetReceivedTransferFromDriveAndIsSearchable()
         {
-            var sender = TestIdentities.Samwise;
-            var recipients = new List<string>() { TestIdentities.Frodo };
-            var categoryId = Guid.NewGuid();
-            var message = "ping ping pong pong";
-            var jsonMessage = JsonConvert.SerializeObject(new { message = message });
-            var payloadText = "lets alllll prraayyy for this world";
-
-            var utilsContext = await _scaffold.AppApi.TransferFile(sender, recipients, new TransitTestUtilsOptions()
-            {
-                ProcessOutbox = true,
-                ProcessTransitBox = true,
-                AppDataCategoryId = categoryId,
-                AppDataJsonContent = jsonMessage,
-                PayloadData = payloadText
-            });
-
-            var recipientContext = utilsContext.RecipientContexts[TestIdentities.Frodo];
-            using (var recipientClient = _scaffold.AppApi.CreateAppApiHttpClient(TestIdentities.Frodo, recipientContext.ClientAuthenticationToken))
-            {
-                // var svc = RestService.For<ITransitTestAppHttpClient>(recipientClient);
-                // var driveSvc = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
-
-                // var fileHeaderResponse = await driveSvc.GetFileHeader(inboxItem.File.TargetDrive, inboxItem.File.FileId);
-                // Assert.That(fileHeaderResponse.IsSuccessStatusCode, Is.True);
-                // Assert.That(fileHeaderResponse.Content, Is.Not.Null);
-
-                // var clientFileHeader = fileHeaderResponse.Content;
-                //
-                // Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
-                // Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
-                //
-                // Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(utilsContext.FileMetadata.ContentType));
-                // CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, utilsContext.FileMetadata.AppData.Tags);
-                // Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(utilsContext.FileMetadata.AppData.JsonContent));
-                // Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(utilsContext.FileMetadata.AppData.ContentIsComplete));
-                //
-                // Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv byte array was all zeros");
-                // Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-                //
-                // var key = recipientContext.SharedSecret.ToSensitiveByteArray();
-                // var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
-                //
-                // Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                // var fileKey = decryptedKeyHeader.AesKey;
-                // Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
-                //
-                // //get the payload and decrypt, then compare
-                // var payloadResponse = await driveSvc.GetPayload(inboxItem.File.TargetDrive, inboxItem.File.FileId);
-                // Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
-                // Assert.That(payloadResponse.Content, Is.Not.Null);
-                //
-                // var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                // var bytes = decryptedKeyHeader.AesKey;
-                // var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
-                //     cipherText: payloadResponseCipher,
-                //     Key: ref bytes,
-                //     IV: decryptedKeyHeader.Iv);
-                //
-                // var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadText);
-                // Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-                //
-                // var driveQueryClient = RestService.For<IDriveTestHttpClientForApps>(recipientClient);
-                //
-                // var startCursor = Array.Empty<byte>();
-                // var stopCursor = Array.Empty<byte>();
-                // var qp = new QueryParams()
-                // {
-                //     TagsMatchAtLeastOne = new List<byte[]>() { categoryId.ToByteArray() }
-                // };
-                //
-                // var resultOptions = new ResultOptions()
-                // {
-                //     IncludeMetadataHeader = true,
-                //     MaxRecords = 100
-                // };
-
-                // var response = await driveQueryClient.GetBatch(recipientContext.TargetDrive, startCursor, stopCursor, qp, resultOptions);
-
-//                var response = await driveQueryClient.GetBatch(recipientContext.DriveAlias, categoryId, true, 1, 100);
-                // Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                // var batch = response.Content;
-                // Assert.IsNotNull(batch);
-
-                // Assert.IsTrue(batch.SearchResults.Count() == 1);
-                // CollectionAssert.AreEquivalent(utilsContext.FileMetadata.AppData.Tags, batch.SearchResults.First().Tags);
-
-
-                // Console.WriteLine($"Items with category: {categoryId}");
-                // foreach (var item in page.Results)
-                // {
-                //     Console.WriteLine($"{item.PrimaryCategoryId} {item.JsonContent}");
-                // }
-            }
+            Assert.Inconclusive("TODO");
         }
     }
 }

@@ -76,6 +76,16 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
 
+            if (package.IsUpdateOperation)
+            {
+                return await ProcessUploadOfExistingFile(package);
+            }
+
+            return await ProcessUploadOfNewFile(package);
+        }
+
+        private async Task<UploadResult> ProcessUploadOfNewFile(UploadPackage package)
+        {
             var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
 
             if (null == serverMetadata.AccessControlList)
@@ -99,7 +109,7 @@ namespace Youverse.Core.Services.Transit
                 FileId = package.InternalFile.FileId
             };
 
-            var tx = new UploadResult()
+            var uploadResult = new UploadResult()
             {
                 File = ext
             };
@@ -107,10 +117,15 @@ namespace Youverse.Core.Services.Transit
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
             if (null != recipients)
             {
-                tx.RecipientStatus = await PrepareTransfer(package);
+                uploadResult.RecipientStatus = await PrepareTransfer(package);
             }
 
-            return tx;
+            return uploadResult;
+        }
+
+        private async Task<UploadResult> ProcessUploadOfExistingFile(UploadPackage package)
+        {
+            throw new NotImplementedException("Updates for files are not currently supported");
         }
 
         public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
@@ -207,7 +222,7 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-                
+
                 //TODO: can i put something else here to allow me to access the files?
             }));
             return keyStatus;
@@ -384,7 +399,7 @@ namespace Youverse.Core.Services.Transit
                     var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
-                
+
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
@@ -392,7 +407,7 @@ namespace Youverse.Core.Services.Transit
                 decryptedClientAuthTokenBytes.WriteZeros();
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
-                var response = client.SendHostToHostT(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
+                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 
                 // var result = response.Content;

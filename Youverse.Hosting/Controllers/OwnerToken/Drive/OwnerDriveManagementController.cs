@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _driveService = driveService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
         public async Task<IActionResult> GetDrives([FromBody]GetDrivesRequest request)
         {
@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(page);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("create")]
         public async Task<IActionResult> CreateDrive([FromBody] CreateDriveRequest request)
         {
@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
         
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
         public async Task<IActionResult> GetDrivesByType(GetDrivesByTypeRequest request)
         {

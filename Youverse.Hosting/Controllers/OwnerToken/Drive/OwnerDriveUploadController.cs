@@ -24,7 +24,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _transitService = transitService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<IActionResult> Upload()
         {
@@ -38,23 +38,21 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
+            //TODO: return the package from create package method
             var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
-
-            //
+            
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             await _packageStorageWriter.AddMetadata(packageId, section!.Body);
 
             //
-
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
             await _packageStorageWriter.AddPayload(packageId, section!.Body);
 
             //
 
-            //The next section must be thumbnail
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
@@ -62,9 +60,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 await _packageStorageWriter.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
-
-            //
-
+            
             var package = await _packageStorageWriter.GetPackage(packageId);
             var status = await _transitService.AcceptUpload(package);
             return new JsonResult(status);

@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _driveService = driveService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("recent")]
         public async Task<IActionResult> GetRecent([FromBody] QueryModifiedRequest request)
         {
@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(batch);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("batch")]
         public async Task<IActionResult> QueryBatch([FromBody] QueryBatchRequest request)
         {

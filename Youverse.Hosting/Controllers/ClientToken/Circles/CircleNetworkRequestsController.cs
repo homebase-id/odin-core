@@ -33,7 +33,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
-
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }

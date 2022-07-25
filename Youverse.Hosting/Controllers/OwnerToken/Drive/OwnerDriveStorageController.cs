@@ -1,14 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
@@ -28,7 +23,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _appService = appService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
@@ -41,7 +36,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(result);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
@@ -57,7 +52,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
 
         
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
@@ -66,16 +61,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
                 FileId = request.File.FileId
             };
-
-            //TODO: should i write headers indicating the content type for this thumbnail?
-            // this.Response.Headers.Add("x-AppData-content-type", new StringValues(""));
             
             var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
-            
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
         public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
         {
@@ -86,12 +77,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             };
             await _driveService.DeleteLongTermFile(file);
         }
-    }
-
-    public class SaveThumbnailRequest
-    {
-        public ExternalFileIdentifier File { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
     }
 }

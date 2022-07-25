@@ -227,7 +227,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
                 var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                var response = await driveSvc.UploadWithThumbnails(
+                var response = await driveSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),

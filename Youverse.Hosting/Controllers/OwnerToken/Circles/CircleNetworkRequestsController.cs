@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Requests;
@@ -19,7 +20,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         {
             _requestService = cn;
         }
-
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpGet("pending")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
         {
@@ -28,10 +30,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("pending")]
-        public async Task<IActionResult> GetPendingRequest(string senderDotYouId)
+        public async Task<IActionResult> GetPendingRequest([FromBody]DotYouIdRequest request)
         {
-            var result = await _requestService.GetPendingRequest((DotYouIdentity)senderDotYouId);
+            var result = await _requestService.GetPendingRequest((DotYouIdentity)request.DotYouId);
 
             if (result == null)
             {
@@ -44,6 +47,23 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("pending/accept")]
+        public async Task<IActionResult> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
+        {
+            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
+            return new JsonResult(new NoResultResponse(true));
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("pending/delete")]
+        public async Task<IActionResult> DeletePendingRequest([FromBody]DotYouIdRequest request)
+        {
+            await _requestService.DeletePendingRequest((DotYouIdentity)request.DotYouId);
+            return new JsonResult(new NoResultResponse(true));
+        }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpGet("sent")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
         {
@@ -53,10 +73,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("sent")]
-        public async Task<IActionResult> GetSentRequest(string recipientDotYouId)
+        public async Task<IActionResult> GetSentRequest([FromBody]DotYouIdRequest request)
         {
-            var result = await _requestService.GetSentRequest((DotYouIdentity)recipientDotYouId);
+            var result = await _requestService.GetSentRequest((DotYouIdentity)request.DotYouId);
             if (result == null)
             {
                 return new JsonResult(new NoResultResponse(true))
@@ -68,13 +89,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("sent/delete")]
-        public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
+        public async Task<IActionResult> DeleteSentRequest([FromBody]DotYouIdRequest request)
         {
-            await _requestService.DeleteSentRequest((DotYouIdentity)recipientDotYouId);
+            await _requestService.DeleteSentRequest((DotYouIdentity)request.DotYouId);
             return new JsonResult(new NoResultResponse(true));
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("sendrequest")]
         public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
@@ -82,18 +105,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(new NoResultResponse(true));
         }
 
-        [HttpPost("pending/accept")]
-        public async Task<IActionResult> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
-        {
-            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
-            return new JsonResult(new NoResultResponse(true));
-        }
-
-        [HttpPost("pending/delete")]
-        public async Task<IActionResult> DeletePendingRequest(string senderDotYouId)
-        {
-            await _requestService.DeletePendingRequest((DotYouIdentity)senderDotYouId);
-            return new JsonResult(new NoResultResponse(true));
-        }
     }
 }

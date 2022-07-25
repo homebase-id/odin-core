@@ -22,19 +22,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
 
-        [Get(SentPathRoot + "/{recipientDotYouId}")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest(string recipientDotYouId);
+        [Post(SentPathRoot)]
+        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body]DotYouIdRequest request);
         
-        [Delete(SentPathRoot + "/{recipientDotYouId}")]
-        Task<ApiResponse<NoResultResponse>> DeleteSentRequest(string recipientDotYouId);
+        [Delete(SentPathRoot + "/delete")]
+        Task<ApiResponse<NoResultResponse>> DeleteSentRequest([Body]DotYouIdRequest request);
 
         [Get(PendingPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
 
-        [Get(PendingPathRoot + "/{senderDotYouId}")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest(string senderDotYouId);
+        [Post(PendingPathRoot)]
+        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body]DotYouIdRequest request);
 
-        [Delete(PendingPathRoot + "/{senderDotYouId}")]
-        Task<ApiResponse<NoResultResponse>> DeletePendingRequest(string senderDotYouId);
+        [Post(PendingPathRoot + "/delete")]
+        Task<ApiResponse<NoResultResponse>> DeletePendingRequest([Body]DotYouIdRequest request);
     }
 }

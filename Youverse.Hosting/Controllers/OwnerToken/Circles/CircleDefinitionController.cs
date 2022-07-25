@@ -24,7 +24,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return new JsonResult(result);
         }
 
-        [HttpPost("circle")]
+        [HttpPost("create")]
         public async Task<IActionResult> CreateCircle([FromBody]CreateCircleRequest request)
         {
             await _circleDefinitionService.Create(request);
@@ -32,14 +32,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
         
         [HttpPost("update")]
-        public async Task<IActionResult> UpdateCircle(CircleDefinition circleDefinition)
+        public async Task<IActionResult> UpdateCircle([FromBody]CircleDefinition circleDefinition)
         { 
             await _circleDefinitionService.Update(circleDefinition);
             return Ok();
         }
         
         [HttpPost("delete")]
-        public async Task<IActionResult> CreateCircle(Guid id)
+        public async Task<IActionResult> DeleteCircle([FromBody]Guid id)
         {
             await _circleDefinitionService.Delete(id);
             return Ok();

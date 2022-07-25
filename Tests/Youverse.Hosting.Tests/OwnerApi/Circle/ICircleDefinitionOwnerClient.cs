@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Circle.Definition;
@@ -13,16 +14,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
     {
         private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/definitions";
 
-        [Get(RootPath)]
+        [Post(RootPath + "/definition")]
         Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions();
 
-        [Post(RootPath)]
+        [Post(RootPath + "/create")]
         Task<ApiResponse<HttpContent>> Create([Body] CreateCircleRequest request);
 
-        [Put(RootPath)]
+        [Post(RootPath + "/update")]
         Task<ApiResponse<HttpContent>> UpdateCircle([Body] CircleDefinition circleDefinition);
 
-        [Delete(RootPath)]
-        Task<ApiResponse<HttpContent>> DeleteCircle(Guid id);
+        [Post(RootPath + "/delete")]
+        Task<ApiResponse<HttpContent>> DeleteCircle([Body]Guid id);
     }
 }
