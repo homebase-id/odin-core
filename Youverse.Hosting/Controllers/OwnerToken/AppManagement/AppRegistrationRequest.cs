@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Drive;
+
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     public class AppRegistrationRequest
     {
-        public Guid ApplicationId { get; set; } 
+        public Guid AppId { get; set; } 
         
         public string Name { get; set; }
         

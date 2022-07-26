@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 var request = new AppClientRegistrationRequest()
                 {
-                    ApplicationId = appId,
+                    AppId = appId,
                     ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
                 };
 
@@ -114,7 +114,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var svc = RestService.For<IAppRegistrationClient>(client);
                 var request = new AppRegistrationRequest
                 {
-                    ApplicationId = applicationId,
+                    AppId = applicationId,
                     Name = name,
                     PermissionSet = null,
                     Drives = null
@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
+                Assert.IsTrue(savedApp.AppId == request.AppId);
                 Assert.IsTrue(savedApp.Name == request.Name);
 
                 return appReg;

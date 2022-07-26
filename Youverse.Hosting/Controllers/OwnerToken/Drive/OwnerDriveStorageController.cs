@@ -23,6 +23,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _appService = appService;
         }
 
+        /// <summary>
+        /// Retrieves a file's header and metadata
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
@@ -36,6 +39,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(result);
         }
 
+        /// <summary>
+        /// Retrieves a file's encrypted payload
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
@@ -52,6 +58,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
 
         
+        /// <summary>
+        /// Retrieves an encrypted thumbnail.  The available thumbnails are defined on the AppFileMeta.
+        ///
+        /// See GET files/header
+        /// </summary>
+        /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
@@ -66,6 +78,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
+        /// <summary>
+        /// Deletes a file
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
         public async Task DeleteFile([FromBody] ExternalFileIdentifier request)

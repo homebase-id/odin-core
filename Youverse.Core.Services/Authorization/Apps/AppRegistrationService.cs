@@ -33,6 +33,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             _systemStorage = systemStorage;
             _driveService = driveService;
             _exchangeGrantService = exchangeGrantService;
+
+            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.EnsureIndex(k => k.AppId));
         }
 
         public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
@@ -47,7 +49,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var appReg = new AppRegistration()
             {
-                ApplicationId = applicationId,
+                AppId = applicationId,
                 Name = name,
                 Grant = grant
             };
@@ -57,14 +59,19 @@ namespace Youverse.Core.Services.Authorization.Apps
             return this.ToAppRegistrationResponse(appReg);
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterClient(Guid applicationId, byte[] clientPublicKey)
+        public async Task<AppClientRegistrationResponse> RegisterClient(Guid appId, byte[] clientPublicKey, string friendlyName)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var appReg = await this.GetAppRegistrationInternal(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (appReg == null)
+            {
+                throw new YouverseException("App must be registered");
+            }
+
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
 
-            reg.GrantId = applicationId;
+            reg.GrantId = appId;
 
             _systemStorage.WithTenantSystemStorage<AccessRegistration>(AppAccessTokenReg, s => s.Save(reg));
 
@@ -82,9 +89,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<AppRegistrationResponse> GetAppRegistration(Guid applicationId)
+        public async Task<AppRegistrationResponse> GetAppRegistration(Guid appId)
         {
-            var result = await GetAppRegistrationInternal(applicationId);
+            var result = await GetAppRegistrationInternal(appId);
             return ToAppRegistrationResponse(result);
         }
 
@@ -98,7 +105,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, appReg.Grant, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
-            return (appReg.ApplicationId, permissionCtx);
+            return (appReg.AppId, permissionCtx);
         }
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
@@ -183,15 +190,17 @@ namespace Youverse.Core.Services.Authorization.Apps
             //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new AppRegistrationResponse()
             {
-                ApplicationId = appReg.ApplicationId,
+                AppId = appReg.AppId,
                 Name = appReg.Name,
-                IsRevoked = appReg.Grant.IsRevoked
+                IsRevoked = appReg.Grant.IsRevoked,
+                Created = appReg.Grant.Created,
+                Modified = appReg.Grant.Modified
             };
         }
 
         private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.ApplicationId == applicationId));
+            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.AppId == applicationId));
             return result;
         }
     }

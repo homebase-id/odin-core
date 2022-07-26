@@ -219,7 +219,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var request = new AppRegistrationRequest
                 {
                     Name = $"Test_{appId}",
-                    ApplicationId = appId,
+                    AppId = appId,
                     PermissionSet = permissionSet,
                     Drives = drives
                 };
@@ -248,7 +248,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
                 var request = new AppClientRegistrationRequest()
                 {
-                    ApplicationId = appId,
+                    AppId = appId,
                     ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
                 };
 

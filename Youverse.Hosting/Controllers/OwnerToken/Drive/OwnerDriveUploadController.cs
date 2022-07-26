@@ -24,6 +24,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _transitService = transitService;
         }
 
+        /// <summary>
+        /// Uploads a file
+        /// </summary>
+        /// <remarks>
+        /// TODO
+        /// </remarks>
+        /// <exception cref="UploadException"></exception>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<IActionResult> Upload()
