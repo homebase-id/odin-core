@@ -19,6 +19,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             _appRegistrationService = appRegistrationService;
         }
 
+        
+        /// <summary>
+        /// Returns a list of registered apps
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetRegisteredApps([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
@@ -26,6 +30,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return new JsonResult(apps);
         }
 
+        /// <summary>
+        /// Returns the information for a registered app; otherwise null
+        /// </summary>
         [HttpPost("app")]
         public async Task<IActionResult> GetRegisteredApp([FromBody] GetAppRequest request)
         {
@@ -44,6 +51,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return new JsonResult(reg);
         }
 
+        /// <summary>
+        /// Revokes an app; this include all clients using the app and future client registrations until the revocation is removed
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeApp([FromBody] GetAppRequest request)
         {
@@ -51,6 +63,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return new NoResultResponse(true);
         }
 
+        /// <summary>
+        /// Removes the revocation for a given app.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [HttpPost("allow")]
         public async Task<NoResultResponse> AllowApp([FromBody] GetAppRequest request)
         {

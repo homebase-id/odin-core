@@ -230,7 +230,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
-                var updatedAppResponse = await svc.GetRegisteredApp(appId);
+                var updatedAppResponse = await svc.GetRegisteredApp(new GetAppRequest(){AppId = appId});
                 Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(updatedAppResponse.Content, Is.Not.Null);
 
@@ -288,7 +288,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
-                await svc.RevokeApp(appId);
+                await svc.RevokeApp(new GetAppRequest(){AppId = appId});
             }
         }
 

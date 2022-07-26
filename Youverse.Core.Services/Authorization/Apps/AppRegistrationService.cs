@@ -61,12 +61,17 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppClientRegistrationResponse> RegisterClient(Guid appId, byte[] clientPublicKey, string friendlyName)
         {
+            
+            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
+            Guard.Argument(clientPublicKey, nameof(clientPublicKey)).NotNull().Require(x => x.Length > 200);
+            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
+
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (appReg == null)
             {
-                throw new YouverseException("App must be registered");
+                throw new YouverseException("App must be registered to add a client");
             }
 
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());

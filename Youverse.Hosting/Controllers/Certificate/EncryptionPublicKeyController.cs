@@ -27,7 +27,15 @@ namespace Youverse.Hosting.Controllers.Certificate
         public async Task<JsonResult> GetOfflinePublicKey()
         {
             var key = await _publicKeyService.GetOfflinePublicKey();
-            return new JsonResult(key);
+
+            var o = new
+            {
+                PublicKey = key.publicKey,
+                Crc = key.crc32c,
+                Expiration = key.expiration
+            };
+            
+            return new JsonResult(o);
         }
     }
 }

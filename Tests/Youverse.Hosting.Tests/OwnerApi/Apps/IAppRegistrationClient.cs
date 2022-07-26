@@ -13,27 +13,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         private const string RootPath = OwnerApiPathConstants.AppManagementV1;
 
         [Get(RootPath)]
-        Task<ApiResponse<PagedResult<AppRegistrationResponse>>> GetRegisteredApps([Query]int pageNumber, [Query]int pageSize);
+        Task<ApiResponse<PagedResult<AppRegistrationResponse>>> GetRegisteredApps([Query] int pageNumber, [Query] int pageSize);
 
-        [Get(RootPath+"/{appId}")]
-        Task<ApiResponse<AppRegistrationResponse>> GetRegisteredApp(Guid appId);
+        [Post(RootPath + "/app")]
+        Task<ApiResponse<AppRegistrationResponse>> GetRegisteredApp([Body] GetAppRequest request);
 
-        [Post(RootPath)]
+        [Post(RootPath  + "/register/app")]
         Task<ApiResponse<AppRegistrationResponse>> RegisterApp([Body] AppRegistrationRequest appRegistration);
 
-        [Post(RootPath + "/revoke/{appId}")]
-        Task<ApiResponse<NoResultResponse>> RevokeApp(Guid appId);
-        
-        [Post(RootPath+"/allow/{appId}")]
-        Task<ApiResponse<NoResultResponse>> RemoveAppRevocation(Guid appId);
+        [Post(RootPath + "/revoke")]
+        Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
 
-        [Post(RootPath + "/clients")]
+        [Post(RootPath + "/allow")]
+        Task<ApiResponse<NoResultResponse>> RemoveAppRevocation([Body] GetAppRequest request);
+
+        [Post(RootPath + "/register/client")]
         Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
-
-        [Post(RootPath + "/clients/revoke")]
-        Task<ApiResponse<NoResultResponse>> RevokeAppClient([Query]Guid appClientId);
-        
-        [Post(RootPath + "/clients/allow")]
-        Task<ApiResponse<NoResultResponse>> RemoveAppDeviceRevocation([Query] Guid appId, [Query] string deviceId64);
     }
 }
