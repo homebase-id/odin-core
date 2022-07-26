@@ -187,8 +187,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             var permissionSet = new PermissionSet();
             if (canManageConnections)
             {
-                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Manage);
-                permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int)CircleNetworkRequestPermissions.Manage);
+                permissionSet.PermissionFlags = PermissionFlags.ManageAllConnections | PermissionFlags.ManageConnectionRequests;
             }
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
@@ -249,7 +248,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var request = new AppClientRegistrationRequest()
                 {
                     AppId = appId,
-                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
+                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey),
+                    ClientFriendlyName = "Some phone"
                 };
 
                 var regResponse = await svc.RegisterAppOnClient(request);

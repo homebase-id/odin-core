@@ -88,7 +88,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             var keys = await this.GetOfflineKeyInternal();
 
             var key = GetOfflineKeyDecryptionKey();
-            
+
             var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keys, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
@@ -103,7 +103,19 @@ namespace Youverse.Core.Services.EncryptionKeyService
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var cacheItem = _systemStorage.KeyValueStorage.Get<RsaPublicKeyData>(recipient.Id.ToUtf8ByteArray());
+            var response = _systemStorage.KeyValueStorage.Get<GetOfflinePublicKeyResponse>(recipient.Id.ToUtf8ByteArray());
+
+            RsaPublicKeyData cacheItem = null;
+
+            if (response != null)
+            {
+                cacheItem = new RsaPublicKeyData()
+                {
+                    publicKey = response.PublicKey,
+                    crc32c = response.Crc32,
+                    expiration = response.Expiration
+                };
+            }
 
             if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
             {
@@ -116,7 +128,12 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     return null;
                 }
 
-                cacheItem = tpkResponse.Content;
+                cacheItem = new RsaPublicKeyData()
+                {
+                    publicKey = tpkResponse.Content.PublicKey,
+                    crc32c = tpkResponse.Content.Crc32,
+                    expiration = tpkResponse.Content.Expiration
+                };
 
                 _systemStorage.KeyValueStorage.Upsert(recipient.Id.ToUtf8ByteArray(), cacheItem);
             }
@@ -149,7 +166,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             {
                 var key = GetOfflineKeyDecryptionKey();
                 var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref key, 2);
-                
+
                 _systemStorage.KeyValueStorage.Upsert(_rsaKeyStorageId.ToByteArray(), rsaKeyList);
                 return Task.FromResult(rsaKeyList);
             }

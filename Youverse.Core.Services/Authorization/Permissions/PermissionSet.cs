@@ -10,9 +10,11 @@ namespace Youverse.Core.Services.Authorization.Permissions
         public PermissionSet()
         {
         }
-
+        
         public Dictionary<SystemApi, int> Permissions { get; } = new Dictionary<SystemApi, int>();
-
+        
+        public PermissionFlags PermissionFlags { get; set; }
+        
         public bool Equals(PermissionSet other)
         {
             if (ReferenceEquals(null, other)) return false;

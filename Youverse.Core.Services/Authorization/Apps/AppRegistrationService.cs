@@ -23,15 +23,12 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
-        private readonly IDriveService _driveService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
-        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, IDriveService driveService,
-            ExchangeGrantService exchangeGrantService)
+        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
-            _driveService = driveService;
             _exchangeGrantService = exchangeGrantService;
 
             _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.EnsureIndex(k => k.AppId));
@@ -61,7 +58,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<AppClientRegistrationResponse> RegisterClient(Guid appId, byte[] clientPublicKey, string friendlyName)
         {
-            
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(clientPublicKey, nameof(clientPublicKey)).NotNull().Require(x => x.Length > 200);
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();

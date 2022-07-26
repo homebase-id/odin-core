@@ -111,10 +111,10 @@ namespace Youverse.Hosting.Middleware
                 masterKey: masterKey
             );
 
+            //basically all permision, even tho there is a check for isOwner.  i've not yet decide which one we'll use
             var permissionSet = new PermissionSet();
-            permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Manage);
-            permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int)CircleNetworkRequestPermissions.Manage);
-
+            permissionSet.PermissionFlags = PermissionFlags.ManageAllConnections | PermissionFlags.ManageConnectionRequests;
+            
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
@@ -190,7 +190,7 @@ namespace Youverse.Hosting.Middleware
 
                 //HACK: granting ability to see friends list to anon users.
                 var permissionSet = new PermissionSet();
-                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Read);
+                permissionSet.PermissionFlags = PermissionFlags.ReadConnections;
 
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(

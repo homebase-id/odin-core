@@ -11,6 +11,6 @@ namespace Youverse.Core.Services.EncryptionKeyService
     public interface IEncryptionKeyServiceHttpClient
     {
         [Get("/api/perimeter/transit/encryption/offlineKey")]
-        Task<ApiResponse<RsaPublicKeyData>> GetOfflinePublicKey();
+        Task<ApiResponse<GetOfflinePublicKeyResponse>> GetOfflinePublicKey();
     }
 }
