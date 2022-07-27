@@ -187,7 +187,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             var permissionSet = new PermissionSet();
             if (canManageConnections)
             {
-                permissionSet.PermissionFlags = PermissionFlags.ManageAllConnections | PermissionFlags.ManageConnectionRequests;
+                permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests | 
+                                                PermissionFlags.ReadConnectionRequests |
+                                                PermissionFlags.DeleteConnectionRequests | 
+                                                PermissionFlags.CreateOrSendConnectionRequests | 
+                                                PermissionFlags.ReadConnectionRequests | 
+                                                PermissionFlags.DeleteConnectionRequests;
             }
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
@@ -229,7 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var appReg = response.Content;
                 Assert.IsNotNull(appReg);
 
-                var updatedAppResponse = await svc.GetRegisteredApp(new GetAppRequest(){AppId = appId});
+                var updatedAppResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
                 Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(updatedAppResponse.Content, Is.Not.Null);
 
@@ -288,7 +293,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RestService.For<IAppRegistrationClient>(client);
-                await svc.RevokeApp(new GetAppRequest(){AppId = appId});
+                await svc.RevokeApp(new GetAppRequest() { AppId = appId });
             }
         }
 
@@ -540,7 +545,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData, bool encryptPayload = true)
+        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
+            bool encryptPayload = true)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 
@@ -550,7 +556,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var instructionStream = new MemoryStream(JsonConvert.SerializeObject(instructionSet).ToUtf8ByteArray());
-    
+
                 fileMetadata.PayloadIsEncrypted = encryptPayload;
                 var descriptor = new UploadFileDescriptor()
                 {

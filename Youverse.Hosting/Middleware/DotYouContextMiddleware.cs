@@ -113,8 +113,13 @@ namespace Youverse.Hosting.Middleware
 
             //basically all permision, even tho there is a check for isOwner.  i've not yet decide which one we'll use
             var permissionSet = new PermissionSet();
-            permissionSet.PermissionFlags = PermissionFlags.ManageAllConnections | PermissionFlags.ManageConnectionRequests;
-            
+            permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
+                                            PermissionFlags.ReadConnectionRequests |
+                                            PermissionFlags.DeleteConnectionRequests |
+                                            PermissionFlags.CreateOrSendConnectionRequests |
+                                            PermissionFlags.ReadConnectionRequests |
+                                            PermissionFlags.DeleteConnectionRequests;
+
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
@@ -168,7 +173,7 @@ namespace Youverse.Hosting.Middleware
             var securityLevel = user.HasClaim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower())
                 ? SecurityGroupType.Authenticated
                 : SecurityGroupType.Anonymous;
-            
+
             dotYouContext.Caller = new CallerContext(
                 dotYouId: callerDotYouId,
                 securityLevel: securityLevel,
