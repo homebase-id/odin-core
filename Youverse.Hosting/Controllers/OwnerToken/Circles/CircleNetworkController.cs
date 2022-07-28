@@ -22,23 +22,23 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("unblock")]
-        public async Task<IActionResult> Unblock(string dotYouId)
+        public async Task<IActionResult> Unblock([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Unblock((DotYouIdentity) dotYouId);
+            var result = await _circleNetwork.Unblock((DotYouIdentity)request.DotYouId);
             return new JsonResult(result);
         }
 
         [HttpPost("block")]
-        public async Task<IActionResult> Block(string dotYouId)
+        public async Task<IActionResult> Block([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Block((DotYouIdentity) dotYouId);
+            var result = await _circleNetwork.Block((DotYouIdentity)request.DotYouId);
             return new JsonResult(result);
         }
 
         [HttpPost("disconnect")]
-        public async Task<IActionResult> Disconnect(string dotYouId)
+        public async Task<IActionResult> Disconnect([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Disconnect((DotYouIdentity) dotYouId);
+            var result = await _circleNetwork.Disconnect((DotYouIdentity)request.DotYouId);
             return new JsonResult(result);
         }
 
@@ -50,9 +50,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("status")]
-        public async Task<IActionResult> GetConnectionInfo(string dotYouId)
+        public async Task<IActionResult> GetConnectionInfo([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
             return new JsonResult(result);
         }
 

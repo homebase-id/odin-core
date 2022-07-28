@@ -12,8 +12,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
     public interface ICircleNetworkRequestsClient
     {
         private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
-        private const string SentPathRoot = RootPath + "/sent";
-        private const string PendingPathRoot = RootPath + "/pending";
+        private const string SentPathRoot = RootPath + "/sent/list";
+        private const string PendingPathRoot = RootPath + "/pending/list";
 
         [Get(SentPathRoot)]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);

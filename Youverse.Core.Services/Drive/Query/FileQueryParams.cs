@@ -12,10 +12,6 @@ public class FileQueryParams
     public IEnumerable<byte[]> ThreadId { get; set; } = null;
 
     public TimeRange UserDate { get; set; } = null;
-
-    // public IEnumerable<byte[]> TagsMatchAtLeastOne { get; set; } = null;
-    //
-    // public IEnumerable<byte[]> TagsMatchAll { get; set; } = null;
     
     public IEnumerable<byte[]> TagsMatchAtLeastOne { get; set; } = null;
 

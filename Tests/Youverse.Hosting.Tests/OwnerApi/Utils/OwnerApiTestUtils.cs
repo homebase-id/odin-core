@@ -26,6 +26,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
@@ -187,11 +188,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             var permissionSet = new PermissionSet();
             if (canManageConnections)
             {
-                permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests | 
+                permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
                                                 PermissionFlags.ReadConnectionRequests |
-                                                PermissionFlags.DeleteConnectionRequests | 
-                                                PermissionFlags.CreateOrSendConnectionRequests | 
-                                                PermissionFlags.ReadConnectionRequests | 
+                                                PermissionFlags.DeleteConnectionRequests |
+                                                PermissionFlags.CreateOrSendConnectionRequests |
+                                                PermissionFlags.ReadConnectionRequests |
                                                 PermissionFlags.DeleteConnectionRequests;
             }
 
@@ -432,7 +433,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
         {
             var svc = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-            var response = await svc.GetStatus(dotYouId);
+            var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
             Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");

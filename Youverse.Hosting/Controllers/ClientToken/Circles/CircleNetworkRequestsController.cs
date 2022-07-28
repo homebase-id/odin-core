@@ -21,16 +21,16 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             _requestService = cn;
         }
 
-        [HttpGet("pending")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
+        [HttpGet("pending/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
-        [HttpGet("sent")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
+        [HttpGet("sent/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();

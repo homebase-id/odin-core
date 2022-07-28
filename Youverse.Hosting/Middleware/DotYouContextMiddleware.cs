@@ -189,7 +189,7 @@ namespace Youverse.Hosting.Middleware
                     DriveId = d.Id,
                     DriveAlias = d.Alias,
                     DriveType = d.Type,
-                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
                     Permission = DrivePermission.Read
                 });
 

@@ -22,8 +22,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
-        [HttpGet("pending")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
+        [HttpGet("pending/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
-        [HttpPost("pending")]
+        [HttpPost("pending/single")]
         public async Task<IActionResult> GetPendingRequest([FromBody]DotYouIdRequest request)
         {
             var result = await _requestService.GetPendingRequest((DotYouIdentity)request.DotYouId);
@@ -64,8 +64,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
-        [HttpGet("sent")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
+        [HttpGet("sent/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
-        [HttpPost("sent")]
+        [HttpPost("sent/single")]
         public async Task<IActionResult> GetSentRequest([FromBody]DotYouIdRequest request)
         {
             var result = await _requestService.GetSentRequest((DotYouIdentity)request.DotYouId);

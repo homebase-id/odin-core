@@ -23,10 +23,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             _circleNetwork = cn;
         }
 
-        [HttpGet("status/{dotYouId}")]
-        public async Task<IActionResult> GetConnectionInfo(string dotYouId)
+        [HttpPost("status")]
+        public async Task<IActionResult> GetConnectionInfo(DotYouIdRequest request)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)dotYouId);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
 
             return new JsonResult(new ConnectionInfoResponse()
             {

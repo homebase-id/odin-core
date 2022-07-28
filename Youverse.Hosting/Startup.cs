@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
@@ -7,6 +8,8 @@ using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +17,11 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.ObjectPool;
+using Newtonsoft.Json;
+using NReco.Logging.File;
+using Serilog.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Outbox;
@@ -65,15 +73,28 @@ namespace Youverse.Hosting
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
 
+
             services.AddControllers(options =>
                 {
+                    var jsonOptions = new JsonOptions();
+                    jsonOptions.AllowInputFormatterExceptionMessages = true;
+                    jsonOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                    jsonOptions.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+                    
+                    var sharedSecretFormatter = new SharedSecretJsonFormatter(jsonOptions);
+
+                    // options.InputFormatters.RemoveType<SystemTextJsonInputFormatter>();
+
+                    options.InputFormatters.Insert(0, sharedSecretFormatter);
+                    options.InputFormatters.Add(sharedSecretFormatter);
+
                     // options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+                // options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                // options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
             });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
@@ -85,7 +106,7 @@ namespace Youverse.Hosting
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
-                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,  $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
                 c.EnableAnnotations();
                 c.SwaggerDoc("v1", new()
                 {
@@ -182,7 +203,7 @@ namespace Youverse.Hosting
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
-                
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
 

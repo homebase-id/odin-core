@@ -69,14 +69,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sender.Identity});
+                var response = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
             }
-
         }
 
         [Test]
@@ -91,11 +90,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sam.Identity });
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
-
-            
         }
 
         [Test]
@@ -115,7 +112,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
             }
-            
         }
 
         [Test]
@@ -147,7 +143,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
 
-                var response = await svc.GetSentRequest(new DotYouIdRequest(){DotYouId = sam.Identity});
+                var response = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
@@ -170,7 +166,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
@@ -178,14 +174,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 // The pending request should be removed
                 //
-                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = frodo.Identity});
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {frodo.Identity} still exists");
 
                 //
                 // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var response = await samsConnetions.GetStatus(frodo.Identity);
+                var response = await samsConnetions.GetStatus(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {frodo.Identity} found");
@@ -198,14 +194,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var response = await frodoConnections.GetStatus(sam.Identity);
+                var response = await frodoConnections.GetStatus(new DotYouIdRequest() { DotYouId = sam.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
 
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var getResponse = await svc.GetSentRequest(new DotYouIdRequest(){DotYouId = sam.Identity});
+                var getResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
             }
 
@@ -227,7 +223,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
@@ -239,7 +235,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
-                
+
                 await samConnections.Unblock(frodo.Identity);
             }
 
@@ -261,9 +257,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
-                
+
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
@@ -290,14 +286,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                
+
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
@@ -321,7 +317,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
         {
             var svc = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-            var response = await svc.GetStatus(dotYouId);
+            var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
             Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");
@@ -357,7 +353,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
             {
                 var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(new DotYouIdRequest(){DotYouId = sender.Identity});
+                var response = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
