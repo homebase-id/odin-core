@@ -160,7 +160,7 @@ namespace Youverse.Core.Services.Transit
                 Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
             };
 
-            var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json, serializerOptions);
+            var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json, SerializationConfiguration.JsonSerializerOptions);
 
             // var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;

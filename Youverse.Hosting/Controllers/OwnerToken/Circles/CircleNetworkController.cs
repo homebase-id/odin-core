@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -55,6 +56,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
             return new JsonResult(result);
         }
+        
+        // [HttpPost("status")]
+        // public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
+        // {
+        //     var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
+        //     return result;
+        // }
 
         [HttpPost("connected")]
         public async Task<IActionResult> GetConnectedProfiles(int pageNumber, int pageSize)

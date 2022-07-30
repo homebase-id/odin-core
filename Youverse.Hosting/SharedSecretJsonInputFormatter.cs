@@ -1,16 +1,14 @@
 #nullable enable
-
 using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
@@ -18,23 +16,17 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting;
 
-public class SharedSecretEncryptedRequest
-{
-    public byte[] Iv { get; set; }
-    public string Data { get; set; }
-}
-
-public class SharedSecretJsonFormatter : TextInputFormatter, IInputFormatterExceptionPolicy
+public class SharedSecretJsonInputFormatter : TextInputFormatter, IInputFormatterExceptionPolicy
 {
     private readonly JsonOptions _jsonOptions;
-    private readonly ILogger<SharedSecretJsonFormatter> _logger;
+    private readonly ILogger<SharedSecretJsonInputFormatter> _logger;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="SharedSecretJsonFormatter"/>.
+    /// Initializes a new instance of <see cref="SharedSecretJsonInputFormatter"/>.
     /// </summary>
     /// <param name="options">The <see cref="JsonOptions"/>.</param>
     /// <param name="logger">The <see cref="ILogger"/>.</param>
-    public SharedSecretJsonFormatter(
+    public SharedSecretJsonInputFormatter(
         JsonOptions options)
     {
         SerializerOptions = options.JsonSerializerOptions;
@@ -80,7 +72,7 @@ public class SharedSecretJsonFormatter : TextInputFormatter, IInputFormatterExce
         try
         {
             //TODO: what happens for anonymous requests that don't have a shared secret?  maybe we treat those as normal?
-            var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedRequest>(inputStream, SerializerOptions);
+            var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(inputStream, SerializerOptions);
 
             if (null == encryptedRequest)
             {
@@ -93,7 +85,7 @@ public class SharedSecretJsonFormatter : TextInputFormatter, IInputFormatterExce
 
             var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
             var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
-            
+
             //update the body with the decrypted json file so it can be read by the web api controller
             context.HttpContext.Request.Body = new MemoryStream(jsonBytes);
 
@@ -167,53 +159,3 @@ public class SharedSecretJsonFormatter : TextInputFormatter, IInputFormatterExce
         return (inputStream, true);
     }
 }
-
-
-// public class SharedSecretJsonFormatter : NewtonsoftJsonInputFormatter
-// {
-//     public SharedSecretJsonFormatter(ILogger logger, JsonSerializerSettings serializerSettings, ArrayPool<char> charPool, ObjectPoolProvider objectPoolProvider, MvcOptions options,
-//         MvcNewtonsoftJsonOptions jsonOptions) : base(logger, serializerSettings, charPool, objectPoolProvider, options, jsonOptions)
-//     {
-//     }
-//
-//     public override async Task<InputFormatterResult> ReadRequestBodyAsync(InputFormatterContext context, Encoding encoding)
-//     {
-//         // InputFormatterContext ctx = new InputFormatterContext(
-//         //     httpContext: context.HttpContext,
-//         //     modelName: context.ModelName,
-//         //     modelState: context.ModelState,
-//         //     metadata: context.Metadata,
-//         //     context.ReaderFactory);
-//
-//
-//         //first read gives us the shared secret encrypted data
-//         var originalModel = context.ModelType;
-//         // context.ModelType = typeof(SharedSecretEncryptedRequest);
-//         var result = await base.ReadRequestBodyAsync(context, encoding);
-//
-//         if (result.HasError || result.IsModelSet == false)
-//         {
-//             //ship it up the chain
-//             return result;
-//         }
-//
-//         var encryptedRequest = result.Model as SharedSecretEncryptedRequest;
-//
-//         if (null == encryptedRequest)
-//         {
-//             return result;
-//         }
-//
-//         var accessor = context.HttpContext.RequestServices.GetRequiredService<DotYouContextAccessor>();
-//         var key = accessor.GetCurrent().PermissionsContext.SharedSecretKey;
-//
-//         var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
-//         var jsonBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
-//
-//         var json = jsonBytes.ToStringFromUtf8Bytes();
-//
-//         //update the body with the decrypted json file so it can be read by the web api controller
-//         context.HttpContext.Request.Body = new MemoryStream(jsonBytes);
-//         return await base.ReadRequestBodyAsync(context, encoding);
-//     }
-// }

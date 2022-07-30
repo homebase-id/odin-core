@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Autofac;
 using LiteDB;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,25 +78,32 @@ namespace Youverse.Hosting
 
             services.AddControllers(options =>
                 {
-                    var jsonOptions = new JsonOptions();
-                    jsonOptions.AllowInputFormatterExceptionMessages = true;
-                    jsonOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                    jsonOptions.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
-                    
-                    var sharedSecretFormatter = new SharedSecretJsonFormatter(jsonOptions);
-
+                    // options.Filters.Clear();
+                    // options.Filters.Add<SharedSecretResultActionFilter>(0);
+                    // options.Filters.Add<UnsupportedContentTypeFilter>(-3000);
+                    //
+                    // var jsonOptions = new JsonOptions();
+                    // jsonOptions.AllowInputFormatterExceptionMessages = true;
+                    // jsonOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                    // jsonOptions.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+                    //
+                    // var sharedSecretInputFormatter = new SharedSecretJsonInputFormatter(jsonOptions);
+                    //
                     // options.InputFormatters.RemoveType<SystemTextJsonInputFormatter>();
-
-                    options.InputFormatters.Insert(0, sharedSecretFormatter);
-                    options.InputFormatters.Add(sharedSecretFormatter);
+                    // options.InputFormatters.Add(sharedSecretInputFormatter);
+                    //
+                    // var sharedSecretOutputFormatter = new SharedSecretJsonOutputFormatter(jsonOptions.JsonSerializerOptions);
+                    // // options.OutputFormatters.RemoveType<SystemTextJsonOutputFormatter>();
+                    // options.OutputFormatters.Clear();
+                    // options.OutputFormatters.Insert(0, sharedSecretOutputFormatter);
 
                     // options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
             ).AddJsonOptions(options =>
             {
-                // options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                // options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
             });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
@@ -174,7 +183,7 @@ namespace Youverse.Hosting
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-
+            
             this.ConfigureLiteDBSerialization();
 
             app.UseDefaultFiles();
@@ -187,6 +196,7 @@ namespace Youverse.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
+            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
 
             app.UseWebSockets();
             app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
