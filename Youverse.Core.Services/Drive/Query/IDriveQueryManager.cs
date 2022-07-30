@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Drive.Query
         /// <param name="maxDate"></param>
         /// <param name="cursor"></param>
         /// <returns>(cursor, file Id List)</returns>
-        Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options);
+        Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options);
 
 
         /// <summary>

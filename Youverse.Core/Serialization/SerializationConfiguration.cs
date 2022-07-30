@@ -1,9 +1,8 @@
 #nullable enable
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Youverse.Core.Serialization;
 
-namespace Youverse.Core;
+namespace Youverse.Core.Serialization;
 
 public static class SerializationConfiguration
 {

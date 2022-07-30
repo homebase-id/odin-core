@@ -26,7 +26,7 @@ public class QueryBatchResultOptionsRequest
         {
             Cursor =  QueryBatchCursor.FromState(this.CursorState),
             MaxRecords = this.MaxRecords,
-            IncludeMetadataHeader = this.IncludeMetadataHeader
+            IncludeJsonContent = this.IncludeMetadataHeader
         };
     }
 }

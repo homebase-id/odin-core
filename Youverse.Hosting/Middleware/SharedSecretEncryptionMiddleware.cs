@@ -9,6 +9,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting.Middleware

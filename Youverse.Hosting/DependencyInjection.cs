@@ -107,6 +107,8 @@ namespace Youverse.Hosting
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
             cb.RegisterType<CircleNetworkNotificationService>();
+
+            cb.RegisterType<CdnPublisher>().AsSelf().SingleInstance();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

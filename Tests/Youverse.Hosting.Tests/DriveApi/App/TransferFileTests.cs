@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var uploadedFile = new ExternalFileIdentifier()
                 {
                     TargetDrive = recipientContext.TargetDrive,
-                    FileId = queryBatchResponse.Content.SearchResults.Single().FileId
+                    FileId = queryBatchResponse.Content.SearchResults.Single().FileMetadata.File.FileId
                 };
 
                 var fileResponse = await driveSvc.GetFileHeader(uploadedFile);

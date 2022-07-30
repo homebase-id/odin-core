@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Youverse.Core.Services.Apps;
 
 namespace Youverse.Core.Services.Drive;
 
@@ -10,5 +11,6 @@ public class QueryModifiedResult
     public bool IncludeMetadataHeader { get; set; }
     
     public ulong Cursor { get; set; }
-    public IEnumerable<DriveSearchResult> SearchResults { get; set; }
+
+    public IEnumerable<ClientFileHeader> SearchResults { get; set; }
 }

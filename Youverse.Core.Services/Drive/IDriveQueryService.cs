@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Drive
         /// Returns the fileId of recently modified files
         /// </summary>
         /// <returns>(cursor, file Id List)</returns>
-        Task<QueryModifiedResult> GetRecent(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options);
+        Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options);
 
         /// <summary>
         /// Returns a batch of file Ids

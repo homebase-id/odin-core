@@ -90,8 +90,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
         Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
-
-
+        
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
         
         /// <summary>

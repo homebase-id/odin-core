@@ -29,10 +29,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("recent")]
-        public async Task<IActionResult> GetRecent([FromBody] QueryModifiedRequest request)
+        public async Task<IActionResult> GetModified([FromBody] QueryModifiedRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetRecent(driveId, request.QueryParams, request.ResultOptions);
+            var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
             return new JsonResult(batch);
         }
 

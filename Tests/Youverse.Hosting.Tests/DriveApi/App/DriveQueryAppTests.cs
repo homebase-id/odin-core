@@ -93,7 +93,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 
@@ -161,14 +161,14 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.JsonContent);
-                Assert.IsNotEmpty(firstResult.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
-                Assert.IsTrue(firstResult.FileType == uploadFileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.DataType == uploadFileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.ContentType == uploadFileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -230,7 +230,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
             }
         }
     }

@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
 
         [Post(RootQueryEndpoint + "/recent")]
-        Task<ApiResponse<QueryModifiedResult>> GetRecent(QueryModifiedRequest request);
+        Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);

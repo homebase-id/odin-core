@@ -406,14 +406,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1))
             {
-                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(dotYouId2);
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(dotYouId2))
             {
-                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(dotYouId1);
+                var disconnectResponse = await RestService.For<ICircleNetworkConnectionsOwnerClient>(client).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
             }

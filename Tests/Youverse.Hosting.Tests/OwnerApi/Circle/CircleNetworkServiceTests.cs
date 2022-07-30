@@ -231,12 +231,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
 
                 var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var blockResponse = await samConnections.Block(frodo.Identity);
+                var blockResponse = await samConnections.Block(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
 
-                await samConnections.Unblock(frodo.Identity);
+                await samConnections.Unblock(new DotYouIdRequest() { DotYouId = frodo.Identity });
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -265,12 +265,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
 
                 var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var blockResponse = await samConnections.Block(frodo.Identity);
+                var blockResponse = await samConnections.Block(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
 
-                var unblockResponse = await samConnections.Unblock(frodo.Identity);
+                var unblockResponse = await samConnections.Unblock(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(unblockResponse.IsSuccessStatusCode && unblockResponse.Content, "failed to unblock");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
             }
@@ -300,7 +300,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
 
                 var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await samConnections.Disconnect(frodo.Identity);
+                var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.None);
             }
@@ -308,7 +308,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
+                var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
@@ -369,7 +369,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
             {
                 var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
+                var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
             }
@@ -377,7 +377,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
             {
                 var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await samConnections.Disconnect(frodo.Identity);
+                var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
             }

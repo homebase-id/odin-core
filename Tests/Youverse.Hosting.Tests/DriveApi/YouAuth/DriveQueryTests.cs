@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 
@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 {
                     MaxDate = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
                     MaxRecords = 10,
-                    IncludeMetadataHeader = false
+                    IncludeJsonContent = false
                 };
 
                 var request = new QueryModifiedRequest()
@@ -117,13 +117,13 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     ResultOptions = resultOptions
                 };
 
-                var getRecentResponse = await svc.GetRecent(request);
-                Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
-                var batch = getRecentResponse.Content;
+                var getModifiedResponse = await svc.GetModified(request);
+                Assert.IsTrue(getModifiedResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getModifiedResponse.StatusCode}");
+                var batch = getModifiedResponse.Content;
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 
@@ -161,7 +161,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 
@@ -207,14 +207,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.JsonContent);
-                Assert.IsNotEmpty(firstResult.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
-                Assert.IsTrue(firstResult.FileType == uploadContext.FileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.DataType == uploadContext.FileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.UserDate == uploadContext.FileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.ContentType == uploadContext.FileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.FileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.FileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.FileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.FileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -255,7 +255,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
             }
         }
 

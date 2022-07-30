@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public async Task<IActionResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetRecent(driveId, request.QueryParams, request.ResultOptions);
+            var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
             return new JsonResult(batch);
         }
 
