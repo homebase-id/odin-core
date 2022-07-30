@@ -10,7 +10,6 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
-using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
@@ -81,7 +80,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TagsMatchAtLeastOne = tags
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -91,7 +90,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -141,7 +140,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -151,7 +150,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -219,7 +218,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -229,7 +228,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);

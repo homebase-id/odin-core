@@ -26,8 +26,9 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
         //
 
-        [HttpGet(YouAuthApiPathConstants.ValidateAuthorizationCodeRequestMethodName)]
-        public async Task<ActionResult> ValidateAuthorizationCodeRequest(
+        [HttpGet("{filename}")]
+
+        public async Task<ActionResult> GetStaticFile(
             [FromQuery(Name = YouAuthDefaults.Subject)]
             string subject,
             [FromQuery(Name = YouAuthDefaults.AuthorizationCode)]
@@ -75,31 +76,6 @@ namespace Youverse.Hosting.Controllers.Anonymous
         }
 
 
-        //
-
-        [HttpGet(YouAuthApiPathConstants.IsAuthenticatedMethodName)]
-        [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme, Policy = ClientTokenPolicies.IsIdentified)]
-        public ActionResult IsAuthenticated()
-        {
-            return Ok(true);
-        }
-
-        //
-
-        [HttpGet(YouAuthApiPathConstants.DeleteTokenMethodName)]
-        [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme)]
-        public async Task<ActionResult> DeleteToken()
-        {
-            if (User?.Identity?.Name != null)
-            {
-                await _youAuthService.DeleteSession(User.Identity.Name);
-            }
-
-            Response.Cookies.Delete(YouAuthDefaults.XTokenCookieName);
-            return Ok();
-        }
 
         //
     }

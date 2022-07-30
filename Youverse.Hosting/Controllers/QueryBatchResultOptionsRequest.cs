@@ -2,7 +2,7 @@ using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 
 namespace Youverse.Hosting.Controllers;
 
-public class QueryBatchResultOptions
+public class QueryBatchResultOptionsRequest
 {
     /// <summary>
     /// Base64 encoded value of the cursor state used when paging/chunking through records

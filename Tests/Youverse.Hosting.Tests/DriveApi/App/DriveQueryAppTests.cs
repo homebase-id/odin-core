@@ -9,7 +9,6 @@ using Refit;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
-using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
@@ -81,7 +80,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                         TagsMatchAtLeastOne = tags
                     },
 
-                    ResultOptions = new QueryBatchResultOptions()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         CursorState = "",
                         MaxRecords = 10,
@@ -136,7 +135,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -146,7 +145,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.QueryBatch(request);
@@ -214,7 +213,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "", MaxRecords = 10,
                     IncludeMetadataHeader = false
@@ -223,7 +222,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.QueryBatch(request);

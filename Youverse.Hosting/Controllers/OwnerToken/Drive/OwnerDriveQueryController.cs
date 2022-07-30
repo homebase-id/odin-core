@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptions.ToQueryBatchResultOptions());
+            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
 
             var response = new QueryBatchResponse()
             {

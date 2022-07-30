@@ -13,7 +13,6 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
-using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 {
@@ -56,7 +55,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
@@ -66,7 +65,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -143,7 +142,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -154,7 +153,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -180,7 +179,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -191,7 +190,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -236,7 +235,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new QueryBatchResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -247,7 +246,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);

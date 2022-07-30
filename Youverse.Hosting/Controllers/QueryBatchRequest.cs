@@ -6,5 +6,5 @@ public class QueryBatchRequest
 {
     public FileQueryParams QueryParams { get; set; }
 
-    public QueryBatchResultOptions ResultOptions { get; set; }
+    public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
 }

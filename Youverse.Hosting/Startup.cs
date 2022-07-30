@@ -17,6 +17,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Quartz;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -189,15 +190,13 @@ namespace Youverse.Hosting
             app.UseDefaultFiles();
             app.UseCertificateForwarding();
             app.UseStaticFiles();
-
-            // app.UseSpaStaticFiles();
-
+         
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
-
+            
             app.UseWebSockets();
             app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 

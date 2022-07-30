@@ -19,7 +19,6 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
-using QueryBatchResultOptions = Youverse.Hosting.Controllers.QueryBatchResultOptions;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {
@@ -172,7 +171,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                         TargetDrive = recipientContext.TargetDrive,
                         TagsMatchAll = new List<byte[]>() { fileTag }
                     },
-                    ResultOptions = new Youverse.Hosting.Controllers.QueryBatchResultOptions()
+                    ResultOptionsRequest = new Youverse.Hosting.Controllers.QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 1,
                         IncludeMetadataHeader = true
