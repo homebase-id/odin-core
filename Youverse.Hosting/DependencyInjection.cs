@@ -14,6 +14,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Cdn;
 using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -108,7 +109,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<CircleNetworkNotificationService>();
 
-            cb.RegisterType<CdnPublisher>().AsSelf().SingleInstance();
+            cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

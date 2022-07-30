@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("metadata/type")]
         public async Task<IActionResult> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
         {

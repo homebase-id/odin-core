@@ -18,7 +18,7 @@ using Youverse.Hosting.Tests.AppAPI;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
-    public class DrivePublishStaticContentTests
+    public class DrivePublishStaticFileContentTests
     {
         private WebScaffold _scaffold;
 
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test(Description = "publish static content to file, including payload and thumbnails")]
-        public async Task CanPublishStaticContentWithThumbnails()
+        public async Task CanPublishStaticFileContentWithThumbnails()
         {
             var identity = TestIdentities.Frodo;
 

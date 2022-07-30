@@ -14,5 +14,8 @@
 
         public const string DrivesV1 = BasePathV1 + "/drive";
         public const string CirclesV1 = BasePathV1 + "/circles";
+
+        public const string CdnV1 = BasePathV1 + "/cdn";
+
     }
 }

@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _appService = appService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new JsonResult(result);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {

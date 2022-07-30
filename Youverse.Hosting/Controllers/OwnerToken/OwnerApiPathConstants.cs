@@ -16,6 +16,10 @@
 
         public const string DriveQueryV1 = DrivesV1 + "/query";
 
+        public const string OptimizationV1 = BasePathV1 + "/optimization";
+        
+        public const string CdnV1 = OptimizationV1 + "/cdn";
+
         public const string DriveStorageV1 = DrivesV1 + "/files";
 
         public const string TransitV1 = BasePathV1 + "/transit";

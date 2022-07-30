@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Dawn;
@@ -11,26 +10,33 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Core.Services.Cdn;
 
-public class CdnPublisher
+public class StaticFileContentService
 {
     private readonly IDriveService _driveService;
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
+    private readonly DotYouContextAccessor _contextAccessor;
 
-    public CdnPublisher(IDriveService driveService, IDriveQueryService driveQueryService, TenantContext tenantContext)
+    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService, TenantContext tenantContext, DotYouContextAccessor contextAccessor)
     {
         _driveService = driveService;
         _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
+        _contextAccessor = contextAccessor;
     }
 
     public async Task Publish(string filename, IEnumerable<QueryParamSection> sections)
     {
+        //Note: I need to add a permission that bettter describes that we only wnt this done when the owner is in full
+        //admin mode, not just from an app.  master key idicates you're in full admin mode
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFolder = EnsurePath();
         string tempFile = Guid.NewGuid().ToString("N");
@@ -95,12 +101,30 @@ public class CdnPublisher
             }
 
             await JsonSerializer.SerializeAsync(fileStream, sectionOutput, sectionOutput.GetType(), SerializationConfiguration.JsonSerializerOptions);
+
+            string finalTargetPath = Path.Combine(targetFolder, filename);
+            File.Move(tempTargetPath, finalTargetPath, true);
         }
+    }
+
+
+    public Task<Stream> GetStaticFileStream(string filename)
+    {
+        Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
+        string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
+
+        if (!File.Exists(targetFile))
+        {
+            return null;
+        }
+
+        var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult((Stream)fileStream);
     }
 
     private string EnsurePath()
     {
-        string targetFolder = Path.Combine(_tenantContext.TempDataRoot, "static");
+        string targetFolder = _tenantContext.StaticFileDataRoot;
 
         if (!Directory.Exists(targetFolder))
         {
@@ -114,56 +138,4 @@ public class CdnPublisher
     {
         return headers.Where(r => r.FileMetadata.PayloadIsEncrypted == false && r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
     }
-}
-
-public class SectionOutput
-{
-    public string Name { get; set; }
-
-    public List<StaticFile> Files { get; set; }
-}
-
-public class StaticFile
-{
-    public ClientFileHeader Header { get; set; }
-
-    public IEnumerable<ThumbnailContent> AdditionalThumbnails { get; set; }
-
-    /// <summary>
-    /// Base64 encoded byte array of the payload
-    /// </summary>
-    public byte[] Payload { get; set; }
-}
-
-public class QueryParamSection
-{
-    public string Name { get; set; }
-
-    public FileQueryParams QueryParams { get; set; }
-
-    public SectionResultOptions ResultOptions { get; set; }
-    //todo: need to be able to exclude/include payload
-}
-
-public class SectionResultOptions
-{
-    /// <summary>
-    /// If true, the content of the additional thumbnails defined in the metadata will be included in each file.
-    /// </summary>
-    public bool IncludeAdditionalThumbnails { get; set; }
-
-    /// <summary>
-    /// If true, the metadata.JsonContent field will be included in each file
-    /// </summary>
-    public bool IncludeJsonContent { get; set; }
-
-    /// <summary>
-    /// If true, the payload of each file will be included.
-    /// </summary>
-    public bool IncludePayload { get; set; }
-
-    /// <summary>
-    /// If true, the preview thumbnail will not be included in the file
-    /// </summary>
-    public bool ExcludePreviewThumbnail { get; set; }
 }
