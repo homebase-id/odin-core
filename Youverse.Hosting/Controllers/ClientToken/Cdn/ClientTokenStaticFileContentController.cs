@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Cdn;
+using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Hosting.Controllers.Anonymous;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Cdn

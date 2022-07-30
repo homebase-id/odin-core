@@ -14,7 +14,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 
-namespace Youverse.Core.Services.Cdn;
+namespace Youverse.Core.Services.Optimization.Cdn;
 
 public class StaticFileContentService
 {
@@ -31,18 +31,33 @@ public class StaticFileContentService
         _contextAccessor = contextAccessor;
     }
 
-    public async Task Publish(string filename, IEnumerable<QueryParamSection> sections)
+    public async Task<StaticFilePublishResult> Publish(string filename, List<QueryParamSection> sections)
     {
+        //
+        //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
+        //
+        
         //Note: I need to add a permission that bettter describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key idicates you're in full admin mode
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
+
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
+        Guard.Argument(sections, nameof(sections)).NotNull().NotEmpty();
         string targetFolder = EnsurePath();
         string tempFile = Guid.NewGuid().ToString("N");
         string tempTargetPath = Path.Combine(targetFolder, tempFile);
+        foreach (var s in sections)
+        {
+            s.AssertIsValid();
+        }
 
-        await using var fileStream = File.Create(tempTargetPath);
+        var result = new StaticFilePublishResult()
+        {
+            Filename = filename,
+            SectionResults = new List<SectionPublishResult>()
+        };
+
+        var sectionOutputList = new List<SectionOutput>();
 
         foreach (var section in sections)
         {
@@ -65,17 +80,18 @@ public class StaticFileContentService
                 Name = section.Name,
                 Files = new List<StaticFile>()
             };
+            sectionOutputList.Add(sectionOutput);
 
-            foreach (var header in filteredHeaders)
+            foreach (var fileHeader in filteredHeaders)
             {
                 byte[] payload = null;
                 var thumbnails = new List<ThumbnailContent>();
 
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
-                    foreach (var thumbHeader in header.FileMetadata.AppData.AdditionalThumbnails)
+                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData.AdditionalThumbnails)
                     {
-                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(header.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
+                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(fileHeader.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
                         thumbnails.Add(new ThumbnailContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -88,25 +104,33 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _driveService.GetPayloadStream(header.FileMetadata.File);
+                    var payloadStream = await _driveService.GetPayloadStream(fileHeader.FileMetadata.File);
                     payload = payloadStream.ToByteArray();
                 }
 
                 sectionOutput.Files.Add(new StaticFile()
                 {
-                    Header = header,
+                    Header = fileHeader,
                     AdditionalThumbnails = thumbnails,
                     Payload = payload
                 });
             }
-
-            await JsonSerializer.SerializeAsync(fileStream, sectionOutput, sectionOutput.GetType(), SerializationConfiguration.JsonSerializerOptions);
-
+            
+            result.SectionResults.Add(new SectionPublishResult()
+            {
+                Name = sectionOutput.Name,
+                FileCount = sectionOutput.Files.Count
+            });
+            
+            await using var fileStream = File.Create(tempTargetPath);
+            await JsonSerializer.SerializeAsync(fileStream, sectionOutputList, sectionOutputList.GetType(), SerializationConfiguration.JsonSerializerOptions);
+            
             string finalTargetPath = Path.Combine(targetFolder, filename);
             File.Move(tempTargetPath, finalTargetPath, true);
         }
-    }
 
+        return result;
+    }
 
     public Task<Stream> GetStaticFileStream(string filename)
     {

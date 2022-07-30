@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Cdn;
+using Youverse.Core.Services.Optimization.Cdn;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
 {
@@ -28,10 +28,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("publish")]
         public async Task<IActionResult> PublishBatch([FromBody] PublishStaticFileRequest request)
         {
-            await _staticFileContentService.Publish(request.Filename, request.Sections);
-            return Ok();
+            var publsihResults = await _staticFileContentService.Publish(request.Filename, request.Sections);
+            return new JsonResult(publsihResults);
         }
-        
+
 
         /// <summary>
         /// Returns the static file's contents
@@ -40,14 +40,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
         [HttpPost("staticfile")]
-        public async Task<IActionResult> GetThumbnail([FromBody] GetStaticFileRequest request)
+        public async Task<IActionResult> GetStaticFile([FromBody] GetStaticFileRequest request)
         {
             var payload = await _staticFileContentService.GetStaticFileStream(request.Filename);
             if (null == payload)
             {
                 return NotFound();
             }
-            
+
             return new FileStreamResult(payload, "application/json");
         }
     }

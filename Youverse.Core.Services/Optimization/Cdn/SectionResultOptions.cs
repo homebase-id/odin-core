@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Cdn;
+namespace Youverse.Core.Services.Optimization.Cdn;
 
 /// <summary>
 /// Options for how a <see cref="SectionOutput"/> should be created

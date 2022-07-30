@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive.Storage;
 
-namespace Youverse.Core.Services.Cdn;
+namespace Youverse.Core.Services.Optimization.Cdn;
 
 public class StaticFile
 {

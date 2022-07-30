@@ -450,7 +450,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
             {
                 if (strWhere != "")
                     strWhere += "AND ";
-                strWhere += $"datatype IN ({IntList(filetypesAnyOf)}) ";
+                strWhere += $"datatype IN ({IntList(datatypesAnyOf)}) ";
             }
 
             if (senderidAnyOf != null)
@@ -603,7 +603,7 @@ namespace Youverse.Core.Services.Drive.Query.Sqlite.Storage
 
             if (datatypesAnyOf != null)
             {
-                strWhere += $"AND datatype IN ({IntList(filetypesAnyOf)}) ";
+                strWhere += $"AND datatype IN ({IntList(datatypesAnyOf)}) ";
             }
 
             if (senderidAnyOf != null)

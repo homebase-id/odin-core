@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Cdn;
+namespace Youverse.Core.Services.Optimization.Cdn;
 
 public class SectionOutput
 {
