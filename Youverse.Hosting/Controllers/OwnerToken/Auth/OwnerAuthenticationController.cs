@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Authentication.Owner;
@@ -37,7 +38,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpPost]
-        public async Task<IActionResult> Authenticate([FromBody] PasswordReply package)
+        public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
             try
             {
@@ -54,11 +55,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
 
                 //TODO: need to encrypt shared secret using client public key
-                return new JsonResult(new OwnerAuthenticationResult() {SharedSecret = sharedSecret.GetKey()});
+                return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
             }
             catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
             {
-                return new JsonResult(new byte[] { });
+                return null;
             }
         }
 
@@ -75,17 +76,17 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpPost("extend")]
-        public async Task<IActionResult> Extend(Guid token)
+        public async Task<NoResultResponse> Extend(Guid token)
         {
             await _authService.ExtendTokenLife(token, 100);
-            return new JsonResult(new NoResultResponse(true));
+            return new NoResultResponse(true);
         }
 
         [HttpPost("expire")]
-        public IActionResult Expire(Guid token)
+        public NoResultResponse Expire(Guid token)
         {
             _authService.ExpireToken(token);
-            return new JsonResult(new NoResultResponse(true));
+            return new NoResultResponse(true);
         }
 
         [HttpGet]
@@ -96,24 +97,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("nonce")]
-        public async Task<IActionResult> GenerateNonce()
+        public async Task<NonceData> GenerateNonce()
         {
             var result = await _authService.GenerateAuthenticationNonce();
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpPost("todo_move_this")]
-        public async Task<IActionResult> SetNewPassword([FromBody] PasswordReply reply)
+        public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
             await _ss.SetNewPassword(reply);
-            return new JsonResult(new NoResultResponse(true));
+            return new NoResultResponse(true);
         }
 
         [HttpGet("getsalts")]
-        public async Task<IActionResult> GenerateSalts()
+        public async Task<NonceData> GenerateSalts()
         {
             var salts = await _ss.GenerateNewSalts();
-            return new JsonResult(salts);
+            return salts;
         }
     }
 }

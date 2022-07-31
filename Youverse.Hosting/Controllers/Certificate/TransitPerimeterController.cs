@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
 
         [HttpPost("stream")]
-        public async Task<IActionResult> AcceptHostToHostTransfer()
+        public async Task<HostTransferResponse> AcceptHostToHostTransfer()
         {
             //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
 
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 throw new HostToHostTransferException("Transmission Aborted");
             }
 
-            return new JsonResult(result);
+            return result;
         }
 
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)

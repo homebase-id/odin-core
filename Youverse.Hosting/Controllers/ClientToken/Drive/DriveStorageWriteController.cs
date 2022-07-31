@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/upload")]
-        public async Task<IActionResult> Upload()
+        public async Task<UploadResult> Upload()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             var package = await _packageStorageWriter.GetPackage(packageId);
             var status = await _transitService.AcceptUpload(package);
-            return new JsonResult(status);
+            return status;
         }
 
         private void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)

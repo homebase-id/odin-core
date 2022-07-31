@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         [Post(RootEndpoint + "/files/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
 
-        [Post(RootEndpoint + "/query/recent")]
+        [Post(RootEndpoint + "/query/modified")]
         Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);
 
         [Post(RootEndpoint + "/query/batch")]

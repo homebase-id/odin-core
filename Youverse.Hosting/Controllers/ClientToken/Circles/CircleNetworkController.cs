@@ -24,23 +24,23 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         }
 
         [HttpPost("status")]
-        public async Task<IActionResult> GetConnectionInfo(DotYouIdRequest request)
+        public async Task<ConnectionInfoResponse> GetConnectionInfo(DotYouIdRequest request)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
 
-            return new JsonResult(new ConnectionInfoResponse()
+            return new ConnectionInfoResponse()
             {
                 Status = result.Status,
                 LastUpdated = result.LastUpdated,
                 GrantIsRevoked = result.AccessGrant.Grant.IsRevoked || result.AccessGrant.AccessRegistration.IsRevoked
-            });
+            };
         }
 
         [HttpGet("connected")]
-        public async Task<IActionResult> GetConnectedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
+            return result;
         }
     }
 }

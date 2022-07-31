@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         [Post(RootEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
 
-        [Post(RootEndpoint + "/query/recent")]
+        [Post(RootEndpoint + "/query/modified")]
         Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 
         [Post(RootEndpoint + "/query/batch")]

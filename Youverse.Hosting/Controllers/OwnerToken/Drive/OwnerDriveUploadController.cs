@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// <exception cref="UploadException"></exception>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
-        public async Task<IActionResult> Upload()
+        public async Task<UploadResult> Upload()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             
             var package = await _packageStorageWriter.GetPackage(packageId);
             var status = await _transitService.AcceptUpload(package);
-            return new JsonResult(status);
+            return status;
         }
 
         private void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)

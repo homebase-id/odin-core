@@ -25,17 +25,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("recent")]
-        public async Task<IActionResult> QueryModified([FromBody] QueryModifiedRequest request)
+        [HttpPost("modified")]
+        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
-            return new JsonResult(batch);
+            return batch;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> QueryBatch([FromBody] QueryBatchRequest request)
+        public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 SearchResults = batch.SearchResults
             };
 
-            return new JsonResult(response);
+            return response;
         }
     }
 }

@@ -24,31 +24,31 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Returns a list of registered apps
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetRegisteredApps([FromQuery] int pageNumber, [FromQuery] int pageSize)
+        public async Task<PagedResult<AppRegistrationResponse>> GetRegisteredApps([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             var apps = await _appRegistrationService.GetRegisteredApps(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(apps);
+            return apps;
         }
 
         /// <summary>
         /// Returns the information for a registered app; otherwise null
         /// </summary>
         [HttpPost("app")]
-        public async Task<IActionResult> GetRegisteredApp([FromBody] GetAppRequest request)
+        public async Task<AppRegistrationResponse> GetRegisteredApp([FromBody] GetAppRequest request)
         {
             var reg = await _appRegistrationService.GetAppRegistration(request.AppId);
-            return new JsonResult(reg);
+            return reg;
         }
 
         [HttpPost("register/app")]
-        public async Task<IActionResult> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
+        public async Task<AppRegistrationResponse> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
             var reg = await _appRegistrationService.RegisterApp(
                 applicationId: appRegistration.AppId,
                 name: appRegistration.Name,
                 permissions: appRegistration.PermissionSet,
                 drives: appRegistration.Drives);
-            return new JsonResult(reg);
+            return reg;
         }
 
         /// <summary>

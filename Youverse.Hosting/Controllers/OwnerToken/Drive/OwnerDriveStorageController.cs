@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
-        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public async Task<ClientFileHeader> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.FileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
-            return new JsonResult(result);
+            return result;
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Contacts.Circle.Definition;
@@ -18,10 +19,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("definition")]
-        public async Task<IActionResult> GetCircleDefinitions()
+        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
         {
             var result = await _circleDefinitionService.GetCircles();
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpPost("create")]

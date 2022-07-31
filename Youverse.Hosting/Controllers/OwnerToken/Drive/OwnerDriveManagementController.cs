@@ -21,7 +21,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
-        public async Task<IActionResult> GetDrives([FromBody]GetDrivesRequest request)
+        public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody]GetDrivesRequest request)
         {
             var drives = await _driveService.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
 
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
-            return new JsonResult(page);
+            return page;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
-        public async Task<IActionResult> GetDrivesByType(GetDrivesByTypeRequest request)
+        public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType(GetDrivesByTypeRequest request)
         {
             var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
             var clientDriveData = drives.Results.Select(drive =>
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
-            return new JsonResult(page);
+            return page;
         }
     }
 }

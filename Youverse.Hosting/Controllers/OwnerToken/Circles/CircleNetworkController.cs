@@ -23,24 +23,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("unblock")]
-        public async Task<IActionResult> Unblock([FromBody] DotYouIdRequest request)
+        public async Task<bool> Unblock([FromBody] DotYouIdRequest request)
         {
             var result = await _circleNetwork.Unblock((DotYouIdentity)request.DotYouId);
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpPost("block")]
-        public async Task<IActionResult> Block([FromBody] DotYouIdRequest request)
+        public async Task<bool> Block([FromBody] DotYouIdRequest request)
         {
             var result = await _circleNetwork.Block((DotYouIdentity)request.DotYouId);
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpPost("disconnect")]
-        public async Task<IActionResult> Disconnect([FromBody] DotYouIdRequest request)
+        public async Task<bool> Disconnect([FromBody] DotYouIdRequest request)
         {
             var result = await _circleNetwork.Disconnect((DotYouIdentity)request.DotYouId);
-            return new JsonResult(result);
+            return result;
         }
 
         //[HttpPost("notify")]
@@ -51,10 +51,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("status")]
-        public async Task<IActionResult> GetConnectionInfo([FromBody] DotYouIdRequest request)
+        public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
-            return new JsonResult(result);
+            return result;
         }
         
         // [HttpPost("status")]
@@ -65,17 +65,17 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("connected")]
-        public async Task<IActionResult> GetConnectedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
+            return result;
         }
 
         [HttpPost("blocked")]
-        public async Task<IActionResult> GetBlockedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
+            return result;
         }
     }
 }

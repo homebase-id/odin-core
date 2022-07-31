@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Drive
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
                 return new QueryModifiedResult()
                 {
-                    IncludeMetadataHeader = options.IncludeJsonContent,
+                    IncludesJsonContent = options.IncludeJsonContent,
                     Cursor = updatedCursor,
                     SearchResults = headers
                 };
