@@ -261,10 +261,10 @@ namespace Youverse.Hosting
             
             //redirect everything else to root so the default behavior can start (i.e. clientside rendering)
             //TODO: not sure I like this since it means we'll miss 404s.  will need to consider
-            app.Run(async (context) =>
-            {
-                context.Response.Redirect("/");
-            });
+            // app.Run(async (context) =>
+            // {
+            //     context.Response.Redirect("/");
+            // });
         }
 
         private void ConfigureLiteDBSerialization()

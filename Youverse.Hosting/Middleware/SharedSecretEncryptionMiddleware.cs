@@ -22,6 +22,11 @@ namespace Youverse.Hosting.Middleware
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
 
         private readonly List<string> WhiteListPaths;
+        
+        /// <summary>
+        /// Paths that should not have their responses encrypted 
+        /// </summary>
+        private readonly List<string> WhiteListResponsePaths;
         //
 
         public SharedSecretEncryptionMiddleware(
@@ -39,6 +44,10 @@ namespace Youverse.Hosting.Middleware
             WhiteListPaths.Add("/api/perimeter"); //TODO: temporarily allowing all perimeter traffic not use shared secret
             WhiteListPaths.Add("/api/owner/v1/drive/files/upload");
             WhiteListPaths.Add("/api/apps/v1/drive/files/upload");
+            
+            WhiteListResponsePaths = new List<string>();
+            WhiteListResponsePaths.Add("/api/owner/v1/drive/files/");
+
         }
 
         //
