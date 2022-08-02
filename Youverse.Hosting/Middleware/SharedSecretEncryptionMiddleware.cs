@@ -105,7 +105,6 @@ namespace Youverse.Hosting.Middleware
             var iv = ByteArrayUtil.GetRndByteArray(16);
             var encryptedBytes = AesCbc.Encrypt(responseBytes, ref key, iv);
 
-            //wrap in our object
             //TODO: might be better to just put the IV as the first 16 bytes
             var encryptedPayload = new SharedSecretEncryptedPayload()
             {
@@ -113,8 +112,15 @@ namespace Youverse.Hosting.Middleware
                 Data = Convert.ToBase64String(encryptedBytes)
             };
 
-            await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
-            // context.Response.ContentLength = context.Response.Body.Length;
+            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
+            //await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
+            context.Response.ContentLength = finalBytes.Length;
+            // context.Request.Body = new MemoryStream(finalBytes);
+            await new MemoryStream(finalBytes).CopyToAsync(originalBody);
+
+            // context.Response.Body.Seek(0, SeekOrigin.Begin);
+            // await context.Response.Body.CopyToAsync(originalBody);
+            context.Response.Body = originalBody;
         }
 
         private SensitiveByteArray GetSharedSecret(HttpContext context)

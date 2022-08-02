@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
 
             if (result == null)
             {
-                this.HttpContext.Response.StatusCode = 400;
+                this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 return null;
             }
 

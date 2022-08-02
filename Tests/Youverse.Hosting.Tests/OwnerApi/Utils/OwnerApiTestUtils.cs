@@ -199,7 +199,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var drives = new List<DriveGrantRequest>();
                 if (createDrive)
                 {
-                    var driveSvc = RefitHack.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                    var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                     var createDriveResponse = await driveSvc.CreateDrive(
                         new CreateDriveRequest()
                         {
@@ -218,7 +218,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                     });
                 }
 
-                var svc = RefitHack.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
                 var request = new AppRegistrationRequest
                 {
@@ -248,7 +248,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RefitHack.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
@@ -292,7 +292,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RefitHack.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
                 await svc.RevokeApp(new GetAppRequest() { AppId = appId });
             }
@@ -406,14 +406,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitHack.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId2 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(dotYouId2, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitHack.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId1 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo, ConnectionStatus.None);
             }
@@ -423,7 +423,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         {
             using (var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
-                var transitSvc = RefitHack.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
                 var resp = await transitSvc.ProcessOutbox();
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
@@ -432,7 +432,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
         {
-            var svc = RefitHack.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
@@ -445,7 +445,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             //have frodo send it
             using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
-                var svc = RefitHack.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -464,7 +464,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             //accept the request
             using (var client = this.CreateOwnerApiHttpClient(recipient, out var ownerSharedSecret))
             {
-                var svc = RefitHack.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -481,7 +481,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RefitHack.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
                 var response = await svc.CreateDrive(new CreateDriveRequest()
                 {
@@ -509,7 +509,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 //ensure drive
-                var svc = RefitHack.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+                var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 Assert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;

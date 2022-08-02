@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests
 
         public T RestServiceFor<T>(HttpClient client, byte[] sharedSecret)
         {
-            return RefitHack.RestServiceFor<T>(client, sharedSecret.ToSensitiveByteArray());
+            return RefitCreator.RestServiceFor<T>(client, sharedSecret.ToSensitiveByteArray());
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests
         /// </summary>
         public T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
         {
-            return RefitHack.RestServiceFor<T>(client, sharedSecret);
+            return RefitCreator.RestServiceFor<T>(client, sharedSecret);
         }
 
         private void DeleteData()

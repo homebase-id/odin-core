@@ -4,7 +4,7 @@ using Youverse.Core.Cryptography;
 
 namespace Youverse.Hosting.Tests;
 
-public static class RefitHack
+public static class RefitCreator
 {
     public static T RestServiceFor<T>(HttpClient client, byte[] sharedSecret)
     {

@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var fileId = uploadResult.File.FileId;
 
                 //retrieve the file that was uploaded; decrypt; 
-                var driveSvc = RefitHack.RestServiceFor<IDriveTestHttpClientForApps>(client);
+                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var fileResponse = await driveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
 
