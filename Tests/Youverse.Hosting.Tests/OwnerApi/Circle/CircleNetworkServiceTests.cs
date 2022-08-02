@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var response = await svc.SendConnectionRequest(requestHeader);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content.Success, "Failed sending the request");
+                Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
@@ -346,7 +346,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var response = await svc.SendConnectionRequest(requestHeader);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content.Success, "Failed sending the request");
+                Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
             //check that sam got it

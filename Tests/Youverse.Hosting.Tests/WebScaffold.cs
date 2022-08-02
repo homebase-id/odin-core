@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
-using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
@@ -95,13 +95,17 @@ namespace Youverse.Hosting.Tests
         }
 
 
+        public T RestServiceFor<T>(HttpClient client, byte[] sharedSecret)
+        {
+            return RefitHack.RestServiceFor<T>(client, sharedSecret.ToSensitiveByteArray());
+        }
+
         /// <summary>
         /// Creates a Refit service using the shared secret encrypt/decrypt wrapper
         /// </summary>
         public T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
         {
-            var settings = new RefitSettings(new SharedSecretSystemTextJsonContentSerializer(sharedSecret));
-            return RestService.For<T>(client, settings);
+            return RefitHack.RestServiceFor<T>(client, sharedSecret);
         }
 
         private void DeleteData()

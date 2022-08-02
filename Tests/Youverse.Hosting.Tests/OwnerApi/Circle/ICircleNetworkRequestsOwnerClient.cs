@@ -14,10 +14,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private const string PendingPathRoot = RootPath + "/pending";
 
         [Post(RootPath + "/sendrequest")]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
+        Task<ApiResponse<bool>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept")]
-        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest([Body] AcceptRequestHeader header);
+        Task<ApiResponse<bool>> AcceptConnectionRequest([Body] AcceptRequestHeader header);
 
         [Get(SentPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] DotYouIdRequest request);
 
         [Delete(SentPathRoot + "/delete")]
-        Task<ApiResponse<NoResultResponse>> DeleteSentRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> DeleteSentRequest([Body] DotYouIdRequest request);
 
         [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
@@ -35,6 +35,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] DotYouIdRequest request);
 
         [Post(PendingPathRoot + "/delete")]
-        Task<ApiResponse<NoResultResponse>> DeletePendingRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> DeletePendingRequest([Body] DotYouIdRequest request);
     }
 }

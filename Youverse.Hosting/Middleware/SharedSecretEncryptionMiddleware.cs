@@ -38,6 +38,7 @@ namespace Youverse.Hosting.Middleware
             WhiteListPaths.Add("/api/owner/v1/transit/outbox/processor");
             WhiteListPaths.Add("/api/perimeter"); //TODO: temporarily allowing all perimeter traffic not use shared secret
             WhiteListPaths.Add("/api/owner/v1/drive/files/upload");
+            WhiteListPaths.Add("/api/apps/v1/drive/files/upload");
         }
 
         //
@@ -125,7 +126,7 @@ namespace Youverse.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
-            if (!context.Request.Path.StartsWithSegments("/api"))
+            if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST")
             {
                 return false;
             }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
@@ -70,8 +71,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
-                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
-
+                var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
                 var request = new QueryBatchRequest()
                 {
                     QueryParams = new FileQueryParams()
@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
-                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
 
                 var qp = new FileQueryParams()
                 {
@@ -206,8 +206,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
-                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
-
+                var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
