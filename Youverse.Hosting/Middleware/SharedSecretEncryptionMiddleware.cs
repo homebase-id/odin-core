@@ -113,7 +113,7 @@ namespace Youverse.Hosting.Middleware
             };
 
             await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
-            context.Response.ContentLength = 144;
+            // context.Response.ContentLength = context.Response.Body.Length;
         }
 
         private SensitiveByteArray GetSharedSecret(HttpContext context)
@@ -135,7 +135,6 @@ namespace Youverse.Hosting.Middleware
 
         private bool ShouldEncryptResponse(HttpContext context)
         {
-            return false;
             if (!context.Request.Path.StartsWithSegments("/api"))
             {
                 return false;

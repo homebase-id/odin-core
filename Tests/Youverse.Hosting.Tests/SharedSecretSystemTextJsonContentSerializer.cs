@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -9,6 +10,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
@@ -39,7 +41,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     {
         var content = JsonContent.Create(item, options: jsonSerializerOptions);
         var contentBytes = content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
-        
+
         var iv = ByteArrayUtil.GetRndByteArray(16);
         var key = _sharedSecret; //#wierd
         var encryptedBytes = AesCbc.Encrypt(contentBytes, ref key, iv);
@@ -56,8 +58,17 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     /// <inheritdoc/>
     public async Task<T?> FromHttpContentAsync<T>(HttpContent content, CancellationToken cancellationToken = default)
     {
-        var item = await content.ReadFromJsonAsync<T>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return item;
+        var payload = await content.ReadFromJsonAsync<SharedSecretEncryptedPayload>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+
+        if (payload == null)
+        {
+            throw new Exception($"Response was not type of {nameof(SharedSecretEncryptedPayload)}");
+        }
+
+        var key = _sharedSecret;
+        var decryptedBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
+        var c = await (new ByteArrayContent(decryptedBytes)).ReadFromJsonAsync<T>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return c;
     }
 
     public string? GetFieldNameForProperty(PropertyInfo propertyInfo)
@@ -69,7 +80,4 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             .Select(a => a.Name)
             .FirstOrDefault();
     }
-
-
-
 }
