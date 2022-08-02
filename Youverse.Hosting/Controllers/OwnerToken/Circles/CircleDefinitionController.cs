@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _circleDefinitionService = circleDefinitionService;
         }
 
-        [HttpPost("definition")]
+        [HttpGet("list")]
         public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
         {
             var result = await _circleDefinitionService.GetCircles();
