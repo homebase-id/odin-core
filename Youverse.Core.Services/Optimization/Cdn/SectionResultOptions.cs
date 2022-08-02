@@ -21,7 +21,7 @@ public class SectionResultOptions
     public bool IncludePayload { get; set; }
 
     /// <summary>
-    /// If true, the preview thumbnail will not be included in the file
+    /// If true, the preview thumbnail will not be included in the f    ile
     /// </summary>
     public bool ExcludePreviewThumbnail { get; set; }
 }

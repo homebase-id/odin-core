@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -19,6 +21,7 @@ namespace Youverse.Hosting.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
 
+        private readonly List<string> WhiteListPaths;
         //
 
         public SharedSecretEncryptionMiddleware(
@@ -27,18 +30,26 @@ namespace Youverse.Hosting.Middleware
         {
             _next = next;
             _logger = logger;
+
+            WhiteListPaths = new List<string>();
+            WhiteListPaths.Add("/api/owner/v1/optimization/cdn");
+            WhiteListPaths.Add("/api/owner/v1/youauth");
+            WhiteListPaths.Add("/api/owner/v1/authentication");
+            WhiteListPaths.Add("/api/owner/v1/transit/outbox/processor");
+            WhiteListPaths.Add("/api/perimeter"); //TODO: temporarily allowing all perimeter traffic not use shared secret
+            WhiteListPaths.Add("/api/owner/v1/drive/files/upload");
         }
 
         //
 
         public async Task Invoke(HttpContext context)
         {
-            if (RequestRequiresDecryption(context))
+            if (ShouldDecryptRequest(context))
             {
                 await DecryptRequest(context);
             }
 
-            if (ResponseRequiresDecryption(context))
+            if (ShouldEncryptResponse(context))
             {
                 using (var responseStream = new MemoryStream())
                 {
@@ -54,7 +65,6 @@ namespace Youverse.Hosting.Middleware
             else
             {
                 await _next(context);
-
             }
         }
 
@@ -63,20 +73,25 @@ namespace Youverse.Hosting.Middleware
             var request = context.Request;
 
             //todo: detect if this is an api endpoint
-
-            var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(request.Body, SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
-
-            if (null == encryptedRequest)
+            try
             {
-                throw new YouverseException("Failed to deserialize SharedSecretEncryptedRequest");
+                var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(request.Body, SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
+                if (null == encryptedRequest)
+                {
+                    throw new SharedSecretException("Failed to deserialize SharedSecretEncryptedRequest, result was null");
+                }
+
+                var key = this.GetSharedSecret(context);
+                var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
+                var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
+
+                //update the body with the decrypted json file so it can be read down stream as expected
+                request.Body = new MemoryStream(decryptedBytes);
             }
-
-            var key = this.GetSharedSecret(context);
-            var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
-            var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
-
-            //update the body with the decrypted json file so it can be read down stream as expected
-            request.Body = new MemoryStream(decryptedBytes);
+            catch (JsonException e)
+            {
+                throw new SharedSecretException("Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload");
+            }
         }
 
         private async Task EncryptResponse(HttpContext context, Stream originalBody)
@@ -98,6 +113,7 @@ namespace Youverse.Hosting.Middleware
             };
 
             await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
+            context.Response.ContentLength = 144;
         }
 
         private SensitiveByteArray GetSharedSecret(HttpContext context)
@@ -107,16 +123,25 @@ namespace Youverse.Hosting.Middleware
             return key;
         }
 
-        private bool RequestRequiresDecryption(HttpContext context)
+        private bool ShouldDecryptRequest(HttpContext context)
         {
-            //TODO: check paths; skip login, etc.
-            return true;
+            if (!context.Request.Path.StartsWithSegments("/api"))
+            {
+                return false;
+            }
+
+            return !WhiteListPaths.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 
-        private bool ResponseRequiresDecryption(HttpContext context)
+        private bool ShouldEncryptResponse(HttpContext context)
         {
-            //TODO: check paths; skip payloads, etc.
-            return true;
+            return false;
+            if (!context.Request.Path.StartsWithSegments("/api"))
+            {
+                return false;
+            }
+
+            return !WhiteListPaths.Any(p => context.Request.Path.StartsWithSegments(p));
         }
     }
 }

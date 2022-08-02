@@ -11,5 +11,4 @@ public static class SerializationConfiguration
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
     };
-
 }

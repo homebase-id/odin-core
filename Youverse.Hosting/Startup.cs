@@ -75,8 +75,7 @@ namespace Youverse.Hosting
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-
-
+            
             services.AddControllers(options =>
                 {
                     // options.Filters.Clear();
@@ -184,29 +183,28 @@ namespace Youverse.Hosting
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-            
+
             this.ConfigureLiteDBSerialization();
 
             app.UseDefaultFiles();
             app.UseCertificateForwarding();
             app.UseStaticFiles();
-         
+
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
-            // app.UseMiddleware<SharedSecretEncryptionMiddleware>();
-            
-            app.UseWebSockets();
-            app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+
+            // app.UseWebSockets();
+            // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-
-
+            
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
@@ -239,20 +237,34 @@ namespace Youverse.Hosting
                         });
                     });
 
-                var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
 
-                app.UseStaticFiles(new StaticFileOptions()
-                {
-                    FileProvider = new PhysicalFileProvider(publicPath),
-                    RequestPath = "/home"
-                });
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                    homeApp =>
+                    {
+                        var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
 
-                app.Run(async context =>
-                {
-                    await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                    return;
-                });
+                        homeApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(publicPath),
+                            RequestPath = "/home"
+                        });
+
+                        homeApp.Run(async context =>
+                        {
+                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                            return;
+                        });
+                    });
+                
+                //
             }
+            
+            //redirect everything else to root so the default behavior can start (i.e. clientside rendering)
+            //TODO: not sure I like this since it means we'll miss 404s.  will need to consider
+            app.Run(async (context) =>
+            {
+                context.Response.Redirect("/");
+            });
         }
 
         private void ConfigureLiteDBSerialization()

@@ -61,13 +61,6 @@ namespace Youverse.Hosting.Authentication.Owner
                         new Claim(DotYouClaimTypes.AuthResult, authResult.ToString(), ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                     };
 
-                    if (!string.IsNullOrEmpty(Context.Request.Headers[DotYouHeaderNames.AppId]))
-                    {
-                        //TODO: the app is checked in the dotyoucontextmiddleware.  we should add checking here maybe or rename to IsApp instead of IsAuthorizedApp
-                        var c = new Claim(DotYouClaimTypes.IsAuthorizedApp, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer);
-                        claims.Add(c);
-                    }
-
                     var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 

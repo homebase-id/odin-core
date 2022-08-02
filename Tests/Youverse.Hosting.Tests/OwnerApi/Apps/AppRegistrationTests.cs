@@ -6,6 +6,7 @@ using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
@@ -49,9 +50,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var sharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
 
                 Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
@@ -76,7 +77,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
@@ -112,7 +113,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
                     AppId = applicationId,
@@ -139,7 +141,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
                 Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
                 Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");

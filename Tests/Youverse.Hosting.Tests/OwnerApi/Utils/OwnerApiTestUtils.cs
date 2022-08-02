@@ -139,44 +139,42 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
 
             _ownerLoginTokens.Add(identity, context);
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
-            {
-                var svc = RestService.For<IProvisioningClient>(client);
-                await svc.EnsureSystemApps();
-            }
+            // using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
+            // {
+            //     var svc = RestService.For<IProvisioningClient>(client);
+            //     await svc.EnsureSystemApps();
+            // }
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, null);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret);
             return client;
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, null);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret);
             sharedSecret = token.SharedSecret;
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, Guid? appId = null)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
-            HttpMessageHandler handler = new HttpClientHandler()
+
+            HttpMessageHandler cookieHandler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar
             };
 
-            HttpClient client = new(handler);
-            client.Timeout = TimeSpan.FromMinutes(15);
+            // var handler = new SharedSecretHandler(sharedSecret, cookieHandler);
 
-            if (appId != null)
-            {
-                client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId.ToString());
-            }
+            HttpClient client = new(cookieHandler);
+            client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;

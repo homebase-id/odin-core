@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.ClientToken;
 
 namespace Youverse.Hosting.Controllers.Anonymous
 {
@@ -27,7 +26,6 @@ namespace Youverse.Hosting.Controllers.Anonymous
         //
 
         [HttpGet("{filename}")]
-
         public async Task<ActionResult> GetStaticFile(
             [FromQuery(Name = YouAuthDefaults.Subject)]
             string subject,
