@@ -17,7 +17,6 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
@@ -44,6 +43,7 @@ namespace Youverse.Hosting.Middleware
 
             if (tenant?.Name == null || string.IsNullOrEmpty(authType))
             {
+                dotYouContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                 await _next(httpContext);
                 return;
             }
@@ -112,9 +112,14 @@ namespace Youverse.Hosting.Middleware
                 masterKey: masterKey
             );
 
+            //basically all permision, even tho there is a check for isOwner.  i've not yet decide which one we'll use
             var permissionSet = new PermissionSet();
-            permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Manage);
-            permissionSet.Permissions.Add(SystemApi.CircleNetworkRequests, (int)CircleNetworkRequestPermissions.Manage);
+            permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
+                                            PermissionFlags.ReadConnectionRequests |
+                                            PermissionFlags.DeleteConnectionRequests |
+                                            PermissionFlags.CreateOrSendConnectionRequests |
+                                            PermissionFlags.ReadConnectionRequests |
+                                            PermissionFlags.DeleteConnectionRequests;
 
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
@@ -133,8 +138,6 @@ namespace Youverse.Hosting.Middleware
                     permissionSet: permissionSet,
                     driveDecryptionKey: masterKey,
                     sharedSecretKey: clientSharedSecret,
-                    exchangeGrantId: Guid.Empty,
-                    accessRegistrationId: Guid.Empty,
                     isOwner: true
                 ));
 
@@ -171,7 +174,7 @@ namespace Youverse.Hosting.Middleware
             var securityLevel = user.HasClaim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower())
                 ? SecurityGroupType.Authenticated
                 : SecurityGroupType.Anonymous;
-            
+
             dotYouContext.Caller = new CallerContext(
                 dotYouId: callerDotYouId,
                 securityLevel: securityLevel,
@@ -187,13 +190,13 @@ namespace Youverse.Hosting.Middleware
                     DriveId = d.Id,
                     DriveAlias = d.Alias,
                     DriveType = d.Type,
-                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
                     Permission = DrivePermission.Read
                 });
 
                 //HACK: granting ability to see friends list to anon users.
                 var permissionSet = new PermissionSet();
-                permissionSet.Permissions.Add(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Read);
+                permissionSet.PermissionFlags = PermissionFlags.ReadConnections;
 
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(
@@ -201,8 +204,6 @@ namespace Youverse.Hosting.Middleware
                         permissionSet: permissionSet,
                         driveDecryptionKey: null,
                         sharedSecretKey: null,
-                        exchangeGrantId: Guid.Empty,
-                        accessRegistrationId: Guid.Empty,
                         isOwner: false
                     ));
 

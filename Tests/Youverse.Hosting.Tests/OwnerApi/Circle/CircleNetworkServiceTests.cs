@@ -7,11 +7,13 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
 {
@@ -47,9 +49,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
             var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -62,20 +64,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var response = await svc.SendConnectionRequest(requestHeader);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content.Success, "Failed sending the request");
+                Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(sender.Identity);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var response = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
             }
-
         }
 
         [Test]
@@ -83,18 +84,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
-                var deleteResponse = await svc.DeletePendingRequest(sam.Identity);
+                var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
-                var getResponse = await svc.GetPendingRequest(sam.Identity);
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
-
-            
         }
 
         [Test]
@@ -102,9 +101,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
@@ -114,7 +113,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
             }
-            
         }
 
         [Test]
@@ -123,9 +121,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var response = await svc.GetSentRequestList(PageOptions.Default);
 
@@ -142,11 +140,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
-                var response = await svc.GetSentRequest(sam.Identity);
+                var response = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
@@ -159,9 +157,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -169,7 +167,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
@@ -177,34 +175,34 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 // The pending request should be removed
                 //
-                var getResponse = await svc.GetPendingRequest(frodo.Identity);
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {frodo.Identity} still exists");
 
                 //
                 // Frodo should be in Sam's contacts network.
                 //
-                var samsConnetions = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var response = await samsConnetions.GetStatus(frodo.Identity);
+                var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var response = await samsConnetions.GetStatus(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
             }
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
                 //
                 // Sam should be in Frodo's contacts network
                 //
-                var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var response = await frodoConnections.GetStatus(sam.Identity);
+                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var response = await frodoConnections.GetStatus(new DotYouIdRequest() { DotYouId = sam.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
                 Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
 
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var getResponse = await svc.GetSentRequest(sam.Identity);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var getResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
             }
 
@@ -216,9 +214,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -226,20 +224,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
 
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var blockResponse = await samConnections.Block(frodo.Identity);
+                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var blockResponse = await samConnections.Block(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
-                
-                await samConnections.Unblock(frodo.Identity);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Blocked);
+
+                await samConnections.Unblock(new DotYouIdRequest() { DotYouId = frodo.Identity });
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -250,9 +248,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var header = new AcceptRequestHeader()
                 {
@@ -260,22 +258,22 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
-                
+
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var blockResponse = await samConnections.Block(frodo.Identity);
+                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var blockResponse = await samConnections.Block(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
                 Assert.IsTrue(blockResponse.IsSuccessStatusCode && blockResponse.Content, "failed to block");
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Blocked);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Blocked);
 
-                var unblockResponse = await samConnections.Unblock(frodo.Identity);
+                var unblockResponse = await samConnections.Unblock(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(unblockResponse.IsSuccessStatusCode && unblockResponse.Content, "failed to unblock");
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -286,41 +284,41 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
                     Permissions = new PermissionSet()
                 };
-                
+
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
 
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.Connected);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.Connected);
 
-                var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await samConnections.Disconnect(frodo.Identity);
+                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, frodo.Identity, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
-                var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
+                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
             }
         }
 
-        private async Task AssertConnectionStatus(HttpClient client, string dotYouId, ConnectionStatus expected)
+        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
         {
-            var svc = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-            var response = await svc.GetStatus(dotYouId);
+            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
             Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");
@@ -334,9 +332,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
             //have frodo send it
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
@@ -349,14 +347,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var response = await svc.SendConnectionRequest(requestHeader);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content.Success, "Failed sending the request");
+                Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
             //check that sam got it
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-                var response = await svc.GetPendingRequest(sender.Identity);
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var response = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
@@ -369,20 +367,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
-                var frodoConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await frodoConnections.Disconnect(sam.Identity);
+                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, TestIdentities.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
-                var samConnections = RestService.For<ICircleNetworkConnectionsOwnerClient>(client);
-                var disconnectResponse = await samConnections.Disconnect(frodo.Identity);
+                var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, TestIdentities.Frodo, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo, ConnectionStatus.None);
             }
         }
     }

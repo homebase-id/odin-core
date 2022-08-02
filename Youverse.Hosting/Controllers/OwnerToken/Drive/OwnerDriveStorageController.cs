@@ -1,12 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
@@ -26,43 +23,72 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             _appService = appService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("header")]
-        public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        /// <summary>
+        /// Retrieves a file's header and metadata
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("header")]
+        public async Task<ClientFileHeader> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
-            return new JsonResult(result);
+            return result;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("payload")]
-        public async Task<IActionResult> StreamPayload([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        /// <summary>
+        /// Retrieves a file's encrypted payload
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("payload")]
+        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
-    
+
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpDelete]
-        public async Task DeleteFile([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        
+        /// <summary>
+        /// Retrieves an encrypted thumbnail.  The available thumbnails are defined on the AppFileMeta.
+        ///
+        /// See GET files/header
+        /// </summary>
+        /// <param name="request"></param>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("thumb")]
+        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
+                FileId = request.File.FileId
+            };
+            
+            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            return new FileStreamResult(payload, "application/octet-stream");
+        }
+        
+        /// <summary>
+        /// Deletes a file
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("delete")]
+        public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
             await _driveService.DeleteLongTermFile(file);
         }

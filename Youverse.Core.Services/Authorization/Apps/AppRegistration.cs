@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public AppRegistration() { }
 
         [BsonId]
-        public Guid ApplicationId { get; set; }
+        public Guid AppId { get; set; }
         
         public string Name { get; set; }
 

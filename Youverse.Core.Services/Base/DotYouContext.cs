@@ -36,7 +36,9 @@ namespace Youverse.Core.Services.Base
                 return;
             }
 
-            if (PermissionsContext != null && PermissionsContext.HasPermission(SystemApi.CircleNetwork, (int) CircleNetworkPermissions.Manage))
+            var permission = PermissionFlags.ApproveConnection | PermissionFlags.ReadConnections | PermissionFlags.UpdateConnections | PermissionFlags.DeleteConnections;
+            
+            if (PermissionsContext != null && PermissionsContext.HasPermission(permission))
             {
                 return;
             }

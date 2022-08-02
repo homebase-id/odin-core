@@ -25,9 +25,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <returns></returns>
         Task<IncomingTransferStateItem> GetStateItem(Guid id);
 
-        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, Stream data);
+        Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
 
-        Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, Stream data);
+        Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data);
 
         Task Reject(Guid transferStateItemId, MultipartHostTransferParts part);
 

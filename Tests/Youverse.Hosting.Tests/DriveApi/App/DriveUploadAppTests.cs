@@ -7,6 +7,8 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI;
@@ -64,9 +66,9 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {
-                        Tags = new List<byte[]>() {Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray()},
+                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
                         ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new {message = "We're going to the beach; this is encrypted by the app"})
+                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
             };
@@ -75,7 +77,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadDataRaw);
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
             {
@@ -101,11 +103,11 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 ////
                 var targetDrive = uploadResult.File.TargetDrive;
                 var fileId = uploadResult.File.FileId;
-                
-                //retrieve the file that was uploaded; decrypt; 
-                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
-                var fileResponse = await driveSvc.GetFileHeader(targetDrive, fileId);
+                //retrieve the file that was uploaded; decrypt; 
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testContext.SharedSecret);
+
+                var fileResponse = await driveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -120,25 +122,25 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
-                Assert.That(clientFileHeader.EncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-                Assert.That(clientFileHeader.EncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
-                var decryptedKeyHeader = clientFileHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
+                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
                 var fileKey = decryptedKeyHeader.AesKey;
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(targetDrive, fileId);
+                var payloadResponse = await driveSvc.GetPayload(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream) payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
+                Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
                 var aesKey = decryptedKeyHeader.AesKey;
                 var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
@@ -152,6 +154,70 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
 
                 decryptedKeyHeader.AesKey.Wipe();
+            }
+
+            keyHeader.AesKey.Wipe();
+            key.Wipe();
+        }
+
+        [Test(Description = "")]
+        public async Task CannotUploadEncryptedFileForAnonymousGroups()
+        {
+            var identity = TestIdentities.Frodo;
+
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = testContext.TargetDrive
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var sba = testContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sba),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    PayloadIsEncrypted = true,
+                    AppData = new()
+                    {
+                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                        ContentIsComplete = true,
+                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    },
+                    AccessControlList = new AccessControlList()
+                    {
+                        RequiredSecurityGroup = SecurityGroupType.Anonymous
+                    }
+                }
+            };
+
+            var key = testContext.SharedSecret.ToSensitiveByteArray();
+            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadDataRaw = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity, testContext.ClientAuthenticationToken))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.False(response.IsSuccessStatusCode);
             }
 
             keyHeader.AesKey.Wipe();

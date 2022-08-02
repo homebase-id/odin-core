@@ -32,9 +32,10 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetRecent(CallerContext callerContext, FileQueryParams qp, GetRecentResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+        qp.AssertIsValid();
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
@@ -58,9 +59,10 @@ public class SqliteQueryManager : IDriveQueryManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, GetBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+        qp.AssertIsValid();
 
         var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
 
@@ -123,6 +125,11 @@ public class SqliteQueryManager : IDriveQueryManager
         // var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
         var tags = metadata.AppData.Tags;
 
+        // !!!
+        //NOTE: when you update payload is encrypted, be sure to update
+        // DriveQueryService.CreateSearchResult accordingly
+        // !!!
+        
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(

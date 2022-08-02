@@ -132,8 +132,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 permissionSet: grant.PermissionSet,
                 driveDecryptionKey: grantKeyStoreKey,
                 sharedSecretKey: sharedSecret,
-                exchangeGrantId: accessReg.GrantId,
-                accessRegistrationId: accessReg.Id,
                 isOwner: isOwner
             );
 

@@ -1,27 +1,39 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Autofac;
 using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Quartz;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.ObjectPool;
+using Newtonsoft.Json;
+using NReco.Logging.File;
+using Serilog.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -63,9 +75,28 @@ namespace Youverse.Hosting
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-
+            
             services.AddControllers(options =>
                 {
+                    // options.Filters.Clear();
+                    // options.Filters.Add<SharedSecretResultActionFilter>(0);
+                    // options.Filters.Add<UnsupportedContentTypeFilter>(-3000);
+                    //
+                    // var jsonOptions = new JsonOptions();
+                    // jsonOptions.AllowInputFormatterExceptionMessages = true;
+                    // jsonOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                    // jsonOptions.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
+                    //
+                    // var sharedSecretInputFormatter = new SharedSecretJsonInputFormatter(jsonOptions);
+                    //
+                    // options.InputFormatters.RemoveType<SystemTextJsonInputFormatter>();
+                    // options.InputFormatters.Add(sharedSecretInputFormatter);
+                    //
+                    // var sharedSecretOutputFormatter = new SharedSecretJsonOutputFormatter(jsonOptions.JsonSerializerOptions);
+                    // // options.OutputFormatters.RemoveType<SystemTextJsonOutputFormatter>();
+                    // options.OutputFormatters.Clear();
+                    // options.OutputFormatters.Insert(0, sharedSecretOutputFormatter);
+
                     // options.Filters.Add(new ApplyPerimeterMetaData());
                     //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
                 }
@@ -84,7 +115,7 @@ namespace Youverse.Hosting
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
-                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,  $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
                 c.EnableAnnotations();
                 c.SwaggerDoc("v1", new()
                 {
@@ -97,12 +128,13 @@ namespace Youverse.Hosting
                 .AddOwnerAuthentication()
                 .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
-                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme);
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
+                .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>
             {
                 OwnerPolicies.AddPolicies(policy);
-                // AppPolicies.AddPolicies(policy);
+                SystemPolicies.AddPolicies(policy);
                 ClientTokenPolicies.AddPolicies(policy);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
@@ -158,23 +190,21 @@ namespace Youverse.Hosting
             app.UseCertificateForwarding();
             app.UseStaticFiles();
 
-            // app.UseSpaStaticFiles();
-
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
+            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
 
-            app.UseWebSockets();
-            app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+            // app.UseWebSockets();
+            // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-
-
+            
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
@@ -207,20 +237,34 @@ namespace Youverse.Hosting
                         });
                     });
 
-                var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
 
-                app.UseStaticFiles(new StaticFileOptions()
-                {
-                    FileProvider = new PhysicalFileProvider(publicPath),
-                    RequestPath = "/home"
-                });
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                    homeApp =>
+                    {
+                        var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
 
-                app.Run(async context =>
-                {
-                    await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                    return;
-                });
+                        homeApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(publicPath),
+                            RequestPath = "/home"
+                        });
+
+                        homeApp.Run(async context =>
+                        {
+                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                            return;
+                        });
+                    });
+                
+                //
             }
+            
+            //redirect everything else to root so the default behavior can start (i.e. clientside rendering)
+            //TODO: not sure I like this since it means we'll miss 404s.  will need to consider
+            // app.Run(async (context) =>
+            // {
+            //     context.Response.Redirect("/");
+            // });
         }
 
         private void ConfigureLiteDBSerialization()

@@ -24,4 +24,6 @@ public interface IExchangeGrant
     /// Permissions indicating what the app can do
     /// </summary>
     public PermissionSet PermissionSet { get; set; }
+
+    public PermissionFlags PermissionFlags { get; set; }
 }

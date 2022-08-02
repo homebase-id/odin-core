@@ -43,8 +43,10 @@ namespace Youverse.Core.Services.Transit
             _publicKeyService = publicKeyService;
         }
 
-        public async Task StoreLongTerm(InternalDriveFileId file)
+        public async Task StoreLongTerm(TransferBoxItem item)
         {
+            var file = item.TempFile;
+
             var transferInstructionSet =
                 await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(file, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
@@ -74,14 +76,16 @@ namespace Youverse.Core.Services.Transit
             metadataStream.Close();
 
             var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
-            metadata!.SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId;
+            metadata!.SenderDotYouId = item.Sender;
 
             var serverMetadata = new ServerMetadata()
             {
+                //files coming from other systems are only accessible to the owner so the owner can use the UI to pass the file along
+
                 AccessControlList = new AccessControlList()
                 {
                     RequiredSecurityGroup = SecurityGroupType.Owner
-                }
+                },
             };
 
             await _driveService.CommitTempFileToLongTerm(file, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
@@ -93,7 +97,7 @@ namespace Youverse.Core.Services.Transit
             var items = await GetAcceptedItems(PageOptions.All);
             foreach (var item in items.Results)
             {
-                await StoreLongTerm(item.TempFile);
+                await StoreLongTerm(item);
 
                 var externalFileIdentifier = new ExternalFileIdentifier()
                 {
@@ -108,6 +112,7 @@ namespace Youverse.Core.Services.Transit
                     File = externalFileIdentifier,
                     Priority = 0 //TODO
                 });
+                
                 await _transitBoxService.Remove(item.TempFile.DriveId, item.Id);
             }
         }
@@ -124,8 +129,8 @@ namespace Youverse.Core.Services.Transit
                 list.AddRange(l.Results);
             }
 
-            return new PagedResult<TransferBoxItem>(pageOptions,1, list);
-            
+            return new PagedResult<TransferBoxItem>(pageOptions, 1, list);
+
             // var appId = _contextAccessor.GetCurrent().AppContext.AppId;
             // return await _transitBoxService.GetPendingItems(appId, pageOptions);
         }

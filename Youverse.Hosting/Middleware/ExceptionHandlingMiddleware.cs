@@ -39,10 +39,39 @@ namespace Youverse.Hosting.Middleware
             {
                 await HandleDriveAccessException(context, dex);
             }
+            catch (SharedSecretException sharedSecretException)
+            {
+                await HandleSharedSecretException(context, sharedSecretException);
+            }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(context, ex);
             }
+        }
+
+        private Task HandleSharedSecretException(HttpContext context, SharedSecretException sharedSecretException)
+        {
+            const int status = 403;
+            const string title = "Shared Secret Required";
+
+            _logger.LogError(sharedSecretException, "{ErrorText}", sharedSecretException.Message);
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Detail = "The request body you provided must be formatted as a SharedSecretEncryptedPayload.",
+                Extensions =
+                {
+                    ["correlationId"] = _correlationContext.Id
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
         }
 
         //

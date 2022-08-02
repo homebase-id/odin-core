@@ -24,21 +24,21 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpPost("recent")]
-        public async Task<IActionResult> GetRecent([FromBody] GetRecentRequest request)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("modified")]
+        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetRecent(driveId, request.QueryParams, request.ResultOptions);
-            return new JsonResult(batch);
+            var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
+            return batch;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batch")]
-        public async Task<IActionResult> GetBatch([FromBody] GetBatchRequest request)
+        public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptions.ToGetBatchResultOptions());
+            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             
             var response = new QueryBatchResponse()
             {
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 SearchResults = batch.SearchResults
             };
 
-            return new JsonResult(response);
+            return response;
         }
     }
 }

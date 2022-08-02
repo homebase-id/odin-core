@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 payloadData = options?.PayloadData ?? payloadData;
-                var payloadCipher = keyHeader.GetEncryptedStreamAes(payloadData);
+                var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -251,7 +251,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                         using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            var resp = await transitAppSvc.ProcessTransfers();
+                            var resp = await transitAppSvc.ProcessIncomingTransfers();
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }

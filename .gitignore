@@ -35,3 +35,7 @@ msbuild.wrn
 
 # Visual Studio 2015
 .vs/
+
+# examples stuffs dependencies
+/youverse.hosting/client/examples/node_modules
+/youverse.hosting/client/examples/build

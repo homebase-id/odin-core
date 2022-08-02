@@ -6,6 +6,7 @@ using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
@@ -49,10 +50,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var sharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
-                var revokeResponse = await svc.RevokeApp(appId);
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
 
                 Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
                 Assert.IsTrue(revokeResponse.Content?.Success);
@@ -76,12 +77,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
                 var request = new AppClientRegistrationRequest()
                 {
-                    ApplicationId = appId,
-                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey)
+                    AppId = appId,
+                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey),
+                    ClientFriendlyName = "Some phone"
                 };
 
                 var regResponse = await svc.RegisterAppOnClient(request);
@@ -111,10 +113,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
+
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
                 {
-                    ApplicationId = applicationId,
+                    AppId = applicationId,
                     Name = name,
                     PermissionSet = null,
                     Drives = null
@@ -127,21 +130,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.ApplicationId == request.ApplicationId);
+                Assert.IsTrue(savedApp.AppId == request.AppId);
                 Assert.IsTrue(savedApp.Name == request.Name);
 
                 return appReg;
             }
         }
 
-        private async Task<AppRegistrationResponse> GetSampleApp(Guid applicationId)
+        private async Task<AppRegistrationResponse> GetSampleApp(Guid appId)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IAppRegistrationClient>(client);
-                var appResponse = await svc.GetRegisteredApp(applicationId);
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
-                Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {applicationId}");
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
+                Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");
                 var savedApp = appResponse.Content;
                 return savedApp;
             }

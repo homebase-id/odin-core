@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -21,25 +22,25 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _circleNetworkNotificationService = circleNetworkNotificationService;
         }
 
-        [HttpGet("unblock/{dotYouId}")]
-        public async Task<IActionResult> Unblock(string dotYouId)
+        [HttpPost("unblock")]
+        public async Task<bool> Unblock([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Unblock((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
+            var result = await _circleNetwork.Unblock((DotYouIdentity)request.DotYouId);
+            return result;
         }
 
-        [HttpGet("block/{dotYouId}")]
-        public async Task<IActionResult> Block(string dotYouId)
+        [HttpPost("block")]
+        public async Task<bool> Block([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Block((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
+            var result = await _circleNetwork.Block((DotYouIdentity)request.DotYouId);
+            return result;
         }
 
-        [HttpGet("disconnect/{dotYouId}")]
-        public async Task<IActionResult> Disconnect(string dotYouId)
+        [HttpPost("disconnect")]
+        public async Task<bool> Disconnect([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.Disconnect((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
+            var result = await _circleNetwork.Disconnect((DotYouIdentity)request.DotYouId);
+            return result;
         }
 
         //[HttpPost("notify")]
@@ -49,25 +50,32 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         //     return Ok();
         // }
 
-        [HttpGet("status/{dotYouId}")]
-        public async Task<IActionResult> GetConnectionInfo(string dotYouId)
+        [HttpPost("status")]
+        public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity) dotYouId);
-            return new JsonResult(result);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
+            return result;
         }
+        
+        // [HttpPost("status")]
+        // public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
+        // {
+        //     var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
+        //     return result;
+        // }
 
-        [HttpGet("connected")]
-        public async Task<IActionResult> GetConnectedProfiles(int pageNumber, int pageSize)
+        [HttpPost("connected")]
+        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
+            return result;
         }
 
-        [HttpGet("blocked")]
-        public async Task<IActionResult> GetBlockedProfiles(int pageNumber, int pageSize)
+        [HttpPost("blocked")]
+        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
-            return new JsonResult(result);
+            return result;
         }
     }
 }

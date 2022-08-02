@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 
 namespace Youverse.Hosting.Tests.AppAPI.Circle
@@ -38,44 +40,45 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             //runs before each test 
             //_scaffold.DeleteData(); 
         }
-        
+
         [Test]
         public async Task CanGetPendingConnectionRequestList()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
-
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity))
+            var (frodoTestContext, samTestContext) = await CreateConnectionRequestFrodoToSam();
+            
+            //sam should have a pending incoming request
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(samTestContext))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-
+                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsClient>(client, samTestContext.SharedSecret);
+                
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
                 Assert.IsNotNull(response.Content);
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodoTestContext.Identity), $"Could not find request from {frodoTestContext.Identity} in the results");
             }
-            
         }
 
         [Test]
         public async Task CanGetSentConnectionRequestList()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodoTestContext, samTestContext) = await CreateConnectionRequestFrodoToSam();
+            
+            //sam should have a pending incoming request
 
-            //Check Sam's list of sent requests
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity))
+            //Check frodo's list of sent requests
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(frodoTestContext))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-
+                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsClient>(client, frodoTestContext.SharedSecret.ToSensitiveByteArray());
                 var response = await svc.GetSentRequestList(PageOptions.Default);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
                 Assert.IsNotNull(response.Content, "No result returned");
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == samTestContext.Identity), $"Could not find request with recipient {samTestContext.Identity} in the results");
             }
         }
 
@@ -86,10 +89,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
             //have frodo send it
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var sharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsOwnerClient>(client);
-
+                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, sharedSecret);
                 var id = Guid.NewGuid();
                 var requestHeader = new ConnectionRequestHeader()
                 {
@@ -101,14 +103,16 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 var response = await svc.SendConnectionRequest(requestHeader);
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content!.Success, "Failed sending the request");
+                Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
             //check that sam got it
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleNetworkRequestsClient>(client);
-                var response = await svc.GetPendingRequest(sender.Identity);
+
+                var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var response = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sender.Identity });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 

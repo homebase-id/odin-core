@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         public Guid Token { get; set; }
         
         /// <summary>
-        /// RSA encrypted response. If encryption version == 1, the ClientKek is the frist 16 bytes, SharedSecret is the second 16 bytes
+        /// RSA encrypted response.  When encryption version == 1, the  first 16 bytes is token id, second 16 bytes is AccessTokenHalfKey, and last 16 bytes is SharedSecret
         /// </summary>
         public byte[] Data { get; set; }
     }

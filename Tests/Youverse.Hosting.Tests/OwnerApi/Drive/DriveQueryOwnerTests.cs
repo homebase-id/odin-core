@@ -71,26 +71,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
-
-
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                     TagsMatchAtLeastOne = tags
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -98,12 +97,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItems()
+        public async Task CanQueryDriveModifiedItems()
         {
             var identity = TestIdentities.Samwise;
 
@@ -133,24 +132,24 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = true
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -166,14 +165,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.JsonContent);
-                Assert.IsNotEmpty(firstResult.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
-                Assert.IsTrue(firstResult.FileType == uploadFileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.DataType == uploadFileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.ContentType == uploadFileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -181,7 +180,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItemsRedactedContent()
+        public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
 
@@ -211,24 +210,24 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -236,7 +235,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
             }
         }
     }

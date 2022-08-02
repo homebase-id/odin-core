@@ -1,17 +1,19 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -22,12 +24,14 @@ namespace Youverse.Core.Services.Drive
         private readonly IDriveService _driveService;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly IAppService _appService;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor)
+        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
             _contextAccessor = contextAccessor;
+            _appService = appService;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -62,37 +66,37 @@ namespace Youverse.Core.Services.Drive
             await manager.SwitchIndex();
         }
 
-        public async Task<QueryRecentResult> GetRecent(Guid driveId, FileQueryParams qp, GetRecentResultOptions options)
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetRecent(_contextAccessor.GetCurrent().Caller, qp, options);
-                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetModified(_contextAccessor.GetCurrent().Caller, qp, options);
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
-                return new QueryRecentResult()
+                return new QueryModifiedResult()
                 {
-                    IncludeMetadataHeader = options.IncludeMetadataHeader,
+                    IncludesJsonContent = options.IncludeJsonContent,
                     Cursor = updatedCursor,
-                    SearchResults = searchResults
+                    SearchResults = headers
                 };
             }
 
             throw new NoValidIndexException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, GetBatchResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
-                var searchResults = await CreateSearchResult(driveId, fileIdList, options);
 
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
                 return new QueryBatchResult()
                 {
-                    IncludeMetadataHeader = options.IncludeMetadataHeader,
+                    IncludeMetadataHeader = options.IncludeJsonContent,
                     Cursor = cursor,
-                    SearchResults = searchResults
+                    SearchResults = headers
                 };
             }
 
@@ -111,16 +115,31 @@ namespace Youverse.Core.Services.Drive
                     FileId = fileId
                 };
 
-                //Note: this will fail if the index returns a file the caller cannot access.
-                //this can occur when the index is out of sync w/ the header that's on disk
-                //this failure is a good thing
-                var header = await _driveService.GetServerFileHeader(file);
-                var dsr = FromFileMetadata(header);
+                var header = await _appService.GetClientEncryptedFileHeader(file);
 
-                if (!options.IncludeMetadataHeader)
+                var metadata = header.FileMetadata;
+
+                var dsr = new DriveSearchResult()
                 {
-                    dsr.JsonContent = "";
-                }
+                    SharedSecretEncryptedKeyHeader = header.SharedSecretEncryptedKeyHeader,
+                    ContentType = metadata.ContentType,
+                    FileId = metadata.File.FileId,
+                    ContentIsComplete = metadata.AppData.ContentIsComplete,
+                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
+                    ThreadId = metadata.AppData.ThreadId,
+                    FileType = metadata.AppData.FileType,
+                    DataType = metadata.AppData.DataType,
+                    UserDate = metadata.AppData.UserDate,
+                    JsonContent = options.IncludeJsonContent ? metadata.AppData.JsonContent : string.Empty,
+                    Tags = metadata.AppData.Tags,
+                    CreatedTimestamp = metadata.Created,
+                    LastUpdatedTimestamp = metadata.Updated,
+                    SenderDotYouId = metadata.SenderDotYouId,
+                    AccessControlList = header.ServerMetadata?.AccessControlList,
+                    Priority = header.Priority,
+                    PreviewThumbnail = options.ExcludePreviewThumbnail ? null : metadata.AppData.PreviewThumbnail,
+                    AdditionalThumbnails = metadata.AppData.AdditionalThumbnails
+                };
 
                 results.Add(dsr);
             }
@@ -128,53 +147,33 @@ namespace Youverse.Core.Services.Drive
             return results;
         }
 
-        private DriveSearchResult FromFileMetadata(ServerFileHeader header)
+        private async Task<IEnumerable<ClientFileHeader>> CreateClientFileHeaders(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
         {
-            int priority = 1000;
+            var results = new List<ClientFileHeader>();
 
-            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
+            foreach (var fileId in fileIdList)
             {
-                case SecurityGroupType.Anonymous:
-                    priority = 500;
-                    break;
-                case SecurityGroupType.Authenticated:
-                    priority = 400;
-                    break;
-                case SecurityGroupType.Connected:
-                    priority = 300;
-                    break;
-                // case SecurityGroupType.CircleConnected:
-                //     priority = 200;
-                //     break;
-                // case SecurityGroupType.CustomList:
-                //     priority = 100;
-                //     break;
-                case SecurityGroupType.Owner:
-                    priority = 1;
-                    break;
+                var file = new InternalDriveFileId()
+                {
+                    DriveId = driveId,
+                    FileId = fileId
+                };
+
+                var header = await _appService.GetClientEncryptedFileHeader(file);
+                if (!options.IncludeJsonContent)
+                {
+                    header.FileMetadata.AppData.JsonContent = string.Empty;
+                }
+
+                if (options.ExcludePreviewThumbnail)
+                {
+                    header.FileMetadata.AppData.PreviewThumbnail = null;
+                }
+
+                results.Add(header);
             }
 
-            var metadata = header.FileMetadata;
-
-            //TODO: add other priority based details of SecurityGroupType.CircleConnected and SecurityGroupType.CustomList
-            return new DriveSearchResult()
-            {
-                ContentType = metadata.ContentType,
-                FileId = metadata.File.FileId,
-                ContentIsComplete = metadata.AppData.ContentIsComplete,
-                PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                ThreadId = metadata.AppData.ThreadId,
-                FileType = metadata.AppData.FileType,
-                DataType = metadata.AppData.DataType,
-                UserDate = metadata.AppData.UserDate,
-                JsonContent = metadata.AppData.JsonContent,
-                Tags = metadata.AppData.Tags,
-                CreatedTimestamp = metadata.Created,
-                LastUpdatedTimestamp = metadata.Updated,
-                SenderDotYouId = metadata.SenderDotYouId,
-                AccessControlList = _contextAccessor.GetCurrent().Caller.IsOwner ? header.ServerMetadata.AccessControlList : null,
-                Priority = priority
-            };
+            return results;
         }
 
         private async void InitializeQueryManagers()

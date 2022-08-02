@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             _scaffold.RunAfterAnyTests();
         }
-
+        
         [Test]
         public async Task ShouldNotReturnSecuredFile_QueryBatch()
         {
@@ -46,8 +46,6 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
-            securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
-            anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
             {
@@ -57,17 +55,17 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     MaxRecords = 10,
                     IncludeMetadataHeader = false
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -76,12 +74,13 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 
         [Test]
-        public async Task ShouldNotReturnSecuredFile_QueryRecent()
+        [Ignore("invalid test until we support file updates")]
+        public async Task ShouldNotReturnSecuredFile_QueryModified()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -105,26 +104,26 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetRecentResultOptions()
+                var resultOptions = new QueryModifiedResultOptions()
                 {
                     MaxDate = (UInt64)DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
                     MaxRecords = 10,
-                    IncludeMetadataHeader = false
+                    IncludeJsonContent = false
                 };
 
-                var request = new GetRecentRequest()
+                var request = new QueryModifiedRequest()
                 {
                     QueryParams = qp,
                     ResultOptions = resultOptions
                 };
 
-                var getRecentResponse = await svc.GetRecent(request);
-                Assert.IsTrue(getRecentResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getRecentResponse.StatusCode}");
-                var batch = getRecentResponse.Content;
+                var getModifiedResponse = await svc.GetModified(request);
+                Assert.IsTrue(getModifiedResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getModifiedResponse.StatusCode}");
+                var batch = getModifiedResponse.Content;
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 
@@ -143,7 +142,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -151,10 +150,10 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -162,12 +161,12 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItems()
+        public async Task CanQueryDriveModifiedItems()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -180,7 +179,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -188,10 +187,10 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -208,14 +207,14 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.JsonContent);
-                Assert.IsNotEmpty(firstResult.JsonContent);
+                Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
+                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
-                Assert.IsTrue(firstResult.FileType == uploadContext.FileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.DataType == uploadContext.FileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.UserDate == uploadContext.FileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.ContentType == uploadContext.FileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.SenderDotYouId));
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.FileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.FileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.FileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.FileMetadata.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -223,7 +222,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        public async Task CanQueryDriveRecentItemsRedactedContent()
+        public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
@@ -236,7 +235,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
                 };
 
-                var resultOptions = new GetBatchQueryResultOptions()
+                var resultOptions = new QueryBatchResultOptionsRequest()
                 {
                     CursorState = "",
                     MaxRecords = 10,
@@ -244,10 +243,10 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 };
 
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
-                var request = new GetBatchRequest()
+                var request = new QueryBatchRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptionsRequest = resultOptions
                 };
 
                 var response = await svc.GetBatch(request);
@@ -256,7 +255,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.JsonContent)), "One or more items had content");
+                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
             }
         }
 
@@ -285,6 +284,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
+                EncryptPayload = false,
                 PayloadData = "some payload data for good measure",
                 ProcessOutbox = false,
                 ProcessTransitBox = false,
@@ -328,7 +328,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 }
             };
 
-            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload);
+            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
         }
     }
 }

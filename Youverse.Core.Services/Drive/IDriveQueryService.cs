@@ -13,12 +13,12 @@ namespace Youverse.Core.Services.Drive
         /// Returns the fileId of recently modified files
         /// </summary>
         /// <returns>(cursor, file Id List)</returns>
-        Task<QueryRecentResult> GetRecent(Guid driveId, FileQueryParams qp, GetRecentResultOptions options);
+        Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options);
 
         /// <summary>
         /// Returns a batch of file Ids
         /// </summary>
-        Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, GetBatchResultOptions options);
+        Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options);
 
         Task RebuildBackupIndex(Guid driveId);
 

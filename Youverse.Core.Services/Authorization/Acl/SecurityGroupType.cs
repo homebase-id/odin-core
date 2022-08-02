@@ -26,6 +26,8 @@ namespace Youverse.Core.Services.Authorization.Acl
         /// <summary>
         /// Specifies that only the owner can access a file
         /// </summary>
-        Owner = 999
+        Owner = 999,
+        
+        System = 1 
     }
 }

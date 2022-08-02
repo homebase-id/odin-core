@@ -13,28 +13,28 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 
-        [Post(SentPathRoot)]
-        Task<ApiResponse<NoResultResponse>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
+        [Post(RootPath + "/sendrequest")]
+        Task<ApiResponse<bool>> SendConnectionRequest([Body] ConnectionRequestHeader requestHeader);
 
         [Post(PendingPathRoot + "/accept")]
-        Task<ApiResponse<NoResultResponse>> AcceptConnectionRequest([Body]AcceptRequestHeader header);
+        Task<ApiResponse<bool>> AcceptConnectionRequest([Body] AcceptRequestHeader header);
 
-        [Get(SentPathRoot)]
+        [Get(SentPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
 
-        [Get(SentPathRoot + "/{recipientDotYouId}")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest(string recipientDotYouId);
-        
-        [Delete(SentPathRoot + "/{recipientDotYouId}")]
-        Task<ApiResponse<NoResultResponse>> DeleteSentRequest(string recipientDotYouId);
+        [Post(SentPathRoot+ "/single")]
+        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] DotYouIdRequest request);
 
-        [Get(PendingPathRoot)]
+        [Delete(SentPathRoot + "/delete")]
+        Task<ApiResponse<bool>> DeleteSentRequest([Body] DotYouIdRequest request);
+
+        [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
 
-        [Get(PendingPathRoot + "/{senderDotYouId}")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest(string senderDotYouId);
+        [Post(PendingPathRoot+ "/single")]
+        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] DotYouIdRequest request);
 
-        [Delete(PendingPathRoot + "/{senderDotYouId}")]
-        Task<ApiResponse<NoResultResponse>> DeletePendingRequest(string senderDotYouId);
+        [Post(PendingPathRoot + "/delete")]
+        Task<ApiResponse<bool>> DeletePendingRequest([Body] DotYouIdRequest request);
     }
 }

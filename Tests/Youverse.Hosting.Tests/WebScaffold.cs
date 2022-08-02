@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Youverse.Core;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
@@ -54,7 +56,7 @@ namespace Youverse.Hosting.Tests
             {
                 _ownerApi.SetupOwnerAccount(identity).GetAwaiter().GetResult();
             }
-            
+
             _appApi = new AppApiTestUtils(_ownerApi);
         }
 
@@ -72,7 +74,7 @@ namespace Youverse.Hosting.Tests
         public OwnerApiTestUtils OwnerApi => this._ownerApi;
 
         public AppApiTestUtils AppApi => this._appApi;
-        
+
         /// <summary>
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
         /// </summary>
@@ -90,6 +92,20 @@ namespace Youverse.Hosting.Tests
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
+        }
+
+
+        public T RestServiceFor<T>(HttpClient client, byte[] sharedSecret)
+        {
+            return RefitCreator.RestServiceFor<T>(client, sharedSecret.ToSensitiveByteArray());
+        }
+
+        /// <summary>
+        /// Creates a Refit service using the shared secret encrypt/decrypt wrapper
+        /// </summary>
+        public T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
+        {
+            return RefitCreator.RestServiceFor<T>(client, sharedSecret);
         }
 
         private void DeleteData()

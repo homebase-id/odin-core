@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 
@@ -22,6 +23,12 @@ namespace Youverse.Core.Services.Base
         /// The root path for temp data
         /// </summary>
         public string TempDataRoot { get; set; }
+
+        /// <summary>
+        /// The root path for static files
+        /// </summary>
+        public string StaticFileDataRoot => Path.Combine(this.TempDataRoot, "static");
+
 
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.

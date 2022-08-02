@@ -35,6 +35,11 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Task.FromResult(true);
             }
 
+            if (caller?.SecurityLevel == SecurityGroupType.System)
+            {
+                return Task.FromResult(true);
+            }
+
             //there must be an acl
             if (acl == null)
             {

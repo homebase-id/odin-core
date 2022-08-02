@@ -168,7 +168,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(SystemApi.CircleNetwork, (int)CircleNetworkPermissions.Read);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadConnections);
 
             var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(

@@ -2,13 +2,13 @@ using System;
 
 namespace Youverse.Core.Exceptions
 {
-    public abstract class YouverseException : Exception
+    public class YouverseException : Exception
     {
-        protected YouverseException(string message) : base(message)
+        public YouverseException(string message) : base(message)
         {
         }
 
-        protected YouverseException(string message, Exception inner) : base(message, inner)
+        public YouverseException(string message, Exception inner) : base(message, inner)
         {
         }        
     }

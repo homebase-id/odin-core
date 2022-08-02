@@ -1,11 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -30,33 +30,50 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _appService = appService;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("files/header")]
-        public async Task<IActionResult> GetMetadata([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/header")]
+        public async Task<ClientFileHeader> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
             var result = await _appService.GetClientEncryptedFileHeader(file);
-            return new JsonResult(result);
+            return result;
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.Drive })]
-        [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadStream([FromQuery] TargetDrive drive, [FromQuery] Guid fileId)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/payload")]
+        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(drive),
-                FileId = fileId
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
+                FileId = request.FileId
             };
-    
+
             var payload = await _driveService.GetPayloadStream(file);
 
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/thumb")]
+        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
+                FileId = request.File.FileId
+            };
+
+            //TODO: should i write headers indicating the content type for this thumbnail?
+            // this.Response.Headers.Add("x-AppData-content-type", new StringValues(""));
+            
+            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            
+            return new FileStreamResult(payload, "application/octet-stream");
+        }
     }
 }

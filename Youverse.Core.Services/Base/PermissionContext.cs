@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xaml.Permissions;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -21,26 +22,18 @@ namespace Youverse.Core.Services.Base
             PermissionSet permissionSet,
             SensitiveByteArray driveDecryptionKey,
             SensitiveByteArray sharedSecretKey,
-            Guid exchangeGrantId,
-            Guid accessRegistrationId,
             bool isOwner)
         {
             this._driveGrants = driveGrants;
             this._permissionSet = permissionSet;
             this._driveDecryptionKey = driveDecryptionKey;
             this.SharedSecretKey = sharedSecretKey;
-            this.ExchangeGrantId = exchangeGrantId;
-            this.AccessRegistrationId = accessRegistrationId;
 
             //HACK: need to actually assign the permission
             this._isOwner = isOwner;
         }
 
-        public Guid ExchangeGrantId { get; }
-
         public SensitiveByteArray SharedSecretKey { get; }
-
-        public Guid AccessRegistrationId { get; }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
@@ -53,39 +46,21 @@ namespace Youverse.Core.Services.Base
             return grant != null && grant.Permission.HasFlag(permission);
         }
 
-        public bool HasPermission(SystemApi pmt, int permission)
+        public bool HasPermission(PermissionFlags permission)
         {
             if (this._isOwner)
             {
                 return true;
             }
 
-            if (null == _permissionSet || _permissionSet.Permissions?.Count == 0)
-            {
-                return false;
-            }
-
-            if (_permissionSet.Permissions!.TryGetValue(pmt, out var value))
-            {
-                switch (pmt)
-                {
-                    case SystemApi.Contact:
-                        return ((ContactPermissions)value).HasFlag((ContactPermissions)permission);
-
-                    case SystemApi.CircleNetwork:
-                        return ((CircleNetworkPermissions)value).HasFlag((CircleNetworkPermissions)permission);
-
-                    case SystemApi.CircleNetworkRequests:
-                        return ((CircleNetworkRequestPermissions)value).HasFlag((CircleNetworkRequestPermissions)permission);
-                }
-            }
+            return this._permissionSet.PermissionFlags.HasFlag(permission);
 
             return false;
         }
 
-        public void AssertHasPermission(SystemApi pmt, int permission)
+        public void AssertHasPermission(PermissionFlags permission)
         {
-            if (!HasPermission(pmt, permission))
+            if (!HasPermission(permission))
             {
                 throw new YouverseSecurityException("Does not have permission");
             }
@@ -151,8 +126,6 @@ namespace Youverse.Core.Services.Base
             if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
             {
                 throw new DriveSecurityException($"Caller has access {driveId} but exchange grant does not have a drive decryption key or KeyStoreKeyEncryptedStorageKey");
-
-                //TODO: evaluate if we should return an empty value instead
                 // return Array.Empty<byte>().ToSensitiveByteArray();
             }
 

@@ -11,8 +11,6 @@ namespace Youverse.Core.Services.Transit.Upload
         }
 
         public string ContentType { get; set; }
-
-        public string SenderDotYouId { get; set; }
         
         /// <summary>
         /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all

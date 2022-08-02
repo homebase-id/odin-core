@@ -1,8 +1,12 @@
 ﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Hosting.Authentication.Owner;
+using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.System
@@ -12,9 +16,7 @@ namespace Youverse.Hosting.Controllers.System
     /// </summary>
     [ApiController]
     [Route(OwnerApiPathConstants.TransitV1 + "/outbox/processor")]
-
-    //TODO: !!! need to add a certificate for the system to make calls into itself
-    //[Authorize(Policy = OwnerPolicies.IsSystemProcess, AuthenticationSchemes = DotYouAuthConstants.SystemCertificate)]
+    [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController : ControllerBase
     {
         private readonly ILogger<OutboxProcessorController> _logger;
@@ -29,7 +31,7 @@ namespace Youverse.Hosting.Controllers.System
         }
 
         [HttpPost("process")]
-        public async Task<JsonResult> ProcessOutbox()
+        public async Task<bool> ProcessOutbox()
         {
             //TODO: not sure I should return a detailed result here.
             //pick up the files from the outbox
@@ -37,8 +39,7 @@ namespace Youverse.Hosting.Controllers.System
             var batch = await _outbox.GetNextBatch();
             _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
             await _transit.SendBatchNow(batch.Results);
-
-            return new JsonResult(true);
+            return true;
         }
     }
 }

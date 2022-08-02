@@ -56,6 +56,8 @@ namespace Youverse.Core.Services.Transit.Upload
             var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
             var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
+            bool isUpdateOperation = false;
+
             if (overwriteFileId == Guid.Empty)
             {
                 //get a new fileid
@@ -63,6 +65,7 @@ namespace Youverse.Core.Services.Transit.Upload
             }
             else
             {
+                isUpdateOperation = true;
                 //file to overwrite
                 file = new InternalDriveFileId()
                 {
@@ -72,8 +75,7 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             var pkgId = Guid.NewGuid();
-
-            var package = new UploadPackage(file, instructionSet!);
+            var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
             _packages.Add(pkgId, package);
 
             return pkgId;
@@ -97,6 +99,20 @@ namespace Youverse.Core.Services.Transit.Upload
             }
 
             await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        }
+
+        public async Task AddThumbnail(Guid packageId, int width, int height, string contentType, Stream data)
+        {
+            if (!_packages.TryGetValue(packageId, out var pkg))
+            {
+                throw new UploadException("Invalid package Id");
+            }
+
+            //TODO: How to store the content type for later usage?  is it even needed?
+
+            //TODO: should i validate width and height are > 0?
+            string extenstion = _driveService.GetThumbnailFileExtension(width, height);
+            await _driveService.WriteTempStream(pkg.InternalFile, extenstion, data);
         }
 
         public async Task<UploadPackage> GetPackage(Guid packageId)

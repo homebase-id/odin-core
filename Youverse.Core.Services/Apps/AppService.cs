@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Apps
 {
@@ -10,50 +10,66 @@ namespace Youverse.Core.Services.Apps
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
-        private readonly ISystemStorage _systemStorage;
 
-        public AppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
+        public AppService(IDriveService driveService, DotYouContextAccessor contextAccessor)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
-            _systemStorage = systemStorage;
         }
 
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var header = await _driveService.GetServerFileHeader(file);
 
-            KeyHeader keyHeader;
+            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
             if (header.FileMetadata.PayloadIsEncrypted)
             {
                 var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-                keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
             }
             else
             {
-                keyHeader = KeyHeader.Empty();
+                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
             }
 
-            var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-            var appEkh = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
+            int priority = 1000;
+            
+            //TODO: this a strange place to calculate priority yet it was the best place w/o having to send back the acl outisde of this method
+            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
+            {
+                case SecurityGroupType.Anonymous:
+                    priority = 500;
+                    break;
+                case SecurityGroupType.Authenticated:
+                    priority = 400;
+                    break;
+                case SecurityGroupType.Connected:
+                    priority = 300;
+                    break;
+                case SecurityGroupType.Owner:
+                    priority = 1;
+                    break;
+            }
 
-           
             if (_contextAccessor.GetCurrent().Caller.IsOwner)
             {
                 return new ClientFileHeader()
                 {
-                    EncryptedKeyHeader = appEkh,
-                    FileMetadata = header.FileMetadata, 
-                    ServerMetadata = header.ServerMetadata
+                    SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+                    FileMetadata = header.FileMetadata,
+                    ServerMetadata = header.ServerMetadata,
+                    Priority = priority
                 };
             }
-            
+
             return new ClientFileHeader()
             {
-                EncryptedKeyHeader = appEkh,
-                FileMetadata = header.FileMetadata
+                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+                FileMetadata = header.FileMetadata,
+                Priority = priority
             };
-
         }
     }
 }

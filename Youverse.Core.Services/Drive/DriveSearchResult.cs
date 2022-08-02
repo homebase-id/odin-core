@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive
 {
     public class DriveSearchResult
     {
+        
+        public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
+        
         public Guid FileId { get; set; }
 
         public List<byte[]> Tags { get; set; }
@@ -33,5 +37,7 @@ namespace Youverse.Core.Services.Drive
         public int Priority { get; set; }
 
         public string ContentType { get; set; }
+        public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
+        public ThumbnailContent PreviewThumbnail { get; set; }
     }
 }

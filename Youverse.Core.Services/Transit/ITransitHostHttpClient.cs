@@ -13,8 +13,9 @@ namespace Youverse.Core.Services.Transit
         [Multipart]
         [Post("/api/perimeter/transit/host/stream")]
         Task<ApiResponse<HostTransferResponse>> SendHostToHost(
-            [AliasAs("header")] StreamPart header,
-            [AliasAs("metaData")] StreamPart metaData,
-            [AliasAs("payload")] StreamPart payload);
+            StreamPart header,
+            StreamPart metaData,
+            StreamPart payload,
+            params StreamPart[] thumbnail);
     }
 }

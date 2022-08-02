@@ -6,6 +6,7 @@ namespace Youverse.Core.Services.Transit.Upload
     {
         Instructions,
         Metadata,
-        Payload
+        Payload,
+        Thumbnail
     }
 }

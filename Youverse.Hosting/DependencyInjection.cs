@@ -24,8 +24,8 @@ using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
+using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Incoming;
@@ -101,8 +101,6 @@ namespace Youverse.Hosting
             
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
-            cb.RegisterType<IdentityProvisioner>().As<IIdentityProvisioner>().SingleInstance();
-
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
             
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
@@ -110,6 +108,8 @@ namespace Youverse.Hosting
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
             cb.RegisterType<CircleNetworkNotificationService>();
+
+            cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

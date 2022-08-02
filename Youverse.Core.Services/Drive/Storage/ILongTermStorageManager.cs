@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -34,6 +33,15 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         /// <returns></returns>
         Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart);
+
+        /// <summary>
+        /// Gets a read stream of the thumbnail
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <returns></returns>
+        Task<Stream> GetThumbnail(Guid fileId, int width, int height);
         
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
@@ -53,10 +61,10 @@ namespace Youverse.Core.Services.Drive.Storage
         Task Delete(Guid fileId);
 
         /// <summary>
-        /// Moves the specified <param name="filePath"></param> to long term storage.
+        /// Moves the specified <param name="sourcePath"></param> to long term storage.
         /// </summary>
         /// <returns></returns>
-        Task MoveToLongTerm(Guid fileId, string filePath, FilePart part);
+        Task MoveToLongTerm(Guid fileId, string sourcePath, FilePart part);
 
         /// <summary>
         /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
@@ -66,5 +74,9 @@ namespace Youverse.Core.Services.Drive.Storage
         Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions);
 
         Task<ServerFileHeader> GetServerFileHeader(Guid fileId);
+        
+        Task WriteThumbnail(Guid fileId, int width, int height, Stream stream);
+
+        Task MoveThumbnailToLongTerm(Guid fileId, string sourceThumbnail, int width, int height);
     }
 }

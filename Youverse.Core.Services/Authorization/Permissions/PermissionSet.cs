@@ -5,13 +5,15 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
-    public class PermissionSet:IEquatable<PermissionSet>
+    public class PermissionSet : IEquatable<PermissionSet>
     {
         public PermissionSet()
         {
         }
-
+        
         public Dictionary<SystemApi, int> Permissions { get; } = new Dictionary<SystemApi, int>();
+        
+        public PermissionFlags PermissionFlags { get; set; }
         
         public bool Equals(PermissionSet other)
         {
@@ -32,14 +34,14 @@ namespace Youverse.Core.Services.Authorization.Permissions
         {
             return (Permissions != null ? Permissions.GetHashCode() : 0);
         }
-        
+
         public static bool operator ==(PermissionSet p1, PermissionSet p2)
         {
             if (p1 is null)
             {
                 return p2 is null;
             }
-            
+
             var diffs = p1.Permissions.Except(p2.Permissions);
 
             return !diffs.Any();

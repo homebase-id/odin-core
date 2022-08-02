@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -17,11 +19,14 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.SystemStorage;
+using JsonConverter = System.Text.Json.Serialization.JsonConverter;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -64,12 +69,23 @@ namespace Youverse.Core.Services.Transit
 
         public async Task<UploadResult> AcceptUpload(UploadPackage package)
         {
+            //TODO: need to handle when files are being updated.  remove old thumbnails, etc.
+
             if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
             {
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
 
-            //hacky sending the extension for the payload file.  need a proper convention
+            if (package.IsUpdateOperation)
+            {
+                return await ProcessUploadOfExistingFile(package);
+            }
+
+            return await ProcessUploadOfNewFile(package);
+        }
+
+        private async Task<UploadResult> ProcessUploadOfNewFile(UploadPackage package)
+        {
             var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
 
             if (null == serverMetadata.AccessControlList)
@@ -79,6 +95,12 @@ namespace Youverse.Core.Services.Transit
 
             serverMetadata.AccessControlList.Validate();
 
+            if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
+            {
+                //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
+                throw new UploadException("Cannot upload an encrypted file that is accessible to anonymous visitors");
+            }
+
             await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
             var ext = new ExternalFileIdentifier()
@@ -87,7 +109,7 @@ namespace Youverse.Core.Services.Transit
                 FileId = package.InternalFile.FileId
             };
 
-            var tx = new UploadResult()
+            var uploadResult = new UploadResult()
             {
                 File = ext
             };
@@ -95,10 +117,15 @@ namespace Youverse.Core.Services.Transit
             var recipients = package.InstructionSet.TransitOptions?.Recipients ?? null;
             if (null != recipients)
             {
-                tx.RecipientStatus = await PrepareTransfer(package);
+                uploadResult.RecipientStatus = await PrepareTransfer(package);
             }
 
-            return tx;
+            return uploadResult;
+        }
+
+        private async Task<UploadResult> ProcessUploadOfExistingFile(UploadPackage package)
+        {
+            throw new NotImplementedException("Updates for files are not currently supported");
         }
 
         public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
@@ -126,7 +153,16 @@ namespace Youverse.Core.Services.Transit
             var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
-            var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
+
+            var serializerOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
+            };
+
+            var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json, SerializationConfiguration.JsonSerializerOptions);
+
+            // var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
             if (null == transferEncryptedKeyHeader)
@@ -150,11 +186,17 @@ namespace Youverse.Core.Services.Transit
                     ThreadId = uploadDescriptor.FileMetadata.AppData.ThreadId,
 
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
-                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete
+                    ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
+
+                    PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
+                    AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails
                 },
 
                 PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
-                SenderDotYouId = uploadDescriptor.FileMetadata.SenderDotYouId
+                OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
+
+                // SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId  
+                SenderDotYouId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
             };
 
             var serverMetadata = new ServerMetadata()
@@ -180,9 +222,9 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-                AccessRegistrationId = this._contextAccessor.GetCurrent().PermissionsContext.AccessRegistrationId
-            }));
 
+                //TODO: can i put something else here to allow me to access the files?
+            }));
             return keyStatus;
         }
 
@@ -325,9 +367,7 @@ namespace Youverse.Core.Services.Transit
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                 var header = await _driveService.GetServerFileHeader(file);
-
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
@@ -335,14 +375,17 @@ namespace Youverse.Core.Services.Transit
                 //if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
+                    //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
                     File = InternalDriveFileId.Redacted(),
                     Created = metadata.Created,
                     Updated = metadata.Updated,
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
-                    SenderDotYouId = string.Empty
+                    SenderDotYouId = string.Empty,
+                    OriginalRecipientList = null,
                 };
+
 
                 var json = JsonConvert.SerializeObject(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
@@ -350,15 +393,21 @@ namespace Youverse.Core.Services.Transit
 
                 var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
+                var thumbnails = new List<StreamPart>();
+                foreach (var thumb in redactedMetadata.AppData.AdditionalThumbnails)
+                {
+                    var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                    thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
+
                 //TODO: add additional error checking for files existing and successfully being opened, etc.
 
-                //TODO: here we need to decrypt the token. 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
-                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload).ConfigureAwait(false).GetAwaiter().GetResult();
+                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
                 success = response.IsSuccessStatusCode;
 
                 // var result = response.Content;

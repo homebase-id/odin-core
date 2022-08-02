@@ -4,6 +4,7 @@ namespace Youverse.Core.Services.Transit
     {
         TransferKeyHeader,
         Metadata,
-        Payload
+        Payload,
+        Thumbnail
     }
 }

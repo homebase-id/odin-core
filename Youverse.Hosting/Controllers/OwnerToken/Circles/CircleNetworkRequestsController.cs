@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Requests;
@@ -20,80 +21,83 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _requestService = cn;
         }
 
-        [HttpGet("pending")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequests(int pageNumber, int pageSize)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpGet("pending/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
-        [HttpGet("pending/{senderDotYouId}")]
-        public async Task<IActionResult> GetPendingRequest(string senderDotYouId)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("pending/single")]
+        public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] DotYouIdRequest request)
         {
-            var result = await _requestService.GetPendingRequest((DotYouIdentity)senderDotYouId);
+            var result = await _requestService.GetPendingRequest((DotYouIdentity)request.DotYouId);
 
             if (result == null)
             {
-                return new JsonResult(new NoResultResponse(true))
-                {
-                    StatusCode = (int)HttpStatusCode.NotFound
-                };
+                this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return null;
             }
 
-            return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
+            return ConnectionRequestResponse.FromConnectionRequest(result);
         }
 
-        [HttpGet("sent")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequests(int pageNumber, int pageSize)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("pending/accept")]
+        public async Task<bool> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
+        {
+            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
+            return true;
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("pending/delete")]
+        public async Task<bool> DeletePendingRequest([FromBody] DotYouIdRequest request)
+        {
+            await _requestService.DeletePendingRequest((DotYouIdentity)request.DotYouId);
+            return true;
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpGet("sent/list")]
+        public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetSentRequests(new PageOptions(pageNumber, pageSize));
             var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
-
         }
 
-        [HttpGet("sent/{recipientDotYouId}")]
-        public async Task<IActionResult> GetSentRequest(string recipientDotYouId)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("sent/single")]
+        public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] DotYouIdRequest request)
         {
-            var result = await _requestService.GetSentRequest((DotYouIdentity)recipientDotYouId);
+            var result = await _requestService.GetSentRequest((DotYouIdentity)request.DotYouId);
             if (result == null)
             {
-                return new JsonResult(new NoResultResponse(true))
-                {
-                    StatusCode = (int)HttpStatusCode.NotFound
-                };
+                this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return null;
             }
 
-            return new JsonResult(ConnectionRequestResponse.FromConnectionRequest(result));
+            return ConnectionRequestResponse.FromConnectionRequest(result);
         }
 
-        [HttpDelete("sent/{recipientDotYouId}")]
-        public async Task<IActionResult> DeleteSentRequest(string recipientDotYouId)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("sent/delete")]
+        public async Task<bool> DeleteSentRequest([FromBody] DotYouIdRequest request)
         {
-            await _requestService.DeleteSentRequest((DotYouIdentity)recipientDotYouId);
-            return new JsonResult(new NoResultResponse(true));
+            await _requestService.DeleteSentRequest((DotYouIdentity)request.DotYouId);
+            return true;
         }
 
-        [HttpPost("sent")]
-        public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
+        [HttpPost("sendrequest")]
+        public async Task<bool> SendConnectionRequest([FromBody] ConnectionRequestHeader requestHeader)
         {
             await _requestService.SendConnectionRequest(requestHeader);
-            return new JsonResult(new NoResultResponse(true));
-        }
-
-        [HttpPost("pending/accept")]
-        public async Task<IActionResult> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
-        {
-            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
-            return new JsonResult(new NoResultResponse(true));
-        }
-
-        [HttpDelete("pending/{senderDotYouId}")]
-        public async Task<IActionResult> DeletePendingRequest(string senderDotYouId)
-        {
-            await _requestService.DeletePendingRequest((DotYouIdentity)senderDotYouId);
-            return new JsonResult(new NoResultResponse(true));
+            return true;
         }
     }
 }

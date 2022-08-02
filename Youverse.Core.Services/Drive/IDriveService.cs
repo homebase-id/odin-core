@@ -90,8 +90,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
         Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
-
-
+        
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
         
         /// <summary>
@@ -113,5 +112,11 @@ namespace Youverse.Core.Services.Drive
         Task DeleteLongTermFile(InternalDriveFileId file);
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
+     
+        Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
+        
+        Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream);
+       
+        string GetThumbnailFileExtension(int width, int height);
     }
 }

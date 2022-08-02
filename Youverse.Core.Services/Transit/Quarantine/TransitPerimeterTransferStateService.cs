@@ -52,20 +52,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return item;
         }
 
-        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
+        public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
         {
             var item = await this.GetStateItem(transferStateItemId);
             item.SetFilterState(part, FilterAction.Accept);
 
-            await _driveService.WriteTempStream(item.TempFile, part.ToString().ToLower(), data);
+            await _driveService.WriteTempStream(item.TempFile, fileExtension, data);
             this.Save(item);
         }
 
-        public async Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, Stream data)
+        public async Task Quarantine(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
         {
             var item = await this.GetStateItem(transferStateItemId);
             item.SetFilterState(part, FilterAction.Quarantine);
-            await _driveService.WriteTempStream(item.TempFile, part.ToString().ToLower(), data);
+            await _driveService.WriteTempStream(item.TempFile, fileExtension, data);
             this.Save(item);
         }
 

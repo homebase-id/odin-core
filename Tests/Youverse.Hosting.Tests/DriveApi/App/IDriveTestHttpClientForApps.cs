@@ -18,26 +18,24 @@ namespace Youverse.Hosting.Tests.DriveApi.App
     public interface IDriveTestHttpClientForApps
     {
         private const string RootEndpoint = AppApiPathConstants.DrivesV1;
-        
+
         [Multipart]
         [Post(RootEndpoint + "/files/upload")]
-        Task<ApiResponse<UploadResult>> Upload(
-            [AliasAs("instructions")] StreamPart instructionSet,
-            [AliasAs("metaData")] StreamPart metaData,
-            [AliasAs("payload")] StreamPart payload);
-        
-        [Get(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(TargetDrive drive, Guid fileId);
+        Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
-        [Get(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(TargetDrive drive, Guid fileId);
-        
-        [Post(RootEndpoint + "/query/recent")]
-        Task<ApiResponse<QueryRecentResult>> GetRecent(GetRecentRequest request);
-        
+        [Post(RootEndpoint + "/files/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
+
+        [Post(RootEndpoint + "/files/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
+
+        [Post(RootEndpoint + "/files/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
+
+        [Post(RootEndpoint + "/query/modified")]
+        Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);
+
         [Post(RootEndpoint + "/query/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(GetBatchRequest request);
-
-        
+        Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request);
     }
 }
