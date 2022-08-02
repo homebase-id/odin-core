@@ -102,8 +102,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var targetDrive = uploadResult.File.TargetDrive;
                 var fileId = uploadResult.File.FileId;
 
-                //retrieve the file that was uploaded; decrypt; 
-                var fileResponse = await driveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                //retrieve the file that was uploaded; decrypt;
+                var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var fileResponse = await getFilesDriveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -131,7 +132,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var payloadResponse = await getFilesDriveSvc.GetPayload(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -250,7 +251,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 //
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -289,7 +291,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -320,7 +322,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
                 Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
-                var thumbnailResponse1 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
@@ -337,7 +339,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
                 Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
-                var thumbnailResponse2 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,

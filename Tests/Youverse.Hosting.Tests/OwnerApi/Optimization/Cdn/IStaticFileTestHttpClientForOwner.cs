@@ -17,10 +17,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
         private const string RootEndpoint = OwnerApiPathConstants.CdnV1;
 
         [Post(RootEndpoint + "/publish")]
-        Task<ApiResponse<StaticFilePublishResult>> Publish([Body]PublishStaticFileRequest request);
+        Task<ApiResponse<StaticFilePublishResult>> Publish([Body] PublishStaticFileRequest request);
 
-        [Post(RootEndpoint + "/staticfile")]
-        Task<ApiResponse<HttpContent>> GetStaticFile([Body]GetStaticFileRequest request);
-
+        [Get(RootEndpoint + "/staticfile")]
+        Task<ApiResponse<HttpContent>> GetStaticFile([Query] string filename);
     }
 }

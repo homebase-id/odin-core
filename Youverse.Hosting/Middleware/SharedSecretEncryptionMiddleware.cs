@@ -12,6 +12,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting.Middleware
@@ -21,12 +22,12 @@ namespace Youverse.Hosting.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
 
-        private readonly List<string> WhiteListPaths;
+        private readonly List<string> IgnoredPathsForRequests;
         
         /// <summary>
         /// Paths that should not have their responses encrypted 
         /// </summary>
-        private readonly List<string> WhiteListResponsePaths;
+        private readonly List<string> IgnoredPathsForResponses;
         //
 
         public SharedSecretEncryptionMiddleware(
@@ -36,24 +37,37 @@ namespace Youverse.Hosting.Middleware
             _next = next;
             _logger = logger;
 
-            WhiteListPaths = new List<string>();
-            WhiteListPaths.Add("/api/owner/v1/optimization/cdn");
-            WhiteListPaths.Add("/api/owner/v1/youauth");
-            WhiteListPaths.Add("/api/owner/v1/authentication");
-            WhiteListPaths.Add("/api/owner/v1/transit/outbox/processor");
-            WhiteListPaths.Add("/api/perimeter"); //TODO: temporarily allowing all perimeter traffic not use shared secret
-            WhiteListPaths.Add("/api/owner/v1/drive/files/upload");
-            WhiteListPaths.Add("/api/apps/v1/drive/files/upload");
-            
-            WhiteListResponsePaths = new List<string>();
-            WhiteListResponsePaths.Add("/api/owner/v1/drive/files/");
+            IgnoredPathsForRequests = new List<string>
+            {
+                "/api/owner/v1/optimization/cdn/staticfile",
+                "/api/owner/v1/youauth",
+                "/api/owner/v1/authentication",
+                "/api/owner/v1/transit/outbox/processor",
+                "/api/apps/v1/transit/app/process",
+                "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
+                "/api/owner/v1/drive/files/upload",
+                "/api/apps/v1/drive/files/upload"
+            };
 
+            //Paths that should not have their responses encrypted with shared secret
+            IgnoredPathsForResponses = new List<string>
+            {
+                "/api/owner/v1/drive/files/payload",
+                "/api/apps/v1/drive/files/payload",
+                "/api/youauth/v1/drive/files/payload",
+                "/api/owner/v1/drive/files/thumb",
+                "/api/apps/v1/drive/files/thumb",
+                "/api/youauth/v1/drive/files/thumb"
+            };
+            
+            IgnoredPathsForResponses.AddRange(IgnoredPathsForRequests);
         }
 
         //
 
         public async Task Invoke(HttpContext context)
         {
+            
             if (ShouldDecryptRequest(context))
             {
                 await DecryptRequest(context);
@@ -82,7 +96,7 @@ namespace Youverse.Hosting.Middleware
         {
             var request = context.Request;
 
-            //todo: detect if this is an api endpoint
+            //TODO: need to detect if the request has a payload
             try
             {
                 var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(request.Body, SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
@@ -124,7 +138,6 @@ namespace Youverse.Hosting.Middleware
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
             //await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
             context.Response.ContentLength = finalBytes.Length;
-            // context.Request.Body = new MemoryStream(finalBytes);
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
             // context.Response.Body.Seek(0, SeekOrigin.Begin);
@@ -135,28 +148,37 @@ namespace Youverse.Hosting.Middleware
         private SensitiveByteArray GetSharedSecret(HttpContext context)
         {
             var accessor = context.RequestServices.GetRequiredService<DotYouContextAccessor>();
-            var key = accessor.GetCurrent()?.PermissionsContext?.SharedSecretKey ?? Guid.Empty.ToByteArray().ToSensitiveByteArray(); //hack
+            var dotYouContext = accessor.GetCurrent();
+            var key = dotYouContext.PermissionsContext?.SharedSecretKey;
             return key;
         }
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
-            if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST")
+            if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST" || !CallerMustHaveSharedSecret(context))
             {
                 return false;
             }
 
-            return !WhiteListPaths.Any(p => context.Request.Path.StartsWithSegments(p));
+            return !IgnoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 
         private bool ShouldEncryptResponse(HttpContext context)
         {
-            if (!context.Request.Path.StartsWithSegments("/api"))
+            if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
             {
                 return false;
             }
 
-            return !WhiteListPaths.Any(p => context.Request.Path.StartsWithSegments(p));
+            return !IgnoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
+        }
+
+
+        private bool CallerMustHaveSharedSecret(HttpContext context)
+        {
+            var accessor = context.RequestServices.GetRequiredService<DotYouContextAccessor>();
+            var dotYouContext = accessor.GetCurrent();
+            return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
     }
 }

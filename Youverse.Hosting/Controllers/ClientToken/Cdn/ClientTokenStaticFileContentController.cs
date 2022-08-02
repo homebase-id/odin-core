@@ -24,10 +24,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Cdn
         /// <param name="request"></param>
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenCdn })]
-        [HttpPost("staticfile")]
-        public async Task<IActionResult> GetThumbnail([FromBody] GetStaticFileRequest request)
+        [HttpGet("staticfile")]
+        public async Task<IActionResult> GetStaticFile([FromQuery] string filename)
         {
-            var payload = await _staticFileContentService.GetStaticFileStream(request.Filename);
+            var payload = await _staticFileContentService.GetStaticFileStream(filename);
             if (null == payload)
             {
                 return NotFound();

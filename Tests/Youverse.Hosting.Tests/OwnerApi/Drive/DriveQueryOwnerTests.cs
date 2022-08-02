@@ -71,9 +71,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
-
-
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
@@ -133,7 +132,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 var qp = new FileQueryParams()
                 {
@@ -211,7 +210,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
-                var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 var qp = new FileQueryParams()
                 {

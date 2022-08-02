@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.System
         }
 
         [HttpPost("process")]
-        public async Task<JsonResult> ProcessOutbox()
+        public async Task<bool> ProcessOutbox()
         {
             //TODO: not sure I should return a detailed result here.
             //pick up the files from the outbox
@@ -39,8 +39,7 @@ namespace Youverse.Hosting.Controllers.System
             var batch = await _outbox.GetNextBatch();
             _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
             await _transit.SendBatchNow(batch.Results);
-
-            return new JsonResult(true);
+            return true;
         }
     }
 }

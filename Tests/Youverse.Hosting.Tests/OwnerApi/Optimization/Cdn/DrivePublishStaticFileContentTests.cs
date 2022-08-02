@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
 
             const int section_1_filetype = 100;
             const int section_2_datatype = 888;
-            
+
             int total_files_uploaded = 2;
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -119,7 +119,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
             {
-                var staticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+                var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 //publish a static file
                 var publishRequest = new PublishStaticFileRequest()
@@ -145,7 +145,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                         IncludeJsonContent = true
                     }
                 });
-                
+
                 publishRequest.Sections.Add(new QueryParamSection()
                 {
                     Name = $"Files matching datatype {section_2_datatype}",
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
                 Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
-                var getFileResponse = await staticFileSvc.GetStaticFile(new GetStaticFileRequest() { Filename = publishRequest.Filename });
+                var getFileResponse = await staticFileSvc.GetStaticFile(publishRequest.Filename);
                 Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
                 Assert.IsNotNull(getFileResponse.Content);
 
@@ -263,7 +263,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 //
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -296,7 +297,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -320,7 +321,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                         Assert.IsTrue(thumbnailInDescriptor.PixelWidth == clientFileHeaderList[i].PixelWidth);
                         Assert.IsTrue(thumbnailInDescriptor.PixelHeight == clientFileHeaderList[i].PixelHeight);
 
-                        var thumbnailResponse = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                        var thumbnailResponse = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
                         {
                             File = uploadedFile,
                             Height = thumbnailInDescriptor.PixelHeight,

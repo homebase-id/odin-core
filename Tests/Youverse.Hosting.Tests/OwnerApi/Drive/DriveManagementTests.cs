@@ -32,7 +32,7 @@ public class DriveManagementTests
     {
         using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
-            var svc = RestService.For<IDriveManagementHttpClient>(client);
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
             string name = "test drive 01";
@@ -63,7 +63,7 @@ public class DriveManagementTests
     {
         using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
         {
-            var svc = RestService.For<IDriveManagementHttpClient>(client);
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
             string name = "test drive 01";

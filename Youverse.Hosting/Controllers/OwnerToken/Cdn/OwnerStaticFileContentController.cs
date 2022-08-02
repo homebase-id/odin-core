@@ -26,10 +26,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
         [HttpPost("publish")]
-        public async Task<IActionResult> PublishBatch([FromBody] PublishStaticFileRequest request)
+        public async Task<StaticFilePublishResult> PublishBatch([FromBody] PublishStaticFileRequest request)
         {
-            var publsihResults = await _staticFileContentService.Publish(request.Filename, request.Sections);
-            return new JsonResult(publsihResults);
+            var publishResult = await _staticFileContentService.Publish(request.Filename, request.Sections);
+            return publishResult;
         }
 
 
@@ -39,10 +39,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         /// <param name="request"></param>
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
-        [HttpPost("staticfile")]
-        public async Task<IActionResult> GetStaticFile([FromBody] GetStaticFileRequest request)
+        [HttpGet("staticfile")]
+        public async Task<IActionResult> GetStaticFile([FromQuery] string filename)
         {
-            var payload = await _staticFileContentService.GetStaticFileStream(request.Filename);
+            var payload = await _staticFileContentService.GetStaticFileStream(filename);
             if (null == payload)
             {
                 return NotFound();

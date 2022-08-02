@@ -44,9 +44,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanCreateCircle()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleDefinitionOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -81,9 +81,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanGetListOfCircleDefinitions()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleDefinitionOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
                 var request1 = new CreateCircleRequest()
                 {
@@ -138,9 +138,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanUpdateCircle()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleDefinitionOwnerClient>(client);
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
                 var request = new CreateCircleRequest()
                 {
@@ -191,10 +191,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanDeleteCircle()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
-                var svc = RestService.For<ICircleDefinitionOwnerClient>(client);
-
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
                 var request = new CreateCircleRequest()
                 {
                     Name = "Test Circle",

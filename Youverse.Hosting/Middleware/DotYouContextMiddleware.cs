@@ -43,6 +43,7 @@ namespace Youverse.Hosting.Middleware
 
             if (tenant?.Name == null || string.IsNullOrEmpty(authType))
             {
+                dotYouContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                 await _next(httpContext);
                 return;
             }

@@ -251,7 +251,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                         using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            var resp = await transitAppSvc.ProcessTransfers();
+                            var resp = await transitAppSvc.ProcessIncomingTransfers();
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }

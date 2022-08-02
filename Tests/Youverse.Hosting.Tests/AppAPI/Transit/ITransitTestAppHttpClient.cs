@@ -16,6 +16,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
         [Obsolete("TODO: replace with new outbox process")]
         [Post(RootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessTransfers();
+        Task<ApiResponse<bool>> ProcessIncomingTransfers();
     }
 }

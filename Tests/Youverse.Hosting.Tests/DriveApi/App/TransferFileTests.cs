@@ -156,11 +156,11 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitAppSvc.ProcessTransfers();
+                var resp = await transitAppSvc.ProcessIncomingTransfers();
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
 
-                var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
 
@@ -222,7 +222,6 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
-
 
                 //
                 // Get the payload that was uploaded, test it
