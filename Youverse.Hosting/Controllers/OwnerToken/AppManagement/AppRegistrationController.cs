@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             _appRegistrationService = appRegistrationService;
         }
 
-        
+
         /// <summary>
         /// Returns a list of registered apps
         /// </summary>
@@ -40,6 +40,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return reg;
         }
 
+        /// <summary>
+        /// Registers a new app for usage in the system
+        /// </summary>
+        /// <param name="appRegistration"></param>
+        /// <returns></returns>
         [HttpPost("register/app")]
         public async Task<AppRegistrationResponse> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {

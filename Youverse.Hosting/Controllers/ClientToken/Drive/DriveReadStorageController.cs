@@ -30,6 +30,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _appService = appService;
         }
 
+        /// <summary>
+        /// Returns the file header
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/header")]
         public async Task<ClientFileHeader> GetFileHeader([FromBody] ExternalFileIdentifier request)
@@ -43,6 +48,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return result;
         }
 
+        /// <summary>
+        /// Returns the payload for a given file
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
@@ -58,6 +68,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
+        /// <summary>
+        /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
@@ -68,9 +81,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 FileId = request.File.FileId
             };
 
-            //TODO: should i write headers indicating the content type for this thumbnail?
-            // this.Response.Headers.Add("x-AppData-content-type", new StringValues(""));
-            
             var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
             
             return new FileStreamResult(payload, "application/octet-stream");

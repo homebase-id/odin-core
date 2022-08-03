@@ -23,6 +23,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             _circleNetwork = cn;
         }
 
+        /// <summary>
+        /// Gets the status of a connection between this identity and the specified identity
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [HttpPost("status")]
         public async Task<ConnectionInfoResponse> GetConnectionInfo(DotYouIdRequest request)
         {
@@ -36,8 +41,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             };
         }
 
+        
+        /// <summary>
+        /// Gets a list of connected identities
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
         [HttpGet("connected")]
-        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
             return result;

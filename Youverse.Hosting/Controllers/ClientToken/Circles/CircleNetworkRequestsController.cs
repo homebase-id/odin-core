@@ -21,6 +21,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             _requestService = cn;
         }
 
+        /// <summary>
+        /// Gets a list of connection requests that are awaiting a response
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
         [HttpGet("pending/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequestList(int pageNumber, int pageSize)
         {
@@ -29,6 +35,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
         }
 
+        /// <summary>
+        /// Gets a list of sent connection requests
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
         [HttpGet("sent/list")]
         public async Task<PagedResult<ConnectionRequestResponse>> GetSentRequestList(int pageNumber, int pageSize)
         {

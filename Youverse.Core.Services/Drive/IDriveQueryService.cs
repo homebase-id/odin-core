@@ -10,13 +10,12 @@ namespace Youverse.Core.Services.Drive
     public interface IDriveQueryService
     {
         /// <summary>
-        /// Returns the fileId of recently modified files
+        /// Returns a list of files 
         /// </summary>
-        /// <returns>(cursor, file Id List)</returns>
         Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options);
 
         /// <summary>
-        /// Returns a batch of file Ids
+        /// Returns a batch of files matching the params
         /// </summary>
         Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options);
 

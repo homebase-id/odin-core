@@ -21,8 +21,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Cdn
         /// <summary>
         /// Returns the static file's contents
         /// </summary>
-        /// <param name="request"></param>
-        /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenCdn })]
         [HttpGet("staticfile")]
         public async Task<IActionResult> GetStaticFile([FromQuery] string filename)
