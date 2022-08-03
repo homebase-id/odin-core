@@ -33,6 +33,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
 
+        /// <summary>
+        /// Deletes a file
+        /// </summary>
+        /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/delete")]
         public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
@@ -45,6 +49,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             await _driveService.DeleteLongTermFile(file);
         }
 
+        /// <summary>
+        /// Uploads a file using multi-part form data
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="UploadException"></exception>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()

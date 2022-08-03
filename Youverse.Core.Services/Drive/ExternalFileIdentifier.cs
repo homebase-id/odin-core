@@ -7,7 +7,14 @@ namespace Youverse.Core.Services.Drive
     /// </summary>
     public class ExternalFileIdentifier
     {
+        /// <summary>
+        /// The drive to access
+        /// </summary>
         public TargetDrive TargetDrive { get; set; }
+        
+        /// <summary>
+        /// The fileId to retrieve
+        /// </summary>
         public Guid FileId { get; set; }
     }
 }

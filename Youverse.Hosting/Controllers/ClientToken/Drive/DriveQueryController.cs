@@ -24,6 +24,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             _driveService = driveService;
         }
 
+        /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("modified")]
         public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
@@ -33,6 +38,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return batch;
         }
 
+        /// <summary>
+        /// Returns files matching the query params
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
