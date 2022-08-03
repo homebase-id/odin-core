@@ -183,18 +183,18 @@ namespace Youverse.Hosting
             });
             
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
-            if (env.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
-            }
-            else
+            // if (env.IsDevelopment())
+            // {
+            //     app.UseSwagger();
+            //     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
+            //
+            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+            //
+            //     app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+            //         homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+            // }
+            // else
             {
                 logger.LogInformation("Mapping SPA paths on local disk");
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
@@ -218,7 +218,7 @@ namespace Youverse.Hosting
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
                     homeApp =>
                     {
-                        var publicPath = Path.Combine(env.ContentRootPath, "client", "home-app");
+                        var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
 
                         homeApp.UseStaticFiles(new StaticFileOptions()
                         {
