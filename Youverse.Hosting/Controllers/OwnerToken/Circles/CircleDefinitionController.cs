@@ -26,24 +26,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> CreateCircle([FromBody]CreateCircleRequest request)
+        public async Task<bool> CreateCircle([FromBody]CreateCircleRequest request)
         {
             await _circleDefinitionService.Create(request);
-            return Ok();
+            return true;
         }
         
         [HttpPost("update")]
-        public async Task<IActionResult> UpdateCircle([FromBody]CircleDefinition circleDefinition)
+        public async Task<bool> UpdateCircle([FromBody]CircleDefinition circleDefinition)
         { 
             await _circleDefinitionService.Update(circleDefinition);
-            return Ok();
+            return true;
         }
         
         [HttpPost("delete")]
-        public async Task<IActionResult> DeleteCircle([FromBody]Guid id)
+        public async Task<bool> DeleteCircle([FromBody]Guid id)
         {
             await _circleDefinitionService.Delete(id);
-            return Ok();
+            return true;
         }
     }
 }

@@ -1,11 +1,14 @@
 ﻿using System;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Quartz;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Logging.CorrelationId;
+using Youverse.Core.Serialization;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -67,7 +70,7 @@ namespace Youverse.Hosting.Middleware
                 }
             };
 
-            var result = JsonSerializer.Serialize(problemDetails);
+            var result = JsonSerializer.Serialize(problemDetails, SerializationConfiguration.JsonSerializerOptions);
             context.Response.ContentType = "application/problem+json";
             context.Response.StatusCode = status;
 

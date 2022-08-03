@@ -77,13 +77,23 @@ namespace Youverse.Hosting.Middleware
             {
                 using (var responseStream = new MemoryStream())
                 {
+                    //create a separate response stream to collect all of the content being written
                     var originalBody = context.Response.Body;
                     context.Response.Body = responseStream;
 
-                    await _next(context);
+                    try
+                    {
+                        await _next(context);
+                        
+                        responseStream.Seek(0L, SeekOrigin.Begin);
+                        await EncryptResponse(context, originalBody);
+                    }
+                    catch (Exception e)
+                    {
+                        context.Response.Body = originalBody;
+                        throw;
+                    }
 
-                    responseStream.Seek(0L, SeekOrigin.Begin);
-                    await EncryptResponse(context, originalBody);
                 }
             }
             else
