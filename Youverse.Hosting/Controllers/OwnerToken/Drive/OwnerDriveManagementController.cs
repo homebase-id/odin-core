@@ -42,11 +42,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("create")]
-        public async Task<IActionResult> CreateDrive([FromBody] CreateDriveRequest request)
+        public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
             var _ = await _driveService.CreateDrive(request.Name, request.TargetDrive, request.Metadata, request.AllowAnonymousReads);
-            return Ok();
+            return true;
         }
         
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]

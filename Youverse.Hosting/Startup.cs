@@ -76,31 +76,8 @@ namespace Youverse.Hosting
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
             
-            services.AddControllers(options =>
-                {
-                    // options.Filters.Clear();
-                    // options.Filters.Add<SharedSecretResultActionFilter>(0);
-                    // options.Filters.Add<UnsupportedContentTypeFilter>(-3000);
-                    //
-                    // var jsonOptions = new JsonOptions();
-                    // jsonOptions.AllowInputFormatterExceptionMessages = true;
-                    // jsonOptions.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                    // jsonOptions.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
-                    //
-                    // var sharedSecretInputFormatter = new SharedSecretJsonInputFormatter(jsonOptions);
-                    //
-                    // options.InputFormatters.RemoveType<SystemTextJsonInputFormatter>();
-                    // options.InputFormatters.Add(sharedSecretInputFormatter);
-                    //
-                    // var sharedSecretOutputFormatter = new SharedSecretJsonOutputFormatter(jsonOptions.JsonSerializerOptions);
-                    // // options.OutputFormatters.RemoveType<SystemTextJsonOutputFormatter>();
-                    // options.OutputFormatters.Clear();
-                    // options.OutputFormatters.Insert(0, sharedSecretOutputFormatter);
-
-                    // options.Filters.Add(new ApplyPerimeterMetaData());
-                    //config.OutputFormatters.RemoveType<HttpNoContentOutputFormatter>(); //removes content type when 204 is returned.
-                }
-            ).AddJsonOptions(options =>
+            services.AddControllers()
+                .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
