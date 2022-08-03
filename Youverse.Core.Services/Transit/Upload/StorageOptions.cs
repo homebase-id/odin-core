@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// Specifies the operations you expect when updating an existing file.  This is only used when OverWriteFileId is not null
         /// </summary>
-        public UpdateOperation UpdateFlags { get; set; } = UpdateOperation.None;
+        // public UpdateOperation UpdateFlags { get; set; } = UpdateOperation.None;
     }
 
     [Flags]

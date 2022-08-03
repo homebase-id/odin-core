@@ -76,10 +76,11 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Cannot transfer a file to the sender; what's the point?");
             }
 
-            if (package.IsUpdateOperation)
-            {
-                return await ProcessUploadOfExistingFile(package);
-            }
+            //TODO: this is pending.  for now, you upload a full set of streams (payload, thumbnail, etc.) to overwrite a file
+            // if (package.IsUpdateOperation)
+            // {
+            //     return await ProcessUploadOfExistingFile(package);
+            // }
 
             return await ProcessUploadOfNewFile(package);
         }
