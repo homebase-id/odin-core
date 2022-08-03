@@ -18,12 +18,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions();
 
         [Post(RootPath + "/create")]
-        Task<ApiResponse<HttpContent>> Create([Body] CreateCircleRequest request);
+        Task<ApiResponse<bool>> Create([Body] CreateCircleRequest request);
 
         [Post(RootPath + "/update")]
-        Task<ApiResponse<HttpContent>> UpdateCircle([Body] CircleDefinition circleDefinition);
+        Task<ApiResponse<bool>> UpdateCircle([Body] CircleDefinition circleDefinition);
 
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteCircle([Body]Guid id);
+        Task<ApiResponse<bool>> DeleteCircle([Body]Guid id);
     }
 }
