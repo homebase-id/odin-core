@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
     [Route(OwnerApiPathConstants.DrivesV1)]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidOwnerToken]
     public class OwnerDriveMetadataController : ControllerBase
     {
         private readonly IDriveService _driveService;
