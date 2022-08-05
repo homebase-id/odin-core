@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -147,7 +148,12 @@ namespace Youverse.Hosting.Middleware
 
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
             //await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
-            context.Response.ContentLength = finalBytes.Length;
+
+            if (context.Response.StatusCode != (int)HttpStatusCode.NoContent)
+            {
+                context.Response.ContentLength = finalBytes.Length;
+            }
+            
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
             // context.Response.Body.Seek(0, SeekOrigin.Begin);

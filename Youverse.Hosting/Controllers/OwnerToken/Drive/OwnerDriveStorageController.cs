@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public async Task DeleteFile([FromBody] ExternalFileIdentifier request)
+        public async Task<bool> DeleteFile([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -91,6 +91,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.FileId
             };
             await _driveService.DeleteLongTermFile(file);
+            
+            return true;
         }
     }
 }
