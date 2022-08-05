@@ -19,9 +19,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task<AppRegistrationResponse> GetAppRegistration(Guid appId);
 
         Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
-        
+
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
-        
+
         /// <summary>
         /// Gets all registered apps
         /// </summary>
@@ -51,6 +51,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// >
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(Guid appId, byte[] clientPublicKey, string friendlyName);
+
+        Task<AppClientRegistrationResponse> RegisterChatClient_Temp(Guid appId, string friendlyName);
 
         Task<PagedResult<RegisteredAppClientResponse>> GetRegisteredClients(PageOptions pageOptions);
     }

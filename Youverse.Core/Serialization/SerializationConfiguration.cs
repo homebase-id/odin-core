@@ -9,6 +9,7 @@ public static class SerializationConfiguration
     public static readonly JsonSerializerOptions JsonSerializerOptions = new JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
     };
 }

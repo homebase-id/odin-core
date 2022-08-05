@@ -89,6 +89,36 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Data = encryptedData
             };
         }
+        
+        public async Task<AppClientRegistrationResponse> RegisterChatClient_Temp(Guid appId, string friendlyName)
+        {
+            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
+            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
+
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (appReg == null)
+            {
+                throw new YouverseException("App must be registered to add a client");
+            }
+
+            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
+
+            reg.GrantId = appId;
+
+            _systemStorage.WithTenantSystemStorage<AccessRegistration>(AppAccessTokenReg, s => s.Save(reg));
+
+            //RSA encrypt using the public key and send to client
+            var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
+
+            return new AppClientRegistrationResponse()
+            {
+                EncryptionVersion = 72,
+                Token = cat.Id,
+                Data = data.GetKey()
+            };
+        }
 
         public async Task<AppRegistrationResponse> GetAppRegistration(Guid appId)
         {
