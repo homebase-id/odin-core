@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Temp method to register chat app during development
         /// </summary>
         [HttpPost("register/chatclient_temp")]
-        [Obsolete("remove this when we fully build app reg")]
+        // [Obsolete("remove this when we fully build app reg")]
         public async Task<AppClientRegistrationResponse> RegisterChatClient([FromBody] AppClientRegistrationRequest request)
         {
             var reg = await _appRegistrationService.RegisterChatClient_Temp(request.AppId, request.ClientFriendlyName);
