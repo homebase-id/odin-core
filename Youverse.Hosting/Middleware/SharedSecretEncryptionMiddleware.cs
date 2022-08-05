@@ -24,7 +24,7 @@ namespace Youverse.Hosting.Middleware
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
 
         private readonly List<string> IgnoredPathsForRequests;
-        
+
         /// <summary>
         /// Paths that should not have their responses encrypted 
         /// </summary>
@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/drive/files/thumb",
                 "/api/youauth/v1/drive/files/thumb"
             };
-            
+
             IgnoredPathsForResponses.AddRange(IgnoredPathsForRequests);
         }
 
@@ -68,7 +68,6 @@ namespace Youverse.Hosting.Middleware
 
         public async Task Invoke(HttpContext context)
         {
-            
             if (ShouldDecryptRequest(context))
             {
                 await DecryptRequest(context);
@@ -85,7 +84,7 @@ namespace Youverse.Hosting.Middleware
                     try
                     {
                         await _next(context);
-                        
+
                         responseStream.Seek(0L, SeekOrigin.Begin);
                         await EncryptResponse(context, originalBody);
                     }
@@ -94,7 +93,6 @@ namespace Youverse.Hosting.Middleware
                         context.Response.Body = originalBody;
                         throw;
                     }
-
                 }
             }
             else
@@ -131,8 +129,14 @@ namespace Youverse.Hosting.Middleware
 
         private async Task EncryptResponse(HttpContext context, Stream originalBody)
         {
-            //TODO: Need to encrypt w/o buffering
+            //if a controller tells us no content, write nothing to the stream
+            if (context.Response.StatusCode == (int)HttpStatusCode.NoContent)
+            {
+                context.Response.Body = originalBody;
+                return;
+            }
 
+            //TODO: Need to encrypt w/o buffering
             var key = this.GetSharedSecret(context);
             var responseBytes = context.Response.Body.ToByteArray();
 
@@ -147,13 +151,8 @@ namespace Youverse.Hosting.Middleware
             };
 
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
-            //await JsonSerializer.SerializeAsync(originalBody, encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
 
-            if (context.Response.StatusCode != (int)HttpStatusCode.NoContent)
-            {
-                context.Response.ContentLength = finalBytes.Length;
-            }
-            
+            context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
             // context.Response.Body.Seek(0, SeekOrigin.Begin);
