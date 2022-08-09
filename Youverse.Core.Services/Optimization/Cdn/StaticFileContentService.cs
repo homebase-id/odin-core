@@ -13,8 +13,24 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Optimization.Cdn;
+
+public enum CrossOriginBehavior
+{
+    /// <summary>
+    /// Make no changes to the Access-Control-Allow-Origin header
+    /// </summary>
+    Default = 0,
+
+    /// <summary>
+    /// Updates Access-Control-Allow-Origin header to * when the corresponding file is served.
+    /// </summary>
+    AllowAllOrigins = 1,
+
+    //Whitelist = 2,
+}
 
 public class StaticFileContentService
 {
@@ -22,21 +38,23 @@ public class StaticFileContentService
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
+    private readonly ISystemStorage _systemStorage;
 
-    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService, TenantContext tenantContext, DotYouContextAccessor contextAccessor)
+    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
     {
         _driveService = driveService;
         _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
+        _systemStorage = systemStorage;
     }
 
-    public async Task<StaticFilePublishResult> Publish(string filename, List<QueryParamSection> sections)
+    public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config, List<QueryParamSection> sections)
     {
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
         //
-        
+
         //Note: I need to add a permission that bettter describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key idicates you're in full admin mode
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -115,27 +133,32 @@ public class StaticFileContentService
                     Payload = payload
                 });
             }
-            
+
             result.SectionResults.Add(new SectionPublishResult()
             {
                 Name = sectionOutput.Name,
                 FileCount = sectionOutput.Files.Count
             });
-            
+
             await using var fileStream = File.Create(tempTargetPath);
             await JsonSerializer.SerializeAsync(fileStream, sectionOutputList, sectionOutputList.GetType(), SerializationConfiguration.JsonSerializerOptions);
-            
+
             string finalTargetPath = Path.Combine(targetFolder, filename);
             File.Move(tempTargetPath, finalTargetPath, true);
         }
 
+        config.ContentType = "application/json";
+        _systemStorage.KeyValueStorage.Upsert(GetConfigKey(filename), config);
+
         return result;
     }
 
-    public Task<Stream> GetStaticFileStream(string filename)
+    public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
     {
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
+
+        var config = _systemStorage.KeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))
         {
@@ -143,7 +166,12 @@ public class StaticFileContentService
         }
 
         var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return Task.FromResult((Stream)fileStream);
+        return Task.FromResult((config, (Stream)fileStream));
+    }
+
+    private byte[] GetConfigKey(string filename)
+    {
+        return filename.ToLower().ToUtf8ByteArray();
     }
 
     private string EnsurePath()

@@ -125,6 +125,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 var publishRequest = new PublishStaticFileRequest()
                 {
                     Filename = "test-file.ok",
+                    Config = new StaticFileConfiguration()
+                    {
+                        CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
+                    },
                     Sections = new List<QueryParamSection>(),
                 };
 
@@ -175,15 +179,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
                 Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
-                var getFileResponse = await staticFileSvc.GetStaticFile(publishRequest.Filename);
+                var getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+
+                var getFileResponse = await getStaticFileSvc.GetStaticFile(publishRequest.Filename);
                 Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
                 Assert.IsNotNull(getFileResponse.Content);
 
-                //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
-                // var json = await getFileResponse.Content.ReadAsStringAsync();
-                // Console.WriteLine(json);
+                Assert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
+                Assert.IsNotNull(values);
+                Assert.IsTrue(values.Single() == "*");
 
-                var sectionOutputArray = await JsonSerializer.DeserializeAsync<SectionOutput[]>(await getFileResponse.Content.ReadAsStreamAsync(), SerializationConfiguration.JsonSerializerOptions);
+                //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
+                var json = await getFileResponse.Content.ReadAsStringAsync();
+                // Console.WriteLine(json);
+                var sectionOutputArray = JsonSerializer.Deserialize<SectionOutput[]>(json, SerializationConfiguration.JsonSerializerOptions);
+                // var sectionOutputArray = await JsonSerializer.DeserializeAsync<SectionOutput[]>(await getFileResponse.Content.ReadAsStreamAsync(), SerializationConfiguration.JsonSerializerOptions);
 
                 Assert.IsNotNull(sectionOutputArray);
                 Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);

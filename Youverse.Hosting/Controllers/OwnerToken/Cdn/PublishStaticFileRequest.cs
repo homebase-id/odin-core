@@ -6,6 +6,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn;
 public class PublishStaticFileRequest
 {
     public string Filename { get; set; }
-        
+
+    public StaticFileConfiguration Config { get; set; }
+    
     public List<QueryParamSection> Sections { get; set; }
 }

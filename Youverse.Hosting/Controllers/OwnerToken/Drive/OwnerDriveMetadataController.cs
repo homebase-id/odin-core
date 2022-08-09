@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            var drives = await _driveService.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
+            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -47,6 +47,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
         }
-        
     }
 }

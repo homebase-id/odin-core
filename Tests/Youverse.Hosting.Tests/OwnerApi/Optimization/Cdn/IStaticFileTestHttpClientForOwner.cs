@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
         [Post(RootEndpoint + "/publish")]
         Task<ApiResponse<StaticFilePublishResult>> Publish([Body] PublishStaticFileRequest request);
 
-        [Get(RootEndpoint + "/staticfile")]
-        Task<ApiResponse<HttpContent>> GetStaticFile([Query] string filename);
+        [Get("/cdn/{filename}")]
+        Task<ApiResponse<HttpContent>> GetStaticFile(string filename);
     }
 }

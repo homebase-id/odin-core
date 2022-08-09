@@ -28,27 +28,30 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         [HttpPost("publish")]
         public async Task<StaticFilePublishResult> PublishBatch([FromBody] PublishStaticFileRequest request)
         {
-            var publishResult = await _staticFileContentService.Publish(request.Filename, request.Sections);
+            var publishResult = await _staticFileContentService.Publish(request.Filename, request.Config, request.Sections);
             return publishResult;
         }
-
-
-        /// <summary>
-        /// Returns the static file's contents
-        /// </summary>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
-        [HttpGet("staticfile")]
-        public async Task<IActionResult> GetStaticFile([FromQuery] string filename)
-        {
-            var payload = await _staticFileContentService.GetStaticFileStream(filename);
-            if (null == payload)
-            {
-                return NotFound();
-            }
-
-            return new FileStreamResult(payload, "application/json");
-        }
+        //
+        // /// <summary>
+        // /// Returns the static file's contents
+        // /// </summary>
+        // /// <returns></returns>
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
+        // [HttpGet("files/{filename}")]
+        // public async Task<IActionResult> GetStaticFile(string filename)
+        // {
+        //     var (config, stream) = await _staticFileContentService.GetStaticFileStream(filename);
+        //     if (null == stream)
+        //     {
+        //         return NotFound();
+        //     }
+        //
+        //     if (config.CrossOriginBehaviour == CrossOriginBehaviour.AllowAllOrigins)
+        //     {
+        //         this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+        //     }
+        //
+        //     return new FileStreamResult(stream, "application/json");
+        // }
     }
 }

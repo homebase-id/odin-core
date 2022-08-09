@@ -40,7 +40,6 @@ namespace Youverse.Hosting.Middleware
 
             IgnoredPathsForRequests = new List<string>
             {
-                "/api/owner/v1/optimization/cdn/staticfile",
                 "/api/owner/v1/youauth",
                 "/api/owner/v1/authentication",
                 "/api/owner/v1/transit/outbox/processor",
@@ -58,7 +57,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/youauth/v1/drive/files/payload",
                 "/api/owner/v1/drive/files/thumb",
                 "/api/apps/v1/drive/files/thumb",
-                "/api/youauth/v1/drive/files/thumb"
+                "/api/youauth/v1/drive/files/thumb",
+                "/cdn"
             };
 
             IgnoredPathsForResponses.AddRange(IgnoredPathsForRequests);

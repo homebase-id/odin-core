@@ -1,6 +1,6 @@
 using System.IO;
 using Dawn;
-using Newtonsoft.Json;
+using Youverse.Core.Serialization;
 using Youverse.Core.SystemStorage.SqliteKeyValue;
 using Youverse.Core.Util;
 
@@ -22,7 +22,6 @@ public class KeyValueStorage
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
         _db = new KeyValueDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
-        
     }
 
     // public T Get<T>(byte[] key, KeyValueStorageType storageType) where T : class
@@ -30,7 +29,7 @@ public class KeyValueStorage
     //     
     //     
     // }
-    
+
     // public void Upsert<T>(byte[] key, T value) where T: class, IStorable
     // {
     //     var json = JsonConvert.SerializeObject(value);
@@ -48,12 +47,15 @@ public class KeyValueStorage
             return null;
         }
 
-        return JsonConvert.DeserializeObject<T>(bytes.ToStringFromUtf8Bytes());
+        return System.Text.Json.JsonSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes(), SerializationConfiguration.JsonSerializerOptions);
+
     }
 
     public void Upsert<T>(byte[] key, T value)
     {
-        var json = JsonConvert.SerializeObject(value);
+        // var json = JsonConvert.SerializeObject(value);
+        var json = System.Text.Json.JsonSerializer.Serialize(value, SerializationConfiguration.JsonSerializerOptions);
+
         _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
     }
 
