@@ -15,9 +15,10 @@ public class TargetDrive
     {
         return ByteArrayUtil.Combine(Type.ToByteArray(), Alias.ToByteArray());
     }
-    
+
     public bool IsValid()
     {
+        //TODO: update to check min lenght
         return this.Alias != Guid.Empty && this.Type != Guid.Empty;
     }
 
@@ -29,5 +30,4 @@ public class TargetDrive
             Type = Guid.NewGuid()
         };
     }
-    
 }
