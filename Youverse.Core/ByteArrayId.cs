@@ -104,6 +104,11 @@ public class ByteArrayId
 
     public static bool IsValid(byte[] id)
     {
+        if (null == id)
+        {
+            return false;
+        }
+
         bool HasValidLength(byte[] v) => v.Length is >= 8 and <= 16;
 
         // bool HasValidChars(byte[] v) => v.Any(b => b is <(byte)1 and > (byte)127);
