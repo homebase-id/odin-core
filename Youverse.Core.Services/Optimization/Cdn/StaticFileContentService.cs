@@ -141,7 +141,8 @@ public class StaticFileContentService
             });
 
             await using var fileStream = File.Create(tempTargetPath);
-            await DotYouSystemSerializer.Serialize(fileStream, sectionOutput, sectionOutputList.GetType());
+
+            await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
             
             string finalTargetPath = Path.Combine(targetFolder, filename);
             File.Move(tempTargetPath, finalTargetPath, true);

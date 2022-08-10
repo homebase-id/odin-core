@@ -9,7 +9,7 @@ public class ByteArrayConverter : JsonConverter<byte[]>
 {
     public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        // var str = reader.GetString();
+        var str = reader.GetString();
         // Console.Write("b64=" + str);
         var bytes = reader.GetBytesFromBase64();
         return bytes;

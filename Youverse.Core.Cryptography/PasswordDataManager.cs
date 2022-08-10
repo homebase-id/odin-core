@@ -8,6 +8,13 @@ using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Cryptography
 {
+    public class DecryptedRSAPasswordHeader
+    {
+        public string hpwd64 { get; set; }
+        public string kek64 { get; set; }
+        public string secret { get; set; }
+    }
+
     public static class PasswordDataManager
     {
         /// <summary>
@@ -20,7 +27,6 @@ namespace Youverse.Core.Cryptography
         /// <returns></returns>
         private static PasswordData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
         {
-
             var passwordKey = new PasswordData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
@@ -33,7 +39,7 @@ namespace Youverse.Core.Cryptography
             // so that we base64 encode the RSA encrypted string, rather than passing
             // a nice readable string over and then encrypting it. 
             // This way, once we RSA decrypt it is a byte array and we can zap it.
-            
+
             // TODO: Change to using ()
             var KekKey = new SensitiveByteArray(Convert.FromBase64String(KeK64));
             passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref KekKey);
@@ -79,7 +85,7 @@ namespace Youverse.Core.Cryptography
 
             var passwordKey = PasswordDataManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
 
-            
+
             return passwordKey;
         }
 
@@ -117,8 +123,10 @@ namespace Youverse.Core.Cryptography
             string sharedsecret64;
             try
             {
-                var o = DotYouSystemSerializer.Deserialize<dynamic>(originalResult);
-                
+                //Note: had to use an explicit class since the System.Text.Json serializer failed with dynamic
+                // var o = DotYouSystemSerializer.Deserialize<dynamic>(originalResult);
+                var o = DotYouSystemSerializer.Deserialize<DecryptedRSAPasswordHeader>(originalResult);
+
                 hpwd64 = o.hpwd64;
                 kek64 = o.kek64;
                 sharedsecret64 = o.secret;
