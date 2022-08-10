@@ -32,7 +32,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     public SharedSecretSystemTextJsonContentSerializer(SensitiveByteArray sharedSecret)
     {
         _sharedSecret = sharedSecret;
-        this.jsonSerializerOptions = new JsonSerializerOptions(SerializationConfiguration.JsonSerializerOptions);
+        this.jsonSerializerOptions = new JsonSerializerOptions(DotYouSystemSerializer.JsonSerializerOptions);
         jsonSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
     }
 
@@ -52,7 +52,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             Data = encryptedBytes.ToBase64()
         };
 
-        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), SerializationConfiguration.JsonSerializerOptions);
+        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), DotYouSystemSerializer.JsonSerializerOptions);
     }
 
     /// <inheritdoc/>

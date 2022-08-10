@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -14,10 +13,10 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
@@ -30,15 +29,13 @@ using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
+namespace Youverse.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
@@ -382,7 +379,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             //     {
             //         Tags = tags,
             //         ContentIsComplete = true,
-            //         JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+            //         JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
             //     }
             // };
             //
@@ -556,7 +553,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
             {
                 var keyHeader = KeyHeader.NewRandom16();
-                var instructionStream = new MemoryStream(JsonConvert.SerializeObject(instructionSet).ToUtf8ByteArray());
+                var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 fileMetadata.PayloadIsEncrypted = encryptPayload;
                 var descriptor = new UploadFileDescriptor()
@@ -623,7 +620,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 fileMetadata.PayloadIsEncrypted = options.EncryptPayload;

@@ -43,13 +43,13 @@ namespace Youverse.Core.Services.Drive
             get => _inner.Alias;
             set { }
         }
-        
+
         public override Guid Type
         {
             get => _inner.Type;
             set { }
         }
-        
+
         public override string Metadata
         {
             get => _inner.Metadata;
@@ -94,7 +94,7 @@ namespace Youverse.Core.Services.Drive
                 Type = this.Type
             };
         }
-        
+
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
@@ -124,7 +124,7 @@ namespace Youverse.Core.Services.Drive
         /// Data specified by the client to further help with usage of this drive (i.e. a json string indicating things like description, etc.)
         /// </summary>
         public virtual string Metadata { get; set; }
-        
+
         /// <summary>
         /// Specifies a public identifier for accessing this drive.  This stops us from sharing the Id outside of this system.
         /// </summary>
@@ -153,6 +153,5 @@ namespace Youverse.Core.Services.Drive
         /// Specifies if anonymous callers can read this drive.
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
-        
     }
 }

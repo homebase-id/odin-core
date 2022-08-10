@@ -3,17 +3,16 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
@@ -96,7 +95,7 @@ namespace Youverse.Core.Services.Drive
 
                 secret.Wipe();
 
-                var json = JsonConvert.SerializeObject(sdb);
+                var json = DotYouSystemSerializer.Serialize(sdb);
                 _systemStorage.KeyValueStorage.ThreeKeyStorage.UpsertRow(sdb.Id.ToByteArray(), targetDrive.ToKey(), _driveDataType, json.ToUtf8ByteArray());
 
                 storageDrive = ToStorageDrive(sdb);
@@ -210,7 +209,7 @@ namespace Youverse.Core.Services.Drive
                 metadata.Created = DateTimeExtensions.UnixTimeMilliseconds();
             }
 
-            var json = JsonConvert.SerializeObject(header);
+            var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Header, stream);
 
@@ -236,7 +235,7 @@ namespace Youverse.Core.Services.Drive
 
             var stream = await this.GetTempStream(file, extension);
             string json = await new StreamReader(stream).ReadToEndAsync();
-            var o = JsonConvert.DeserializeObject<T>(json);
+            var o = DotYouSystemSerializer.Deserialize<T>(json);
             return o;
         }
 
@@ -432,7 +431,7 @@ namespace Youverse.Core.Services.Drive
 
         private StorageDriveBase ToStorageDriveBase(byte[] bytes)
         {
-            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
+            return DotYouSystemSerializer.Deserialize<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
         }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)

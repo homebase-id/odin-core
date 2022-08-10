@@ -14,6 +14,11 @@ Notes:
 * For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Youverse.Hosting project uses a proxy server to serve these in the dev env.
   * https://github.com/YouFoundation/owner-app
   * https://github.com/YouFoundation/public-app
+* !!! Serialization
+  * Use the DotYouSystemSerializer for all serialization.  
+    * This contains the global serializer settings needed across the solution
+    * If an overload is missing, add it.  This uses System.Text.Json.
+  * You should not import NewtonsoftJson. (nothing is wrong with it, we just need to stick w/ one library and formatter)
 
 Steps:
 1. Install dotnet sdk v6+

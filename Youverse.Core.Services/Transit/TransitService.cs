@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
@@ -154,16 +153,9 @@ namespace Youverse.Core.Services.Transit
             var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+            
+            var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
-            var serializerOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
-            };
-
-            var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json, SerializationConfiguration.JsonSerializerOptions);
-
-            // var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
             if (null == transferEncryptedKeyHeader)
@@ -364,7 +356,7 @@ namespace Youverse.Core.Services.Transit
                     };
                 }
 
-                var transferKeyHeaderBytes = JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray();
+                var transferKeyHeaderBytes = DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
@@ -388,7 +380,7 @@ namespace Youverse.Core.Services.Transit
                 };
 
 
-                var json = JsonConvert.SerializeObject(redactedMetadata);
+                var json = DotYouSystemSerializer.Serialize(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 

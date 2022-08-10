@@ -1,11 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Tests
 {
@@ -50,24 +45,5 @@ namespace Youverse.Core.Tests
             Assert.IsTrue(sam != frodo);
         }
 
-        [Test(Description = "")]
-        public void CanDeserializeRecipientList()
-        {
-            var x = new RecipientList();
-            x.Recipients = new List<DotYouIdentity>() {(DotYouIdentity) "frodo.digital", (DotYouIdentity) "samwise.digital"};
-            var json = JsonConvert.SerializeObject(x);
-            Console.WriteLine($"json:{json}");
-
-            var x2 = JsonConvert.DeserializeObject<RecipientList>(json);
-
-            Assert.IsNotNull(x2);
-            Assert.IsTrue(x.Recipients.Count == x2.Recipients.Count);
-
-            var x1Ordered = x.Recipients.OrderBy(k => k.ToGuid());
-            var x2Ordered = x2.Recipients.OrderBy(k => k.ToGuid());
-            
-            Assert.IsTrue(x1Ordered.First()== x2Ordered.First());
-            Assert.IsTrue(x1Ordered.Last()== x2Ordered.Last());
-        }
     }
 }

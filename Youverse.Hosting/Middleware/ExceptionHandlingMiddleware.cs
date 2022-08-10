@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Middleware
                 }
             };
 
-            var result = JsonSerializer.Serialize(problemDetails, SerializationConfiguration.JsonSerializerOptions);
+            var result = JsonSerializer.Serialize(problemDetails, DotYouSystemSerializer.JsonSerializerOptions);
             context.Response.ContentType = "application/problem+json";
             context.Response.StatusCode = status;
 

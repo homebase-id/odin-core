@@ -141,8 +141,8 @@ public class StaticFileContentService
             });
 
             await using var fileStream = File.Create(tempTargetPath);
-            await JsonSerializer.SerializeAsync(fileStream, sectionOutputList, sectionOutputList.GetType(), SerializationConfiguration.JsonSerializerOptions);
-
+            await DotYouSystemSerializer.Serialize(fileStream, sectionOutput, sectionOutputList.GetType());
+            
             string finalTargetPath = Path.Combine(targetFolder, filename);
             File.Move(tempTargetPath, finalTargetPath, true);
         }

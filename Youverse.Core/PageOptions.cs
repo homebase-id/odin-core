@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 using MessagePack;
-using Newtonsoft.Json;
 
 namespace Youverse.Core
 {

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Newtonsoft.Json;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.SystemStorage.SqliteKeyValue;
 
@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
                 Permissions = request.Permissions
             };
 
-            var json = JsonConvert.SerializeObject(circle);
+            var json = DotYouSystemSerializer.Serialize(circle);
             _circleStorage.UpsertRow(circle.Id.ToByteArray(), Array.Empty<byte>(), _circleDataType, json.ToUtf8ByteArray());
 
             return Task.CompletedTask;
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             //var driveChanges = (newCircleDefinition.Drives?.Count() ?? 0) != (existingCircle.Drives?.Count() ?? 0);
             bool driveChanges = (existingCircle.Drives != null && newCircleDefinition.Drives != null) &&
                                 (newCircleDefinition.Drives.Except(existingCircle.Drives)).Any();
-            
+
             //TODO: apply new permissions to all circle members
             if (permissionChanges || driveChanges)
             {
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             existingCircle.Drives = newCircleDefinition.Drives;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            var json = JsonConvert.SerializeObject(newCircleDefinition);
+            var json = DotYouSystemSerializer.Serialize(newCircleDefinition);
             _circleStorage.UpsertRow(existingCircle.Id.ToByteArray(), Array.Empty<byte>(), _circleDataType, json.ToUtf8ByteArray());
 
             return Task.CompletedTask;
@@ -116,7 +116,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
         private CircleDefinition FromBytes(byte[] bytes)
         {
-            return JsonConvert.DeserializeObject<CircleDefinition>(bytes.ToStringFromUtf8Bytes());
+            return DotYouSystemSerializer.Deserialize<CircleDefinition>(bytes.ToStringFromUtf8Bytes());
         }
     }
 }

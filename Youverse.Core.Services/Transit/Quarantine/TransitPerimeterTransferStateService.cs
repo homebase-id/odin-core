@@ -1,8 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Base;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
@@ -31,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var file = _driveService.CreateInternalFileId(driveId);  //notice here: we always create a new file Id when receiving a new file.  we might need to add a feature that lets multiple identities collaborate on a the same file.  not sure who this will go.
             var item = new IncomingTransferStateItem(id, file);
 
-            await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());
+            await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
             item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);

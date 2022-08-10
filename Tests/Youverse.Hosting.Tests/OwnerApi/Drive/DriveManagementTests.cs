@@ -5,7 +5,6 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive;
 

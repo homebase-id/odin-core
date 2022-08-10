@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials((DotYouIdentity)header.Recipient, clientAccessToken)
             };
 
-            var payloadBytes = JsonConvert.SerializeObject(request).ToUtf8ByteArray();
+            var payloadBytes = DotYouSystemSerializer.Serialize(request).ToUtf8ByteArray();
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
             _logger.LogInformation($"[{request.SenderDotYouId}] is sending a request to the server of [{request.Recipient}]");
             var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity)request.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
@@ -224,7 +224,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             };
 
             //TODO: XXX - no need to do RSA encryption here since we have the remoteClientAccessToken.SharedSecret
-            var json = JsonConvert.SerializeObject(acceptedReq);
+            var json = DotYouSystemSerializer.Serialize(acceptedReq);
             var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.SenderDotYouId, json.ToUtf8ByteArray());
             var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((DotYouIdentity)request.SenderDotYouId).EstablishConnection(payloadBytes);
 

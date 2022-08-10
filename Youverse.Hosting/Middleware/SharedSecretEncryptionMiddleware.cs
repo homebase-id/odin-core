@@ -108,7 +108,8 @@ namespace Youverse.Hosting.Middleware
             //TODO: need to detect if the request has a payload
             try
             {
-                var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(request.Body, SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
+                var encryptedRequest = await DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(request.Body, context.RequestAborted);
+
                 if (null == encryptedRequest)
                 {
                     throw new SharedSecretException("Failed to deserialize SharedSecretEncryptedRequest, result was null");
@@ -150,7 +151,7 @@ namespace Youverse.Hosting.Middleware
                 Data = Convert.ToBase64String(encryptedBytes)
             };
 
-            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
+            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), DotYouSystemSerializer.JsonSerializerOptions);
 
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);

@@ -4,11 +4,11 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
@@ -17,7 +17,7 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.DriveApi.App;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
+using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Utils
 {
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 AppData = new()
                 {
                     ContentIsComplete = true,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -145,7 +145,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 {
                     Tags = tags,
                     ContentIsComplete = true,
-                    JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -194,7 +194,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = testAppContext.SharedSecret.ToSensitiveByteArray();

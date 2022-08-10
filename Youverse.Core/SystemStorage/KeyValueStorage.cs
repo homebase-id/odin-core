@@ -32,7 +32,7 @@ public class KeyValueStorage
 
     // public void Upsert<T>(byte[] key, T value) where T: class, IStorable
     // {
-    //     var json = JsonConvert.SerializeObject(value);
+    //     var json = DotYouSystemSerializer.Serialize(value);
     //     _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
     // }
 
@@ -47,15 +47,13 @@ public class KeyValueStorage
             return null;
         }
 
-        return System.Text.Json.JsonSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes(), SerializationConfiguration.JsonSerializerOptions);
-
+        return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
     }
 
     public void Upsert<T>(byte[] key, T value)
     {
-        // var json = JsonConvert.SerializeObject(value);
-        var json = System.Text.Json.JsonSerializer.Serialize(value, SerializationConfiguration.JsonSerializerOptions);
-
+        var json = DotYouSystemSerializer.Serialize(value);
+        
         _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
     }
 
@@ -64,9 +62,3 @@ public class KeyValueStorage
         _db.tblKeyValue.DeleteRow(id);
     }
 }
-
-// public enum KeyValueStorageType
-// {
-//     SingleKey,
-//     TwoKey
-// }

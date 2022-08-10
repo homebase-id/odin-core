@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core.Cryptography;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
@@ -51,7 +49,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0,
@@ -113,7 +111,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0
@@ -191,7 +189,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0

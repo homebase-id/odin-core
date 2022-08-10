@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 
@@ -79,7 +79,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
             
             var jsonBytes = Cryptography.Crypto.AesCbc.Decrypt(encryptedNotification.Data, ref sharedSecret, encryptedNotification.InitializationVector);
             var json = jsonBytes.ToStringFromUtf8Bytes();
-            return JsonConvert.DeserializeObject<CircleNetworkNotification>(json);
+            return DotYouSystemSerializer.Deserialize<CircleNetworkNotification>(json);
         }
 
         private async Task<SharedSecretEncryptedNotification> Encrypt(DotYouIdentity recipient, object notification)
@@ -87,7 +87,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
             var identityReg = await _circleNetworkService.GetIdentityConnectionRegistration(recipient, true);
             var sharedSecret = identityReg.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
 
-            var json = JsonConvert.SerializeObject(notification);
+            var json = DotYouSystemSerializer.Serialize(notification);
             var iv = ByteArrayUtil.GetRndByteArray(16);
 
             var encryptedData = Cryptography.Crypto.AesCbc.Encrypt(

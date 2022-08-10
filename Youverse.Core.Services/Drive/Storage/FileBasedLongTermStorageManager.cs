@@ -4,8 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -196,7 +195,7 @@ namespace Youverse.Core.Services.Drive.Storage
             var stream = await this.GetFilePartStream(fileId, FilePart.Header);
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
-            var header = JsonConvert.DeserializeObject<ServerFileHeader>(json);
+            var header = DotYouSystemSerializer.Deserialize<ServerFileHeader>(json);
             return header;
         }
 

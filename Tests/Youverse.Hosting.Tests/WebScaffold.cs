@@ -11,7 +11,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
+using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests
 {

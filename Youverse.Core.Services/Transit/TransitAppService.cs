@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Transit
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
-            var metadata = JsonConvert.DeserializeObject<FileMetadata>(json);
+            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
             metadata!.SenderDotYouId = item.Sender;
 
             var serverMetadata = new ServerMetadata()

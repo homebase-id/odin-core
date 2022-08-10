@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Newtonsoft.Json;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
 
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = JsonConvert.DeserializeObject<RsaEncryptedRecipientTransferInstructionSet>(json);
+            var transferKeyHeader = DotYouSystemSerializer.Deserialize<RsaEncryptedRecipientTransferInstructionSet>(json);
 
             var transferStateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
             return transferStateItemId;

@@ -2,9 +2,9 @@
 using System.IO;
 using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Cryptography
 {
@@ -117,8 +117,8 @@ namespace Youverse.Core.Cryptography
             string sharedsecret64;
             try
             {
-                var o = JsonConvert.DeserializeObject<dynamic>(originalResult);
-
+                var o = DotYouSystemSerializer.Deserialize<dynamic>(originalResult);
+                
                 hpwd64 = o.hpwd64;
                 kek64 = o.kek64;
                 sharedsecret64 = o.secret;
@@ -210,7 +210,7 @@ namespace Youverse.Core.Cryptography
                 kek64 = KeK64,
                 secret = ByteArrayUtil.GetRndByteArray(16)
             };
-            var str = JsonConvert.SerializeObject(data);
+            var str = DotYouSystemSerializer.Serialize(data);
 
             (pr.crc, pr.RsaEncrypted) = RsaKeyManagement.PasswordCalculateReplyHelper(nonce.PublicPem, str);
 

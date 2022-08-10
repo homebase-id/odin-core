@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Newtonsoft.Json;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
 
@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.ClientNotifications
 
         private async Task SerializeSendToAll(object notification)
         {
-            var json = JsonConvert.SerializeObject(notification);
+            var json = DotYouSystemSerializer.Serialize(notification);
             await SendMessageToAllAsync(json);
         }
     }

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -72,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: section_1_filetype,
                 dataType: 0,
-                jsonContent: JsonConvert.SerializeObject(new { content = "some content" }),
+                jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
                 payloadContent: null,
                 previewThumbnail: new ThumbnailContent()
@@ -88,7 +87,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: section_1_filetype,
                 dataType: 0,
-                jsonContent: JsonConvert.SerializeObject(new { content = "some content" }),
+                jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
                 payloadContent: "this is just a bit of text payload".ToUtf8ByteArray(),
                 previewThumbnail: new ThumbnailContent()
@@ -104,7 +103,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: 0,
                 dataType: section_2_datatype,
-                jsonContent: JsonConvert.SerializeObject(new { content = "stuff" }),
+                jsonContent: DotYouSystemSerializer.Serialize(new { content = "stuff" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
                 payloadContent: "payload".ToUtf8ByteArray(),
                 previewThumbnail: new ThumbnailContent()
@@ -192,9 +191,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
                 var json = await getFileResponse.Content.ReadAsStringAsync();
                 // Console.WriteLine(json);
-                var sectionOutputArray = JsonSerializer.Deserialize<SectionOutput[]>(json, SerializationConfiguration.JsonSerializerOptions);
-                // var sectionOutputArray = await JsonSerializer.DeserializeAsync<SectionOutput[]>(await getFileResponse.Content.ReadAsStreamAsync(), SerializationConfiguration.JsonSerializerOptions);
-
+                
+                var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
+                
                 Assert.IsNotNull(sectionOutputArray);
                 Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
                 Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
@@ -219,7 +218,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
 
