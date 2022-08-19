@@ -4,33 +4,29 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
 using Youverse.Core.SystemStorage;
-using Youverse.Core.SystemStorage.SqliteKeyValue;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
     public class CircleDefinitionService
     {
-        private readonly byte[] _circleDataType = "circle".ToLower().ToUtf8ByteArray();
+        private readonly ByteArrayId _circleDataType = ByteArrayId.FromString("circle__");
 
-        private readonly TableKeyThreeValue _circleStorage;
+        private readonly ThreeKeyStorage _circleStorage;
 
         public CircleDefinitionService(ISystemStorage systemStorage)
         {
-            _circleStorage = systemStorage.KeyValueStorage.ThreeKeyStorage;
+            _circleStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
         }
 
         public Task Create(CreateCircleRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-
-            var id = Guid.NewGuid();
-
+            
             var circle = new CircleDefinition()
             {
-                Id = id,
+                Id = new ByteArrayId( Guid.NewGuid().ToByteArray()),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
                 Description = request.Description,
@@ -38,8 +34,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
                 Permissions = request.Permissions
             };
 
-            var json = DotYouSystemSerializer.Serialize(circle);
-            _circleStorage.UpsertRow(circle.Id.ToByteArray(), Array.Empty<byte>(), _circleDataType, json.ToUtf8ByteArray());
+            _circleStorage.Upsert(circle.Id.Value, ByteArrayId.Empty.Value, _circleDataType.Value, circle);
 
             return Task.CompletedTask;
         }
@@ -72,31 +67,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             existingCircle.Drives = newCircleDefinition.Drives;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            var json = DotYouSystemSerializer.Serialize(newCircleDefinition);
-            _circleStorage.UpsertRow(existingCircle.Id.ToByteArray(), Array.Empty<byte>(), _circleDataType, json.ToUtf8ByteArray());
+            _circleStorage.Upsert(existingCircle.Id.Value, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);
 
             return Task.CompletedTask;
         }
 
-        public CircleDefinition GetCircle(Guid circleId)
+        public CircleDefinition GetCircle(ByteArrayId circleId)
         {
-            var bytes = _circleStorage.Get(circleId.ToByteArray());
-            if (null == bytes)
-            {
-                return null;
-            }
-
-            return FromBytes(bytes);
+            var def = _circleStorage.Get<CircleDefinition>(circleId);
+            return def;
         }
 
         public Task<IEnumerable<CircleDefinition>> GetCircles()
         {
-            var list = _circleStorage.GetByKeyThree(_circleDataType);
-            var circles = list.Select(FromBytes);
+            var circles = _circleStorage.GetByKey3<CircleDefinition>(_circleDataType);
             return Task.FromResult(circles);
         }
 
-        public Task Delete(Guid id)
+        public Task Delete(ByteArrayId id)
         {
             var circle = GetCircle(id);
 
@@ -107,16 +95,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
 
-
-            _circleStorage.DeleteRow(id.ToByteArray());
+            _circleStorage.Delete(id.Value);
             return Task.CompletedTask;
         }
 
         //
-
-        private CircleDefinition FromBytes(byte[] bytes)
-        {
-            return DotYouSystemSerializer.Deserialize<CircleDefinition>(bytes.ToStringFromUtf8Bytes());
-        }
     }
 }

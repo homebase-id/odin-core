@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Transit
 
             var ext = new ExternalFileIdentifier()
             {
-                TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.GetTargetDrive(),
+                TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.TargetDriveInfo,
                 FileId = package.InternalFile.FileId
             };
 

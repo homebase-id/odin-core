@@ -11,9 +11,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         public Guid DriveId { get; set; }
 
-        public Guid DriveAlias { get; set; }
+        public TargetDrive TargetDrive { get; set; }
 
-        public Guid DriveType { get; set; }
         
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
 

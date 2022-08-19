@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Youverse.Core;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
 
@@ -8,7 +9,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     public class AppRegistrationRequest
     {
-        public Guid AppId { get; set; } 
+        public ByteArrayId AppId { get; set; } 
         
         public string Name { get; set; }
         

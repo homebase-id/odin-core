@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq.Expressions;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
@@ -14,7 +13,6 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.SystemStorage;
@@ -23,8 +21,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
-        const string PENDING_CONNECTION_REQUESTS = "ConnectionRequests";
-        const string SENT_CONNECTION_REQUESTS = "SentConnectionRequests";
+        private readonly byte[] _pendingPrefix = "pnd".ToUtf8ByteArray();
+        private readonly ByteArrayId _pendingRequestsDataType = ByteArrayId.FromString("pnd_requests");
+
+        private readonly byte[] _sentPrefix = "snt".ToUtf8ByteArray();
+        private readonly ByteArrayId _sentRequestsDataType = ByteArrayId.FromString("sent_requests");
 
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _cns;
@@ -36,8 +37,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly TenantContext _tenantContext;
         private readonly IPublicKeyService _rsaPublicKeyService;
 
-        private readonly IDriveService _driveService;
         private readonly ExchangeGrantService _exchangeGrantService;
+
+        private readonly ThreeKeyStorage _pendingRequestStorage;
+        private readonly ThreeKeyStorage _sentRequestStorage;
 
         public CircleNetworkRequestService(
             DotYouContextAccessor contextAccessor,
@@ -47,8 +50,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             IMediator mediator,
             TenantContext tenantContext,
             IPublicKeyService rsaPublicKeyService,
-            ExchangeGrantService exchangeGrantService,
-            IDriveService driveService)
+            ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -59,31 +61,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _tenantContext = tenantContext;
             _rsaPublicKeyService = rsaPublicKeyService;
             _exchangeGrantService = exchangeGrantService;
-            _driveService = driveService;
             _contextAccessor = contextAccessor;
 
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.SenderDotYouId, true));
-            _systemStorage.WithTenantSystemStorage<ConnectionRequestHeader>(SENT_CONNECTION_REQUESTS, s => s.EnsureIndex(cr => cr.Recipient, true));
+            _pendingRequestStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
+            _sentRequestStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Expression<Func<ConnectionRequest, string>> sortKeySelector = key => key.SenderDotYouId;
-            Expression<Func<ConnectionRequest, bool>> predicate = c => true; //HACK: need to update the storage provider GetList method
-            var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(PENDING_CONNECTION_REQUESTS,
-                s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, pageOptions));
-
-            return results;
+            var results = _pendingRequestStorage.GetByKey3<ConnectionRequest>(_pendingRequestsDataType);
+            return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            var results = await _systemStorage.WithTenantSystemStorageReturnList<ConnectionRequest>(SENT_CONNECTION_REQUESTS, storage => storage.GetList(pageOptions));
-            return results;
+            var results = _pendingRequestStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
+            return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
@@ -141,7 +136,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 Grant = grant,
                 AccessRegistration = accessRegistration
             };
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Save(request));
+
+            _sentRequestStorage.Upsert(CreateSentRecordId(new DotYouIdentity(request.Recipient)), ByteArrayId.Empty, _sentRequestsDataType, request);
         }
 
         public async Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -157,7 +153,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             //note: this would occur during the operation verification process
             request.Validate();
             _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.Save(request));
+
+            request.SenderDotYouId = sender;
+            _pendingRequestStorage.Upsert(CreatePendingRecordId(sender), ByteArrayId.Empty, _pendingRequestsDataType, request);
 
 #pragma warning disable CS4014
             //let this happen in the background w/o blocking
@@ -171,7 +169,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.FindOne(c => c.SenderDotYouId == sender));
+            var result = _pendingRequestStorage.Get<ConnectionRequest>(CreatePendingRecordId(sender));
             return result;
         }
 
@@ -190,8 +188,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeleteSentRequestInternal(DotYouIdentity recipient)
         {
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(recipient));
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == recipient));
+            _sentRequestStorage.Delete(CreateSentRecordId(recipient));
             return Task.CompletedTask;
         }
 
@@ -295,17 +292,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeletePendingRequestInternal(DotYouIdentity sender)
         {
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(PENDING_CONNECTION_REQUESTS, s => s.DeleteMany(cr => cr.SenderDotYouId == sender));
-
-            //this shouldn't happen but #prototrial has no constructs to stop this other than UI)
-            _systemStorage.WithTenantSystemStorage<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Delete(sender));
-
+            _pendingRequestStorage.Delete(CreatePendingRecordId(sender));
             return Task.CompletedTask;
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternal(DotYouIdentity recipient)
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<ConnectionRequest>(SENT_CONNECTION_REQUESTS, s => s.Get(recipient));
+            var result = _sentRequestStorage.Get<ConnectionRequest>(CreateSentRecordId(recipient));
             return result;
         }
 
@@ -362,6 +355,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
                 SharedSecret = sharedSecret.ToSensitiveByteArray()
             };
+        }
+
+        /// <summary>
+        /// Prefixes a DotYouId to ensure it does not clash as it's stored in a larger KV database
+        /// </summary>
+        private byte[] CreatePendingRecordId(DotYouIdentity sender)
+        {
+            var id = ByteArrayUtil.Combine(_pendingPrefix, sender.ToGuid().ToByteArray());
+            return id;
+        }
+
+        /// <summary>
+        /// Prefixes a DotYouId to ensure it does not clash as it's stored in a larger KV database
+        /// </summary>
+        private byte[] CreateSentRecordId(DotYouIdentity recipient)
+        {
+            var id = ByteArrayUtil.Combine(_sentPrefix, recipient.ToGuid().ToByteArray());
+            return id;
         }
     }
 }

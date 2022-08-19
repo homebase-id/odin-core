@@ -497,7 +497,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var page = getDrivesResponse.Content;
 
                 Assert.NotNull(page);
-                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
+                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
 
@@ -510,7 +510,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 Assert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;
-                var exists = drives.Any(d => d.Alias == targetDrive.Alias && d.Type == targetDrive.Type);
+                var exists = drives.Any(d => d.TargetDriveInfo.Alias == targetDrive.Alias && d.TargetDriveInfo.Type == targetDrive.Type);
 
                 if (!exists)
                 {

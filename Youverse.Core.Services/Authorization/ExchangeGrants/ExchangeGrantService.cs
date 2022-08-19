@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             _driveService = driveService;
         }
 
-        public async Task<IExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests, SensitiveByteArray? masterKey)
+        public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests, SensitiveByteArray? masterKey)
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                     grants.Add(driveGrant);
                 }
             }
-            
+
             var grant = new ExchangeGrant()
             {
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <param name="grant"></param>
         /// <param name="masterKey"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(IExchangeGrant grant, SensitiveByteArray? masterKey)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey)
         {
             if (grant.IsRevoked)
             {
@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             return (accessReg, clientAccessToken);
         }
-        
+
         public DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
@@ -92,8 +92,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var dk = new DriveGrant()
             {
                 DriveId = drive.Id,
-                DriveAlias = drive.Alias,
-                DriveType = drive.Type,
+                TargetDrive = drive.TargetDriveInfo,
                 KeyStoreKeyEncryptedStorageKey = (storageKey == null || grantKeyStoreKey == null) ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
                 Permission = permission
             };
@@ -103,18 +102,18 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        public async Task RevokeDrive(IExchangeGrant grant, Guid driveId)
+        public async Task RevokeDrive(ExchangeGrant grant, Guid driveId)
         {
             throw new NotImplementedException("");
         }
 
-        public async Task GrantDrive(IExchangeGrant grant, StorageDrive drive, DrivePermission permission)
+        public async Task GrantDrive(ExchangeGrant grant, StorageDrive drive, DrivePermission permission)
         {
             throw new NotImplementedException("");
         }
 
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, IExchangeGrant grant, AccessRegistration accessReg, bool isOwner)
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, ExchangeGrant grant, AccessRegistration accessReg, bool isOwner)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
             var key = authToken.AccessTokenHalfKey;
@@ -150,7 +149,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             var reg = new AccessRegistration()
             {
-                Id = Guid.NewGuid(),
+                Id = ByteArrayId.NewId(),
                 AccessRegistrationClientType = clientType,
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
@@ -182,7 +181,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             //merge; existing drive grants take priority because they likely have keys for decryption
             var finalGrantList = new List<DriveGrant>(list!);
             var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
-            
+
             foreach (var drive in anonymousDrives.Results)
             {
                 //add new ones

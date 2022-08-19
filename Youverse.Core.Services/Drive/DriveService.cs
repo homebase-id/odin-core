@@ -84,8 +84,7 @@ namespace Youverse.Core.Services.Drive
                 {
                     Id = id,
                     Name = name,
-                    Alias = targetDrive.Alias,
-                    Type = targetDrive.Type,
+                    TargetDriveInfo = targetDrive,
                     Metadata = metadata,
                     MasterKeyEncryptedStorageKey = driveKey,
                     EncryptedIdIv = encryptedIdIv,
@@ -148,11 +147,11 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
         {
-            Func<StorageDrive, bool> predicate = drive => drive.Type == type;
+            Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 
             if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
             {
-                predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
+                predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true;
             }
 
             var page = await this.GetDrivesInternal(false, pageOptions);

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Text.Json.Serialization;
+using Dawn;
 using Youverse.Core.Exceptions;
 
 namespace Youverse.Core;
@@ -8,7 +9,12 @@ namespace Youverse.Core;
 [JsonConverter(typeof(ByteArrayIdConverter))]
 public class ByteArrayId
 {
-    public byte[] Value { get; }
+    public ByteArrayId()
+    {
+        //for litedb.  remove when litedb is removed
+    }
+
+    public byte[] Value { get; init; }
 
     public ByteArrayId(string value64) : this(Convert.FromBase64String(value64))
     {
@@ -22,16 +28,16 @@ public class ByteArrayId
 
     public override string ToString()
     {
+        if (this.Value == null)
+        {
+            return "";
+        }
+
         return Convert.ToBase64String(this.Value);
     }
 
     public static bool operator ==(ByteArrayId b1, ByteArrayId b2)
     {
-        if (b1 == null && b2 == null)
-        {
-            return true;
-        }
-
         if (ReferenceEquals(b1, b2))
         {
             return true;
@@ -97,6 +103,13 @@ public class ByteArrayId
         return new ByteArrayId(id.ToByteArray());
     }
 
+    public static ByteArrayId Empty => new ByteArrayId(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+    public static ByteArrayId NewId()
+    {
+        return new ByteArrayId(Guid.NewGuid().ToByteArray());
+    }
+
     public static bool CanConvertToGuid(ByteArrayId id)
     {
         return id.Value.Length == 16;
@@ -128,5 +141,11 @@ public class ByteArrayId
         {
             throw new YouverseException("Invalid id");
         }
+    }
+
+    public static ByteArrayId FromString(string input)
+    {
+        Guard.Argument(input, nameof(input)).NotEmpty().NotNull("Invalid input");
+        return new ByteArrayId(input.ToLower().ToUtf8ByteArray());
     }
 }

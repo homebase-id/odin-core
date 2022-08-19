@@ -40,8 +40,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 new ClientDriveData()
                 {
                     Name = drive.Name,
-                    Type = drive.Type,
-                    Alias = drive.Alias,
+                    TargetDrive = drive.TargetDriveInfo,
                     Metadata = drive.Metadata //TODO should we return metadata to youauth?
                 }).ToList();
 

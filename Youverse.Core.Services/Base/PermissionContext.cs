@@ -95,7 +95,7 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public Guid GetDriveId(TargetDrive drive)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.DriveAlias == drive.Alias && g.DriveType == drive.Type);
+            var grant = _driveGrants?.SingleOrDefault(g => g.TargetDrive.Alias == drive.Alias && g.TargetDrive.Type == drive.Type);
 
             //TODO: this sort of security check feels like it should be in a service..
             if (null == grant)

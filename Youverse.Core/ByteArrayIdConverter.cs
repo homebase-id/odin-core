@@ -17,8 +17,9 @@ public class ByteArrayIdConverter : JsonConverter<ByteArrayId>
         return new ByteArrayId(value);
     }
 
-    public override void Write(Utf8JsonWriter writer, ByteArrayId value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, ByteArrayId id, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.ToString());
+        string jsonValue = id?.ToString() ?? "";
+        writer.WriteStringValue(jsonValue);
     }
 }

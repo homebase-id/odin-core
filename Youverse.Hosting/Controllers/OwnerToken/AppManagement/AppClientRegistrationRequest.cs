@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
@@ -10,7 +11,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// <summary>
         /// The Id of the application
         /// </summary>
-        public Guid AppId { get; set; }
+        public ByteArrayId AppId { get; set; }
         
         /// <summary>
         /// Base64 encoded RSA public key from the client.

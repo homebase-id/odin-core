@@ -10,7 +10,7 @@ public class AccessExchangeGrant
     //TODO: this is a horrible name.  fix. 
     //TODO: the structure sucks too; fix
 
-    public IExchangeGrant Grant { get; set; }
+    public ExchangeGrant Grant { get; set; }
     
     public AccessRegistration AccessRegistration { get; set; }
 

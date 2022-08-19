@@ -1,8 +1,9 @@
 using System;
+using Youverse.Core;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 public class GetAppRequest
 {
-    public Guid AppId { get; set; }
+    public ByteArrayId AppId { get; set; }
 }

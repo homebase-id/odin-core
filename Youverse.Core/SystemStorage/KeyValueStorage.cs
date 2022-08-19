@@ -22,22 +22,14 @@ public class KeyValueStorage
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
         _db = new KeyValueDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
+
+        this.ThreeKeyStorage2 = new ThreeKeyStorage(_db.TblKeyThreeValue);
     }
-
-    // public T Get<T>(byte[] key, KeyValueStorageType storageType) where T : class
-    // {
-    //     
-    //     
-    // }
-
-    // public void Upsert<T>(byte[] key, T value) where T: class, IStorable
-    // {
-    //     var json = DotYouSystemSerializer.Serialize(value);
-    //     _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
-    // }
 
     public TableKeyTwoValue TwoValueStorage => _db.tblKeyTwoValue;
     public TableKeyThreeValue ThreeKeyStorage => _db.TblKeyThreeValue;
+
+    public ThreeKeyStorage ThreeKeyStorage2 { get; set; }
 
     public T Get<T>(byte[] key) where T : class
     {
@@ -53,7 +45,7 @@ public class KeyValueStorage
     public void Upsert<T>(byte[] key, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
-        
+
         _db.tblKeyValue.UpsertRow(key, json.ToUtf8ByteArray());
     }
 
