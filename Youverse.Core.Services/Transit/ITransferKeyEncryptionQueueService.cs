@@ -20,6 +20,6 @@ namespace Youverse.Core.Services.Transit
         /// Gets the next <param name="count">number of </param>items to be processed
         /// </summary>
         /// <returns></returns>
-        Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext(PageOptions pageOptions);
+        Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext();
     }
 }

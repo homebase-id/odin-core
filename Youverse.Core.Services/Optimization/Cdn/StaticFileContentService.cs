@@ -149,7 +149,7 @@ public class StaticFileContentService
         }
 
         config.ContentType = "application/json";
-        _systemStorage.KeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
@@ -159,7 +159,7 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
 
-        var config = _systemStorage.KeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var config = _systemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))
         {
@@ -170,9 +170,9 @@ public class StaticFileContentService
         return Task.FromResult((config, (Stream)fileStream));
     }
 
-    private byte[] GetConfigKey(string filename)
+    private ByteArrayId GetConfigKey(string filename)
     {
-        return filename.ToLower().ToUtf8ByteArray();
+        return new ByteArrayId(filename.ToLower().ToUtf8ByteArray());
     }
 
     private string EnsurePath()

@@ -14,7 +14,8 @@ namespace Youverse.Core.SystemStorage
 
         Task<T> WithTenantSystemStorageReturnSingle<T>(string collection, Func<IStorage<T>, Task<T>> func);
         
-        KeyValueStorage KeyValueStorage { get; }
-    }
+        ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
+        SingleKeyValueStorage SingleKeyValueStorage { get; }
+    }
 }

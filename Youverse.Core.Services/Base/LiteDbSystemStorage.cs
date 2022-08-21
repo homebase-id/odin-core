@@ -1,8 +1,12 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
+using Youverse.Core.SystemStorage.SqliteKeyValue;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Base
 {
@@ -10,13 +14,27 @@ namespace Youverse.Core.Services.Base
     {
         private readonly ILogger<LiteDbSystemStorage> _logger;
         private readonly TenantContext _tenantContext;
-        private readonly KeyValueStorage _keyValueStorage;
+
+        private readonly KeyValueDatabase _db;
 
         public LiteDbSystemStorage(ILogger<LiteDbSystemStorage> logger, TenantContext tenantContext)
         {
             _logger = logger;
             _tenantContext = tenantContext;
-            _keyValueStorage = new KeyValueStorage(tenantContext.StorageConfig.DataStoragePath, "sys.db");
+
+            string dbPath = tenantContext.StorageConfig.DataStoragePath;
+            string dbName = "sys.db";
+            if (!Directory.Exists(dbPath))
+            {
+                Directory.CreateDirectory(dbPath!);
+            }
+
+            string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
+            _db = new KeyValueDatabase($"URI=file:{finalPath}");
+            _db.CreateDatabase(false);
+
+            SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
+            ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
         }
 
         public void WithTenantSystemStorage<T>(string collection, Action<IStorage<T>> action)
@@ -46,12 +64,10 @@ namespace Youverse.Core.Services.Base
             }
         }
 
-        public KeyValueStorage KeyValueStorage
-        {
-            get
-            {
-                return this._keyValueStorage;
-            }
-        }
+//        public SingleKeyValueStorage SingleKeyValueStorage { get; }
+        
+        public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
+
+        public SingleKeyValueStorage SingleKeyValueStorage { get; }
     }
 }

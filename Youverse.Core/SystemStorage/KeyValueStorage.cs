@@ -23,14 +23,10 @@ public class KeyValueStorage
         _db = new KeyValueDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
 
-        this.ThreeKeyStorage2 = new ThreeKeyStorage(_db.TblKeyThreeValue);
     }
 
-    public TableKeyTwoValue TwoValueStorage => _db.tblKeyTwoValue;
     public TableKeyThreeValue ThreeKeyStorage => _db.TblKeyThreeValue;
-
-    public ThreeKeyStorage ThreeKeyStorage2 { get; set; }
-
+    
     public T Get<T>(byte[] key) where T : class
     {
         var bytes = _db.tblKeyValue.Get(key);

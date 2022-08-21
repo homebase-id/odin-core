@@ -122,7 +122,8 @@ public class ByteArrayId
             return false;
         }
 
-        bool HasValidLength(byte[] v) => v.Length is >= 8 and <= 16;
+        //TODO: 100 is pretty long but in reality we use this for things like combining dotyouid + fileid + drive alias
+        bool HasValidLength(byte[] v) => v.Length is >= 8 and <= 100;
 
         // bool HasValidChars(byte[] v) => v.Any(b => b is <(byte)1 and > (byte)127);
         bool HasValidChars(byte[] v) => true;

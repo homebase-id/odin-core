@@ -93,9 +93,8 @@ namespace Youverse.Core.Services.Drive
                 };
 
                 secret.Wipe();
-
-                var json = DotYouSystemSerializer.Serialize(sdb);
-                _systemStorage.KeyValueStorage.ThreeKeyStorage.UpsertRow(sdb.Id.ToByteArray(), targetDrive.ToKey(), _driveDataType, json.ToUtf8ByteArray());
+                
+                _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, targetDrive.ToKey(), _driveDataType, sdb);
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
@@ -106,8 +105,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var bytes = _systemStorage.KeyValueStorage.ThreeKeyStorage.Get(driveId.ToByteArray());
-            if (null == bytes)
+            var sdb = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+            if (null == sdb)
             {
                 if (failIfInvalid)
                 {
@@ -117,15 +116,15 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
-            var sdb = ToStorageDriveBase(bytes);
             var drive = ToStorageDrive(sdb);
             return drive;
         }
 
         public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var list = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyTwo(targetDrive.ToKey());
-            if (null == list || !list.Any())
+            var list = _systemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
+            var drives = list as StorageDriveBase[] ?? list.ToArray();
+            if (!drives.Any())
             {
                 if (failIfInvalid)
                 {
@@ -135,8 +134,7 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
-            var sdb = ToStorageDriveBase(list.Single());
-            var drive = ToStorageDrive(sdb);
+            var drive = ToStorageDrive(drives.Single());
             return drive.Id;
         }
 
@@ -412,7 +410,7 @@ namespace Youverse.Core.Services.Drive
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
-            var driveByteList = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyThree(_driveDataType);
+            var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
 
             var predicate = new Func<StorageDriveBase, bool>(drive => true);
             if (enforceSecurity)
@@ -423,14 +421,8 @@ namespace Youverse.Core.Services.Drive
                 }
             }
 
-            var storageDrives = driveByteList.Select(ToStorageDriveBase);
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
             return results;
-        }
-
-        private StorageDriveBase ToStorageDriveBase(byte[] bytes)
-        {
-            return DotYouSystemSerializer.Deserialize<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
         }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)

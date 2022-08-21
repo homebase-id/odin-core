@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,21 +11,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
     {
         private readonly ByteArrayId _circleDataType = ByteArrayId.FromString("circle__");
 
-        private readonly ThreeKeyStorage _circleStorage;
+        private readonly ThreeKeyValueStorage _circleValueStorage;
 
         public CircleDefinitionService(ISystemStorage systemStorage)
         {
-            _circleStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
+            _circleValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
         public Task Create(CreateCircleRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            
+
             var circle = new CircleDefinition()
             {
-                Id = new ByteArrayId( Guid.NewGuid().ToByteArray()),
+                Id = ByteArrayId.NewId(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
                 Description = request.Description,
@@ -34,7 +33,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
                 Permissions = request.Permissions
             };
 
-            _circleStorage.Upsert(circle.Id.Value, ByteArrayId.Empty.Value, _circleDataType.Value, circle);
+            _circleValueStorage.Upsert(circle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, circle);
 
             return Task.CompletedTask;
         }
@@ -67,20 +66,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             existingCircle.Drives = newCircleDefinition.Drives;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            _circleStorage.Upsert(existingCircle.Id.Value, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);
+            _circleValueStorage.Upsert(existingCircle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);
 
             return Task.CompletedTask;
         }
 
         public CircleDefinition GetCircle(ByteArrayId circleId)
         {
-            var def = _circleStorage.Get<CircleDefinition>(circleId);
+            var def = _circleValueStorage.Get<CircleDefinition>(circleId);
             return def;
         }
 
         public Task<IEnumerable<CircleDefinition>> GetCircles()
         {
-            var circles = _circleStorage.GetByKey3<CircleDefinition>(_circleDataType);
+            var circles = _circleValueStorage.GetByKey3<CircleDefinition>(_circleDataType);
             return Task.FromResult(circles);
         }
 
@@ -95,7 +94,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
 
-            _circleStorage.Delete(id.Value);
+            _circleValueStorage.Delete(id);
             return Task.CompletedTask;
         }
 

@@ -1,32 +1,33 @@
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
 
 namespace Youverse.Core.Services.Transit
 {
     public class TransferKeyEncryptionQueueService : ITransferKeyEncryptionQueueService
     {
-        private const string CollectionName = "tkeqs";
+        private readonly ByteArrayId _queueKey = ByteArrayId.FromString("tkequeue__");
         private readonly ISystemStorage _systemStorage;
-        public TransferKeyEncryptionQueueService(DotYouContextAccessor contextAccessor, ILogger<ITransferKeyEncryptionQueueService> logger, ISystemStorage systemStorage)
+
+        public TransferKeyEncryptionQueueService(ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
         }
-        
+
         public Task Enqueue(TransitKeyEncryptionQueueItem item)
         {
-            this._systemStorage.WithTenantSystemStorage<TransitKeyEncryptionQueueItem>(CollectionName, s => s.Save(item));
+            var items = _systemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
+
+            items.Add(item);
+            this._systemStorage.SingleKeyValueStorage.Upsert(_queueKey, items);
+
             return Task.CompletedTask;
         }
 
-        public async Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext(PageOptions pageOptions)
+        public Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext()
         {
-            var list = await this._systemStorage.WithTenantSystemStorageReturnList<TransitKeyEncryptionQueueItem>(CollectionName, 
-                s => s.GetList(pageOptions, ListSortDirection.Descending, key=>key.FirstAddedTimestampMs));
-            return list.Results;
+            var items = _systemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
+            return Task.FromResult<IEnumerable<TransitKeyEncryptionQueueItem>>(items);
         }
     }
 }

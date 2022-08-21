@@ -8,18 +8,19 @@ namespace Youverse.Core.SystemStorage;
 /// <summary>
 /// Key value storage using 3 keys; serializes as json
 /// </summary>
-public class ThreeKeyStorage
+public class ThreeKeyValueStorage : KeyValueStorageBase
 {
     private readonly TableKeyThreeValue _db;
 
-    public ThreeKeyStorage(TableKeyThreeValue db)
+    public ThreeKeyValueStorage(TableKeyThreeValue db)
     {
         _db = db;
     }
 
-    public T Get<T>(byte[] key) where T : class
+    public T Get<T>(ByteArrayId key, string context = null) where T : class
     {
-        var bytes = _db.Get(key);
+        var finalKey = PrefixContext(key, context);
+        var bytes = _db.Get(finalKey);
         if (null == bytes)
         {
             return null;
@@ -61,15 +62,16 @@ public class ThreeKeyStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public void Upsert<T>(byte[] key1, byte[] key2, byte[] key3, T value)
+    public void Upsert<T>(ByteArrayId key1, byte[] key2, byte[] key3, T value, string context = null)
     {
+        var finalKey = PrefixContext(key1, context);
         var json = DotYouSystemSerializer.Serialize(value);
-        _db.UpsertRow(key1, key2, key3, json.ToUtf8ByteArray());
+        _db.UpsertRow(finalKey, key2, key3, json.ToUtf8ByteArray());
     }
 
-    public void Delete(byte[] id)
+    public void Delete(ByteArrayId id, string context = null)
     {
-        _db.DeleteRow(id);
+        _db.DeleteRow(PrefixContext(id, context));
     }
 
     private T Deserialize<T>(byte[] bytes)

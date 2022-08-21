@@ -153,7 +153,7 @@ namespace Youverse.Core.Services.Transit
             var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
-            
+
             var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
@@ -287,7 +287,7 @@ namespace Youverse.Core.Services.Transit
                 Drive = package.InstructionSet.StorageOptions.Drive
             };
 
-            _systemStorage.KeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, package.InternalFile), instructionSet);
+            _systemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, package.InternalFile), instructionSet);
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
@@ -295,6 +295,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
+                Id = ByteArrayId.NewId(),
                 FileId = package.InternalFile.FileId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -449,13 +450,13 @@ namespace Youverse.Core.Services.Transit
 
         private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var instructionSet = _systemStorage.KeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
+            var instructionSet = _systemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
             return Task.FromResult(instructionSet);
         }
 
-        private byte[] CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
+        private ByteArrayId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            return ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray());
+            return new ByteArrayId(ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
         }
     }
 }

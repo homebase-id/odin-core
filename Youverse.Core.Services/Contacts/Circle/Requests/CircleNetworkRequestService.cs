@@ -21,10 +21,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
-        private readonly byte[] _pendingPrefix = "pnd".ToUtf8ByteArray();
+        private readonly string _pendingPrefix = "pnd";
         private readonly ByteArrayId _pendingRequestsDataType = ByteArrayId.FromString("pnd_requests");
 
-        private readonly byte[] _sentPrefix = "snt".ToUtf8ByteArray();
+        private readonly string _sentPrefix = "snt";
         private readonly ByteArrayId _sentRequestsDataType = ByteArrayId.FromString("sent_requests");
 
         private readonly DotYouContextAccessor _contextAccessor;
@@ -39,8 +39,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private readonly ExchangeGrantService _exchangeGrantService;
 
-        private readonly ThreeKeyStorage _pendingRequestStorage;
-        private readonly ThreeKeyStorage _sentRequestStorage;
+        private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
+        private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
         public CircleNetworkRequestService(
             DotYouContextAccessor contextAccessor,
@@ -63,21 +63,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _exchangeGrantService = exchangeGrantService;
             _contextAccessor = contextAccessor;
 
-            _pendingRequestStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
-            _sentRequestStorage = systemStorage.KeyValueStorage.ThreeKeyStorage2;
+            _pendingRequestValueStorage = systemStorage.ThreeKeyValueStorage;
+            _sentRequestValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var results = _pendingRequestStorage.GetByKey3<ConnectionRequest>(_pendingRequestsDataType);
+            var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_pendingRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var results = _pendingRequestStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
+            var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 AccessRegistration = accessRegistration
             };
 
-            _sentRequestStorage.Upsert(CreateSentRecordId(new DotYouIdentity(request.Recipient)), ByteArrayId.Empty, _sentRequestsDataType, request);
+            _sentRequestValueStorage.Upsert(ByteArrayId.FromString(request.Recipient), ByteArrayId.Empty, _sentRequestsDataType, request, _sentPrefix);
         }
 
         public async Task ReceiveConnectionRequest(ConnectionRequest request)
@@ -155,7 +155,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
 
             request.SenderDotYouId = sender;
-            _pendingRequestStorage.Upsert(CreatePendingRecordId(sender), ByteArrayId.Empty, _pendingRequestsDataType, request);
+            _pendingRequestValueStorage.Upsert(ByteArrayId.FromString(sender), ByteArrayId.Empty, _pendingRequestsDataType, request, _pendingPrefix);
 
 #pragma warning disable CS4014
             //let this happen in the background w/o blocking
@@ -169,7 +169,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var result = _pendingRequestStorage.Get<ConnectionRequest>(CreatePendingRecordId(sender));
+            var result = _pendingRequestValueStorage.Get<ConnectionRequest>(ByteArrayId.FromString(sender), _pendingPrefix);
             return result;
         }
 
@@ -188,7 +188,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeleteSentRequestInternal(DotYouIdentity recipient)
         {
-            _sentRequestStorage.Delete(CreateSentRecordId(recipient));
+            _sentRequestValueStorage.Delete(ByteArrayId.FromString(recipient), _sentPrefix);
             return Task.CompletedTask;
         }
 
@@ -292,13 +292,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeletePendingRequestInternal(DotYouIdentity sender)
         {
-            _pendingRequestStorage.Delete(CreatePendingRecordId(sender));
+            _pendingRequestValueStorage.Delete(ByteArrayId.FromString(sender), _pendingPrefix);
             return Task.CompletedTask;
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternal(DotYouIdentity recipient)
         {
-            var result = _sentRequestStorage.Get<ConnectionRequest>(CreateSentRecordId(recipient));
+            var result = _sentRequestValueStorage.Get<ConnectionRequest>(ByteArrayId.FromString(recipient), _sentPrefix);
             return result;
         }
 
@@ -355,24 +355,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
                 SharedSecret = sharedSecret.ToSensitiveByteArray()
             };
-        }
-
-        /// <summary>
-        /// Prefixes a DotYouId to ensure it does not clash as it's stored in a larger KV database
-        /// </summary>
-        private byte[] CreatePendingRecordId(DotYouIdentity sender)
-        {
-            var id = ByteArrayUtil.Combine(_pendingPrefix, sender.ToGuid().ToByteArray());
-            return id;
-        }
-
-        /// <summary>
-        /// Prefixes a DotYouId to ensure it does not clash as it's stored in a larger KV database
-        /// </summary>
-        private byte[] CreateSentRecordId(DotYouIdentity recipient)
-        {
-            var id = ByteArrayUtil.Combine(_sentPrefix, recipient.ToGuid().ToByteArray());
-            return id;
         }
     }
 }

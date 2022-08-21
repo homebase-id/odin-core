@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task InvalidatePublicKey(DotYouIdentity recipient)
         {
-            _systemStorage.KeyValueStorage.Delete(recipient.Id.ToUtf8ByteArray());
+            _systemStorage.SingleKeyValueStorage.Delete(ByteArrayId.FromString(recipient.Id));
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)
@@ -92,7 +92,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keys, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
-                _systemStorage.KeyValueStorage.Upsert(_rsaKeyStorageId.ToByteArray(), keys);
+                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, keys);
             }
 
             return pk;
@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var response = _systemStorage.KeyValueStorage.Get<GetOfflinePublicKeyResponse>(recipient.Id.ToUtf8ByteArray());
+            var response = _systemStorage.SingleKeyValueStorage.Get<GetOfflinePublicKeyResponse>(ByteArrayId.FromString(recipient.Id));
 
             RsaPublicKeyData cacheItem = null;
 
@@ -135,7 +135,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     expiration = tpkResponse.Content.Expiration
                 };
 
-                _systemStorage.KeyValueStorage.Upsert(recipient.Id.ToUtf8ByteArray(), cacheItem);
+                _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(recipient.Id), cacheItem);
             }
 
             if (null == cacheItem && failIfCannotRetrieve)
@@ -160,14 +160,14 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         private Task<RsaFullKeyListData> GetOfflineKeyInternal()
         {
-            var result = _systemStorage.KeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId.ToByteArray());
+            var result = _systemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
 
             if (result == null || result.ListRSA == null)
             {
                 var key = GetOfflineKeyDecryptionKey();
                 var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref key, 2);
 
-                _systemStorage.KeyValueStorage.Upsert(_rsaKeyStorageId.ToByteArray(), rsaKeyList);
+                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
                 return Task.FromResult(rsaKeyList);
             }
 
