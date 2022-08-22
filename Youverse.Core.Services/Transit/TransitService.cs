@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
@@ -25,7 +23,6 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.SystemStorage;
-using JsonConverter = System.Text.Json.Serialization.JsonConverter;
 
 namespace Youverse.Core.Services.Transit
 {

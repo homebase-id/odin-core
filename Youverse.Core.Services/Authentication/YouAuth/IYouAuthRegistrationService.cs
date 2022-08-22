@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// </summary>
         ValueTask<ClientAccessToken> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken);
 
-        ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
+        // ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);
         ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken);

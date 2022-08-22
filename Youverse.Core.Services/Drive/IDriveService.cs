@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drive
         /// <param name="type"></param>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions);
+        Task<PagedResult<StorageDrive>> GetDrives(ByteArrayId type, PageOptions pageOptions);
 
         Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions);
 

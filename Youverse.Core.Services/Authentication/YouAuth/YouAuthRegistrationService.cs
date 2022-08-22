@@ -44,19 +44,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             }
         }
 
-        public ValueTask<YouAuthRegistration?> LoadFromId(Guid id)
-        {
-            var session = _youAuthRegistrationStorage.LoadFromId(id);
-
-            if (session != null)
-            {
-                _youAuthRegistrationStorage.Delete(session);
-                session = null;
-            }
-
-            return new ValueTask<YouAuthRegistration?>(session);
-        }
-
         //
 
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
@@ -85,6 +72,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
+        //
+        
         public ValueTask<(bool isValid, YouAuthClient? client, YouAuthRegistration registration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
         {
             var client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
@@ -110,6 +99,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((true, client, registration));
         }
 
+        //
+        
         public ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var (isValid, client, registration) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();

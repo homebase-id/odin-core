@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Youverse.Core.Serialization;
 
-// <summary>
+/// <summary>
 /// Centralizes serialization functions to escape the conversion between NewtonSoft and Microsoft's serialization  >:[
 /// </summary>
 public static class DotYouSystemSerializer
@@ -17,7 +17,7 @@ public static class DotYouSystemSerializer
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
+        Converters = { new JsonStringEnumConverter(), new ByteArrayConverter(), new NullableGuidConverter() }
     };
 
     public static async Task Serialize(Stream utf8Json,

@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -18,5 +17,30 @@ public class ByteArrayConverter : JsonConverter<byte[]>
     public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
     {
         writer.WriteBase64StringValue(value);
+    }
+}
+
+public class NullableGuidConverter : JsonConverter<Guid?>
+{
+    public override Guid? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TryGetGuid(out var guid))
+        {
+            return guid;
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Guid? value, JsonSerializerOptions options)
+    {
+        if (null != value)
+        {
+            writer.WriteStringValue(value.GetValueOrDefault());
+        }
+        else
+        {
+            writer.WriteStringValue("");
+        }
     }
 }

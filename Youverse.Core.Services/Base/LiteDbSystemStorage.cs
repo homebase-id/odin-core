@@ -1,9 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Base;
 using Youverse.Core.SystemStorage;
 using Youverse.Core.SystemStorage.SqliteKeyValue;
 using Youverse.Core.Util;
@@ -63,11 +61,16 @@ namespace Youverse.Core.Services.Base
                 return func(storage);
             }
         }
-
-//        public SingleKeyValueStorage SingleKeyValueStorage { get; }
         
+        /// <summary>
+        /// Store values using a single key
+        /// </summary>
+        public SingleKeyValueStorage SingleKeyValueStorage { get; }
+
+        /// <summary>
+        /// Store values using a single key while offering 2 other keys to categorize your data
+        /// </summary>
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
-        public SingleKeyValueStorage SingleKeyValueStorage { get; }
     }
 }

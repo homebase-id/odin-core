@@ -5,56 +5,46 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {
-        private const string RegistrationStorageCollectionName = "youauthreg";
-        private const string ClientStorageCollectionName = "youauth_clients";
+        private const string _regPrefix = "yreg";
+        private const string _clientPrefix = "yac";
         private readonly ISystemStorage _systemStorage;
 
         public YouAuthRegistrationStorage(ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
-            _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(RegistrationStorageCollectionName, s => s.EnsureIndex(k => k.Subject, true));
+            _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(_regPrefix, s => s.EnsureIndex(k => k.Subject, true));
         }
-
-        //
-
-        public YouAuthRegistration? LoadFromId(Guid id)
-        {
-            var task = _systemStorage.WithTenantSystemStorageReturnSingle<YouAuthRegistration?>(RegistrationStorageCollectionName, s => s.FindOne(p => p.Id == id));
-            return task.GetAwaiter().GetResult(); // litedb is blocking, no reason to keep up the charade
-        }
-
+        
         //
 
         public YouAuthRegistration? LoadFromSubject(string subject)
         {
-            var task = _systemStorage.WithTenantSystemStorageReturnSingle<YouAuthRegistration?>(RegistrationStorageCollectionName, s => s.FindOne(p => p.Subject == subject));
-            return task.GetAwaiter().GetResult(); // litedb is blocking, no reason to keep up the charade
+            return _systemStorage.SingleKeyValueStorage.Get<YouAuthRegistration>(ByteArrayId.FromString(subject), _regPrefix);
         }
 
         //
 
         public void Save(YouAuthRegistration registration)
         {
-            _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(RegistrationStorageCollectionName, s => s.Save(registration));
+            _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(registration.Subject), _regPrefix);
         }
 
         //
 
         public void Delete(YouAuthRegistration registration)
         {
-            _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(RegistrationStorageCollectionName, s => s.Delete(registration.Id));
+            _systemStorage.SingleKeyValueStorage.Delete(ByteArrayId.FromString(registration.Subject), _regPrefix);
         }
-        
+
         public YouAuthClient? GetYouAuthClient(Guid id)
         {
-            var task = _systemStorage.WithTenantSystemStorageReturnSingle<YouAuthClient>(ClientStorageCollectionName, s => s.Get(id));
-            return task.GetAwaiter().GetResult();
+            var client = _systemStorage.SingleKeyValueStorage.Get<YouAuthClient>(id, _clientPrefix);
+            return client;
         }
 
         public void SaveClient(YouAuthClient client)
         {
-            // _systemStorage.ThreeKeyValueStorage
-            _systemStorage.WithTenantSystemStorage<YouAuthClient>(ClientStorageCollectionName, s => s.Save(client));
+            _systemStorage.SingleKeyValueStorage.Upsert(client.Id, client, _clientPrefix);
         }
     }
 }

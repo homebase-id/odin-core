@@ -69,13 +69,32 @@ namespace Youverse.Hosting
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
             }
-            
+
             services.AddControllers()
                 .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.Converters.Add(new ByteArrayConverter());
-            });
+                {
+                    foreach (var c in DotYouSystemSerializer.JsonSerializerOptions!.Converters)
+                    {
+                        options.JsonSerializerOptions.Converters.Add(c);
+                    }
+
+                    options.JsonSerializerOptions.IncludeFields = DotYouSystemSerializer.JsonSerializerOptions.IncludeFields;
+                    options.JsonSerializerOptions.Encoder = DotYouSystemSerializer.JsonSerializerOptions.Encoder;
+                    options.JsonSerializerOptions.MaxDepth = DotYouSystemSerializer.JsonSerializerOptions.MaxDepth;
+                    options.JsonSerializerOptions.NumberHandling = DotYouSystemSerializer.JsonSerializerOptions.NumberHandling;
+                    options.JsonSerializerOptions.ReferenceHandler = DotYouSystemSerializer.JsonSerializerOptions.ReferenceHandler;
+                    options.JsonSerializerOptions.WriteIndented = DotYouSystemSerializer.JsonSerializerOptions.WriteIndented;
+                    options.JsonSerializerOptions.AllowTrailingCommas = DotYouSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
+                    options.JsonSerializerOptions.DefaultBufferSize = DotYouSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
+                    options.JsonSerializerOptions.DefaultIgnoreCondition = DotYouSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
+                    options.JsonSerializerOptions.DictionaryKeyPolicy = DotYouSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = DotYouSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
+                    options.JsonSerializerOptions.ReadCommentHandling = DotYouSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
+                    options.JsonSerializerOptions.UnknownTypeHandling = DotYouSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
+                    options.JsonSerializerOptions.IgnoreReadOnlyFields = DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
+                    options.JsonSerializerOptions.IgnoreReadOnlyProperties = DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = DotYouSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
+                });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
 
@@ -175,16 +194,16 @@ namespace Youverse.Hosting
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-            
+
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
-            
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
-            
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
             }
@@ -226,10 +245,10 @@ namespace Youverse.Hosting
                             return;
                         });
                     });
-                
+
                 //
             }
-            
+
             //redirect everything else to root so the default behavior can start (i.e. clientside rendering)
             //TODO: not sure I like this since it means we'll miss 404s.  will need to consider
             // app.Run(async (context) =>
