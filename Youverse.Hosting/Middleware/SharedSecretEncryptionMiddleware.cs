@@ -46,7 +46,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/transit/app/process",
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
-                "/api/apps/v1/drive/files/upload"
+                "/api/apps/v1/drive/files/upload",
+                "/api/youauth/v1/auth/is-authenticated"
             };
 
             //Paths that should not have their responses encrypted with shared secret
