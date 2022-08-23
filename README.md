@@ -23,10 +23,11 @@ Notes:
 Steps:
 1. Install dotnet sdk v6+
 2. Clone this repo: ```git@github.com:YouFoundation/DotYouCore.git```
-3. Clone the owner-app: ```git@github.com:YouFoundation/owner-app.git```
-4. Clone the public-app: ```git@github.com:YouFoundation/public-app.git```
-5. Clone the dotyoucore-transit-lib repo ```git@github.com:YouFoundation/dotyoucore-transit-lib.git```
-6. See instructions in owner-app and public-app repos
+3. Clone the repo dotyoucore-lib in a sibling folder to dotyoucore ```git@github.com:YouFoundation/dotyoucore-lib.git```
+4. Clone the owner-app: ```git@github.com:YouFoundation/owner-app.git```
+5. Clone the public-app: ```git@github.com:YouFoundation/public-app.git```
+6. Clone the dotyoucore-transit-lib repo ```git@github.com:YouFoundation/dotyoucore-transit-lib.git```
+7. See instructions in owner-app and public-app repos
 
 To run the identity server
 1. ```dotyoucore/dotnet restore```
