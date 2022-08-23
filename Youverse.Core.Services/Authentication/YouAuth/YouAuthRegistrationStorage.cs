@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {
-        private const string _regPrefix = "yreg";
+        private const string _regPrefix = "yrg";
         private const string _clientPrefix = "yac";
         private readonly ISystemStorage _systemStorage;
 
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public void Save(YouAuthRegistration registration)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(registration.Subject), _regPrefix);
+            _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(registration.Subject), registration, _regPrefix);
         }
 
         //
