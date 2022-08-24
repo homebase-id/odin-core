@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\dotyoucore-lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
+    <ProjectReference Include="..\..\dotyoucore-lib\Youverse.Core.Storage\Youverse.Core.Storage.csproj" />
     <ProjectReference Include="..\..\dotyoucore-lib\Youverse.Core\Youverse.Core.csproj" />
     <ProjectReference Include="..\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
     <ProjectReference Include="..\Youverse.Core\Youverse.Core.csproj" />
