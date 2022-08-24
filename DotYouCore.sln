@@ -26,6 +26,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage", "..\dotyoucore-lib\Youverse.Core.Storage\Youverse.Core.Storage.csproj", "{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Tests", "..\dotyoucore-lib\Tests\Youverse.Core.Tests\Youverse.Core.Tests.csproj", "{C37D3F2F-9492-4051-86CD-1E1823289EC8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography.Tests", "..\dotyoucore-lib\Tests\Youverse.Core.Cryptography.Tests\Youverse.Core.Cryptography.Tests.csproj", "{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage.Tests", "..\dotyoucore-lib\Tests\Youverse.Core.Storage.Tests\Youverse.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +70,18 @@ Global
 		{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C37D3F2F-9492-4051-86CD-1E1823289EC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C37D3F2F-9492-4051-86CD-1E1823289EC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C37D3F2F-9492-4051-86CD-1E1823289EC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C37D3F2F-9492-4051-86CD-1E1823289EC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -71,6 +89,9 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{CD961B92-658E-4EEC-B430-85665BAC1830} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{C37D3F2F-9492-4051-86CD-1E1823289EC8} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{DE9DE28F-5E65-45C1-9AEA-5770DDE7DE21} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition
 {

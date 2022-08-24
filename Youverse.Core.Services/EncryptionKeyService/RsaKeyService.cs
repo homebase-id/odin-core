@@ -8,7 +8,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.EncryptionKeyService
 {

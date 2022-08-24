@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit.Outbox

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
 

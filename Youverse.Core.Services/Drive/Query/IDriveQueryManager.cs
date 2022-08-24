@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Storage;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query
 {

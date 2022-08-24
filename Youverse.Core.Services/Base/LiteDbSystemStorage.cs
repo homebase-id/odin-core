@@ -2,8 +2,8 @@
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.SystemStorage;
-using Youverse.Core.SystemStorage.SqliteKeyValue;
+using Youverse.Core.Storage;
+using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Base

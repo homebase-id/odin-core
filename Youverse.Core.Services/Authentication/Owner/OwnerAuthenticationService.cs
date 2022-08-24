@@ -8,7 +8,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 /// <summary>
 /// Goals here are that:

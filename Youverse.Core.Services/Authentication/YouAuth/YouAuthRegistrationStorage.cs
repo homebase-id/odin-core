@@ -1,5 +1,5 @@
 using System;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
