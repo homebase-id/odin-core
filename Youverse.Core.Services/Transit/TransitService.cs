@@ -334,7 +334,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var drive in page.Results)
             {
-                var (batch, marker) = await _outboxService.GetNext(drive.Id);
+                var batch = await _outboxService.GetNext(drive.Id);
                 // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
                 await this.SendBatchNow(batch);

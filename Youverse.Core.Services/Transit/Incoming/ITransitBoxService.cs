@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 
@@ -19,13 +20,16 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// Gets a list of all items
         /// </summary>
         /// <returns></returns>
-        Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid driveId, PageOptions pageOptions);
+        Task<List<TransferBoxItem>> GetPendingItems(Guid driveId);
 
-        Task<TransferBoxItem> GetItem(Guid driveId, Guid id);
-
+        /// <summary>
+        /// Indicates the item represented by the marker has been transfered
+        /// </summary>
+        Task MarkComplete(Guid driveId, byte[] marker);
+        
         /// <summary>
         /// Removes an item from the Inbox.
         /// </summary>
-        Task Remove(Guid driveId, Guid id);
+        Task MarkFailure(Guid driveId, byte[] marker);
     }
 }

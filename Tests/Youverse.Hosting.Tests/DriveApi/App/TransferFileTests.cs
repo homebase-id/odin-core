@@ -17,6 +17,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
@@ -156,7 +157,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitAppSvc.ProcessIncomingTransfers();
+                var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
 
@@ -300,7 +301,6 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         public async Task UpdateThumbnail()
         {
             //upload a file with a thumbnail
-
         }
 
         // [Test(Description = "Updates a thumbnail; and transfer it")]

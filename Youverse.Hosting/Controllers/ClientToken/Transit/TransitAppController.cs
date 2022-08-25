@@ -17,13 +17,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Transit
             _transitAppService = transitAppService;
         }
 
-        [Obsolete("TODO: replace with new outbox process")]
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessTransfers()
+        public async Task<IActionResult> ProcessTransfers([FromBody] ProcessTransfersRequest request)
         {
-            await _transitAppService.ProcessTransfers();
+            await _transitAppService.ProcessIncomingTransfers(request.TargetDrive);
             return new JsonResult(true);
         }
-        
     }
 }

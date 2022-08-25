@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             // });
         }
 
-        public async Task<(List<OutboxItem> items, byte[] marker)> GetNext(Guid driveId)
+        public async Task<List<OutboxItem>> GetNext(Guid driveId)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
             var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), 1, out var marker);
@@ -106,7 +106,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             var item = records.SingleOrDefault();
             if (item == null)
             {
-                return (new List<OutboxItem>(), Array.Empty<byte>());
+                return new List<OutboxItem>();
             }
 
             var items = records.Select(r =>
@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 };
             });
 
-            return (items.ToList(), marker);
+            return items.ToList();
         }
 
         public Task Remove(DotYouIdentity recipient, InternalDriveFileId file)

@@ -43,7 +43,39 @@ namespace Youverse.Core.Services.Transit
             _publicKeyService = publicKeyService;
         }
 
-        public async Task StoreLongTerm(TransferBoxItem item)
+        public async Task ProcessIncomingTransfers(TargetDrive targetDrive)
+        {
+            var drive = await _driveService.GetDriveIdByAlias(targetDrive, true);
+
+            var items = await GetAcceptedItems(drive.GetValueOrDefault());
+
+            //TODO: perform these in parallel
+            foreach (var item in items)
+            {
+                try
+                {
+                    await StoreLongTerm(item);
+                    await _transitBoxService.MarkComplete(item.TempFile.DriveId, item.Marker);
+                }
+                catch (Exception e)
+                {
+                    await _transitBoxService.MarkFailure(item.TempFile.DriveId, item.Marker);
+                }
+            }
+        }
+
+        public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<List<TransferBoxItem>> GetAcceptedItems(Guid driveId)
+        {
+            var list = await _transitBoxService.GetPendingItems(driveId);
+            return list;
+        }
+
+        private async Task StoreLongTerm(TransferBoxItem item)
         {
             var file = item.TempFile;
 
@@ -89,55 +121,6 @@ namespace Youverse.Core.Services.Transit
             };
 
             await _driveService.CommitTempFileToLongTerm(file, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
-        }
-
-        public async Task ProcessTransfers()
-        {
-            //TODO: perform these in parallel
-            var items = await GetAcceptedItems(PageOptions.All);
-            foreach (var item in items.Results)
-            {
-                await StoreLongTerm(item);
-
-                var externalFileIdentifier = new ExternalFileIdentifier()
-                {
-                    TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.TargetDriveInfo,
-                    FileId = item.TempFile.FileId
-                };
-
-                await _inboxService.Add(new InboxItem()
-                {
-                    Sender = item.Sender,
-                    AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
-                    File = externalFileIdentifier,
-                    Priority = 0 //TODO
-                });
-                
-                await _transitBoxService.Remove(item.TempFile.DriveId, item.Id);
-            }
-        }
-
-        public async Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions)
-        {
-            //HACK: loop thru all drives until we put in place the new inbox/outbox solution
-            var allDrives = await _driveService.GetDrives(PageOptions.All);
-
-            var list = new List<TransferBoxItem>();
-            foreach (var drive in allDrives.Results)
-            {
-                var l = await _transitBoxService.GetPendingItems(drive.Id, pageOptions);
-                list.AddRange(l.Results);
-            }
-
-            return new PagedResult<TransferBoxItem>(pageOptions, 1, list);
-
-            // var appId = _contextAccessor.GetCurrent().AppContext.AppId;
-            // return await _transitBoxService.GetPendingItems(appId, pageOptions);
-        }
-
-        public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
@@ -34,6 +35,7 @@ namespace Youverse.Core.Services.Base
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
             Outbox = new TableOutbox(_db);
+            Inbox = new TableInbox(_db);
         }
 
         public void WithTenantSystemStorage<T>(string collection, Action<IStorage<T>> action)
@@ -74,5 +76,7 @@ namespace Youverse.Core.Services.Base
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
         public TableOutbox Outbox { get; }
+        
+        public TableInbox Inbox { get; }
     }
 }
