@@ -26,20 +26,18 @@ namespace Youverse.Core.Services.Transit
         private readonly IDriveService _driveService;
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
-        private readonly IInboxService _inboxService;
         private readonly IPublicKeyService _publicKeyService;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
         public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService,
-            ITransitBoxService transitBoxService, IInboxService inboxService, IPublicKeyService publicKeyService)
+            ITransitBoxService transitBoxService, IPublicKeyService publicKeyService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
-            _inboxService = inboxService;
             _publicKeyService = publicKeyService;
         }
 
