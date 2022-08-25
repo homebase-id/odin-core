@@ -212,8 +212,6 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-
-                //TODO: can i put something else here to allow me to access the files?
             }));
             return keyStatus;
         }
@@ -305,7 +303,6 @@ namespace Youverse.Core.Services.Transit
 
         public async Task SendBatchNow(IEnumerable<OutboxItem> items)
         {
-            //TODO: Upgrade with new sqlite outbox from Michael
             var tasks = new List<Task<SendResult>>();
 
             foreach (var item in items)
@@ -321,13 +318,27 @@ namespace Youverse.Core.Services.Transit
                 var sendResult = task.Result;
                 if (sendResult.Success)
                 {
-                    _outboxService.Remove(sendResult.OutboxItemId);
+                    _outboxService.MarkComplete(sendResult.OutboxItem.Marker);
                 }
                 else
                 {
-                    _outboxService.MarkFailure(sendResult.OutboxItemId, sendResult.FailureReason.GetValueOrDefault());
+                    _outboxService.MarkFailure(sendResult.OutboxItem.Marker, sendResult.FailureReason.GetValueOrDefault());
                 }
             });
+        }
+
+        public async Task ProcessOutbox()
+        {
+            //Note: here we can prioritize outbox processing by drive if need be
+            var page = await _driveService.GetDrives(PageOptions.All);
+
+            foreach (var drive in page.Results)
+            {
+                var (batch, marker) = await _outboxService.GetNext(drive.Id);
+                // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
+
+                await this.SendBatchNow(batch);
+            }
         }
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
@@ -345,12 +356,12 @@ namespace Youverse.Core.Services.Transit
                 {
                     return new SendResult()
                     {
-                        OutboxItemId = outboxItem.Id,
                         File = file,
                         Recipient = recipient,
                         Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Success = false,
-                        FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable
+                        FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
+                        OutboxItem = outboxItem
                     };
                 }
 
@@ -438,10 +449,10 @@ namespace Youverse.Core.Services.Transit
             {
                 File = file,
                 Recipient = recipient,
-                OutboxItemId = outboxItem.Id,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = DateTimeExtensions.UnixTimeMilliseconds()
+                Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                OutboxItem = outboxItem
             };
         }
 

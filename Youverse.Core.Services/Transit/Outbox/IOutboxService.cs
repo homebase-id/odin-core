@@ -16,51 +16,23 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         /// <param name="item"></param>
         Task Add(OutboxItem item);
-        
+
         Task Add(IEnumerable<OutboxItem> items);
+
+        Task MarkComplete(byte[] marker);
 
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        Task MarkFailure(Guid itemId, TransferFailureReason reason);
+        Task MarkFailure(byte[] marker, TransferFailureReason reason);
 
-        Task<PagedResult<OutboxItem>> GetNextBatch();
-
-        /// <summary>
-        /// Gets a list of all items
-        /// </summary>
-        /// <returns></returns>
-        Task<PagedResult<OutboxItem>> GetPendingItems(PageOptions pageOptions);
+        Task<(List<OutboxItem> items, byte[] marker)> GetNext(Guid driveId);
 
         /// <summary>
         /// Removes the outbox item for the given recipient and file
         /// </summary>
         /// <returns></returns>
         Task Remove(DotYouIdentity recipient, InternalDriveFileId file);
-        
 
-        /// <summary>
-        /// Removes the outbox item for the give id
-        /// </summary>
-        Task Remove(Guid id);
-
-
-        Task<OutboxItem> GetItem(Guid id);
-        
-
-        /// <summary>
-        /// Removes an item from the outbox.  This does not notify the <see cref="PendingTransfersService"/>.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task RemoveItem(Guid id);
-
-        /// <summary>
-        /// Updates the priority of a given <see cref="OutboxItem"/>
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="priority"></param>
-        /// <returns></returns>
-        Task UpdatePriority(Guid id, int priority);
     }
 }

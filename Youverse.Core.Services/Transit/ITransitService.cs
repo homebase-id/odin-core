@@ -27,5 +27,10 @@ namespace Youverse.Core.Services.Transit
         /// <param name="items"></param>
         /// <returns></returns>
         Task SendBatchNow(IEnumerable<OutboxItem> items);
+
+        /// <summary>
+        /// Processes and sends any files in the outbox across all drives
+        /// </summary>
+        Task ProcessOutbox();
     }
 }

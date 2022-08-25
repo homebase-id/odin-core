@@ -45,7 +45,7 @@ namespace Youverse.Hosting
         {
             RegisterMediator(ref cb);
 
-            cb.RegisterType<LiteDbSystemStorage>().As<ISystemStorage>().SingleInstance();
+            cb.RegisterType<SystemStorage>().As<ISystemStorage>().SingleInstance();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()

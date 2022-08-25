@@ -8,14 +8,14 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Base
 {
-    public class LiteDbSystemStorage : ISystemStorage
+    public class SystemStorage : ISystemStorage
     {
-        private readonly ILogger<LiteDbSystemStorage> _logger;
+        private readonly ILogger<SystemStorage> _logger;
         private readonly TenantContext _tenantContext;
 
         private readonly KeyValueDatabase _db;
 
-        public LiteDbSystemStorage(ILogger<LiteDbSystemStorage> logger, TenantContext tenantContext)
+        public SystemStorage(ILogger<SystemStorage> logger, TenantContext tenantContext)
         {
             _logger = logger;
             _tenantContext = tenantContext;
@@ -33,6 +33,7 @@ namespace Youverse.Core.Services.Base
 
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
+            Outbox = new TableOutbox(_db);
         }
 
         public void WithTenantSystemStorage<T>(string collection, Action<IStorage<T>> action)
@@ -61,7 +62,7 @@ namespace Youverse.Core.Services.Base
                 return func(storage);
             }
         }
-        
+
         /// <summary>
         /// Store values using a single key
         /// </summary>
@@ -72,5 +73,6 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
+        public TableOutbox Outbox { get; }
     }
 }
