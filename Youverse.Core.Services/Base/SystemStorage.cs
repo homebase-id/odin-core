@@ -37,34 +37,7 @@ namespace Youverse.Core.Services.Base
             Outbox = new TableOutbox(_db);
             Inbox = new TableInbox(_db);
         }
-
-        public void WithTenantSystemStorage<T>(string collection, Action<IStorage<T>> action)
-        {
-            var cfg = _tenantContext.StorageConfig;
-            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
-            {
-                action(storage);
-            }
-        }
-
-        public Task<PagedResult<T>> WithTenantSystemStorageReturnList<T>(string collection, Func<IStorage<T>, Task<PagedResult<T>>> func)
-        {
-            var cfg = _tenantContext.StorageConfig;
-            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
-            {
-                return func(storage);
-            }
-        }
-
-        public Task<T> WithTenantSystemStorageReturnSingle<T>(string collection, Func<IStorage<T>, Task<T>> func)
-        {
-            var cfg = _tenantContext.StorageConfig;
-            using (var storage = new LiteDBSingleCollectionStorage<T>(_logger, cfg.DataStoragePath, collection))
-            {
-                return func(storage);
-            }
-        }
-
+        
         /// <summary>
         /// Store values using a single key
         /// </summary>

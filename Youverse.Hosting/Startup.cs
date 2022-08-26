@@ -173,9 +173,7 @@ namespace Youverse.Hosting
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-
-            this.ConfigureLiteDBSerialization();
-
+            
             app.UseDefaultFiles();
             app.UseCertificateForwarding();
             app.UseStaticFiles();
@@ -256,34 +254,7 @@ namespace Youverse.Hosting
             //     context.Response.Redirect("/");
             // });
         }
-
-        private void ConfigureLiteDBSerialization()
-        {
-            var serialize = new Func<DotYouIdentity, BsonValue>(identity => identity.ToString());
-            var deserialize = new Func<BsonValue, DotYouIdentity>(bson => new DotYouIdentity(bson.AsString));
-
-            //see: Register our custom type @ https://www.litedb.org/docs/object-mapping/   
-            BsonMapper.Global.RegisterType<DotYouIdentity>(
-                serialize: serialize,
-                deserialize: deserialize
-            );
-
-            BsonMapper.Global.ResolveMember = (type, memberInfo, memberMapper) =>
-            {
-                if (memberMapper.DataType == typeof(DotYouIdentity))
-                {
-                    //memberMapper.Serialize = (obj, mapper) => new BsonValue(((DotYouIdentity) obj).ToString());
-                    memberMapper.Serialize = (obj, mapper) => serialize((DotYouIdentity)obj);
-                    memberMapper.Deserialize = (value, mapper) => deserialize(value);
-                }
-            };
-
-            // BsonMapper.Global.Entity<DotYouProfile>()
-            //     .Id(x => x.DotYouId);
-            // BsonMapper.Global.Entity<NoncePackage>()
-            //     .Id(x => new Guid(Convert.FromBase64String(x.Nonce64)));
-        }
-
+        
         private void PrepareEnvironment(Configuration cfg)
         {
             Directory.CreateDirectory(cfg.Host.TenantDataRootPath);

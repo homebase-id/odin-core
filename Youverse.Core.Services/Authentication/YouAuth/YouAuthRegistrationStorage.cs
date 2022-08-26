@@ -12,7 +12,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public YouAuthRegistrationStorage(ISystemStorage systemStorage)
         {
             _systemStorage = systemStorage;
-            _systemStorage.WithTenantSystemStorage<YouAuthRegistration>(_regPrefix, s => s.EnsureIndex(k => k.Subject, true));
         }
         
         //
