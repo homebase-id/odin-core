@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 
@@ -15,12 +14,9 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         private readonly ILogger<IPendingTransfersService> _logger;
         private readonly string _dataPath;
-        private const string PendingTransferCollection = "ptc";
         private KeyValueDatabase _db;
         private TableOutbox _table;
 
-        private readonly byte[] _boxId = new byte[] { 1, 1, 2, 3, 5 };
-        private readonly byte[] _fileId = new byte[] { 1, 1, 2, 3, 5 };
 
         public PendingTransfersService(ILogger<IPendingTransfersService> logger)
         {
@@ -35,7 +31,22 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public void EnsureSenderIsPending(DotYouIdentity sender)
         {
-            _table.InsertRow(_boxId, _fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+            //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
+            //I swallow the exception because there's no direct way to see if a record exists for this sender already
+            byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
+            try
+            {
+                _table.InsertRow(sender.Id.ToLower().ToUtf8ByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+            }
+            catch (System.Data.SQLite.SQLiteException ex)
+            {
+                //ignore constraint error code as it just means we tried to insert the sender twice.
+                //it's only needed once
+                if (ex.ErrorCode != 19) //constraint
+                {
+                    throw;
+                }
+            }
         }
 
         public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetSenders()

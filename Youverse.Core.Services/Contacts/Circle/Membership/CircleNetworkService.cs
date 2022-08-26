@@ -340,6 +340,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
         {
+            
+            // could store as a single record
+            // 
+            // _systemStorage.SingleKeyValueStorage
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
