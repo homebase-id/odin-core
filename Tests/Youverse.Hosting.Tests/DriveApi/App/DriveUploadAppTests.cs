@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;

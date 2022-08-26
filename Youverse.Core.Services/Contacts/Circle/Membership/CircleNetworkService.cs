@@ -1,7 +1,5 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Security;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -21,20 +19,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public class CircleNetworkService : ICircleNetworkService
     {
-        const string CONNECTIONS = "cnncts";
-
         private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly ExchangeGrantService _exchangeGrantService;
+        private readonly CircleNetworkStorage _storage;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
+
+            _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
         }
 
         public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
@@ -110,8 +109,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 //destroy all access
                 info.AccessGrant = null;
                 info.Status = ConnectionStatus.None;
-                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
-
+                _storage.Upsert(info);
                 return true;
             }
 
@@ -129,7 +127,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             if (null != info && info.Status == ConnectionStatus.Connected)
             {
                 info.Status = ConnectionStatus.Blocked;
-                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
+                _storage.Upsert(info);
                 return true;
             }
 
@@ -144,7 +142,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             if (null != info && info.Status == ConnectionStatus.Blocked)
             {
                 info.Status = ConnectionStatus.Connected;
-                _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(info));
+                _storage.Upsert(info);
                 return true;
             }
 
@@ -254,7 +252,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
         {
-            var info = await _systemStorage.WithTenantSystemStorageReturnSingle<IdentityConnectionRegistration>(CONNECTIONS, s => s.Get(dotYouId));
+            var info = _storage.Get(dotYouId);
 
             if (null == info)
             {
@@ -331,8 +329,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
             };
 
-            _systemStorage.WithTenantSystemStorage<IdentityConnectionRegistration>(CONNECTIONS, s => s.Save(newConnection));
-
+            _storage.Upsert(newConnection);
             //TODO: the following is a good place for the mediatr pattern
             //tell the profile service to refresh the attributes?
             //send notification to clients
@@ -340,17 +337,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
         {
-            
-            // could store as a single record
-            // 
-            // _systemStorage.SingleKeyValueStorage
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
-            Expression<Func<IdentityConnectionRegistration, string>> sortKeySelector = key => key.DotYouId;
-            Expression<Func<IdentityConnectionRegistration, bool>> predicate = id => id.Status == status;
-            PagedResult<IdentityConnectionRegistration> results =
-                await _systemStorage.WithTenantSystemStorageReturnList<IdentityConnectionRegistration>(CONNECTIONS, s => s.Find(predicate, ListSortDirection.Ascending, sortKeySelector, req));
-            return results;
+            var list = _storage.GetList();
+            return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -161,7 +162,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => Youverse.Core.Cryptography.ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
             }
         }
 

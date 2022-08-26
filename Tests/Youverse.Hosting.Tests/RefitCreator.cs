@@ -1,5 +1,6 @@
 using System.Net.Http;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 
 namespace Youverse.Hosting.Tests;

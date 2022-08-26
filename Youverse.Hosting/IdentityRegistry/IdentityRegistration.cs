@@ -1,5 +1,6 @@
 using System;
 using MessagePack;
+using Youverse.Core;
 using Youverse.Core.Util;
 
 namespace Youverse.Hosting.IdentityRegistry
@@ -10,8 +11,7 @@ namespace Youverse.Hosting.IdentityRegistry
         private string _domainName;
         private Guid _domainKey;
 
-        [Key(0)]
-        public Guid Id { get; set; }
+        [Key(0)] public Guid Id { get; set; }
 
         /// <summary>
         /// A generated Guid based on the domain name
@@ -33,26 +33,22 @@ namespace Youverse.Hosting.IdentityRegistry
             set
             {
                 _domainName = value;
-                _domainKey = MiscUtils.MD5HashToGuid(value);
+                _domainKey = new Guid(YouSHA.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
 
-        [Key(3)]
-        public string PrivateKeyRelativePath { get; set; }
+        [Key(3)] public string PrivateKeyRelativePath { get; set; }
 
-        [Key(4)]
-        public string PublicKeyCertificateRelativePath { get; set; }
+        [Key(4)] public string PublicKeyCertificateRelativePath { get; set; }
 
-        [Key(5)]
-        public string FullChainCertificateRelativePath { get; set; }
+        [Key(5)] public string FullChainCertificateRelativePath { get; set; }
 
         /// <summary>
         /// Specifies the user requested the DI host manage the certificate
         /// </summary>
         [Key(6)]
         public bool IsCertificateManaged { get; set; }
-        
-        [Key(7)]
-        public CertificateRenewalInfo CertificateRenewalInfo { get; set; }
+
+        [Key(7)] public CertificateRenewalInfo CertificateRenewalInfo { get; set; }
     }
 }
