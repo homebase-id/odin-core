@@ -15,6 +15,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         public void EnsureSenderIsPending(DotYouIdentity sender);
 
-        public Task<IEnumerable<DotYouIdentity>> GetSenders();
+        public Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetSenders();
+
+        public void MarkComplete(byte[] marker);
+        public void MarkFailure(byte[] marker);
     }
 }

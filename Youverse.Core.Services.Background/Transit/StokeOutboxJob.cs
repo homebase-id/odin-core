@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Refit;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Core.Services.Workers.Transit
@@ -31,12 +30,22 @@ namespace Youverse.Core.Services.Workers.Transit
             InitializeHttpClient();
 
             _logger.LogInformation("Send Payload Job running now");
-            var senders = await _pendingTransfers.GetSenders();
+            var (senders, marker) = await _pendingTransfers.GetSenders();
             foreach (var sender in senders)
             {
-                //TODO: do this in parallel
-                StokeOutbox(sender);
+                try
+                {
+                    //TODO: do this in parallel
+                    StokeOutbox(sender);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    _pendingTransfers.MarkFailure(marker);
+                }
             }
+
+            _pendingTransfers.MarkComplete(marker);
         }
 
         private void InitializeHttpClient()
@@ -59,14 +68,14 @@ namespace Youverse.Core.Services.Workers.Transit
                 Scheme = "https",
                 Host = sender
             }.Uri;
-            
-            
+
+
             _logger.LogInformation($"Stoke running for {sender}");
-            
+
             _client.BaseAddress = uri;
             _client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
             var svc = RestService.For<IOutboxHttpClient>(_client);
-            
+
             var response = await svc.ProcessOutbox();
             //TODO: needs information to determine if it should stoke again; and when
 
