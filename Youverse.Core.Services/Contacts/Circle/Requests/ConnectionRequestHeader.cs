@@ -39,6 +39,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         public string Message { get; set; }
         
+        //TODO: add list of circles this recipient is being added.
+        
         /// <summary>
         /// The drives which should be accessible to the recipient of this request
         /// </summary>

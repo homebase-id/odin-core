@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
@@ -8,10 +10,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership;
 public class AccessExchangeGrant
 {
     //TODO: this is a horrible name.  fix. 
-    //TODO: the structure sucks too; fix
+    public AccessExchangeGrant()
+    {
+        this.CircleGrants = new Dictionary<string, ExchangeGrant>(StringComparer.Ordinal);
+    }
 
+    public Dictionary<string, ExchangeGrant> CircleGrants { get; set; }
+
+    [Obsolete("TODO: need to read from circles")]
     public ExchangeGrant Grant { get; set; }
-    
-    public AccessRegistration AccessRegistration { get; set; }
 
+    public AccessRegistration AccessRegistration { get; set; }
 }

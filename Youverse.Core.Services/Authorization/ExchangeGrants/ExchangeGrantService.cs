@@ -10,6 +10,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
@@ -20,17 +21,19 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class ExchangeGrantService
     {
         private readonly IDriveService _driveService;
+        private readonly CircleDefinitionService _circleDefinitionService;
 
-        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveService driveService)
+        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveService driveService, CircleDefinitionService circleDefinitionService)
         {
             _driveService = driveService;
+            _circleDefinitionService = circleDefinitionService;
         }
 
         public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests, SensitiveByteArray? masterKey)
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var grants = new List<DriveGrant>();
+            var driveGrants = new List<DriveGrant>();
 
             if (driveGrantRequests != null)
             {
@@ -41,7 +44,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                     var drive = await _driveService.GetDrive(driveId.GetValueOrDefault(), true);
 
                     var driveGrant = CreateDriveGrant(drive, req.Permission, grantKeyStoreKey, masterKey);
-                    grants.Add(driveGrant);
+                    driveGrants.Add(driveGrant);
                 }
             }
 
@@ -50,7 +53,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
                 IsRevoked = false,
-                KeyStoreKeyEncryptedDriveGrants = grants.ToList(),
+                KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
                 PermissionSet = permissionSet
             };
 
@@ -101,18 +104,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             return dk;
         }
-
-        public async Task RevokeDrive(ExchangeGrant grant, Guid driveId)
-        {
-            throw new NotImplementedException("");
-        }
-
-        public async Task GrantDrive(ExchangeGrant grant, StorageDrive drive, DrivePermission permission)
-        {
-            throw new NotImplementedException("");
-        }
-
-
+        
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, ExchangeGrant grant, AccessRegistration accessReg, bool isOwner)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.

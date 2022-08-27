@@ -113,13 +113,13 @@ namespace Youverse.Hosting.Middleware
             );
 
             //basically all permision, even tho there is a check for isOwner.  i've not yet decide which one we'll use
-            var permissionSet = new PermissionSet();
-            permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
-                                            PermissionFlags.ReadConnectionRequests |
-                                            PermissionFlags.DeleteConnectionRequests |
-                                            PermissionFlags.CreateOrSendConnectionRequests |
-                                            PermissionFlags.ReadConnectionRequests |
-                                            PermissionFlags.DeleteConnectionRequests;
+            var permissionSet = new PermissionSet(
+                PermissionFlags.CreateOrSendConnectionRequests |
+                PermissionFlags.ReadConnectionRequests |
+                PermissionFlags.DeleteConnectionRequests |
+                PermissionFlags.CreateOrSendConnectionRequests |
+                PermissionFlags.ReadConnectionRequests |
+                PermissionFlags.DeleteConnectionRequests);
 
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
@@ -193,8 +193,7 @@ namespace Youverse.Hosting.Middleware
                 });
 
                 //HACK: granting ability to see friends list to anon users.
-                var permissionSet = new PermissionSet();
-                permissionSet.PermissionFlags = PermissionFlags.ReadConnections;
+                var permissionSet = new PermissionSet(PermissionFlags.ReadConnections);
 
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(

@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition
@@ -10,8 +12,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
     public class CircleDefinitionService
     {
         private readonly ByteArrayId _circleDataType = ByteArrayId.FromString("circle__");
-
         private readonly ThreeKeyValueStorage _circleValueStorage;
+
+        public readonly ByteArrayId DefaultCircleId = ByteArrayId.FromString("default_circle");
+
+        public void CreateInitialDefaultCircle()
+        {
+            var defCircle = this.GetCircle(this.DefaultCircleId);
+            if (null == defCircle)
+            {
+                this.Create(new CreateCircleRequest()
+                {
+                    Name = "System Circle",
+                    Description = "Default Circle",
+                    Drives = new List<DriveGrantRequest>() { },
+                    Permissions = new PermissionSet(PermissionFlags.None)
+                });
+            }
+        }
 
         public CircleDefinitionService(ISystemStorage systemStorage)
         {
@@ -73,6 +91,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
         public CircleDefinition GetCircle(ByteArrayId circleId)
         {
+            Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => ByteArrayId.IsValid(id));
             var def = _circleValueStorage.Get<CircleDefinition>(circleId);
             return def;
         }

@@ -1,25 +1,20 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
     public class PermissionSet : IEquatable<PermissionSet>
     {
-        public PermissionSet()
+        public PermissionSet(PermissionFlags permissionFlags)
         {
+            PermissionFlags = permissionFlags;
         }
-        
-        public Dictionary<SystemApi, int> Permissions { get; } = new Dictionary<SystemApi, int>();
-        
-        public PermissionFlags PermissionFlags { get; set; }
+        public PermissionFlags PermissionFlags { get; }
         
         public bool Equals(PermissionSet other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(Permissions, other.Permissions);
+            return Equals(PermissionFlags, other.PermissionFlags);
         }
 
         public override bool Equals(object obj)
@@ -32,7 +27,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public override int GetHashCode()
         {
-            return (Permissions != null ? Permissions.GetHashCode() : 0);
+            return (PermissionFlags.GetHashCode());
         }
 
         public static bool operator ==(PermissionSet p1, PermissionSet p2)
@@ -42,9 +37,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            var diffs = p1.Permissions.Except(p2.Permissions);
-
-            return !diffs.Any();
+            return p1.PermissionFlags == p2?.PermissionFlags;
         }
 
         public static bool operator !=(PermissionSet p1, PermissionSet p2)

@@ -51,5 +51,10 @@ namespace Youverse.Core.Services.Base
         public TableOutbox Outbox { get; }
         
         public TableInbox Inbox { get; }
+
+        public KeyValueDatabase GetDBInstance()
+        {
+            return _db;
+        }
     }
 }

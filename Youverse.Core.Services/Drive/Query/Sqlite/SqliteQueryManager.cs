@@ -112,7 +112,7 @@ public class SqliteQueryManager : IDriveQueryManager
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
-        var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToByteArrayId().Value;
+        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArrayId().Value;
 
         var acl = new List<byte[]>();
 
@@ -129,7 +129,7 @@ public class SqliteQueryManager : IDriveQueryManager
         //NOTE: when you update payload is encrypted, be sure to update
         // DriveQueryService.CreateSearchResult accordingly
         // !!!
-        
+
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(

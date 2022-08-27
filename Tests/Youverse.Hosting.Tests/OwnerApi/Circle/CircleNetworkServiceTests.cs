@@ -165,7 +165,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    Permissions = new PermissionSet(PermissionFlags.None)
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -222,7 +222,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    Permissions = new PermissionSet(PermissionFlags.None)
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -256,7 +256,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    Permissions = new PermissionSet(PermissionFlags.None)
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -292,7 +292,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Sender = frodo.Identity,
                     Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    Permissions = new PermissionSet(PermissionFlags.None)
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);

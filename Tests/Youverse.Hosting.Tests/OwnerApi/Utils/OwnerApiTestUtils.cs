@@ -181,16 +181,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
             bool driveAllowAnonymousReads = false)
         {
-            var permissionSet = new PermissionSet();
+            PermissionFlags flags = PermissionFlags.None;
+            
             if (canManageConnections)
             {
-                permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
+                flags = PermissionFlags.CreateOrSendConnectionRequests |
                                                 PermissionFlags.ReadConnectionRequests |
                                                 PermissionFlags.DeleteConnectionRequests |
                                                 PermissionFlags.CreateOrSendConnectionRequests |
                                                 PermissionFlags.ReadConnectionRequests |
                                                 PermissionFlags.DeleteConnectionRequests;
             }
+            
+            var permissionSet = new PermissionSet(flags);
+
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -468,7 +472,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 {
                     Sender = sender,
                     Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    Permissions = new PermissionSet(PermissionFlags.None)
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
