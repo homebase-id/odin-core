@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Storage.SQLite.KeyValue;
@@ -10,21 +12,21 @@ namespace Youverse.Core.Services.Transit.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {
-        private readonly ILogger<IPendingTransfersService> _logger;
-        private readonly string _dataPath;
-        private KeyValueDatabase _db;
-        private TableOutbox _table;
+        private readonly TableOutbox _table;
 
-
-        public PendingTransfersService(ILogger<IPendingTransfersService> logger)
+        public PendingTransfersService(string dataPath)
         {
-            //TODO: get from injection?
-            _dataPath = PathUtil.OsIfy("\\tmp\\dotyou\\system\\");
-            _logger = logger;
-
-            _db = new KeyValueDatabase($"URI=file:{_dataPath}\\xfer.db");
-            _db.CreateDatabase(false);
-            _table = new TableOutbox(_db);
+            Guard.Argument(dataPath, nameof(dataPath)).NotNull().NotEmpty();
+            var finalPath = PathUtil.OsIfy(dataPath);
+            
+            if (!Directory.Exists(finalPath))
+            {
+                Directory.CreateDirectory(finalPath!);
+            }
+            var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
+            var db = new KeyValueDatabase($"URI=file:{filePath}");
+            db.CreateDatabase(false);
+            _table = new TableOutbox(db);
         }
 
         public void EnsureSenderIsPending(DotYouIdentity sender)

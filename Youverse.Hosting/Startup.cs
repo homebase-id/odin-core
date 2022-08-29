@@ -130,8 +130,10 @@ namespace Youverse.Hosting
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-
+            //services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
+            var pendingTransferService = new PendingTransfersService(config.Host.SystemDataRootPath);
+            services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
+            
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
         }
@@ -173,7 +175,7 @@ namespace Youverse.Hosting
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
-            
+
             app.UseDefaultFiles();
             app.UseCertificateForwarding();
             app.UseStaticFiles();
@@ -254,7 +256,7 @@ namespace Youverse.Hosting
             //     context.Response.Redirect("/");
             // });
         }
-        
+
         private void PrepareEnvironment(Configuration cfg)
         {
             Directory.CreateDirectory(cfg.Host.TenantDataRootPath);

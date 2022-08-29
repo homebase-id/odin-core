@@ -28,6 +28,7 @@ namespace Youverse.Hosting
             public string TenantDataRootPath { get; }
             public string TempTenantDataRootPath { get; }
             public bool UseLocalCertificateRegistry { get; }
+            public string SystemDataRootPath { get; }
 
             public HostSection(IConfiguration config)
             {
@@ -42,6 +43,9 @@ namespace Youverse.Hosting
                 var tp = config.Required<string>("Host:TempTenantDataRootPath");
                 TempTenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, tp.Substring(1)) : tp;
 
+                var sd = config.Required<string>("Host:SystemDataRootPath");
+                SystemDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
+                
                 UseLocalCertificateRegistry = config.Required<bool>("Host:UseLocalCertificateRegistry");
 
                 if (UseLocalCertificateRegistry == false)
