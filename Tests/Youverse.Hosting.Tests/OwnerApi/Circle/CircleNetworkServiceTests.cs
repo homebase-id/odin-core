@@ -208,7 +208,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
         [Test]
         public async Task CanAcceptConnectionRequest_WithCirclesAndRecipientHasAccess()
         {
@@ -217,6 +217,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+
+                //TODO: Create circles wth access to some drives
 
                 var header = new AcceptRequestHeader()
                 {
@@ -265,7 +268,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
 
         [Test]
         public async Task CanBlock()
