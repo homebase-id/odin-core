@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         /// <param name="request"></param>
         /// <returns></returns>
         [HttpPost("status")]
-        public async Task<ConnectionInfoResponse> GetConnectionInfo(DotYouIdRequest request)
+        public async Task<ConnectionInfoResponse> GetConnectionInfo([FromBody]DotYouIdRequest request)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
 
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             {
                 Status = result.Status,
                 LastUpdated = result.LastUpdated,
-                GrantIsRevoked = result.AccessGrant.Grant.IsRevoked || result.AccessGrant.AccessRegistration.IsRevoked
+                GrantIsRevoked = !result.AccessGrant.IsValid()
             };
         }
 

@@ -6,11 +6,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
     public class AccessRegistration
     {
-        public Guid Id { get; set; }
+        public ByteArrayId Id { get; set; }
 
         public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
         
-        public Guid GrantId { get; set; }
         public UInt64 Created { get; set; }
 
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }

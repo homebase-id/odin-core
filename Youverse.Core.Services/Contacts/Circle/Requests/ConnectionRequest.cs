@@ -1,7 +1,6 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 using Dawn;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests

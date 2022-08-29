@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using Youverse.Core;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return new JsonResult(new NoResultResponse(false));
             }
 
-            ConnectionRequest request = JsonConvert.DeserializeObject<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            ConnectionRequest request = DotYouSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
 
             Console.Write("ReceiveConnectionRequest 1");
 
@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return new JsonResult(new NoResultResponse(false));
             }
             
-            ConnectionRequestReply reply = JsonConvert.DeserializeObject<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
+            ConnectionRequestReply reply = DotYouSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);
             return new JsonResult(new NoResultResponse(true));

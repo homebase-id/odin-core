@@ -38,18 +38,12 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
-        public override Guid Alias
+        public override TargetDrive TargetDriveInfo
         {
-            get => _inner.Alias;
+            get => _inner.TargetDriveInfo;
             set { }
         }
-        
-        public override Guid Type
-        {
-            get => _inner.Type;
-            set { }
-        }
-        
+
         public override string Metadata
         {
             get => _inner.Metadata;
@@ -86,15 +80,6 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
-        public TargetDrive GetTargetDrive()
-        {
-            return new TargetDrive()
-            {
-                Alias = this.Alias,
-                Type = this.Type
-            };
-        }
-        
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
             var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
@@ -124,16 +109,11 @@ namespace Youverse.Core.Services.Drive
         /// Data specified by the client to further help with usage of this drive (i.e. a json string indicating things like description, etc.)
         /// </summary>
         public virtual string Metadata { get; set; }
-        
+
         /// <summary>
         /// Specifies a public identifier for accessing this drive.  This stops us from sharing the Id outside of this system.
         /// </summary>
-        public virtual Guid Alias { get; set; }
-
-        /// <summary>
-        /// Specifies the type of data stored here.  This field is set by the client when creating a drive.
-        /// </summary>
-        public virtual Guid Type { get; set; }
+        public virtual TargetDrive TargetDriveInfo { get; set; }
 
         /// <summary>
         /// Specifies the drive can only be written to by the owner while in the OwnerAuth context
@@ -153,6 +133,5 @@ namespace Youverse.Core.Services.Drive
         /// Specifies if anonymous callers can read this drive.
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
-        
     }
 }

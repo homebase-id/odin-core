@@ -1,18 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Apps;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -35,7 +29,7 @@ namespace Youverse.Core.Services.Transit.Upload
         {
             //TODO: need to partially encrypt upload instruction set
             string json = await new StreamReader(data).ReadToEndAsync();
-            var instructionSet = JsonConvert.DeserializeObject<UploadInstructionSet>(json);
+            var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
             if (null == instructionSet?.TransferIv || ByteArrayUtil.EquiByteArrayCompare(instructionSet.TransferIv, Guid.Empty.ToByteArray()))
             {

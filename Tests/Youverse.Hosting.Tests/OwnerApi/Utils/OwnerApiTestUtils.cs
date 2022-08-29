@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -14,10 +13,10 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
@@ -27,18 +26,17 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Provisioning;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
+namespace Youverse.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
@@ -183,16 +181,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
         public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
             bool driveAllowAnonymousReads = false)
         {
-            var permissionSet = new PermissionSet();
+            PermissionFlags flags = PermissionFlags.None;
+            
             if (canManageConnections)
             {
-                permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
+                flags = PermissionFlags.CreateOrSendConnectionRequests |
                                                 PermissionFlags.ReadConnectionRequests |
                                                 PermissionFlags.DeleteConnectionRequests |
                                                 PermissionFlags.CreateOrSendConnectionRequests |
                                                 PermissionFlags.ReadConnectionRequests |
                                                 PermissionFlags.DeleteConnectionRequests;
             }
+            
+            var permissionSet = new PermissionSet(flags);
+
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -382,7 +384,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             //     {
             //         Tags = tags,
             //         ContentIsComplete = true,
-            //         JsonContent = options?.AppDataJsonContent ?? JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+            //         JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
             //     }
             // };
             //
@@ -469,8 +471,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet()
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
@@ -500,7 +502,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var page = getDrivesResponse.Content;
 
                 Assert.NotNull(page);
-                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
+                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
 
@@ -513,7 +515,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 Assert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;
-                var exists = drives.Any(d => d.Alias == targetDrive.Alias && d.Type == targetDrive.Type);
+                var exists = drives.Any(d => d.TargetDriveInfo.Alias == targetDrive.Alias && d.TargetDriveInfo.Type == targetDrive.Type);
 
                 if (!exists)
                 {
@@ -556,7 +558,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
             using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
             {
                 var keyHeader = KeyHeader.NewRandom16();
-                var instructionStream = new MemoryStream(JsonConvert.SerializeObject(instructionSet).ToUtf8ByteArray());
+                var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 fileMetadata.PayloadIsEncrypted = encryptPayload;
                 var descriptor = new UploadFileDescriptor()
@@ -623,7 +625,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 fileMetadata.PayloadIsEncrypted = options.EncryptPayload;
@@ -683,7 +685,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Scaffold
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
 
-                            var resp = await transitAppSvc.ProcessIncomingTransfers();
+                            var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }

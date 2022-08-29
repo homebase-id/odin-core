@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
@@ -24,9 +25,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Returns a list of registered apps
         /// </summary>
         [HttpGet("list")]
-        public async Task<PagedResult<AppRegistrationResponse>> GetRegisteredApps([FromQuery] int pageNumber, [FromQuery] int pageSize)
+        public async Task<List<AppRegistrationResponse>> GetRegisteredApps()
         {
-            var apps = await _appRegistrationService.GetRegisteredApps(new PageOptions(pageNumber, pageSize));
+            var apps = await _appRegistrationService.GetRegisteredApps();
             return apps;
         }
 
@@ -49,7 +50,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         public async Task<AppRegistrationResponse> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
             var reg = await _appRegistrationService.RegisterApp(
-                applicationId: appRegistration.AppId,
+                appId: appRegistration.AppId,
                 name: appRegistration.Name,
                 permissions: appRegistration.PermissionSet,
                 drives: appRegistration.Drives);

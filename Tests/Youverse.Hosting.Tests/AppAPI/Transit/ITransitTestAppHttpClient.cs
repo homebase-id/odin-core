@@ -4,6 +4,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Hosting.Controllers.ClientToken;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI.Transit
 {
@@ -14,8 +15,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
     {
         private const string RootEndpoint = AppApiPathConstants.TransitV1 + "/app";
 
-        [Obsolete("TODO: replace with new outbox process")]
+
         [Post(RootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessIncomingTransfers();
+        Task<ApiResponse<bool>> ProcessIncomingTransfers([Body] ProcessTransfersRequest request);
     }
 }

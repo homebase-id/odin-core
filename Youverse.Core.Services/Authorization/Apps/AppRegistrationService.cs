@@ -11,19 +11,21 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
-        private const string AppRegistrationStorageName = "ars";
-        private const string AppAccessTokenReg = "appatr";
-
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ISystemStorage _systemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
+
+        private readonly ByteArrayId _appRegistrationDataType = ByteArrayId.FromString("__app_reg");
+        private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
+
+        private readonly ByteArrayId _appClientDataType = ByteArrayId.FromString("__app_client_reg");
+        private readonly ThreeKeyValueStorage _appClientValueStorage;
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
         {
@@ -31,13 +33,14 @@ namespace Youverse.Core.Services.Authorization.Apps
             _systemStorage = systemStorage;
             _exchangeGrantService = exchangeGrantService;
 
-            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.EnsureIndex(k => k.AppId));
+            _appRegistrationValueStorage = systemStorage.ThreeKeyValueStorage;
+            _appClientValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(Guid applicationId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<AppRegistrationResponse> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
-            Guard.Argument(applicationId, nameof(applicationId)).Require(applicationId != Guid.Empty);
+            Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
 
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -46,17 +49,17 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var appReg = new AppRegistration()
             {
-                AppId = applicationId,
+                AppId = appId,
                 Name = name,
                 Grant = grant
             };
 
-            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+            _appRegistrationValueStorage.Upsert(appReg.AppId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
 
             return this.ToAppRegistrationResponse(appReg);
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterClient(Guid appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<AppClientRegistrationResponse> RegisterClient(ByteArrayId appId, byte[] clientPublicKey, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(clientPublicKey, nameof(clientPublicKey)).NotNull().Require(x => x.Length > 200);
@@ -70,11 +73,10 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new YouverseException("App must be registered to add a client");
             }
 
-            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
 
-            reg.GrantId = appId;
-
-            _systemStorage.WithTenantSystemStorage<AccessRegistration>(AppAccessTokenReg, s => s.Save(reg));
+            var appClient = new AppClient(appId, accessRegistration);
+            _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
 
             //RSA encrypt using the public key and send to client
             var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
@@ -89,8 +91,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Data = encryptedData
             };
         }
-        
-        public async Task<AppClientRegistrationResponse> RegisterChatClient_Temp(Guid appId, string friendlyName)
+
+        public async Task<AppClientRegistrationResponse> RegisterChatClient_Temp(ByteArrayId appId, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
@@ -104,12 +106,10 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
+            var appClient = new AppClient(appId, reg);
+            _appClientValueStorage.Upsert(reg.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
 
-            reg.GrantId = appId;
-
-            _systemStorage.WithTenantSystemStorage<AccessRegistration>(AppAccessTokenReg, s => s.Save(reg));
-
-            //RSA encrypt using the public key and send to client
+            //RSA encrypt using the public key and send to client - temp removed for early chat client development
             var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
 
             return new AppClientRegistrationResponse()
@@ -120,7 +120,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<AppRegistrationResponse> GetAppRegistration(Guid appId)
+        public async Task<AppRegistrationResponse> GetAppRegistration(ByteArrayId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
             return ToAppRegistrationResponse(result);
@@ -141,31 +141,30 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
         {
-            var accessRegistration = await _systemStorage.WithTenantSystemStorageReturnSingle<AccessRegistration>(AppAccessTokenReg, s => s.Get(authToken.Id));
-
-            if (null == accessRegistration)
+            var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
+            if (null == appClient)
             {
                 return (false, null, null);
             }
 
-            var appReg = await this.GetAppRegistrationInternal(accessRegistration.GrantId);
+            var appReg = await this.GetAppRegistrationInternal(appClient.AppId);
 
             if (null == appReg || null == appReg.Grant)
             {
                 return (false, null, null);
             }
 
-            if (accessRegistration.IsRevoked || appReg.Grant.IsRevoked)
+            if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
                 return (false, null, null);
             }
 
-            return (true, accessRegistration, appReg);
+            return (true, appClient.AccessRegistration, appReg);
         }
 
-        public async Task RevokeApp(Guid applicationId)
+        public async Task RevokeApp(ByteArrayId appId)
         {
-            var appReg = await this.GetAppRegistrationInternal(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
             {
                 //TODO: do we do anything with storage DEK here?
@@ -173,42 +172,39 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             //TODO: revoke all clients? or is the one flag enough?
-
-            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+            _appRegistrationValueStorage.Upsert(appId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
         }
 
-        public async Task RemoveAppRevocation(Guid applicationId)
+        public async Task RemoveAppRevocation(ByteArrayId appId)
         {
-            var appReg = await this.GetAppRegistrationInternal(applicationId);
+            var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
             {
                 //TODO: do we do anything with storage DEK here?
                 appReg.Grant.IsRevoked = false;
             }
 
-            //save
-            _systemStorage.WithTenantSystemStorage<AppRegistration>(AppRegistrationStorageName, s => s.Save(appReg));
+            _appRegistrationValueStorage.Upsert(appId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
         }
 
-        public async Task<PagedResult<RegisteredAppClientResponse>> GetRegisteredClients(PageOptions pageOptions)
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
         {
-            var list = await _systemStorage.WithTenantSystemStorageReturnList<AccessRegistration>(AppAccessTokenReg, s => s.GetList(pageOptions));
-
-            var resp = list.Results.Select(accessReg => new RegisteredAppClientResponse()
+            var list = _systemStorage.ThreeKeyValueStorage.GetByKey3<AccessRegistration>(_appClientDataType);
+            var resp = list.Select(accessReg => new RegisteredAppClientResponse()
             {
                 IsRevoked = accessReg.IsRevoked,
                 Created = accessReg.Created,
                 AccessRegistrationClientType = accessReg.AccessRegistrationClientType
             }).ToList();
 
-            return new PagedResult<RegisteredAppClientResponse>(pageOptions, list.TotalPages, resp);
+            return resp;
         }
 
-        public async Task<PagedResult<AppRegistrationResponse>> GetRegisteredApps(PageOptions pageOptions)
+        public Task<List<AppRegistrationResponse>> GetRegisteredApps()
         {
-            var apps = await _systemStorage.WithTenantSystemStorageReturnList<AppRegistration>(AppRegistrationStorageName, s => s.GetList(pageOptions));
-            var redactedList = apps.Results.Select(ToAppRegistrationResponse).ToList();
-            return new PagedResult<AppRegistrationResponse>(pageOptions, apps.TotalPages, redactedList);
+            var apps = _appRegistrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
+            var redactedList = apps.Select(ToAppRegistrationResponse).ToList();
+            return Task.FromResult(redactedList);
         }
 
         private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
@@ -229,10 +225,10 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        private async Task<AppRegistration> GetAppRegistrationInternal(Guid applicationId)
+        private async Task<AppRegistration> GetAppRegistrationInternal(ByteArrayId appId)
         {
-            var result = await _systemStorage.WithTenantSystemStorageReturnSingle<AppRegistration>(AppRegistrationStorageName, s => s.FindOne(a => a.AppId == applicationId));
-            return result;
+            var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
+            return appReg;
         }
     }
 }

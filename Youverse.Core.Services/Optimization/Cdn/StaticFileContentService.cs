@@ -13,7 +13,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Optimization.Cdn;
 
@@ -141,14 +141,15 @@ public class StaticFileContentService
             });
 
             await using var fileStream = File.Create(tempTargetPath);
-            await JsonSerializer.SerializeAsync(fileStream, sectionOutputList, sectionOutputList.GetType(), SerializationConfiguration.JsonSerializerOptions);
+
+            await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
 
             string finalTargetPath = Path.Combine(targetFolder, filename);
             File.Move(tempTargetPath, finalTargetPath, true);
         }
 
         config.ContentType = "application/json";
-        _systemStorage.KeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
@@ -158,20 +159,20 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
 
-        var config = _systemStorage.KeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var config = _systemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
         if (!File.Exists(targetFile))
         {
-            return null;
+            return Task.FromResult((config, (Stream)null));
         }
 
         var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult((config, (Stream)fileStream));
     }
 
-    private byte[] GetConfigKey(string filename)
+    private ByteArrayId GetConfigKey(string filename)
     {
-        return filename.ToLower().ToUtf8ByteArray();
+        return new ByteArrayId(filename.ToLower().ToUtf8ByteArray());
     }
 
     private string EnsurePath()

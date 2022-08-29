@@ -37,8 +37,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 new OwnerClientDriveData()
                 {
                     Name = drive.Name,
-                    Type = drive.Type,
-                    Alias = drive.Alias,
+                    TargetDriveInfo = drive.TargetDriveInfo,
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads

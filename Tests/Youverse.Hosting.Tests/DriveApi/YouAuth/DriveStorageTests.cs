@@ -4,11 +4,11 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0,

@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
@@ -32,45 +35,65 @@ namespace Youverse.Core.Services.Transit.Incoming
         public Task Add(TransferBoxItem item)
         {
             item.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
-            
-            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(item.TempFile.DriveId), s => s.Save(item));
 
-            var ext =  new ExternalFileIdentifier()
-            {
-                TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.GetTargetDrive(),
-                FileId = item.TempFile.FileId
-            };
-            
+            var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
+            _systemStorage.Inbox.InsertRow(item.TempFile.DriveId.ToByteArray(), item.TempFile.FileId.ToByteArray(), 1, state);
+
             _mediator.Publish(new NewInboxItemNotification()
             {
                 InboxItemId = item.Id,
                 Sender = item.Sender,
-                TempFile = ext
+                TempFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.TargetDriveInfo,
+                    FileId = item.TempFile.FileId
+                }
             });
 
             return Task.CompletedTask;
         }
 
-        public async Task<PagedResult<TransferBoxItem>> GetPendingItems(Guid driveId, PageOptions pageOptions)
+        public async Task<List<TransferBoxItem>> GetPendingItems(Guid driveId)
         {
-            return await _systemStorage.WithTenantSystemStorageReturnList<TransferBoxItem>(GetAppCollectionName(driveId), s => s.GetList(pageOptions));
+            //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
+            var records = this._systemStorage.Inbox.Pop(driveId.ToByteArray(), 1, out var marker);
+
+            var record = records.SingleOrDefault();
+            if (null == record)
+            {
+                return new List<TransferBoxItem>();
+            }
+
+            var items = records.Select(r =>
+            {
+                var item = DotYouSystemSerializer.Deserialize<TransferBoxItem>(r.value.ToStringFromUtf8Bytes());
+                return new TransferBoxItem()
+                {
+                    Sender = (DotYouIdentity)item.Sender,
+                    Priority = (int)r.priority,
+                    AddedTimestamp = r.timeStamp,
+                    TempFile = new InternalDriveFileId()
+                    {
+                        DriveId = new Guid(r.boxId),
+                        FileId = new Guid(r.fileId)
+                    },
+                    Marker = marker
+                };
+            }).ToList();
+
+            return items;
         }
 
-        public async Task<TransferBoxItem> GetItem(Guid driveId, Guid id)
+        public Task MarkComplete(Guid driveId, byte[] marker)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<TransferBoxItem>(GetAppCollectionName(driveId), s => s.Get(id));
-            return item;
-        }
-
-        public Task Remove(Guid driveId, Guid id)
-        {
-            _systemStorage.WithTenantSystemStorage<TransferBoxItem>(GetAppCollectionName(driveId), s => s.Delete(id));
+            _systemStorage.Inbox.PopCommit(marker);
             return Task.CompletedTask;
         }
 
-        private string GetAppCollectionName(Guid driveId)
+        public Task MarkFailure(Guid driveId, byte[] marker)
         {
-            return $"tbox_{driveId:N}";
+            _systemStorage.Inbox.PopCancel(marker);
+            return Task.CompletedTask;
         }
     }
 }

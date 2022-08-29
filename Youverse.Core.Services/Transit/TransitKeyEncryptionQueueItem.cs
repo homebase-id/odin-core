@@ -8,6 +8,7 @@ namespace Youverse.Core.Services.Transit
     /// </summary>
     public class TransitKeyEncryptionQueueItem
     {
+        public ByteArrayId Id { get; set; }
         public Guid FileId { get; set; }
         public DotYouIdentity Recipient { get; set; }
         public int Attempts { get; set; }

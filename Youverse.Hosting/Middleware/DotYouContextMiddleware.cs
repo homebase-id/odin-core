@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -112,31 +113,35 @@ namespace Youverse.Hosting.Middleware
                 masterKey: masterKey
             );
 
-            //basically all permision, even tho there is a check for isOwner.  i've not yet decide which one we'll use
-            var permissionSet = new PermissionSet();
-            permissionSet.PermissionFlags = PermissionFlags.CreateOrSendConnectionRequests |
-                                            PermissionFlags.ReadConnectionRequests |
-                                            PermissionFlags.DeleteConnectionRequests |
-                                            PermissionFlags.CreateOrSendConnectionRequests |
-                                            PermissionFlags.ReadConnectionRequests |
-                                            PermissionFlags.DeleteConnectionRequests;
+            //basically all permission, even tho there is a check for isOwner.  i've not yet decide which one we'll use; probably better ot use isOwner so i dont have to keep this list updated
+            var permissionSet = new PermissionSet(
+                PermissionFlags.CreateOrSendConnectionRequests |
+                PermissionFlags.ReadConnectionRequests |
+                PermissionFlags.DeleteConnectionRequests |
+                PermissionFlags.CreateOrSendConnectionRequests |
+                PermissionFlags.ReadConnectionRequests |
+                PermissionFlags.DeleteConnectionRequests |
+                PermissionFlags.ManageCircleMembership |
+                PermissionFlags.ReadCircleMembership);
 
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
-                DriveAlias = d.Alias,
-                DriveType = d.Type,
+                TargetDrive = d.TargetDriveInfo,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 Permission = DrivePermission.All
             });
+            
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            {
+                { "owner_drive_grants", new PermissionGroup(permissionSet, allDriveGrants, masterKey) },
+            };
 
             //HACK: giving this the master key makes my hairs raise >:-[
             dotYouContext.SetPermissionContext(
                 new PermissionContext(
-                    driveGrants: allDriveGrants,
-                    permissionSet: permissionSet,
-                    driveDecryptionKey: masterKey,
+                    permissionGroupMap,
                     sharedSecretKey: clientSharedSecret,
                     isOwner: true
                 ));
@@ -185,28 +190,30 @@ namespace Youverse.Hosting.Middleware
             {
                 var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
                 var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
-                var grants = anonymousDrives.Results.Select(d => new DriveGrant()
+                var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
-                    DriveAlias = d.Alias,
-                    DriveType = d.Type,
+                    TargetDrive = d.TargetDriveInfo,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
                     Permission = DrivePermission.Read
-                });
+                }).ToList();
 
                 //HACK: granting ability to see friends list to anon users.
-                var permissionSet = new PermissionSet();
-                permissionSet.PermissionFlags = PermissionFlags.ReadConnections;
+                var permissionSet = new PermissionSet(PermissionFlags.ReadConnections);
 
+                var permissionGroupMap = new Dictionary<string, PermissionGroup>
+                {
+                    { "anon_drive_grants", new PermissionGroup(permissionSet, anonDriveGrants, null) },
+                };
+
+                //HACK: giving this the master key makes my hairs raise >:-[
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(
-                        driveGrants: grants,
-                        permissionSet: permissionSet,
-                        driveDecryptionKey: null,
+                        permissionGroupMap,
                         sharedSecretKey: null,
                         isOwner: false
                     ));
-
+                
                 return;
             }
 

@@ -3,11 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
@@ -25,8 +22,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.SystemStorage;
-using JsonConverter = System.Text.Json.Serialization.JsonConverter;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -106,7 +102,7 @@ namespace Youverse.Core.Services.Transit
 
             var ext = new ExternalFileIdentifier()
             {
-                TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.GetTargetDrive(),
+                TargetDrive = _driveService.GetDrive(package.InternalFile.DriveId).Result.TargetDriveInfo,
                 FileId = package.InternalFile.FileId
             };
 
@@ -155,15 +151,8 @@ namespace Youverse.Core.Services.Transit
             var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
             var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
 
-            var serializerOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new JsonStringEnumConverter(), new ByteArrayConverter() }
-            };
+            var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
-            var uploadDescriptor = System.Text.Json.JsonSerializer.Deserialize<UploadFileDescriptor>(json, SerializationConfiguration.JsonSerializerOptions);
-
-            // var uploadDescriptor = JsonConvert.DeserializeObject<UploadFileDescriptor>(json);
             var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
             if (null == transferEncryptedKeyHeader)
@@ -223,8 +212,6 @@ namespace Youverse.Core.Services.Transit
             {
                 File = package.InternalFile,
                 Recipient = (DotYouIdentity)r,
-
-                //TODO: can i put something else here to allow me to access the files?
             }));
             return keyStatus;
         }
@@ -295,7 +282,7 @@ namespace Youverse.Core.Services.Transit
                 Drive = package.InstructionSet.StorageOptions.Drive
             };
 
-            _systemStorage.KeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, package.InternalFile), instructionSet);
+            _systemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, package.InternalFile), instructionSet);
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, UploadPackage package)
@@ -303,6 +290,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
+                Id = ByteArrayId.NewId(),
                 FileId = package.InternalFile.FileId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -315,7 +303,6 @@ namespace Youverse.Core.Services.Transit
 
         public async Task SendBatchNow(IEnumerable<OutboxItem> items)
         {
-            //TODO: Upgrade with new sqlite outbox from Michael
             var tasks = new List<Task<SendResult>>();
 
             foreach (var item in items)
@@ -331,13 +318,27 @@ namespace Youverse.Core.Services.Transit
                 var sendResult = task.Result;
                 if (sendResult.Success)
                 {
-                    _outboxService.Remove(sendResult.OutboxItemId);
+                    _outboxService.MarkComplete(sendResult.OutboxItem.Marker);
                 }
                 else
                 {
-                    _outboxService.MarkFailure(sendResult.OutboxItemId, sendResult.FailureReason.GetValueOrDefault());
+                    _outboxService.MarkFailure(sendResult.OutboxItem.Marker, sendResult.FailureReason.GetValueOrDefault());
                 }
             });
+        }
+
+        public async Task ProcessOutbox()
+        {
+            //Note: here we can prioritize outbox processing by drive if need be
+            var page = await _driveService.GetDrives(PageOptions.All);
+
+            foreach (var drive in page.Results)
+            {
+                var batch = await _outboxService.GetNext(drive.Id);
+                // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
+
+                await this.SendBatchNow(batch);
+            }
         }
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
@@ -355,16 +356,16 @@ namespace Youverse.Core.Services.Transit
                 {
                     return new SendResult()
                     {
-                        OutboxItemId = outboxItem.Id,
                         File = file,
                         Recipient = recipient,
                         Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
                         Success = false,
-                        FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable
+                        FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
+                        OutboxItem = outboxItem
                     };
                 }
 
-                var transferKeyHeaderBytes = JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray();
+                var transferKeyHeaderBytes = DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes), "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
@@ -388,7 +389,7 @@ namespace Youverse.Core.Services.Transit
                 };
 
 
-                var json = JsonConvert.SerializeObject(redactedMetadata);
+                var json = DotYouSystemSerializer.Serialize(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
@@ -448,22 +449,22 @@ namespace Youverse.Core.Services.Transit
             {
                 File = file,
                 Recipient = recipient,
-                OutboxItemId = outboxItem.Id,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = DateTimeExtensions.UnixTimeMilliseconds()
+                Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                OutboxItem = outboxItem
             };
         }
 
         private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var instructionSet = _systemStorage.KeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
+            var instructionSet = _systemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
             return Task.FromResult(instructionSet);
         }
 
-        private byte[] CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
+        private ByteArrayId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            return ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray());
+            return new ByteArrayId(ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
         }
     }
 }

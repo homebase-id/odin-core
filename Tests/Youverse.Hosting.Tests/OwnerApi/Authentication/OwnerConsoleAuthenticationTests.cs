@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Base;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 {

@@ -1,18 +1,20 @@
 using System;
+using System.Data.Entity.Migrations.Model;
+using System.Data.SQLite;
 using System.IO;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Youverse.Core.Services.Base;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
-        private const string IncomingTransferStateItemCollection = "transit_incoming";
+        private const string _context = "tss";
 
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
@@ -28,10 +30,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guid id = Guid.NewGuid();
 
             var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.Drive, true))!.Value;
-            var file = _driveService.CreateInternalFileId(driveId);  //notice here: we always create a new file Id when receiving a new file.  we might need to add a feature that lets multiple identities collaborate on a the same file.  not sure who this will go.
+
+            //notice here: we always create a new file Id when receiving a new file.
+            //we might need to add a feature that lets multiple identities collaborate on
+            //a the same file.  not sure who this will go.
+            var file = _driveService.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
 
-            await using var stream = new MemoryStream(JsonConvert.SerializeObject(transferInstructionSet).ToUtf8ByteArray());
+            await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
             item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
@@ -42,7 +48,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<IncomingTransferStateItem>(IncomingTransferStateItemCollection, s => s.Get(id));
+            var item = _systemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id, _context);
 
             if (null == item)
             {
@@ -82,13 +88,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public Task RemoveStateItem(Guid transferStateItemId)
         {
-            _systemStorage.WithTenantSystemStorage<IncomingTransferStateItem>(IncomingTransferStateItemCollection, s => s.Delete(transferStateItemId));
+            _systemStorage.SingleKeyValueStorage.Delete(transferStateItemId, _context);
             return Task.CompletedTask;
         }
 
         private void Save(IncomingTransferStateItem stateItem)
         {
-            _systemStorage.WithTenantSystemStorage<IncomingTransferStateItem>(IncomingTransferStateItemCollection, s => s.Save(stateItem));
+            _systemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem, _context);
         }
     }
 }

@@ -4,11 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
@@ -17,6 +18,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
@@ -73,7 +75,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var thumbnail1 = new ThumbnailHeader()
@@ -104,7 +106,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     {
                         Tags = new List<byte[]>() { fileTag },
                         ContentIsComplete = true,
-                        JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ThumbnailContent()
                         {
                             PixelHeight = 100,
@@ -156,7 +158,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitAppSvc.ProcessIncomingTransfers();
+                var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
 
@@ -300,7 +302,6 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         public async Task UpdateThumbnail()
         {
             //upload a file with a thumbnail
-
         }
 
         // [Test(Description = "Updates a thumbnail; and transfer it")]

@@ -1,6 +1,7 @@
 ﻿using System;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -14,6 +15,7 @@ namespace Youverse.Core.Services.Transit
         public InternalDriveFileId File { get; set; }
 
         public UInt64 Timestamp { get; set; }
-        public Guid OutboxItemId { get; set; }
+        
+        public OutboxItem OutboxItem { get; set; }
     }
 }

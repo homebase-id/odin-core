@@ -14,14 +14,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         private readonly IDriveService _driveService;
 
-        public OwnerDriveManagementController( IDriveService driveService)
+        public OwnerDriveManagementController(IDriveService driveService)
         {
             _driveService = driveService;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
-        public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody]GetDrivesRequest request)
+        public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
             var drives = await _driveService.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
 
@@ -29,8 +29,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 new OwnerClientDriveData()
                 {
                     Name = drive.Name,
-                    Type = drive.Type,
-                    Alias = drive.Alias,
+                    TargetDriveInfo = drive.TargetDriveInfo,
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads
@@ -48,7 +47,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             var _ = await _driveService.CreateDrive(request.Name, request.TargetDrive, request.Metadata, request.AllowAnonymousReads);
             return true;
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType(GetDrivesByTypeRequest request)
@@ -58,8 +57,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 new OwnerClientDriveData()
                 {
                     Name = drive.Name,
-                    Type = drive.Type,
-                    Alias = drive.Alias,
+                    TargetDriveInfo = drive.TargetDriveInfo,
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads

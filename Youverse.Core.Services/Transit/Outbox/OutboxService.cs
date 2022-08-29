@@ -1,18 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Notifications;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
+    public class OutboxItemState
+    {
+        public string Recipient { get; set; }
+        public List<TransferAttempt> Attempts { get; }
+    }
+
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
@@ -39,8 +43,20 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <param name="item"></param>
         public Task Add(OutboxItem item)
         {
-            item.IsCheckedOut = false;
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            //TODO: value should also include transfer attempts, etc.
+            var state = new OutboxItemState()
+            {
+                Recipient = item.Recipient
+            };
+
+            var bytes = DotYouSystemSerializer.Serialize(state).ToUtf8ByteArray();
+
+            _systemStorage.Outbox.InsertRow(
+                item.File.DriveId.ToByteArray(),
+                item.File.FileId.ToByteArray(),
+                item.Priority,
+                bytes);
+
             _pendingTransfers.EnsureSenderIsPending(_tenantContext.HostDotYouId);
             return Task.CompletedTask;
         }
@@ -55,88 +71,68 @@ namespace Youverse.Core.Services.Transit.Outbox
             return Task.CompletedTask;
         }
 
+        public Task MarkComplete(byte[] marker)
+        {
+            _systemStorage.Outbox.PopCommit(marker);
+            return Task.CompletedTask;
+        }
+
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(Guid itemId, TransferFailureReason reason)
+        public async Task MarkFailure(byte[] marker, TransferFailureReason reason)
         {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(itemId));
+            //TODO: there is no way to keep information on why an item failed
+            _systemStorage.Outbox.PopCancel(marker);
 
-            if (null == item)
+            // if (null == item)
+            // {
+            //     return;
+            // }
+
+            // item.Attempts.Add(new TransferAttempt()
+            // {
+            //     TransferFailureReason = reason,
+            //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            // });
+        }
+
+        public async Task<List<OutboxItem>> GetNext(Guid driveId)
+        {
+            //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
+            var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), 1, out var marker);
+
+            //Uses .Single to fail if there's more than one returned since we can't handle it correctly
+            var item = records.SingleOrDefault();
+            if (item == null)
             {
-                return;
+                return new List<OutboxItem>();
             }
 
-
-            //TODO: check all other fields on the item;
-            item.IsCheckedOut = false;
-            item.Attempts.Add(new TransferAttempt()
+            var items = records.Select(r =>
             {
-                TransferFailureReason = reason,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
+                return new OutboxItem()
+                {
+                    Recipient = (DotYouIdentity)state.Recipient,
+                    Priority = (int)r.priority,
+                    AddedTimestamp = r.timeStamp,
+                    File = new InternalDriveFileId()
+                    {
+                        DriveId = new Guid(r.boxId),
+                        FileId = new Guid(r.fileId)
+                    },
+                    Marker = marker
+                };
             });
 
-            //TODO:this puts it at the end of the queue however we need to decide if we want to push it forward for various reasons (i.e. it's a chat message, etc.)
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            return items.ToList();
         }
 
-        public async Task<PagedResult<OutboxItem>> GetNextBatch()
-        {
-            //TODO: update logic to handle things like priority and other bits
-            var pageOptions = new PageOptions(1, 10);
-            var pagedResult = await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection,
-                s => s.Find(item => !item.IsCheckedOut, ListSortDirection.Ascending, key => key.AddedTimestamp, pageOptions));
-
-            //check out the items
-            foreach (var item in pagedResult.Results)
-            {
-                item.IsCheckedOut = true;
-                _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
-            }
-
-            return pagedResult;
-        }
-
-        /// <summary>
-        /// Gets all the items currently in the queue w/o making changes to it 
-        /// </summary>
-        /// <returns></returns>
-        public async Task<PagedResult<OutboxItem>> GetPendingItems(PageOptions pageOptions)
-        {
-            return await _systemStorage.WithTenantSystemStorageReturnList<OutboxItem>(OutboxItemsCollection, s => s.GetList(pageOptions, ListSortDirection.Ascending, key => key.AddedTimestamp));
-        }
-
-        public async Task Remove(DotYouIdentity recipient, InternalDriveFileId file)
+        public Task Remove(DotYouIdentity recipient, InternalDriveFileId file)
         {
             //TODO: need to make a better queue here
-            Expression<Func<OutboxItem, bool>> predicate = outboxItem => outboxItem.Recipient == recipient && outboxItem.File == file;
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.FindOne(predicate));
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(item.Id));
-        }
-
-        public Task Remove(Guid id)
-        {
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
-            return Task.CompletedTask;
-        }
-
-        public async Task<OutboxItem> GetItem(Guid id)
-        {
-            var item = await _systemStorage.WithTenantSystemStorageReturnSingle<OutboxItem>(OutboxItemsCollection, s => s.Get(id));
-            return item;
-        }
-
-        public Task RemoveItem(Guid id)
-        {
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Delete(id));
-            return Task.CompletedTask;
-        }
-
-        public async Task UpdatePriority(Guid id, int priority)
-        {
-            var item = await this.GetItem(id);
-            item.Priority = priority;
-            _systemStorage.WithTenantSystemStorage<OutboxItem>(OutboxItemsCollection, s => s.Save(item));
+            throw new NotImplementedException("Sqllite outbox needs ability to query by recipient");
         }
     }
 }

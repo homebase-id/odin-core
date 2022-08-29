@@ -5,7 +5,6 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Scaffold;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive;
 
@@ -54,7 +53,7 @@ public class DriveManagementTests
             var page = getDrivesResponse.Content;
 
             Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
+            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
         }
     }
 
@@ -85,7 +84,7 @@ public class DriveManagementTests
             var page = getDrivesResponse.Content;
 
             Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.Alias == targetDrive.Alias && drive.Type == targetDrive.Type));
+            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
 
             var createDuplicateDriveResponse = await svc.CreateDrive(new CreateDriveRequest()
             {

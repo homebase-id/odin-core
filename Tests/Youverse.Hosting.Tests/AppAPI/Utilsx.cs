@@ -1,6 +1,7 @@
 ﻿using System.IO;
-using Newtonsoft.Json;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Hosting.Tests.AppAPI
@@ -33,7 +34,7 @@ namespace Youverse.Hosting.Tests.AppAPI
         /// </summary>
         public static Stream JsonEncryptAes(object instance, byte[] iv, ref SensitiveByteArray key)
         {
-            var data = JsonConvert.SerializeObject(instance);
+            var data = DotYouSystemSerializer.Serialize(instance);
             
             var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),

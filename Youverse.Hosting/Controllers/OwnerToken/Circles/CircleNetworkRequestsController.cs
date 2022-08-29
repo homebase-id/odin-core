@@ -64,7 +64,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("pending/accept")]
         public async Task<bool> AcceptConnectionRequest([FromBody] AcceptRequestHeader header)
         {
-            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.Drives, header.Permissions);
+            await _requestService.AcceptConnectionRequest((DotYouIdentity)header.Sender, header.CircleIds);
             return true;
         }
 

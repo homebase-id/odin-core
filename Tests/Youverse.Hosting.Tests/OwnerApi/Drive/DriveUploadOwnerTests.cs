@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         {
                             Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
                             ContentIsComplete = true,
-                            JsonContent = JsonConvert.SerializeObject(new { message = "We're going to the beach; this is encrypted by the app" })
+                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         }
                     },
                 };
@@ -177,7 +177,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ThumbnailHeader()
@@ -207,7 +207,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         {
                             Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
                             ContentIsComplete = true,
-                            JsonContent = JsonConvert.SerializeObject(new { content = "some content" }),
+                            JsonContent = DotYouSystemSerializer.Serialize(new { content = "some content" }),
 
                             PreviewThumbnail = new ThumbnailContent()
                             {

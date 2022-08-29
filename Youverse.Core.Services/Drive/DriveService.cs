@@ -3,23 +3,22 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.SystemStorage;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -85,8 +84,7 @@ namespace Youverse.Core.Services.Drive
                 {
                     Id = id,
                     Name = name,
-                    Alias = targetDrive.Alias,
-                    Type = targetDrive.Type,
+                    TargetDriveInfo = targetDrive,
                     Metadata = metadata,
                     MasterKeyEncryptedStorageKey = driveKey,
                     EncryptedIdIv = encryptedIdIv,
@@ -95,9 +93,8 @@ namespace Youverse.Core.Services.Drive
                 };
 
                 secret.Wipe();
-
-                var json = JsonConvert.SerializeObject(sdb);
-                _systemStorage.KeyValueStorage.ThreeKeyStorage.UpsertRow(sdb.Id.ToByteArray(), targetDrive.ToKey(), _driveDataType, json.ToUtf8ByteArray());
+                
+                _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, targetDrive.ToKey(), _driveDataType, sdb);
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
@@ -108,8 +105,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var bytes = _systemStorage.KeyValueStorage.ThreeKeyStorage.Get(driveId.ToByteArray());
-            if (null == bytes)
+            var sdb = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+            if (null == sdb)
             {
                 if (failIfInvalid)
                 {
@@ -119,15 +116,15 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
-            var sdb = ToStorageDriveBase(bytes);
             var drive = ToStorageDrive(sdb);
             return drive;
         }
 
         public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var list = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyTwo(targetDrive.ToKey());
-            if (null == list || !list.Any())
+            var list = _systemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
+            var drives = list as StorageDriveBase[] ?? list.ToArray();
+            if (!drives.Any())
             {
                 if (failIfInvalid)
                 {
@@ -137,8 +134,7 @@ namespace Youverse.Core.Services.Drive
                 return null;
             }
 
-            var sdb = ToStorageDriveBase(list.Single());
-            var drive = ToStorageDrive(sdb);
+            var drive = ToStorageDrive(drives.Single());
             return drive.Id;
         }
 
@@ -147,13 +143,13 @@ namespace Youverse.Core.Services.Drive
             return await this.GetDrivesInternal(true, pageOptions);
         }
 
-        public async Task<PagedResult<StorageDrive>> GetDrives(Guid type, PageOptions pageOptions)
+        public async Task<PagedResult<StorageDrive>> GetDrives(ByteArrayId type, PageOptions pageOptions)
         {
-            Func<StorageDrive, bool> predicate = drive => drive.Type == type;
+            Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 
             if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
             {
-                predicate = drive => drive.Type == type && drive.AllowAnonymousReads == true;
+                predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true;
             }
 
             var page = await this.GetDrivesInternal(false, pageOptions);
@@ -210,7 +206,7 @@ namespace Youverse.Core.Services.Drive
                 metadata.Created = DateTimeExtensions.UnixTimeMilliseconds();
             }
 
-            var json = JsonConvert.SerializeObject(header);
+            var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Header, stream);
 
@@ -236,7 +232,7 @@ namespace Youverse.Core.Services.Drive
 
             var stream = await this.GetTempStream(file, extension);
             string json = await new StreamReader(stream).ReadToEndAsync();
-            var o = JsonConvert.DeserializeObject<T>(json);
+            var o = DotYouSystemSerializer.Deserialize<T>(json);
             return o;
         }
 
@@ -414,7 +410,7 @@ namespace Youverse.Core.Services.Drive
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
         {
-            var driveByteList = _systemStorage.KeyValueStorage.ThreeKeyStorage.GetByKeyThree(_driveDataType);
+            var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
 
             var predicate = new Func<StorageDriveBase, bool>(drive => true);
             if (enforceSecurity)
@@ -425,14 +421,8 @@ namespace Youverse.Core.Services.Drive
                 }
             }
 
-            var storageDrives = driveByteList.Select(ToStorageDriveBase);
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
             return results;
-        }
-
-        private StorageDriveBase ToStorageDriveBase(byte[] bytes)
-        {
-            return JsonConvert.DeserializeObject<StorageDriveBase>(bytes.ToStringFromUtf8Bytes());
         }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)

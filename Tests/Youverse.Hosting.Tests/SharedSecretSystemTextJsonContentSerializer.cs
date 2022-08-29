@@ -32,7 +32,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     public SharedSecretSystemTextJsonContentSerializer(SensitiveByteArray sharedSecret)
     {
         _sharedSecret = sharedSecret;
-        this.jsonSerializerOptions = new JsonSerializerOptions(SerializationConfiguration.JsonSerializerOptions);
+        this.jsonSerializerOptions = new JsonSerializerOptions(DotYouSystemSerializer.JsonSerializerOptions);
         jsonSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
     }
 
@@ -52,13 +52,22 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             Data = encryptedBytes.ToBase64()
         };
 
-        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), SerializationConfiguration.JsonSerializerOptions);
+        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), DotYouSystemSerializer.JsonSerializerOptions);
     }
 
     /// <inheritdoc/>
     public async Task<T?> FromHttpContentAsync<T>(HttpContent content, CancellationToken cancellationToken = default)
     {
-        var payload = await content.ReadFromJsonAsync<SharedSecretEncryptedPayload>(jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        //TOOD: need to see if the content is empty
+        //I cannot check the headers :( so i will assume that if the content is empty, we had a 204
+        var json = await content.ReadAsStringAsync(cancellationToken);
+
+        if (string.IsNullOrEmpty(json))
+        {
+            return default;
+        }
+        
+        var payload = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(json);
 
         if (payload == null)
         {

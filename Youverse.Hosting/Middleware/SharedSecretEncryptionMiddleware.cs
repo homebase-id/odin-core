@@ -46,7 +46,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/transit/app/process",
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
-                "/api/apps/v1/drive/files/upload"
+                "/api/apps/v1/drive/files/upload",
+                "/api/youauth/v1/auth/is-authenticated"
             };
 
             //Paths that should not have their responses encrypted with shared secret
@@ -108,7 +109,8 @@ namespace Youverse.Hosting.Middleware
             //TODO: need to detect if the request has a payload
             try
             {
-                var encryptedRequest = await JsonSerializer.DeserializeAsync<SharedSecretEncryptedPayload>(request.Body, SerializationConfiguration.JsonSerializerOptions, context.RequestAborted);
+                var encryptedRequest = await DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(request.Body, context.RequestAborted);
+
                 if (null == encryptedRequest)
                 {
                     throw new SharedSecretException("Failed to deserialize SharedSecretEncryptedRequest, result was null");
@@ -150,7 +152,7 @@ namespace Youverse.Hosting.Middleware
                 Data = Convert.ToBase64String(encryptedBytes)
             };
 
-            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), SerializationConfiguration.JsonSerializerOptions);
+            var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), DotYouSystemSerializer.JsonSerializerOptions);
 
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);

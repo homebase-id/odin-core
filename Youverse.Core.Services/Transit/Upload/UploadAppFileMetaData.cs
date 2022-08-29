@@ -25,4 +25,4 @@ namespace Youverse.Core.Services.Transit.Upload
         public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
 
     }
-}
+}   

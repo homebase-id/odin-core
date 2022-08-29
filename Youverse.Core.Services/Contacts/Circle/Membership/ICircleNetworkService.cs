@@ -131,5 +131,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <returns></returns>
         Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
+
+
+        /// <summary>
+        /// Grants the dotYouId access to the drives and permissions of the specified circle
+        /// </summary>
+        Task GrantCircle(ByteArrayId circleId, DotYouIdentity dotYouId);
+
+        /// <summary>
+        /// Removes drives and permissions of the specified circle from the dotYouId
+        /// </summary>
+        Task RevokeCircle(ByteArrayId circleId, DotYouIdentity dotYouId);
     }
 }

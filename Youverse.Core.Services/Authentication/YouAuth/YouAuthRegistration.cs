@@ -11,14 +11,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public DateTimeOffset CreatedAt { get; init; }
         public string Subject { get; init; }
 
-        public IExchangeGrant Grant { get; set; }
+        public ExchangeGrant Grant { get; set; }
 
         public YouAuthRegistration()
         {
             //for litedb
         }
 
-        public YouAuthRegistration(Guid id, string subject, IExchangeGrant grant)
+        public YouAuthRegistration(Guid id, string subject, ExchangeGrant grant)
         {
             Id = id;
             Subject = subject;

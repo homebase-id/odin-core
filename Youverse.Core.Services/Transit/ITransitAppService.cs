@@ -12,23 +12,11 @@ namespace Youverse.Core.Services.Transit
     public interface ITransitAppService
     {
         /// <summary>
-        /// Converts a transfer key header to a long term key header and stores it for the specified file.
-        /// </summary>
-        Task StoreLongTerm(TransferBoxItem item);
-
-        /// <summary>
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage
         /// </summary>
+        /// <param name="targetDrive"></param>
         /// <returns></returns>
-        [Obsolete("TODO: replace with new outbox process")]
-        Task ProcessTransfers();
-
-        /// <summary>
-        /// Gets a list of the items received by the transit system having passed all filters
-        /// </summary>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<TransferBoxItem>> GetAcceptedItems(PageOptions pageOptions);
+        Task ProcessIncomingTransfers(TargetDrive targetDrive);
         
         /// <summary>
         /// Gets a list of the items received by the transit which were quarantined.

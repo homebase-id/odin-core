@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using Youverse.Core.Storage;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Query.Sqlite.Storage;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
 
@@ -92,7 +92,7 @@ public class SqliteQueryManager : IDriveQueryManager
         {
             if (!callerContext.IsAnonymous)
             {
-                aclList.Add(callerContext.DotYouId.ToGuid().ToByteArray());
+                aclList.Add(callerContext.DotYouId.ToByteArrayId().Value);
             }
 
             aclList.AddRange(callerContext.Circles?.Select(c => c.ToByteArray()) ?? Array.Empty<byte[]>());
@@ -112,13 +112,13 @@ public class SqliteQueryManager : IDriveQueryManager
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
-        var sender = ((DotYouIdentity)metadata.SenderDotYouId).ToGuid().ToByteArray();
+        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArrayId().Value;
 
         var acl = new List<byte[]>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((DotYouIdentity)dotYouId).ToGuid().ToByteArray()
+            ((DotYouIdentity)dotYouId).ToByteArrayId().Value
         );
         acl.AddRange(ids.ToList());
 
@@ -129,7 +129,7 @@ public class SqliteQueryManager : IDriveQueryManager
         //NOTE: when you update payload is encrypted, be sure to update
         // DriveQueryService.CreateSearchResult accordingly
         // !!!
-        
+
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(

@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
     public class CircleDefinition
     {
-        public Guid Id { get; set; }
+        public ByteArrayId Id { get; set; }
 
         public UInt64 Created { get; set; }
         

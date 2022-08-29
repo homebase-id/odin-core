@@ -10,14 +10,11 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         public OutboxItem()
         {
-            this.Id = Guid.NewGuid();
             this.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
             this.Attempts = new List<TransferAttempt>();
             this.File = new InternalDriveFileId();
         }
-
-        public Guid Id { get; set; }
-
+        
         public DotYouIdentity Recipient { get; set; }
         
         public InternalDriveFileId File { get; set; }
@@ -29,12 +26,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         public int Priority { get; set; }
 
         public List<TransferAttempt> Attempts { get; }
-        
-        /// <summary>
-        /// Indicates an item is checked out for processing
-        /// </summary>
-        public bool IsCheckedOut { get; set; }
 
         public UInt64 AddedTimestamp { get; set; }
+
+        public byte[] Marker { get; set; }
     }
 }

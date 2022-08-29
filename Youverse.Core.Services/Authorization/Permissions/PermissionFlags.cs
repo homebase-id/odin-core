@@ -15,11 +15,15 @@ namespace Youverse.Core.Services.Authorization.Permissions
         UpdateConnections = 4,
 
         DeleteConnections = 8,
-        
+
         CreateOrSendConnectionRequests = 16, //requires mk
 
         ReadConnectionRequests = 32,
 
         DeleteConnectionRequests = 64,
+
+        ReadCircleMembership = 128,
+
+        ManageCircleMembership = 256 //requires mk
     }
 }

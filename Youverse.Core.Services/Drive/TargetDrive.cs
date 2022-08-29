@@ -8,26 +8,32 @@ namespace Youverse.Core.Services.Drive;
 /// </summary>
 public class TargetDrive
 {
-    public Guid Alias { get; set; }
-    public Guid Type { get; set; }
+    // public Guid Alias { get; set; }
+    public ByteArrayId Alias { get; set; }
+    public ByteArrayId Type { get; set; }
 
     public byte[] ToKey()
     {
-        return ByteArrayUtil.Combine(Type.ToByteArray(), Alias.ToByteArray());
+        return ByteArrayUtil.Combine(Type, Alias);
     }
-    
+
     public bool IsValid()
     {
-        return this.Alias != Guid.Empty && this.Type != Guid.Empty;
+        return ByteArrayId.IsValid(this.Alias) && ByteArrayId.IsValid(this.Type);
     }
 
     public static TargetDrive NewTargetDrive()
     {
+        // return new TargetDrive()
+        // {
+        //     Alias = Guid.NewGuid(),
+        //     Type = Guid.NewGuid()
+        // };
+
         return new TargetDrive()
         {
-            Alias = Guid.NewGuid(),
-            Type = Guid.NewGuid()
+            Alias = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8),
+            Type = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8)
         };
     }
-    
 }

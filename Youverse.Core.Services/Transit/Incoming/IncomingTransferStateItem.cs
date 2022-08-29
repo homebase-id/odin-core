@@ -12,9 +12,9 @@ namespace Youverse.Core.Services.Transit.Incoming
             //for LiteDB
         }
 
-        public IncomingTransferStateItem(Guid id, InternalDriveFileId tempFile)
+        public IncomingTransferStateItem(ByteArrayId id, InternalDriveFileId tempFile)
         {
-            Guard.Argument(id, nameof(id)).NotEqual(Guid.Empty);
+            Guard.Argument(id, nameof(id)).NotNull().Require(x => ByteArrayId.IsValid(x.Value));
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
 
             this.Id = id;
@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit.Incoming
             this.PayloadState = new();
         }
 
-        public Guid Id { get; init; }
+        public ByteArrayId Id { get; init; }
 
         /// <summary>
         /// The CRC of the Transit public key used when receiving this transfer

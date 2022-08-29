@@ -9,7 +9,6 @@ using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.SystemStorage;
 
 namespace Youverse.Hosting.Controllers.Anonymous
 {
