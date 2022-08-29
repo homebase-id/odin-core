@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xaml.Permissions;
+using Dawn;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -10,24 +11,85 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
 {
+    /// <summary>
+    /// Specifies a set of permissions.  This allows an identity's permissions to come from multiple sources such as circles.
+    /// </summary>
+    public class PermissionGroup
+    {
+        private readonly PermissionSet _permissionSet;
+        private readonly IEnumerable<DriveGrant> _driveGrants;
+        private readonly SensitiveByteArray _driveDecryptionKey;
+
+        public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant> driveGrants, SensitiveByteArray driveDecryptionKey)
+        {
+            _permissionSet = permissionSet;
+            _driveGrants = driveGrants;
+            _driveDecryptionKey = driveDecryptionKey;
+        }
+
+        public bool HasDrivePermission(Guid driveId, DrivePermission permission)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+            return grant != null && grant.Permission.HasFlag(permission);
+        }
+
+        public bool HasPermission(PermissionFlags permission)
+        {
+            return this._permissionSet.PermissionFlags.HasFlag(permission);
+        }
+
+        /// <summary>
+        /// Returns the encryption key specific to this app.  This is only available
+        /// when the owner is making an HttpRequest.
+        /// </summary>
+        /// <returns></returns>
+        public Guid? GetDriveId(TargetDrive drive)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.TargetDrive.Alias == drive.Alias && g.TargetDrive.Type == drive.Type);
+            return grant?.DriveId;
+        }
+
+        /// <summary>
+        /// Returns the encryption key specific to this app.  This is only available
+        /// when the owner is making an HttpRequest.
+        /// </summary>
+        /// <returns></returns>
+        public SensitiveByteArray GetDriveStorageKey(Guid driveId)
+        {
+            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+
+            if (null == grant)
+            {
+                return null;
+            }
+
+            //If we cannot decrypt the storage key BUT the caller has access to the drive,
+            //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
+            if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+            {
+                return Array.Empty<byte>().ToSensitiveByteArray();
+            }
+
+            var key = this._driveDecryptionKey;
+            var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(ref key);
+            return storageKey;
+        }
+    }
+
     public class PermissionContext
     {
-        private readonly IEnumerable<DriveGrant> _driveGrants;
-        private readonly PermissionSet _permissionSet;
-        private readonly SensitiveByteArray _driveDecryptionKey;
+        private readonly Dictionary<string, PermissionGroup> _permissionGroups;
         private readonly bool _isOwner = false;
 
         public PermissionContext(
-            IEnumerable<DriveGrant> driveGrants,
-            PermissionSet permissionSet,
-            SensitiveByteArray driveDecryptionKey,
+            Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
             bool isOwner)
         {
-            this._driveGrants = driveGrants;
-            this._permissionSet = permissionSet;
-            this._driveDecryptionKey = driveDecryptionKey;
+            Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
+
             this.SharedSecretKey = sharedSecretKey;
+            _permissionGroups = permissionGroups;
 
             //HACK: need to actually assign the permission
             this._isOwner = isOwner;
@@ -42,8 +104,17 @@ namespace Youverse.Core.Services.Base
                 return true;
             }
 
-            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-            return grant != null && grant.Permission.HasFlag(permission);
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                if (group.HasDrivePermission(driveId, permission))
+                {
+                    //TODO: log key as source of permission.
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public bool HasPermission(PermissionFlags permission)
@@ -53,7 +124,15 @@ namespace Youverse.Core.Services.Base
                 return true;
             }
 
-            return this._permissionSet.PermissionFlags.HasFlag(permission);
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                if (group.HasPermission(permission))
+                {
+                    //TODO: log key as source of permission.
+                    return true;
+                }
+            }
 
             return false;
         }
@@ -95,15 +174,18 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public Guid GetDriveId(TargetDrive drive)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.TargetDrive.Alias == drive.Alias && g.TargetDrive.Type == drive.Type);
-
-            //TODO: this sort of security check feels like it should be in a service..
-            if (null == grant)
+            foreach (var key in _permissionGroups.Keys)
             {
-                throw new DriveSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+                var group = _permissionGroups[key];
+                var driveId = group.GetDriveId(drive);
+                if (driveId.HasValue)
+                {
+                    //TODO: log key as source of permission.
+                    return driveId.Value;
+                }
             }
 
-            return grant.DriveId;
+            throw new DriveSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
 
         /// <summary>
@@ -113,25 +195,19 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                var storageKey = group.GetDriveStorageKey(driveId);
+                if (storageKey != null)
+                {
+                    //TODO: log key as source of permission.
+                    return storageKey;
+                }
+            }
+            
             //TODO: this sort of security check feels like it should be in a service..
-            if (null == grant)
-            {
-                throw new DriveSecurityException($"No access permitted to drive {driveId}");
-            }
-
-            //If we cannot decrypt the storage key BUT the caller has access to the drive,
-            //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
-            if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
-            {
-                throw new DriveSecurityException($"Caller has access {driveId} but exchange grant does not have a drive decryption key or KeyStoreKeyEncryptedStorageKey");
-                // return Array.Empty<byte>().ToSensitiveByteArray();
-            }
-
-            var key = this._driveDecryptionKey;
-            var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(ref key);
-            return storageKey;
+            throw new DriveSecurityException($"No access permitted to drive {driveId}");
         }
     }
 }

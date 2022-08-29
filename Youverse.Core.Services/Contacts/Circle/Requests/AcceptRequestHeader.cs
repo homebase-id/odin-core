@@ -8,13 +8,6 @@ public class AcceptRequestHeader
 {
     public string Sender { get; set; }
         
-    /// <summary>
-    /// The drives which should be accessible to the recipient of this request
-    /// </summary>
-    public IEnumerable<DriveGrantRequest> Drives { get; set; }
-        
-    /// <summary>
-    /// The permissions which should be granted to the recipient
-    /// </summary>
-    public PermissionSet Permissions { get; set; }
+
+    public IEnumerable<ByteArrayId> CircleIds { get; set; }
 }

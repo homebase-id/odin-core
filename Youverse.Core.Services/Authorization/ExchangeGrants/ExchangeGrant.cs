@@ -15,6 +15,4 @@ public class ExchangeGrant
     public bool IsRevoked { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
     public PermissionSet PermissionSet { get; set; }
-
-    public PermissionFlags PermissionFlags { get; set; }
 }

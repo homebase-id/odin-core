@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
@@ -87,27 +88,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var icr = await this.GetIdentityConnectionRegistration(callerDotYouId, authToken);
             var accessGrant = icr.AccessGrant;
 
-            //TODO:update to read circle grants to build permission context
-            
-            //each circle will bring a set of drives and permissions
-            // for the permissions, we need to build a composition.  i think if i store these individually  then at runtime I can evaluate which circle gives a permission
-            //same for drives
-            //
-            // this means that permission context need grouping of permissions in oder to be scanned.  
-            // i can do this as a base set, then an extended set but htat feels like a hack.
-
-
-            if (null == accessGrant || null == accessGrant.Grant)
+            if (null == accessGrant || !accessGrant.IsValid())
             {
                 throw new YouverseSecurityException("Invalid token");
             }
 
-            if (accessGrant.AccessRegistration.IsRevoked || accessGrant.Grant.IsRevoked)
+            var grants = new Dictionary<string, ExchangeGrant>();
+            foreach (var kvp in accessGrant.CircleGrants)
             {
-                throw new YouverseSecurityException("Invalid token");
+                var cg = kvp.Value;
+                var xGrant = new ExchangeGrant()
+                {
+                    Created = 0,
+                    Modified = 0,
+                    IsRevoked = false, //TODO
+                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    MasterKeyEncryptedKeyStoreKey = accessGrant.MasterKeyEncryptedKeyStoreKey,
+                    PermissionSet = cg.PermissionSet
+                };
+                grants.Add(kvp.Key, xGrant);
             }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, accessGrant.Grant, accessGrant.AccessRegistration, false);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessGrant.AccessRegistration, false);
             return (icr.IsConnected(), permissionCtx);
         }
 
@@ -331,7 +333,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            //dotyouid must be connected
             if (icr == null || !icr.IsConnected())
             {
                 throw new YouverseSecurityException($"{dotYouId} must have valid connection to be added to a circle");
@@ -344,7 +345,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var circleDefinition = _circleDefinitionService.GetCircle(circleId);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var circleGrant = await _exchangeGrantService.CreateExchangeGrant(circleDefinition.Permissions, circleDefinition.Drives, masterKey);
+
+            var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, circleDefinition.Permissions, circleDefinition.Drives, masterKey);
+            keyStoreKey.Wipe();
+
+            //map the exchange grant to a structure that matches ICR
+            // grant.Created
+            var circleGrant = new CircleGrant()
+            {
+                CircleId = circleDefinition.Id,
+                KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+                PermissionSet = grant.PermissionSet
+            };
 
             icr.AccessGrant.CircleGrants.Add(circleId.ToBase64(), circleGrant);
 

@@ -153,7 +153,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         }
 
         [Test]
-        public async Task CanAcceptConnectionRequest()
+        public async Task CanAcceptConnectionRequest_NoCircles()
         {
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
@@ -164,8 +164,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet(PermissionFlags.None)
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -208,6 +208,64 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
+        
+        [Test]
+        public async Task CanAcceptConnectionRequest_WithCirclesAndRecipientHasAccess()
+        {
+            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = frodo.Identity,
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
+                };
+
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
+
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+
+                //
+                // The pending request should be removed
+                //
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with sender {frodo.Identity} still exists");
+
+                //
+                // Frodo should be in Sam's contacts network.
+                //
+                var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var response = await samsConnetions.GetStatus(new DotYouIdRequest() { DotYouId = frodo.Identity });
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No status for {frodo.Identity} found");
+                Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
+            }
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            {
+                //
+                // Sam should be in Frodo's contacts network
+                //
+                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var response = await frodoConnections.GetStatus(new DotYouIdRequest() { DotYouId = sam.Identity });
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
+                Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
+
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var getResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
+            }
+
+            await DisconnectIdentities(frodo, sam);
+        }
+        
 
         [Test]
         public async Task CanBlock()
@@ -221,8 +279,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet(PermissionFlags.None)
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -255,8 +313,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet(PermissionFlags.None)
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -291,8 +349,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet(PermissionFlags.None)
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);

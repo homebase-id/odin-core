@@ -471,8 +471,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    Drives = new List<DriveGrantRequest>(),
-                    Permissions = new PermissionSet(PermissionFlags.None)
+                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
+                    CircleIds = new List<ByteArrayId>()
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");

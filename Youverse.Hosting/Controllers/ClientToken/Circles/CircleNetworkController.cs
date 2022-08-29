@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
             {
                 Status = result.Status,
                 LastUpdated = result.LastUpdated,
-                GrantIsRevoked = result.AccessGrant.Grant.IsRevoked || result.AccessGrant.AccessRegistration.IsRevoked
+                GrantIsRevoked = !result.AccessGrant.IsValid()
             };
         }
 
