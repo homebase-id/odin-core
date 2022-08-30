@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Base
 
         public bool HasPermission(PermissionFlags permission)
         {
-            return this._permissionSet.PermissionFlags.HasFlag(permission);
+            return this._permissionSet.Permissions.HasFlag(permission);
         }
 
         /// <summary>

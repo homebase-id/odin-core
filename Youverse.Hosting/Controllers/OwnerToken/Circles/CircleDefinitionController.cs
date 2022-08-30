@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return result;
         }
         
-        [HttpPost("get")]
+        [HttpPost("circle")]
         public CircleDefinition GetCircle([FromBody] ByteArrayId id)
         {
             return _circleDefinitionService.GetCircle(id);

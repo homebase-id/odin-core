@@ -178,7 +178,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
+        public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
             bool driveAllowAnonymousReads = false)
         {
             PermissionFlags flags = PermissionFlags.None;

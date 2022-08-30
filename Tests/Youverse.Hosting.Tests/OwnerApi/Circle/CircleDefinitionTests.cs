@@ -89,8 +89,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
                 Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
-                Assert.IsTrue(circle.Permissions.PermissionFlags.HasFlag(PermissionFlags.ReadConnectionRequests));
-                Assert.IsTrue(circle.Permissions.PermissionFlags.HasFlag(PermissionFlags.ReadConnections));
+                Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnectionRequests));
+                Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnections));
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);
