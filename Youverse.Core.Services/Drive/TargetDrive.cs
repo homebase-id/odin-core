@@ -10,7 +10,6 @@ namespace Youverse.Core.Services.Drive;
 [DebuggerDisplay("Alias={Alias.ToBase64()} Type={Type.ToBase64()}")]
 public class TargetDrive
 {
-    // public Guid Alias { get; set; }
     public ByteArrayId Alias { get; set; }
     public ByteArrayId Type { get; set; }
 
