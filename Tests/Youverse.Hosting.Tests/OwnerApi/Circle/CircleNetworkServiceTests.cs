@@ -433,7 +433,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var dgr2 = new DriveGrantRequest()
                 {
-                    Drive = targetDrive1,
+                    Drive = targetDrive2,
                     Permission = DrivePermission.Write
                 };
 

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Drive;
@@ -6,6 +7,7 @@ namespace Youverse.Core.Services.Drive;
 /// <summary>
 ///  A drive specifier for incoming requests to perform actions on a drive.  (essentially, this hides the internal DriveId).
 /// </summary>
+[DebuggerDisplay("Alias={Alias.ToBase64()} Type={Type.ToBase64()}")]
 public class TargetDrive
 {
     // public Guid Alias { get; set; }
