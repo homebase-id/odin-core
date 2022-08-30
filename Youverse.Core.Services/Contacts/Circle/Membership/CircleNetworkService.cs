@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return page;
         }
 
-        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(PageOptions req)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadConnections);
 
@@ -204,18 +204,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return await GetIdentityConnectionRegistrationInternal(dotYouId);
-        }
-
-        public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId)
-        {
-            var identityReg = await this.GetIdentityConnectionRegistration(dotYouId, true);
-            if (!identityReg.IsConnected())
-            {
-                //TODO: throwing an exception here would result in a partial send.  need to return an error code and status instead
-                throw new MissingDataException("Cannot send transfer a recipient to which you're not connected.");
-            }
-
-            return identityReg.CreateClientAuthToken();
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken)
@@ -244,24 +232,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
 
             return connection.AccessGrant.AccessRegistration;
-        }
-
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray exchangeRegistrationKsk)
-        {
-            throw new NotImplementedException();
-            //
-            // var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
-            //
-            // if (connection?.ExchangeRegistration == null)
-            // {
-            //     throw new YouverseSecurityException("Unauthorized Action");
-            // }
-            //
-            // //TODO: make this an explicit assert
-            // //this will fail if the xtoken and exchange registation are incorrect
-            // connection.ExchangeRegistration.KeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref exchangeRegistrationKsk);
-            //
-            // return connection;
         }
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
@@ -386,13 +356,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _storage.Upsert(icr);
         }
-
-        public async Task ReconcileCircle(ByteArrayId circleId, DotYouIdentity dotYouId)
-        {
-            //intent here is to call when you change the access to a circle
-            throw new NotImplementedException("");
-        }
-
+        
         private async Task StoreConnection(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
         {
             var dotYouId = (DotYouIdentity)dotYouIdentity;
@@ -402,6 +366,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 DotYouId = dotYouId,
                 Status = ConnectionStatus.Connected,
+                Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 AccessGrant = accessGrant,
                 ClientAccessTokenId = remoteClientAccessToken.Id,
@@ -418,7 +383,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var list = _storage.GetList();
+            var list = _storage.GetList().Where(icr => icr.Status == status);
             return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
         }
     }

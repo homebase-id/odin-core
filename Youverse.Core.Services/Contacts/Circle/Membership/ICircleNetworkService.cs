@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<DotYouProfile>> GetConnectedProfiles(PageOptions req);
+        Task<PagedResult<DotYouProfile>> GetConnectedIdentities(PageOptions req);
 
         /// <summary>
         /// Gets the current connection info
@@ -67,14 +67,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
         Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken);
-
-        /// <summary>
-        /// Gets the connection info if the specified key store key is valid.
-        /// </summary>
-        /// <param name="dotYouId"></param>
-        /// <param name="keyStoreKey"></param>
-        /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationWithKeyStoreKey(DotYouIdentity dotYouId, SensitiveByteArray keyStoreKey);
 
         /// <summary>
         /// Determines if the specified dotYouId is connected 
@@ -131,8 +123,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <returns></returns>
         Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
-
-
+        
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
         /// </summary>

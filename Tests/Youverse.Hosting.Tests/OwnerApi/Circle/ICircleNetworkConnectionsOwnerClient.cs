@@ -23,7 +23,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> Disconnect([Body] DotYouIdRequest request);
 
         [Post(root_path + "/status")]
-        Task<ApiResponse<ConnectionInfoResponse>> GetStatus([Body] DotYouIdRequest request);
+        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] DotYouIdRequest request);
 
         [Post(root_path + "/connected")]
         Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(int pageNumber, int pageSize);

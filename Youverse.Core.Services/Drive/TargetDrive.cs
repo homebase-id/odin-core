@@ -24,12 +24,6 @@ public class TargetDrive
 
     public static TargetDrive NewTargetDrive()
     {
-        // return new TargetDrive()
-        // {
-        //     Alias = Guid.NewGuid(),
-        //     Type = Guid.NewGuid()
-        // };
-
         return new TargetDrive()
         {
             Alias = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8),

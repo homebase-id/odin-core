@@ -435,7 +435,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-            var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
+            var response = await svc.GetConnectionInfo(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
             Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");

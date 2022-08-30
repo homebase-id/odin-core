@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -49,6 +53,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
 
         public long LastUpdated { get; set; }
+        public long Created { get; set; }
 
         public ClientAuthenticationToken CreateClientAuthToken()
         {
@@ -57,8 +62,39 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 Id = this.ClientAccessTokenId,
                 AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray()
             };
-            
+
             return clientAuthToken;
         }
+
+        /// <summary>
+        /// Returns the minimal info needed for external systems using this data.
+        /// </summary>
+        /// <returns></returns>
+        public RedactedIdentityConnectionRegistration Redacted()
+        {
+            return new RedactedIdentityConnectionRegistration()
+            {
+                Status = this.Status,
+                Created = this.Created,
+                LastUpdated = this.LastUpdated,
+                AccessGrant = this.AccessGrant.Redacted()
+            };
+        }
+    }
+
+    public class RedactedIdentityConnectionRegistration
+    {
+        public ConnectionStatus Status { get; set; }
+
+        /// <summary>
+        /// The drives and permissions granted to this connection
+        /// </summary>
+        public RedactedAccessExchangeGrant AccessGrant { get; set; }
+
+        // access exchange grant isRevoked
+        // accessRegistration isRevoked
+        // accessRegistration created
+        public long Created { get; set; }
+        public long LastUpdated { get; set; }
     }
 }

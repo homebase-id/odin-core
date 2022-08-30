@@ -17,6 +17,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Get(RootPath + "/list")]
         Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions();
 
+        
+        [Post(RootPath + "/get")]
+        Task<ApiResponse<bool>> GetCircle([Body] ByteArrayId id);
+        
         [Post(RootPath + "/create")]
         Task<ApiResponse<bool>> Create([Body] CreateCircleRequest request);
 

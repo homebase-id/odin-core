@@ -40,20 +40,39 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //runs before each test 
             //_scaffold.DeleteData(); 
         }
-        
+
         [Test]
         public async Task CanCreateCircle()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var targetDrive1 = TargetDrive.NewTargetDrive();
+            var targetDrive2 = TargetDrive.NewTargetDrive();
+
+            var identity = TestIdentities.Samwise;
+            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive2, "Drive 2 for Circle Test", "", false);
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+
+                var dgr1 = new DriveGrantRequest()
+                {
+                    Drive = targetDrive1,
+                    Permission = DrivePermission.ReadWrite
+                };
+
+                var dgr2 = new DriveGrantRequest()
+                {
+                    Drive = targetDrive1,
+                    Permission = DrivePermission.Write
+                };
 
                 var request = new CreateCircleRequest()
                 {
                     Name = "Test Circle",
                     Description = "Test circle description",
-                    Drives = null,
-                    Permissions = null
+                    Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
+                    Permissions = new PermissionSet(PermissionFlags.ReadConnectionRequests | PermissionFlags.ReadConnections)
                 };
 
                 var createCircleResponse = await svc.Create(request);
@@ -66,15 +85,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
+                
+                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
+                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+
+                Assert.IsTrue(circle.Permissions.PermissionFlags.HasFlag(PermissionFlags.ReadConnectionRequests));
+                Assert.IsTrue(circle.Permissions.PermissionFlags.HasFlag(PermissionFlags.ReadConnections));
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);
-                CollectionAssert.AreEqual(request.Drives, circle.Drives);
+                // CollectionAssert.AreEquivalent(request.Drives, circle.Drives);
                 Assert.IsTrue(request.Permissions == circle.Permissions);
-                
+
                 // cleanup
                 await svc.DeleteCircle(circle.Id);
-
             }
         }
 
@@ -181,9 +205,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.AreEqual(circle.Description, circle2.Description);
                 CollectionAssert.AreEqual(circle.Drives, circle2.Drives);
                 Assert.IsTrue(circle.Permissions == circle2.Permissions);
-                
+
                 await svc.DeleteCircle(circle.Id);
-                
+
                 //TODO: test that the changes to the drives and permissions were applied
             }
         }

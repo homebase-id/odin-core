@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Base
                 Directory.CreateDirectory(dbPath!);
             }
 
-            string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
+            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
             _db = new KeyValueDatabase($"URI=file:{finalPath}");
             _db.CreateDatabase(false);
 

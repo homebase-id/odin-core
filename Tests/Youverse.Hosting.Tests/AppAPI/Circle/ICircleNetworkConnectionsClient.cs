@@ -22,8 +22,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         [Post(root_path + "/disconnect")]
         Task<ApiResponse<bool>> Disconnect([Body]DotYouIdRequest request);
 
-        [Post(root_path + "/status")]
-        Task<ApiResponse<IdentityConnectionRegistration>> GetStatus([Body]DotYouIdRequest request);
+        // [Post(root_path + "/status")]
+        // Task<ApiResponse<IdentityConnectionRegistration>> GetStatus([Body]DotYouIdRequest request);
 
         [Get(root_path + "/connected")]
         Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(int pageNumber, int pageSize);
