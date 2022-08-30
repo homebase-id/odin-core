@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
-                AccessGrant = this.AccessGrant.Redacted()
+                AccessGrant = this.AccessGrant?.Redacted()
             };
         }
     }
