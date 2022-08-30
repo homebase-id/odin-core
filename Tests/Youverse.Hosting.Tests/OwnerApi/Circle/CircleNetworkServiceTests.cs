@@ -195,6 +195,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
 
                 var x = response.Content.AccessGrant;
+                Assert.Inconclusive("WIP");
             }
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
