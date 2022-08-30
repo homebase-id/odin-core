@@ -1,11 +1,6 @@
 ﻿#nullable enable
-using System;
 using System.Threading.Tasks;
-using System.Web;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Tenant;

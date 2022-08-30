@@ -101,7 +101,12 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.MimeTypes = new[] { "application/json" };
+            });
+            
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
@@ -184,7 +189,9 @@ namespace Youverse.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
+            app.UseResponseCompression();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+ 
 
             // app.UseWebSockets();
             // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
