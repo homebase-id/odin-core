@@ -33,7 +33,7 @@ namespace Youverse.Hosting.IdentityRegistry
             set
             {
                 _domainName = value;
-                _domainKey = new Guid(YouSHA.ReduceSHA256Hash(value.ToUtf8ByteArray()));
+                _domainKey = new Guid(HashUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
 
