@@ -84,8 +84,12 @@ namespace Youverse.Hosting
                 .SingleInstance();
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
+            
+            cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
+            cb.RegisterType<CircleMembershipService>().As<CircleMembershipService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+            
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
@@ -101,7 +105,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
             
-            cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 

@@ -102,13 +102,15 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             }
 
-            return await this.CreateClientAccessToken(grantKeyStoreKey);
+            var token = await this.CreateClientAccessToken(grantKeyStoreKey);
+            grantKeyStoreKey?.Wipe();
+            return token;
         }
-        
+
         public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray grantKeyStoreKey)
         {
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey);
-            grantKeyStoreKey?.Wipe();
+
 
             return (accessReg, clientAccessToken);
         }
@@ -208,7 +210,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
             };
 
-            grantKeyStoreKey?.Wipe();
             accessKeyStoreKey.Wipe();
 
             //Note: we have to send both the id and the AccessTokenHalfKey back to the server

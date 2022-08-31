@@ -8,3 +8,9 @@ public class AddCircleMembershipRequest
     public List<string> DotYouIdList { get; set; }
     public ByteArrayId CircleId { get; set; }
 }
+
+public class GetCircleMembersRequest
+{
+    public ByteArrayId CircleId { get; set; }
+
+}

@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Permissions = new PermissionSet(PermissionFlags.ReadConnectionRequests | PermissionFlags.ReadConnections)
                 };
 
-                var createCircleResponse = await svc.Create(request);
+                var createCircleResponse = await svc.CreateCircleDefinition(request);
                 Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
@@ -98,7 +98,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(request.Permissions == circle.Permissions);
 
                 // cleanup
-                await svc.DeleteCircle(circle.Id);
+                await svc.DeleteCircleDefinition(circle.Id);
             }
         }
 
@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Permissions = null
                 };
 
-                var createCircleResponse1 = await svc.Create(request1);
+                var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
                 Assert.IsTrue(createCircleResponse1.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse1.StatusCode}");
 
 
@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Permissions = null
                 };
 
-                var createCircleResponse2 = await svc.Create(request1);
+                var createCircleResponse2 = await svc.CreateCircleDefinition(request1);
                 Assert.IsTrue(createCircleResponse2.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse2.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
@@ -154,8 +154,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 // cleanup
 
-                await svc.DeleteCircle(circle1.Id);
-                await svc.DeleteCircle(circle2.Id);
+                await svc.DeleteCircleDefinition(circle1.Id);
+                await svc.DeleteCircleDefinition(circle2.Id);
             }
         }
 
@@ -174,7 +174,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Permissions = null
                 };
 
-                var createCircleResponse = await svc.Create(request);
+                var createCircleResponse = await svc.CreateCircleDefinition(request);
                 Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
@@ -193,7 +193,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 circle.DrivesGrants = null;
                 circle.Permissions = null;
 
-                var updateCircleResponse = await svc.UpdateCircle(circle);
+                var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
                 Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var updatedDefinitionList = getCircleDefinitionsResponse.Content;
@@ -206,7 +206,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 CollectionAssert.AreEqual(circle.DrivesGrants, circle2.DrivesGrants);
                 Assert.IsTrue(circle.Permissions == circle2.Permissions);
 
-                await svc.DeleteCircle(circle.Id);
+                await svc.DeleteCircleDefinition(circle.Id);
 
                 //TODO: test that the changes to the drives and permissions were applied
             }
@@ -226,7 +226,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Permissions = null
                 };
 
-                var createCircleResponse = await svc.Create(request);
+                var createCircleResponse = await svc.CreateCircleDefinition(request);
                 Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
@@ -235,7 +235,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var definitionList = getCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(definitionList);
 
-                var deleteCircleResponse = await svc.DeleteCircle(definitionList.Single().Id);
+                var deleteCircleResponse = await svc.DeleteCircleDefinition(definitionList.Single().Id);
                 Assert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
 
                 var secondGetCircleDefinitionsResponse = await svc.GetCircleDefinitions();

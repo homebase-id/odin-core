@@ -16,11 +16,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership;
 public class CircleMembershipService
 {
     private readonly CircleDefinitionService _circleDefinitionService;
-    private readonly CircleNetworkService _circleNetworkService;
+    private readonly ICircleNetworkService _circleNetworkService;
     private readonly TableCircleMember _circleMemberStorage;
     private readonly DotYouContextAccessor _contextAccessor;
 
-    public CircleMembershipService(CircleDefinitionService circleDefinitionService, CircleNetworkService circleNetworkService, ISystemStorage systemStorage, DotYouContextAccessor contextAccessor)
+    public CircleMembershipService(CircleDefinitionService circleDefinitionService, ICircleNetworkService circleNetworkService, ISystemStorage systemStorage, DotYouContextAccessor contextAccessor)
     {
         _circleDefinitionService = circleDefinitionService;
         _circleNetworkService = circleNetworkService;
@@ -32,7 +32,7 @@ public class CircleMembershipService
 
     public async Task AddCircleMember(ByteArrayId circleId, DotYouIdentity dotYouId)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ManageCircleMembership);
+        // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ManageCircleMembership);
 
         //circle must exist
         var circleDefinition = _circleDefinitionService.GetCircle(circleId);
@@ -60,7 +60,7 @@ public class CircleMembershipService
 
     public bool IsMember(ByteArrayId circleId, DotYouIdentity dotYouId)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
+        // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
 
         //Note: need more efficient way to get members rather than pulling back the whole list
         var memberBytesList = _circleMemberStorage.GetMembers(circleId);

@@ -373,7 +373,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
                 ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
             };
-
+            
             _storage.Upsert(newConnection);
             //TODO: the following is a good place for the mediatr pattern
             //tell the profile service to refresh the attributes?
