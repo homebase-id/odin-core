@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
                 Description = request.Description,
-                Drives = request.Drives,
+                DrivesGrants = request.Drives,
                 Permissions = request.Permissions
             };
 
@@ -69,8 +69,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
             var permissionChanges = newCircleDefinition.Permissions != existingCircle.Permissions;
             //var driveChanges = (newCircleDefinition.Drives?.Count() ?? 0) != (existingCircle.Drives?.Count() ?? 0);
-            bool driveChanges = (existingCircle.Drives != null && newCircleDefinition.Drives != null) &&
-                                (newCircleDefinition.Drives.Except(existingCircle.Drives)).Any();
+            bool driveChanges = (existingCircle.DrivesGrants != null && newCircleDefinition.DrivesGrants != null) &&
+                                (newCircleDefinition.DrivesGrants.Except(existingCircle.DrivesGrants)).Any();
 
             //TODO: apply new permissions to all circle members
             if (permissionChanges || driveChanges)
@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
-            existingCircle.Drives = newCircleDefinition.Drives;
+            existingCircle.DrivesGrants = newCircleDefinition.DrivesGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
             _circleValueStorage.Upsert(existingCircle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);

@@ -317,7 +317,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, circleDefinition.Permissions, circleDefinition.Drives, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, circleDefinition.Permissions, circleDefinition.DrivesGrants, masterKey);
             keyStoreKey.Wipe();
 
             //map the exchange grant to a structure that matches ICR

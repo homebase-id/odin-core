@@ -86,8 +86,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var circle = definitionList.Single();
                 
-                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
-                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
                 Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnectionRequests));
                 Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnections));
@@ -143,13 +143,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var circle1 = definitionList[0];
                 Assert.AreEqual(request1.Name, circle1.Name);
                 Assert.AreEqual(request1.Description, circle1.Description);
-                CollectionAssert.AreEqual(request1.Drives, circle1.Drives);
+                CollectionAssert.AreEqual(request1.Drives, circle1.DrivesGrants);
                 Assert.IsTrue(request1.Permissions == circle1.Permissions);
 
                 var circle2 = definitionList[1];
                 Assert.AreEqual(request1.Name, circle2.Name);
                 Assert.AreEqual(request1.Description, circle2.Description);
-                CollectionAssert.AreEqual(request1.Drives, circle2.Drives);
+                CollectionAssert.AreEqual(request1.Drives, circle2.DrivesGrants);
                 Assert.IsTrue(request1.Permissions == circle2.Permissions);
 
                 // cleanup
@@ -190,7 +190,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 circle.Name = "updated name";
                 circle.Description = "updated description";
 
-                circle.Drives = null;
+                circle.DrivesGrants = null;
                 circle.Permissions = null;
 
                 var updateCircleResponse = await svc.UpdateCircle(circle);
@@ -203,7 +203,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.AreEqual(circle.Name, circle2.Name);
                 Assert.AreEqual(circle.Description, circle2.Description);
-                CollectionAssert.AreEqual(circle.Drives, circle2.Drives);
+                CollectionAssert.AreEqual(circle.DrivesGrants, circle2.DrivesGrants);
                 Assert.IsTrue(circle.Permissions == circle2.Permissions);
 
                 await svc.DeleteCircle(circle.Id);

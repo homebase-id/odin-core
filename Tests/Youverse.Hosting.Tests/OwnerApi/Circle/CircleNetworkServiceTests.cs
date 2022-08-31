@@ -84,7 +84,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanDeleteConnectionRequest()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
@@ -101,7 +101,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanGetPendingConnectionRequestList()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -120,7 +120,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanGetSentConnectionRequestList()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             //Check Sam's list of sent requests
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
@@ -140,7 +140,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanGetSentConnectionRequest()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
@@ -158,10 +158,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanAcceptConnectionRequest_AndAccessCirclePermissions()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            //basically create 2 circles on frodo's identity, then give sam access
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1");
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2");
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
-            var circleDefinition1 = await this.CreateCircle(sam.Identity, "c1");
-            var circleDefinition2 = await this.CreateCircle(sam.Identity, "c2");
+            // create 2 circles on sam's identity and give frodo access 
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1");
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2");
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -170,7 +174,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleDefinition1.Id, circleDefinition2.Id }
+                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id }
                 };
 
                 var acceptResponse = await connectionRequestService.AcceptConnectionRequest(header);
@@ -187,32 +191,57 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var response = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity });
 
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
+                Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No status for {frodo.Identity} found");
-                Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
+                var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
+                var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
+                Assert.NotNull(frodoAccessFromCircle1);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
 
-                var x = response.Content.AccessGrant;
-                Assert.Inconclusive("WIP");
+                AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
+
+                var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
+                Assert.NotNull(frodoAccessFromCircle1);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity2.Permissions);
+                AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
             }
 
+
+            //now connect to Frodo to see that sam is a connection with correct access
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {
+                //
+                // Sent request should be deleted
+                // 
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+                var getSentRequestResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
+
                 //
                 // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var response = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity });
+                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity });
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content, $"No status for {sam.Identity} found");
-                Assert.IsTrue(response.Content.Status == ConnectionStatus.Connected);
+                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
+                Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
-                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
-                var getResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
+                var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
+                var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
+                Assert.NotNull(samAccessFromCircle1);
+                Assert.IsTrue(samAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
+
+                AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity1, samAccessFromCircle1);
+
+                var samAccessFromCircle2 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity2.Id);
+                Assert.NotNull(samAccessFromCircle1);
+                Assert.IsTrue(samAccessFromCircle1.PermissionSet == circleOnSamsIdentity2.Permissions);
+                AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity2, samAccessFromCircle2);
             }
 
             await DisconnectIdentities(frodo, sam);
@@ -233,7 +262,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanBlock()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -267,7 +296,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanUnblock()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -303,7 +332,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanDisconnect()
         {
-            var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -336,6 +365,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
+        private void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
+        {
+            foreach (var circleDriveGrant in circleDefinition.DrivesGrants)
+            {
+                //be sure it's in the list of granted drives
+                //use Single to be sure it's only in there once
+                var result = actual.DriveGrants.SingleOrDefault(x => x.Drive == circleDriveGrant.Drive && x.Permission == circleDriveGrant.Permission);
+                Assert.NotNull(result);
+            }
+        }
+
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
@@ -346,32 +386,37 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
         }
 
-        private async Task<(TestSampleAppContext, TestSampleAppContext)> CreateConnectionRequestFrodoToSam()
+        private async Task<(TestSampleAppContext, TestSampleAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
+            CircleDefinition circleDefinition2 = null)
         {
             Guid appId = Guid.NewGuid();
             var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
             var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
 
-            var circleDefinition1 = await this.CreateCircle(sender.Identity, "c1");
-            var circleDefinition2 = await this.CreateCircle(sender.Identity, "c2");
+            List<ByteArrayId> cids = new List<ByteArrayId>();
+            if (null != circleDefinition1)
+            {
+                cids.Add(circleDefinition1.Id);
+            }
+
+            if (null != circleDefinition2)
+            {
+                cids.Add(circleDefinition2.Id);
+            }
+
+            var id = Guid.NewGuid();
+            var requestHeader = new ConnectionRequestHeader()
+            {
+                Id = id,
+                Recipient = recipient.Identity,
+                Message = "Please add me",
+                CircleIds = cids
+            };
 
             //have frodo send it
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
-
-                var id = Guid.NewGuid();
-                var requestHeader = new ConnectionRequestHeader()
-                {
-                    Id = id,
-                    Recipient = recipient.Identity,
-                    Message = "Please add me",
-                    CircleIds = new List<ByteArrayId>()
-                    {
-                        circleDefinition1.Id,
-                        circleDefinition2.Id
-                    }
-                };
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
@@ -391,7 +436,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
             }
 
-            return (sender, recipient);
+            return (sender, recipient, requestHeader);
         }
 
         private async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)
@@ -413,7 +458,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task<CircleDefinition> CreateCircle(DotYouIdentity identity, string name)
+        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name)
         {
             var targetDrive1 = TargetDrive.NewTargetDrive();
             var targetDrive2 = TargetDrive.NewTargetDrive();
@@ -458,8 +503,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //grab the circle by the id we put in the description.  we don't have the newly created circle's id because i need to update the create circle method  
                 var circle = definitionList.Single(c => c.Description.Contains(someId.ToString()));
 
-                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
-                Assert.IsNotNull(circle.Drives.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
                 Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnectionRequests));
                 Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnections));

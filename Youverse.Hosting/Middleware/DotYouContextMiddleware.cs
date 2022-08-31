@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Middleware
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
-                TargetDrive = d.TargetDriveInfo,
+                Drive = d.TargetDriveInfo,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 Permission = DrivePermission.All
             });
@@ -193,7 +193,7 @@ namespace Youverse.Hosting.Middleware
                 var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
-                    TargetDrive = d.TargetDriveInfo,
+                    Drive = d.TargetDriveInfo,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
                     Permission = DrivePermission.Read
                 }).ToList();

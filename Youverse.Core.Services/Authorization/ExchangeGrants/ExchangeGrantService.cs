@@ -120,7 +120,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var dk = new DriveGrant()
             {
                 DriveId = drive.Id,
-                TargetDrive = drive.TargetDriveInfo,
+                Drive = drive.TargetDriveInfo,
                 KeyStoreKeyEncryptedStorageKey = (storageKey == null || grantKeyStoreKey == null) ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
                 Permission = permission
             };

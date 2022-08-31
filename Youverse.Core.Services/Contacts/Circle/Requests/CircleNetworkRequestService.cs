@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             foreach (var id in header.CircleIds ?? new List<ByteArrayId>())
             {
                 var def = _circleDefinitionService.GetCircle(id);
-                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.Drives, masterKey);
+                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DrivesGrants, masterKey);
                 var cg = new CircleGrant()
                 {
                     CircleId = def.Id,
@@ -251,7 +251,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             foreach (var id in circleIds ?? new List<ByteArrayId>())
             {
                 var def = _circleDefinitionService.GetCircle(id);
-                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.Drives, masterKey);
+                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DrivesGrants, masterKey);
                 var cg = new CircleGrant()
                 {
                     CircleId = def.Id,

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Drive;
@@ -30,5 +32,22 @@ public class TargetDrive
             Alias = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8),
             Type = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8)
         };
+    }
+
+    public static bool operator ==(TargetDrive d1, TargetDrive d2)
+    {
+        if (ReferenceEquals(d1, d2))
+        {
+            return true;
+        }
+
+        var d1Key = d1?.ToKey() ?? Array.Empty<byte>();
+
+        return d1Key.SequenceEqual(d2?.ToKey() ?? Array.Empty<byte>());
+    }
+
+    public static bool operator !=(TargetDrive d1, TargetDrive d2)
+    {
+        return !(d1 == d2);
     }
 }

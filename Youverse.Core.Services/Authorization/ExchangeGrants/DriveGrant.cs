@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         public Guid DriveId { get; set; }
 
-        public TargetDrive TargetDrive { get; set; }
+        public TargetDrive Drive { get; set; }
         
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
 
@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             return new RedactedDriveGrant()
             {
-                TargetDrive = this.TargetDrive,
+                Drive = this.Drive,
                 Permission = this.Permission
             };
         }
@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
     public class RedactedDriveGrant
     {
-        public TargetDrive TargetDrive { get; set; }
+        public TargetDrive Drive { get; set; }
         public DrivePermission Permission { get; set; }
     }
 }
