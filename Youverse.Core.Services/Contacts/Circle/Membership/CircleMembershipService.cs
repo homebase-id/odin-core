@@ -30,9 +30,12 @@ public class CircleMembershipService
         _circleMemberStorage.EnsureTableExists(false);
     }
 
-    public async Task AddCircleMember(ByteArrayId circleId, DotYouIdentity dotYouId)
+    public async Task AddCircleMember(ByteArrayId circleId, DotYouIdentity dotYouId, bool skipGrant = false)
     {
-        // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ManageCircleMembership);
+        
+        //TODO: this will fail when establishing a connection request because it's called by another DI.  need to find solution
+        
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ManageCircleMembership);
 
         //circle must exist
         var circleDefinition = _circleDefinitionService.GetCircle(circleId);
@@ -43,10 +46,14 @@ public class CircleMembershipService
             throw new YouverseException($"{dotYouId} is already member of circle {circleDefinition.Name}");
         }
 
-        await _circleNetworkService.GrantCircle(circleId, dotYouId);
+        if (!skipGrant)
+        {
+            await _circleNetworkService.GrantCircle(circleId, dotYouId);
+        }
 
         _circleMemberStorage.AddMembers(circleId.Value, new List<byte[]>() { dotYouId.ToByteArrayId().Value });
     }
+
 
     public async Task AddCircleMember(ByteArrayId circleId, IEnumerable<DotYouIdentity> list)
     {
@@ -60,7 +67,7 @@ public class CircleMembershipService
 
     public bool IsMember(ByteArrayId circleId, DotYouIdentity dotYouId)
     {
-        // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
 
         //Note: need more efficient way to get members rather than pulling back the whole list
         var memberBytesList = _circleMemberStorage.GetMembers(circleId);
@@ -89,7 +96,7 @@ public class CircleMembershipService
     public async Task<IEnumerable<DotYouIdentity>> GetMembers(ByteArrayId circleId)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
-        
+
         var memberBytesList = _circleMemberStorage.GetMembers(circleId);
         return memberBytesList.Select(id => DotYouIdentity.FromByteArrayId(new ByteArrayId(id)));
     }

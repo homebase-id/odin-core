@@ -316,19 +316,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var accessExchangeGrant = originalRequest.PendingAccessExchangeGrant;
 
-            //snag a copy to the circle Ids so we can add the identity to them AFTER we have created the 
-            var circleIds = accessExchangeGrant.CircleGrants.Select(kvp => kvp.Value.CircleId);
-            accessExchangeGrant.CircleGrants = new Dictionary<string, CircleGrant>();
 
             //TODO: need to decrypt this AccessKeyStoreKeyEncryptedSharedSecret
             var sharedSecret = accessExchangeGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret;
             var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken);
-
-            foreach (var id in circleIds)
+            
+            foreach (var id in accessExchangeGrant.CircleGrants.Select(kvp => kvp.Value.CircleId))
             {
-                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(handshakeResponse.SenderDotYouId));
+                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(handshakeResponse.SenderDotYouId), skipGrant: true);
             }
 
             await this.DeleteSentRequestInternal((DotYouIdentity)originalRequest.Recipient);
