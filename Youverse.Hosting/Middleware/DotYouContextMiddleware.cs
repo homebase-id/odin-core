@@ -132,7 +132,7 @@ namespace Youverse.Hosting.Middleware
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
                 Permission = DrivePermission.All
             });
-            
+
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
                 { "owner_drive_grants", new PermissionGroup(permissionSet, allDriveGrants, masterKey) },
@@ -190,6 +190,12 @@ namespace Youverse.Hosting.Middleware
             {
                 var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
                 var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+
+                if (!anonymousDrives.Results.Any())
+                {
+                    throw new YouverseException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.");
+                }
+                
                 var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
@@ -213,28 +219,44 @@ namespace Youverse.Hosting.Middleware
                         sharedSecretKey: null,
                         isOwner: false
                     ));
-                
+
                 return;
             }
 
-            //
-            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
-
-            //TODO: if we switch session to being and exchange grant then I can use this overload
-            var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
-            if (icr.IsConnected())
+            if (securityLevel == SecurityGroupType.Authenticated)
             {
-                dotYouContext.Caller.SetIsConnected();
+                //
+                // Since the caller is authenticated, we can query directly to get their connection info
+                // 
+
+                //
+                // If they're connected, we want to use their access from their connection
+                //
+                var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
+                var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
+ 
+                if (icr.IsConnected())
+                {
+                    //TODO: evaluate if this should come from youauth below. probably not because this is more up to date
+                    // and can be used to force the user to logout so youauth gets reconciled with reality
+                    dotYouContext.Caller.SetIsConnected();
+                }
+
+                //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
+                // if they are different, we could force a logout and tell the user to log-in again
+
+                if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
+                {
+                    var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+                    var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
+
+                    dotYouContext.SetPermissionContext(permissionContext);
+                }
+
+                return;
             }
 
-            //if there's a client auth token, let's add the permissions it grants
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
-            {
-                var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-                var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
-
-                dotYouContext.SetPermissionContext(permissionContext);
-            }
+            throw new YouverseSecurityException("LoadYouAuthContext - Invalid Configuration");
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

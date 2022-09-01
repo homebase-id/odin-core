@@ -110,8 +110,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray grantKeyStoreKey)
         {
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey);
-
-
             return (accessReg, clientAccessToken);
         }
 

@@ -142,7 +142,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             //Note: the pending access reg id attached only AFTER we send the request
             request.RSAEncryptedExchangeCredentials = "";
 
-            //TODO: this logic is duplicqte of the ICircleNetworkService.GrantCircle method.  need to centralize
+            //TODO: this logic is duplicate of the ICircleNetworkService.GrantCircle method.  need to centralize
             //create a grant per circle
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var circleGrants = new Dictionary<string, CircleGrant>();
@@ -304,6 +304,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public async Task EstablishConnection(ConnectionRequestReply handshakeResponse)
         {
+            // Note:
+            // this method runs under the Transit Context because it's called by another identity
+            // therefore, all operations that require master key or owner access must have already been completed
+            
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
 
             var originalRequest = await this.GetSentRequestInternal((DotYouIdentity)handshakeResponse.SenderDotYouId);
@@ -329,7 +333,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             }
 
             await this.DeleteSentRequestInternal((DotYouIdentity)originalRequest.Recipient);
-            //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequestInternal((DotYouIdentity)originalRequest.Recipient);
 
             await _mediator.Publish(new ConnectionRequestAccepted()

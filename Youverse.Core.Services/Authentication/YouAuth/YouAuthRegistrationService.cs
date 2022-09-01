@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
@@ -12,14 +17,17 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     {
         private readonly ILogger<YouAuthRegistrationService> _logger;
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
+        private readonly ICircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly object _mutex = new();
 
-        public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService)
+        public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
+            ICircleNetworkService circleNetworkService)
         {
             _logger = logger;
             _youAuthRegistrationStorage = youAuthRegistrationStorage;
             _exchangeGrantService = exchangeGrantService;
+            _circleNetworkService = circleNetworkService;
         }
 
         //
@@ -31,17 +39,84 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 throw new YouAuthException("Invalid subject");
             }
 
-            // NOTE: this lock only works because litedb isn't async
-            lock (_mutex)
+            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+
+            if (null == remoteIcrClientAuthToken)
             {
-                var registration = GetOrCreateRegistration(dotYouId);
-                var (accessRegistration, clientAccessToken) = _exchangeGrantService.CreateClientAccessToken(registration.Grant, null).GetAwaiter().GetResult();
-
-                var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
-                _youAuthRegistrationStorage.SaveClient(client);
-
-                return new ValueTask<ClientAccessToken>(clientAccessToken);
+                return CreateEmptyClient(dotYouId, registration);
             }
+
+            var icr = _circleNetworkService.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
+            if (!icr?.IsConnected() ?? false)
+            {
+                return CreateEmptyClient(dotYouId, registration);
+            }
+
+            // dotYouId is connected so let's upgrade the registration
+            SensitiveByteArray grantKeyStoreKey;
+            SymmetricKeyEncryptedAes icrRemoteKeyEncryptedKeyStoreKey = null;
+            var accessTokenHalfKey = remoteIcrClientAuthToken.AccessTokenHalfKey;
+
+            //Note: IcrRemoteKeyEncryptedKeyStoreKey can be null if an identity had logged in before being connected
+            if (null == registration || registration.IcrRemoteKeyEncryptedKeyStoreKey == null)
+            {
+                grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+                icrRemoteKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref accessTokenHalfKey, ref grantKeyStoreKey);
+            }
+            else
+            {
+                grantKeyStoreKey = registration.IcrRemoteKeyEncryptedKeyStoreKey.DecryptKeyClone(ref accessTokenHalfKey);
+            }
+
+            // Convert the ICR's circle grants to new grants for a YouAuthRegistration
+            var circleGrants = new Dictionary<string, CircleGrant>();
+            foreach (var sourceGrant in icr!.AccessGrant.CircleGrants.Values)
+            {
+                var driveGrantRequests = sourceGrant.KeyStoreKeyEncryptedDriveGrants.Select(kdg => new DriveGrantRequest()
+                {
+                    Drive = kdg.Drive,
+                    Permission = kdg.Permission
+                });
+
+                var grant = _exchangeGrantService.CreateExchangeGrant(grantKeyStoreKey, sourceGrant.PermissionSet, driveGrantRequests, null).GetAwaiter().GetResult();
+
+                circleGrants.Add(sourceGrant.CircleId.ToBase64(), new CircleGrant()
+                {
+                    CircleId = sourceGrant.CircleId,
+                    KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+                    PermissionSet = grant.PermissionSet,
+                });
+            }
+
+            registration = new YouAuthRegistration(dotYouId, circleGrants, icrRemoteKeyEncryptedKeyStoreKey!);
+            _youAuthRegistrationStorage.Save(registration);
+
+            var (accessRegistration, clientAccessToken) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey).GetAwaiter().GetResult();
+            grantKeyStoreKey.Wipe();
+
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
+            _youAuthRegistrationStorage.SaveClient(client);
+
+            return new ValueTask<ClientAccessToken>(clientAccessToken);
+        }
+
+        private ValueTask<ClientAccessToken> CreateEmptyClient(string dotYouId, YouAuthRegistration registration)
+        {
+            //TODO: this is fine until a user gets connected.  then that client needs to re-login.  I wonder if we can detect this
+            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+
+            if (null == registration)
+            {
+                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>(), null);
+                _youAuthRegistrationStorage.Save(registration);
+            }
+
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey).GetAwaiter().GetResult();
+
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
+            _youAuthRegistrationStorage.SaveClient(client);
+
+            return new ValueTask<ClientAccessToken>(cat);
         }
 
         //
@@ -73,7 +148,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         }
 
         //
-        
+
         public ValueTask<(bool isValid, YouAuthClient? client, YouAuthRegistration registration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
         {
             var client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
@@ -86,12 +161,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             var registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
 
-            if (null == registration || null == registration.Grant)
+            if (null == registration)
             {
                 return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
             }
 
-            if (accessReg.IsRevoked || registration.Grant.IsRevoked)
+            //TODO: scan circles to see if any where revoked.  this way we don't have to wait until they've re-logged in to revoke access or maybe this is handled when a circle is changed, it should also update youauth
+
+            if (accessReg.IsRevoked)
             {
                 return new ValueTask<(bool isValid, YouAuthClient client, YouAuthRegistration registration)>((false, null, null));
             }
@@ -100,7 +177,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         }
 
         //
-        
+
         public ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var (isValid, client, registration) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();
@@ -109,25 +186,25 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 throw new YouverseSecurityException("Invalid token");
             }
-            
-            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken, registration.Grant, client.AccessRegistration, false).GetAwaiter().GetResult();
-            return new ValueTask<PermissionContext>(permissionCtx);
-        }
 
-        //
-
-        private YouAuthRegistration GetOrCreateRegistration(string dotYouId)
-        {
-            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
-
-            if (registration == null)
+            var grants = new Dictionary<string, ExchangeGrant>();
+            foreach (var kvp in registration.CircleGrants ?? new Dictionary<string, CircleGrant>())
             {
-                var grant = _exchangeGrantService.CreateExchangeGrant(null, null, null).GetAwaiter().GetResult();
-                registration = new YouAuthRegistration(Guid.NewGuid(), dotYouId, grant);
-                _youAuthRegistrationStorage.Save(registration);
+                var cg = kvp.Value;
+                var xGrant = new ExchangeGrant()
+                {
+                    Created = 0,
+                    Modified = 0,
+                    IsRevoked = false, //TODO
+                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    MasterKeyEncryptedKeyStoreKey = null,
+                    PermissionSet = cg.PermissionSet
+                };
+                grants.Add(kvp.Key, xGrant);
             }
 
-            return registration;
+            var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken, grants, client.AccessRegistration, false).GetAwaiter().GetResult();
+            return new ValueTask<PermissionContext>(permissionCtx);
         }
     }
 }
