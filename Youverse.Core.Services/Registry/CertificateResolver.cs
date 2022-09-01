@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Registry
             {
                 throw new Exception("Cannot find certificate or key file(s)");
             }
-            
+
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
                 string encodedKey = File.ReadAllText(privateKeyPath);
@@ -61,13 +61,16 @@ namespace Youverse.Core.Services.Registry
                 {
                     rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
 
-                    using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
-                    {
-                        // Export as PFX and re-import if you want "normal PFX private key lifetime"
-                        // (this step is currently required for SslStream, but not for most other things
-                        // using certificates)
-                        return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
-                    }
+                    return publicKey.CopyWithPrivateKey(rsaPrivateKey);
+
+                    //// Disabled this part as it causes too many changes within Keychain causing Chrome to not open the Page:
+                    // using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
+                    // {
+                    //     // Export as PFX and re-import if you want "normal PFX private key lifetime"
+                    //     // (this step is currently required for SslStream, but not for most other things
+                    //     // using certificates)
+                    //     return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
+                    // }
                 }
             }
         }

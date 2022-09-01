@@ -10,7 +10,7 @@ public class FileQueryParams
     public IEnumerable<int> DataType { get; set; } = null;
     public IEnumerable<byte[]> Sender { get; set; } = null;
     
-    public IEnumerable<byte[]> ThreadId { get; set; } = null;
+    public IEnumerable<byte[]> GroupId { get; set; } = null;
 
     public TimeRange UserDate { get; set; } = null;
     
