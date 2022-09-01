@@ -161,7 +161,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 masterKeyEncryptedKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey;
 
                 circleGrants.Add(def.Id.ToBase64(), cg);
+                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(header.Recipient), skipGrant: true);
+
             }
+            
 
             keyStoreKey.Wipe();
 
@@ -326,11 +329,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken);
-            
-            foreach (var id in accessExchangeGrant.CircleGrants.Select(kvp => kvp.Value.CircleId))
-            {
-                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(handshakeResponse.SenderDotYouId), skipGrant: true);
-            }
 
             await this.DeleteSentRequestInternal((DotYouIdentity)originalRequest.Recipient);
             await this.DeletePendingRequestInternal((DotYouIdentity)originalRequest.Recipient);
