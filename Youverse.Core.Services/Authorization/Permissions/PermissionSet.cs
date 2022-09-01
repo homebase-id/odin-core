@@ -4,17 +4,17 @@ namespace Youverse.Core.Services.Authorization.Permissions
 {
     public class PermissionSet : IEquatable<PermissionSet>
     {
-        public PermissionSet(PermissionFlags permissionFlags)
+        public PermissionSet(PermissionFlags permissions)
         {
-            PermissionFlags = permissionFlags;
+            Permissions = permissions;
         }
-        public PermissionFlags PermissionFlags { get; }
+        public PermissionFlags Permissions { get; }
         
         public bool Equals(PermissionSet other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(PermissionFlags, other.PermissionFlags);
+            return Equals(Permissions, other.Permissions);
         }
 
         public override bool Equals(object obj)
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public override int GetHashCode()
         {
-            return (PermissionFlags.GetHashCode());
+            return (Permissions.GetHashCode());
         }
 
         public static bool operator ==(PermissionSet p1, PermissionSet p2)
@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            return p1.PermissionFlags == p2?.PermissionFlags;
+            return p1.Permissions == p2?.Permissions;
         }
 
         public static bool operator !=(PermissionSet p1, PermissionSet p2)

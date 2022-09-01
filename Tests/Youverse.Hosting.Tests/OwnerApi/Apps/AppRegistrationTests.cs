@@ -109,7 +109,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             }
         }
 
-        private async Task<AppRegistrationResponse> AddSampleAppNoDrive(Guid applicationId, string name)
+        private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
@@ -137,7 +137,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             }
         }
 
-        private async Task<AppRegistrationResponse> GetSampleApp(Guid appId)
+        private async Task<RedactedAppRegistration> GetSampleApp(Guid appId)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {

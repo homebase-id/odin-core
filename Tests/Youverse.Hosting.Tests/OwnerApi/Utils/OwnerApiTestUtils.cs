@@ -178,7 +178,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<AppRegistrationResponse> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
+        public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canManageConnections = false,
             bool driveAllowAnonymousReads = false)
         {
             PermissionFlags flags = PermissionFlags.None;
@@ -435,7 +435,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-            var response = await svc.GetStatus(new DotYouIdRequest() { DotYouId = dotYouId });
+            var response = await svc.GetConnectionInfo(new DotYouIdRequest() { DotYouId = dotYouId });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
             Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");

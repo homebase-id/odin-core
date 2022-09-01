@@ -51,10 +51,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("status")]
-        public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
+        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
-            return result;
+            return result?.Redacted();
         }
         
         // [HttpPost("status")]
@@ -65,9 +65,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<DotYouProfile>> GetConnectedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(int pageNumber, int pageSize)
         {
-            var result = await _circleNetwork.GetConnectedProfiles(new PageOptions(pageNumber, pageSize));
+            var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
             return result;
         }
 

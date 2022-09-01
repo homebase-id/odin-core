@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Base
 
         public bool HasPermission(PermissionFlags permission)
         {
-            return this._permissionSet.PermissionFlags.HasFlag(permission);
+            return this._permissionSet.Permissions.HasFlag(permission);
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public Guid? GetDriveId(TargetDrive drive)
         {
-            var grant = _driveGrants?.SingleOrDefault(g => g.TargetDrive.Alias == drive.Alias && g.TargetDrive.Type == drive.Type);
+            var grant = _driveGrants?.SingleOrDefault(g => g.Drive.Alias == drive.Alias && g.Drive.Type == drive.Type);
             return grant?.DriveId;
         }
 

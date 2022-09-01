@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
@@ -38,7 +39,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly TenantContext _tenantContext;
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly CircleDefinitionService _circleDefinitionService;
-
+        private readonly CircleMembershipService _circleMembershipService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
@@ -52,7 +53,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             IMediator mediator,
             TenantContext tenantContext,
             IPublicKeyService rsaPublicKeyService,
-            ExchangeGrantService exchangeGrantService, CircleDefinitionService circleDefinitionService)
+            ExchangeGrantService exchangeGrantService,
+            CircleDefinitionService circleDefinitionService,
+            CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -64,6 +67,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _rsaPublicKeyService = rsaPublicKeyService;
             _exchangeGrantService = exchangeGrantService;
             _circleDefinitionService = circleDefinitionService;
+            _circleMembershipService = circleMembershipService;
             _contextAccessor = contextAccessor;
 
             _pendingRequestValueStorage = systemStorage.ThreeKeyValueStorage;
@@ -92,33 +96,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            //create a grant per circle
-            var circleGrants = new Dictionary<string, CircleGrant>();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             SymmetricKeyEncryptedAes masterKeyEncryptedKeyStoreKey = null; //new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey)
 
-            foreach (var id in header.CircleIds ?? new List<ByteArrayId>())
-            {
-                var def = _circleDefinitionService.GetCircle(id);
-                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.Drives, masterKey);
-                var cg = new CircleGrant()
-                {
-                    CircleId = def.Id,
-                    KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-                    PermissionSet = grant.PermissionSet,
-                };
-
-                //snag one of these for later use.  need a better way to create this value
-                masterKeyEncryptedKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey;
-
-                circleGrants.Add(def.Id.ToBase64(), cg);
-            }
-
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey);
-            keyStoreKey.Wipe();
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -158,6 +141,30 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             //Note: the pending access reg id attached only AFTER we send the request
             request.RSAEncryptedExchangeCredentials = "";
+
+            //TODO: this logic is duplicqte of the ICircleNetworkService.GrantCircle method.  need to centralize
+            //create a grant per circle
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var circleGrants = new Dictionary<string, CircleGrant>();
+            foreach (var id in header.CircleIds ?? new List<ByteArrayId>())
+            {
+                var def = _circleDefinitionService.GetCircle(id);
+                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DrivesGrants, masterKey);
+                var cg = new CircleGrant()
+                {
+                    CircleId = def.Id,
+                    KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+                    PermissionSet = grant.PermissionSet,
+                };
+
+                //snag one of these for later use.  need a better way to create this value
+                masterKeyEncryptedKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey;
+
+                circleGrants.Add(def.Id.ToBase64(), cg);
+            }
+
+            keyStoreKey.Wipe();
+
             request.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 MasterKeyEncryptedKeyStoreKey = masterKeyEncryptedKeyStoreKey,
@@ -221,7 +228,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             return Task.CompletedTask;
         }
 
-
         public async Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<ByteArrayId> circleIds)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -239,35 +245,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _logger.LogInformation($"Accept Connection request called for sender {request.SenderDotYouId} to {request.Recipient}");
             var remoteClientAccessToken = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-
-
-            //create a grant per circle
-            var circleGrants = new Dictionary<string, CircleGrant>();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-
-            SymmetricKeyEncryptedAes masterKeyEncryptedKeyStoreKey = null; //new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey)
-
-            foreach (var id in circleIds ?? new List<ByteArrayId>())
-            {
-                var def = _circleDefinitionService.GetCircle(id);
-                var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.Drives, masterKey);
-                var cg = new CircleGrant()
-                {
-                    CircleId = def.Id,
-                    KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-                    PermissionSet = grant.PermissionSet,
-                };
-
-                //snag one of these for later use.  need a better way to create this value
-                masterKeyEncryptedKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey;
-
-                circleGrants.Add(def.Id.ToBase64(), cg);
-            }
-
             var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey);
-            keyStoreKey.Wipe();
-
 
             ConnectionRequestReply acceptedReq = new()
             {
@@ -296,15 +275,25 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 }
             }
 
+            //TODO: encryping the key store key here is wierd.  this should be done int he exchange grant service
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            SymmetricKeyEncryptedAes masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey);
+            keyStoreKey.Wipe();
+
             var accessGrant = new AccessExchangeGrant()
             {
                 MasterKeyEncryptedKeyStoreKey = masterKeyEncryptedKeyStoreKey,
                 IsRevoked = false,
-                CircleGrants = circleGrants,
+                CircleGrants = new Dictionary<string, CircleGrant>(),
                 AccessRegistration = accessRegistration
             };
 
             await _cns.Connect(request.SenderDotYouId, accessGrant, remoteClientAccessToken);
+
+            foreach (var id in circleIds ?? new List<ByteArrayId>())
+            {
+                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(request.SenderDotYouId));
+            }
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -325,17 +314,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 throw new InvalidOperationException("The original request no longer exists in Sent Requests");
             }
 
+            var accessExchangeGrant = originalRequest.PendingAccessExchangeGrant;
+
 
             //TODO: need to decrypt this AccessKeyStoreKeyEncryptedSharedSecret
-            var sharedSecret = originalRequest.PendingAccessExchangeGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret;
-
+            var sharedSecret = accessExchangeGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret;
             var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
 
             await _cns.Connect(handshakeResponse.SenderDotYouId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken);
-
+            
+            foreach (var id in accessExchangeGrant.CircleGrants.Select(kvp => kvp.Value.CircleId))
+            {
+                await _circleMembershipService.AddCircleMember(id, new DotYouIdentity(handshakeResponse.SenderDotYouId), skipGrant: true);
+            }
 
             await this.DeleteSentRequestInternal((DotYouIdentity)originalRequest.Recipient);
-
             //just in case I the recipient also sent me a request (this shouldn't happen but #prototrial has no constructs to stop this other than UI)
             await this.DeletePendingRequestInternal((DotYouIdentity)originalRequest.Recipient);
 

@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
         /// <summary>
         /// The drives granted to members of this Circle
         /// </summary>
-        public IEnumerable<DriveGrantRequest> Drives { get; set; }
+        public IEnumerable<DriveGrantRequest> DrivesGrants { get; set; }
 
         /// <summary>
         /// The permissions to be granted to members of this Circle

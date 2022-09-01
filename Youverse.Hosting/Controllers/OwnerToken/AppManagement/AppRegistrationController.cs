@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Returns a list of registered apps
         /// </summary>
         [HttpGet("list")]
-        public async Task<List<AppRegistrationResponse>> GetRegisteredApps()
+        public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
             var apps = await _appRegistrationService.GetRegisteredApps();
             return apps;
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Returns the information for a registered app; otherwise null
         /// </summary>
         [HttpPost("app")]
-        public async Task<AppRegistrationResponse> GetRegisteredApp([FromBody] GetAppRequest request)
+        public async Task<RedactedAppRegistration> GetRegisteredApp([FromBody] GetAppRequest request)
         {
             var reg = await _appRegistrationService.GetAppRegistration(request.AppId);
             return reg;
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// <param name="appRegistration"></param>
         /// <returns></returns>
         [HttpPost("register/app")]
-        public async Task<AppRegistrationResponse> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
+        public async Task<RedactedAppRegistration> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
             var reg = await _appRegistrationService.RegisterApp(
                 appId: appRegistration.AppId,

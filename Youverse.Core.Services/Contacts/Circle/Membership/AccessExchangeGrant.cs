@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
 
@@ -18,7 +18,7 @@ public class AccessExchangeGrant
     }
 
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
-    
+
     public Dictionary<string, CircleGrant> CircleGrants { get; set; }
 
     public AccessRegistration AccessRegistration { get; set; }
@@ -29,14 +29,19 @@ public class AccessExchangeGrant
     {
         return !IsRevoked && !this.AccessRegistration.IsRevoked;
     }
+
+    public RedactedAccessExchangeGrant Redacted()
+    {
+        return new RedactedAccessExchangeGrant()
+        {
+            IsRevoked = this.IsRevoked,
+            CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList()
+        };
+    }
 }
 
-/// <summary>
-/// Permissions granted for a given circle
-/// </summary>
-public class CircleGrant
+public class RedactedAccessExchangeGrant
 {
-    public ByteArrayId CircleId { get; set; }
-    public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
-    public PermissionSet PermissionSet { get; set; }
+    public bool IsRevoked { get; set; }
+    public List<RedactedCircleGrant> CircleGrants { get; set; }
 }

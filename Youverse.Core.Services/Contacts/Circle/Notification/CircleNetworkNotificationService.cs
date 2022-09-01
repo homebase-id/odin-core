@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
         {
             //TODO: need to switch this to a background call; also work in chunks
 
-            var connections = await _circleNetworkService.GetConnectedProfiles(PageOptions.All);
+            var connections = await _circleNetworkService.GetConnectedIdentities(PageOptions.All);
 
             foreach (var connection in connections.Results)
             {

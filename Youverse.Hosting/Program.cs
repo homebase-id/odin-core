@@ -89,7 +89,6 @@ namespace Youverse.Hosting
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                     .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
                     .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
-                    .MinimumLevel.Override("Youverse.Core.Services.Base.LiteDbSystemStorage", LogEventLevel.Warning)
                     .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
                     .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
                     .Enrich.FromLogContext()

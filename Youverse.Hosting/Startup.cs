@@ -1,17 +1,10 @@
 using System;
-using System.Buffers;
 using System.IO;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Autofac;
-using LiteDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +12,6 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
@@ -101,7 +93,12 @@ namespace Youverse.Hosting
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
             //All params should be passed into to the services using DotYouContext
             services.AddHttpContextAccessor();
-
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.MimeTypes = new[] { "application/json" };
+            });
+            
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
@@ -184,7 +181,9 @@ namespace Youverse.Hosting
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<DotYouContextMiddleware>();
+            app.UseResponseCompression();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+ 
 
             // app.UseWebSockets();
             // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());

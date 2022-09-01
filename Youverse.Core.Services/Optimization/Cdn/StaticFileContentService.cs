@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Mime;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Dawn;
@@ -148,7 +149,7 @@ public class StaticFileContentService
             File.Move(tempTargetPath, finalTargetPath, true);
         }
 
-        config.ContentType = "application/json";
+        config.ContentType = MediaTypeNames.Application.Json;
         _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;

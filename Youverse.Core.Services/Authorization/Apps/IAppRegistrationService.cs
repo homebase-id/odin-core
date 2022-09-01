@@ -14,9 +14,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<AppRegistrationResponse> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
+        Task<RedactedAppRegistration> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
 
-        Task<AppRegistrationResponse> GetAppRegistration(ByteArrayId appId);
+        Task<RedactedAppRegistration> GetAppRegistration(ByteArrayId appId);
 
         Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
 
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// Gets all registered apps
         /// </summary>
         /// <returns></returns>
-        Task<List<AppRegistrationResponse>> GetRegisteredApps();
+        Task<List<RedactedAppRegistration>> GetRegisteredApps();
         
         /// <summary>
         /// Removes access for a given application across all devices

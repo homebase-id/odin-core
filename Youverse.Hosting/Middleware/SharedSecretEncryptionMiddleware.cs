@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
@@ -157,8 +158,6 @@ namespace Youverse.Hosting.Middleware
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
 
-            // context.Response.Body.Seek(0, SeekOrigin.Begin);
-            // await context.Response.Body.CopyToAsync(originalBody);
             context.Response.Body = originalBody;
         }
 

@@ -41,9 +41,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
         
         [HttpPost("list")]
-        public async Task<IEnumerable<DotYouIdentity>> GetMembers([FromBody] ByteArrayId circleId)
+        public async Task<IEnumerable<DotYouIdentity>> GetMembers([FromBody] GetCircleMembersRequest request)
         {
-            var result = await _circleMembershipService.GetMembers(circleId);
+            var result = await _circleMembershipService.GetMembers(request.CircleId);
             return result;
         }
     }

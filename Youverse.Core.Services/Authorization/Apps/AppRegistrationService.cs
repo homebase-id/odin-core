@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _appClientValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
-        public async Task<AppRegistrationResponse> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<RedactedAppRegistration> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
 
-            return this.ToAppRegistrationResponse(appReg);
+            return appReg.Redacted();
         }
 
         public async Task<AppClientRegistrationResponse> RegisterClient(ByteArrayId appId, byte[] clientPublicKey, string friendlyName)
@@ -120,10 +120,10 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<AppRegistrationResponse> GetAppRegistration(ByteArrayId appId)
+        public async Task<RedactedAppRegistration> GetAppRegistration(ByteArrayId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
-            return ToAppRegistrationResponse(result);
+            return result?.Redacted();
         }
 
         public async Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
@@ -200,29 +200,11 @@ namespace Youverse.Core.Services.Authorization.Apps
             return resp;
         }
 
-        public Task<List<AppRegistrationResponse>> GetRegisteredApps()
+        public Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
             var apps = _appRegistrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
-            var redactedList = apps.Select(ToAppRegistrationResponse).ToList();
+            var redactedList = apps.Select(app => app.Redacted()).ToList();
             return Task.FromResult(redactedList);
-        }
-
-        private AppRegistrationResponse ToAppRegistrationResponse(AppRegistration appReg)
-        {
-            if (appReg == null)
-            {
-                return null;
-            }
-
-            //NOTE: we're not sharing the encrypted app dek, this is crucial
-            return new AppRegistrationResponse()
-            {
-                AppId = appReg.AppId,
-                Name = appReg.Name,
-                IsRevoked = appReg.Grant.IsRevoked,
-                Created = appReg.Grant.Created,
-                Modified = appReg.Grant.Modified
-            };
         }
 
         private async Task<AppRegistration> GetAppRegistrationInternal(ByteArrayId appId)
