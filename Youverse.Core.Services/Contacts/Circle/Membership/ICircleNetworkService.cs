@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
@@ -133,5 +134,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Removes drives and permissions of the specified circle from the dotYouId
         /// </summary>
         Task RevokeCircle(ByteArrayId circleId, DotYouIdentity dotYouId);
+
+        Task<IEnumerable<DotYouIdentity>> GetCircleMembers(ByteArrayId circleId);
+        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey);
     }
 }

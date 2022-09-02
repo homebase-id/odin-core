@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using Youverse.Core;
@@ -56,7 +57,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
             return result?.Redacted();
         }
-        
+
         // [HttpPost("status")]
         // public async Task<IdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request)
         // {
@@ -76,6 +77,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
             return result;
+        }
+
+        [HttpPost("circles/list")]
+        public async Task<IEnumerable<DotYouIdentity>> GetCircleMembers([FromBody] GetCircleMembersRequest request)
+        {
+            var result = await _circleNetwork.GetCircleMembers(request.CircleId);
+            return result;
+        }
+
+        [HttpPost("circles/add")]
+        public async Task<bool> AddCircle([FromBody] AddCircleMembershipRequest request)
+        {
+            await _circleNetwork.GrantCircle(request.CircleId, new DotYouIdentity(request.DotYouId));
+            return true;
+        }
+
+        [HttpPost("circles/revoke")]
+        public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
+        {
+            await _circleNetwork.RevokeCircle(request.CircleId, new DotYouIdentity(request.DotYouId));
+            return true;
         }
     }
 }

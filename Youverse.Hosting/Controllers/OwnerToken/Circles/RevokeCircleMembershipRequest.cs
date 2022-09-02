@@ -3,8 +3,8 @@ using Youverse.Core;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Circles;
 
-public class RemoveCircleMembershipRequest
+public class RevokeCircleMembershipRequest
 {
-    public List<string> DotYouIdList { get; set; }
+    public string DotYouId { get; set; }
     public ByteArrayId CircleId { get; set; }
 }

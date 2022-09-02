@@ -87,7 +87,6 @@ namespace Youverse.Hosting
             
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
-            cb.RegisterType<CircleMembershipService>().As<CircleMembershipService>().SingleInstance();
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
             
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
