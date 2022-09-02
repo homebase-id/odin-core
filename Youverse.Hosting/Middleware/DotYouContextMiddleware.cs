@@ -237,6 +237,13 @@ namespace Youverse.Hosting.Middleware
                     var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
                     var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
 
+                    dotYouContext.Caller = new CallerContext(
+                        dotYouId: callerDotYouId,
+                        securityLevel: securityLevel,
+                        masterKey: null,
+                        circleIds: icr.GetCircleIds().ToList()
+                    );
+
                     if (icr.IsConnected())
                     {
                         //TODO: evaluate if this should come from youauth below. probably not because this is more up to date
@@ -246,13 +253,6 @@ namespace Youverse.Hosting.Middleware
 
                     var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
                     var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
-
-                    dotYouContext.Caller = new CallerContext(
-                        dotYouId: callerDotYouId,
-                        securityLevel: securityLevel,
-                        masterKey: null,
-                        circleIds: icr.GetCircleIds().ToList()
-                    );
 
                     dotYouContext.SetPermissionContext(permissionContext);
                 }
