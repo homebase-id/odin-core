@@ -95,7 +95,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 aclList.Add(callerContext.DotYouId.ToByteArrayId().Value);
             }
 
-            aclList.AddRange(callerContext.Circles?.Select(c => c.ToByteArray()) ?? Array.Empty<byte[]>());
+            aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<byte[]>());
         }
 
         return aclList.Any() ? aclList : null;

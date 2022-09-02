@@ -89,7 +89,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             throw new Exception($"Unknown notification Id {notification.NotificationId}");
         }
 
-        public async Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken authToken)
+        public async Task<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContext(DotYouIdentity callerDotYouId,
+            ClientAuthenticationToken authToken)
         {
             var icr = await this.GetIdentityConnectionRegistration(callerDotYouId, authToken);
             var accessGrant = icr.AccessGrant;
@@ -116,7 +117,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessGrant.AccessRegistration, false);
-            return (icr.IsConnected(), permissionCtx);
+            var circleIds = icr.GetCircleIds().ToList();
+            return (icr.IsConnected(), permissionCtx, circleIds);
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
@@ -356,7 +358,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             if (icr.AccessGrant.CircleGrants.TryGetValue(circleId.ToBase64(), out var _))
-            { 
+            {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
                 throw new YouverseException($"{dotYouId} is already member of circle");
             }
@@ -387,7 +389,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             return circleGrants;
         }
-        
+
         private async Task<CircleGrant> CreateCircleGrant(ByteArrayId circleId, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
@@ -400,7 +402,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 PermissionSet = grant.PermissionSet,
             };
         }
-        
+
         public async Task RevokeCircle(ByteArrayId circleId, DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();

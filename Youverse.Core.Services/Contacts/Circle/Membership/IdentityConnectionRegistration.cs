@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -79,6 +76,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 LastUpdated = this.LastUpdated,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
+        }
+
+        public IEnumerable<ByteArrayId> GetCircleIds()
+        {
+            return this.AccessGrant?.CircleGrants?.Values.Select(cg => cg.CircleId) ?? new List<ByteArrayId>();
         }
     }
 

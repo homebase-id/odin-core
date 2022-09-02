@@ -57,9 +57,8 @@ namespace Youverse.Hosting.Authentication.System
                     var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
                     dotYouContext.Caller = new CallerContext(
                         dotYouId: (DotYouIdentity)domain,
-                        securityLevel: SecurityGroupType.System,
-                        masterKey: null
-                    );
+                        masterKey: null, 
+                        securityLevel: SecurityGroupType.System);
                     
                     var identity = new ClaimsIdentity(claims, SystemAuthConstants.SchemeName);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);

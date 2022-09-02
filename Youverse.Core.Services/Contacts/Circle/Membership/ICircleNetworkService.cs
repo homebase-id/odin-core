@@ -123,7 +123,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(bool isConnected, PermissionContext permissionContext)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
+        Task<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
         
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle

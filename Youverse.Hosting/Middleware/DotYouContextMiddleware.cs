@@ -109,9 +109,8 @@ namespace Youverse.Hosting.Middleware
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity)user.Identity!.Name,
-                securityLevel: SecurityGroupType.Owner,
-                masterKey: masterKey
-            );
+                masterKey: masterKey,
+                securityLevel: SecurityGroupType.Owner);
 
             //basically all permission, even tho there is a check for isOwner.  i've not yet decide which one we'll use; probably better ot use isOwner so i dont have to keep this list updated
             var permissionSet = new PermissionSet(
@@ -159,9 +158,8 @@ namespace Youverse.Hosting.Middleware
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: (DotYouIdentity)user.Identity!.Name,
-                securityLevel: SecurityGroupType.Owner,
-                masterKey: null
-            );
+                masterKey: null,
+                securityLevel: SecurityGroupType.Owner);
 
             var (appId, permissionContext) = await appRegSvc.GetPermissionContext(authToken);
 
@@ -180,12 +178,6 @@ namespace Youverse.Hosting.Middleware
                 ? SecurityGroupType.Authenticated
                 : SecurityGroupType.Anonymous;
 
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId,
-                securityLevel: securityLevel,
-                masterKey: null
-            );
-
             if (securityLevel == SecurityGroupType.Anonymous)
             {
                 var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
@@ -195,7 +187,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     throw new YouverseException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.");
                 }
-                
+
                 var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
@@ -212,6 +204,12 @@ namespace Youverse.Hosting.Middleware
                     { "anon_drive_grants", new PermissionGroup(permissionSet, anonDriveGrants, null) },
                 };
 
+                dotYouContext.Caller = new CallerContext(
+                    dotYouId: callerDotYouId,
+                    securityLevel: securityLevel,
+                    masterKey: null
+                );
+
                 //HACK: giving this the master key makes my hairs raise >:-[
                 dotYouContext.SetPermissionContext(
                     new PermissionContext(
@@ -223,32 +221,38 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
+            //TODO: all of this logic needs to be moved to the client token authentication handler instead of in this middleware
+
             if (securityLevel == SecurityGroupType.Authenticated)
             {
-                //
-                // Since the caller is authenticated, we can query directly to get their connection info
-                // 
-
-                //
-                // If they're connected, we want to use their access from their connection
-                //
-                var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
-                var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
- 
-                if (icr.IsConnected())
-                {
-                    //TODO: evaluate if this should come from youauth below. probably not because this is more up to date
-                    // and can be used to force the user to logout so youauth gets reconciled with reality
-                    dotYouContext.Caller.SetIsConnected();
-                }
-
-                //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
-                // if they are different, we could force a logout and tell the user to log-in again
-
                 if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
                 {
+                    // Since the caller is authenticated, we can query directly to get their connection info
+                    //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
+                    // if they are different, we could force a logout and tell the user to log-in again
+
+                    //
+                    // If they're connected, we want to use their access from their connection
+                    //
+                    var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
+                    var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
+
+                    if (icr.IsConnected())
+                    {
+                        //TODO: evaluate if this should come from youauth below. probably not because this is more up to date
+                        // and can be used to force the user to logout so youauth gets reconciled with reality
+                        dotYouContext.Caller.SetIsConnected();
+                    }
+
                     var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
                     var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
+
+                    dotYouContext.Caller = new CallerContext(
+                        dotYouId: callerDotYouId,
+                        securityLevel: securityLevel,
+                        masterKey: null,
+                        circleIds: icr.GetCircleIds().ToList()
+                    );
 
                     dotYouContext.SetPermissionContext(permissionContext);
                 }
@@ -261,27 +265,24 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            //TODO: load the circles to which the caller belongs
-
             var user = httpContext.User;
             var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
 
             var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
-
             dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId,
-                securityLevel: SecurityGroupType.Authenticated, //note: this will need to come from a claim: re: best buy/3rd party scenario
-                masterKey: null
-            );
+                dotYouId: callerDotYouId, //note: this will need to come from a claim: re: best buy/3rd party scenario
+                masterKey: null,
+                securityLevel: SecurityGroupType.Authenticated);
 
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                var (isConnected, permissionContext) = await circleNetworkService.CreatePermissionContext(callerDotYouId, clientAuthToken);
+                var (isConnected, permissionContext, circleIds) = await circleNetworkService.CreatePermissionContext(callerDotYouId, clientAuthToken);
                 if (!isConnected)
                 {
                     throw new YouverseSecurityException("Invalid connection");
                 }
 
+                dotYouContext.Caller.Circles = circleIds;
                 dotYouContext.Caller.SetIsConnected();
                 dotYouContext.SetPermissionContext(permissionContext);
             }
@@ -305,10 +306,9 @@ namespace Youverse.Hosting.Middleware
             var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId,
-                securityLevel: SecurityGroupType.Authenticated, //note: this will need to come from a claim: re: best buy/3rd party scenario
-                masterKey: null
-            );
+                dotYouId: callerDotYouId, //note: this will need to come from a claim: re: best buy/3rd party scenario
+                masterKey: null,
+                securityLevel: SecurityGroupType.Authenticated);
 
             //No permissions allowed
             dotYouContext.SetPermissionContext(null);
