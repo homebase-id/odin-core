@@ -25,7 +25,7 @@ public class QueryBatchResultOptionsRequest
         
         return new Core.Services.Drive.Query.QueryBatchResultOptions()
         {
-            Cursor =  QueryBatchCursor.FromState(this.CursorState),
+            Cursor =  new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,
             IncludeJsonContent = this.IncludeMetadataHeader
         };
