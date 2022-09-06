@@ -22,10 +22,9 @@ public class QueryBatchResultOptionsRequest
 
     public Core.Services.Drive.Query.QueryBatchResultOptions ToQueryBatchResultOptions()
     {
-        
         return new Core.Services.Drive.Query.QueryBatchResultOptions()
         {
-            Cursor =  new QueryBatchCursor(this.CursorState),
+            Cursor =  this.CursorState == null ?  new QueryBatchCursor() : new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,
             IncludeJsonContent = this.IncludeMetadataHeader
         };
