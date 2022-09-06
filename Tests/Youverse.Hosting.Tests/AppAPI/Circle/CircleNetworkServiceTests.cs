@@ -85,8 +85,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         private async Task<(TestSampleAppContext, TestSampleAppContext)> CreateConnectionRequestFrodoToSam()
         {
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
-            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
             //have frodo send it
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var sharedSecret))

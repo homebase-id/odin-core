@@ -16,20 +16,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
         public readonly ByteArrayId DefaultCircleId = ByteArrayId.FromString("default_circle");
 
-        public void CreateInitialDefaultCircle()
-        {
-            var defCircle = this.GetCircle(this.DefaultCircleId);
-            if (null == defCircle)
-            {
-                this.Create(new CreateCircleRequest()
-                {
-                    Name = "System Circle",
-                    Description = "Default Circle",
-                    Drives = new List<DriveGrantRequest>() { },
-                    Permissions = new PermissionSet(PermissionFlags.None)
-                });
-            }
-        }
+        // public void CreateInitialDefaultCircle()
+        // {
+        //     var defCircle = this.GetCircle(this.DefaultCircleId);
+        //     if (null == defCircle)
+        //     {
+        //         this.Create(new CreateCircleRequest()
+        //         {
+        //             Name = "System Circle",
+        //             Description = "Default Circle",
+        //             Drives = new List<DriveGrantRequest>() { },
+        //             Permissions = new PermissionSet(CirclePermissionFlags.None)
+        //         });
+        //     }
+        // }
 
         public CircleDefinitionService(ISystemStorage systemStorage)
         {

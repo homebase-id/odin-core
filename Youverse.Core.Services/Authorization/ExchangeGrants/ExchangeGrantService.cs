@@ -247,7 +247,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         private PermissionGroup GetAnonymousDrivePermissionGroup()
         {
             var anonDriveGrants = this.GetAnonymousDriveGrants().GetAwaiter().GetResult();
-            return new PermissionGroup(new PermissionSet(PermissionFlags.None), anonDriveGrants, null);
+            return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
         }
 
         private async Task<IEnumerable<DriveGrant>> GetAnonymousDriveGrants()

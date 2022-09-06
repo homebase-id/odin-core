@@ -50,8 +50,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanSendConnectionRequestAndGetPendingRequest()
         {
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
-            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
             {
@@ -160,13 +160,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanAcceptConnectionRequest_AndAccessCirclePermissions()
         {
             //basically create 2 circles on frodo's identity, then give sam access
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", PermissionFlags.ReadConnectionRequests | PermissionFlags.ReadConnections);
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", PermissionFlags.ReadCircleMembership);
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", PermissionFlags.None);
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", PermissionFlags.ReadConnectionRequests | PermissionFlags.ReadConnections);
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>());
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string> { PermissionKeys.ReadConnections , PermissionKeys.ReadConnections });
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -267,13 +267,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", PermissionFlags.None);
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", PermissionFlags.ReadConnections);
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", PermissionFlags.ReadCircleMembership);
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", PermissionFlags.None);
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>() { PermissionKeys.ReadCircleMembership });
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string>());
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -369,7 +369,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             // Create a new circle and grant frodo access circle access
             //
-            var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", PermissionFlags.ReadConnections);
+            var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<string>() { PermissionKeys.ReadConnections });
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -413,7 +413,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoAccessFromNewCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == newCircleDefinitionOnSamsIdentity.Id);
                 Assert.NotNull(frodoAccessFromNewCircle);
                 AssertAllDrivesGrantedFromCircle(newCircleDefinitionOnSamsIdentity, frodoAccessFromNewCircle);
-                
+
                 // frodo should still access to circle 1
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
@@ -436,13 +436,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", PermissionFlags.None);
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", PermissionFlags.ReadConnections);
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", PermissionFlags.ReadCircleMembership);
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", PermissionFlags.None);
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>() { PermissionKeys.ReadCircleMembership });
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string>());
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -555,7 +555,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var removeMembersResponse = await circleMemberSvc.RevokeCircle(new RevokeCircleMembershipRequest()
                 {
                     CircleId = revokedCircle.Id,
-                    DotYouId = frodo.Identity 
+                    DotYouId = frodo.Identity
                 });
 
                 Assert.IsTrue(removeMembersResponse.IsSuccessStatusCode, $"Actual status code {removeMembersResponse.StatusCode}");
@@ -741,8 +741,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             CircleDefinition circleDefinition2 = null)
         {
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canManageConnections: true);
-            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canManageConnections: true);
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
             List<ByteArrayId> cids = new List<ByteArrayId>();
             if (null != circleDefinition1)
@@ -809,7 +809,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, PermissionFlags permissions)
+        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, IEnumerable<string> permissionKeys)
         {
             var targetDrive1 = TargetDrive.NewTargetDrive();
             var targetDrive2 = TargetDrive.NewTargetDrive();
@@ -839,7 +839,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = name,
                     Description = $"total hack {someId}",
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    Permissions = new PermissionSet(permissions)
+                    Permissions = new PermissionSet(permissionKeys?.ToArray())
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -857,7 +857,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
                 Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
-                Assert.IsTrue(circle.Permissions.Permissions.HasFlag(permissions));
+                foreach (var k in permissionKeys)
+                {
+                    Assert.IsTrue(circle.Permissions.HasKey(k));
+                }
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);

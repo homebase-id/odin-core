@@ -1,20 +1,37 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using Dawn;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
     public class PermissionSet : IEquatable<PermissionSet>
     {
-        public PermissionSet(PermissionFlags permissions)
+        public List<string> Keys { get; init; }
+
+        public PermissionSet()
         {
-            Permissions = permissions;
         }
-        public PermissionFlags Permissions { get; }
-        
+
+        public PermissionSet(IEnumerable<string> permissionKeys)
+        {
+            Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull().NotEmpty();
+            // Keys = new ReadOnlyCollection<string>(permissionKeys.Select(p => p.ToLower()).ToList());
+            Keys = new List<string>(permissionKeys.Select(p => p.ToLower()).ToList());
+        }
+
+        public bool HasKey(string key)
+        {
+            return Keys.Contains(key.ToLower());
+        }
+
         public bool Equals(PermissionSet other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(Permissions, other.Permissions);
+
+            return Equals(Keys, other.Keys);
         }
 
         public override bool Equals(object obj)
@@ -27,7 +44,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public override int GetHashCode()
         {
-            return (Permissions.GetHashCode());
+            return (Keys.GetHashCode());
         }
 
         public static bool operator ==(PermissionSet p1, PermissionSet p2)
@@ -37,7 +54,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            return p1.Permissions == p2?.Permissions;
+            return p1.Keys.SequenceEqual((IEnumerable<string>)p2?.Keys ?? new List<string>());
         }
 
         public static bool operator !=(PermissionSet p1, PermissionSet p2)

@@ -188,7 +188,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(PageOptions req)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadConnections);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
             var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(
@@ -281,7 +281,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<IEnumerable<DotYouIdentity>> GetCircleMembers(ByteArrayId circleId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
 
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each DotYouIdentity
             var memberBytesList = _circleMemberStorage.GetMembers(circleId);

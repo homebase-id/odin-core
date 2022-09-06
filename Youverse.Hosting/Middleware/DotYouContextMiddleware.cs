@@ -112,17 +112,6 @@ namespace Youverse.Hosting.Middleware
                 masterKey: masterKey,
                 securityLevel: SecurityGroupType.Owner);
 
-            //basically all permission, even tho there is a check for isOwner.  i've not yet decide which one we'll use; probably better ot use isOwner so i dont have to keep this list updated
-            var permissionSet = new PermissionSet(
-                PermissionFlags.CreateOrSendConnectionRequests |
-                PermissionFlags.ReadConnectionRequests |
-                PermissionFlags.DeleteConnectionRequests |
-                PermissionFlags.CreateOrSendConnectionRequests |
-                PermissionFlags.ReadConnectionRequests |
-                PermissionFlags.DeleteConnectionRequests |
-                PermissionFlags.ManageCircleMembership |
-                PermissionFlags.ReadCircleMembership);
-
             var allDrives = await driveService.GetDrives(PageOptions.All);
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
@@ -132,9 +121,10 @@ namespace Youverse.Hosting.Middleware
                 Permission = DrivePermission.All
             });
 
+            //permission set is null because this is the owner
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "owner_drive_grants", new PermissionGroup(permissionSet, allDriveGrants, masterKey) },
+                { "owner_drive_grants", new PermissionGroup(null, allDriveGrants, masterKey) },
             };
 
             //HACK: giving this the master key makes my hairs raise >:-[
@@ -169,8 +159,6 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            //TODO: load the circles to which the caller belongs
-
             var user = httpContext.User;
 
             var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
@@ -197,7 +185,7 @@ namespace Youverse.Hosting.Middleware
                 }).ToList();
 
                 //HACK: granting ability to see friends list to anon users.
-                var permissionSet = new PermissionSet(PermissionFlags.ReadConnections);
+                var permissionSet = new PermissionSet(new List<string>() { PermissionKeys.ReadConnections });
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {

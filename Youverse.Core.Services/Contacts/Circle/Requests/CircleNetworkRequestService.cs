@@ -74,14 +74,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_pendingRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }

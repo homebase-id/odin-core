@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Xaml.Permissions;
 using Dawn;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
@@ -50,7 +47,7 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public bool HasPermission(PermissionFlags permission)
+        public bool HasPermission(string permissionKey)
         {
             if (this._isOwner)
             {
@@ -60,7 +57,7 @@ namespace Youverse.Core.Services.Base
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];
-                if (group.HasPermission(permission))
+                if (group.HasPermission(permissionKey))
                 {
                     //TODO: log key as source of permission.
                     return true;
@@ -70,9 +67,9 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public void AssertHasPermission(PermissionFlags permission)
+        public void AssertHasPermission(string permissionKey)
         {
-            if (!HasPermission(permission))
+            if (!HasPermission(permissionKey))
             {
                 throw new YouverseSecurityException("Does not have permission");
             }

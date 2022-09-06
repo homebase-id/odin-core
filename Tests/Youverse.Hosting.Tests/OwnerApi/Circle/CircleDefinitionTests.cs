@@ -72,9 +72,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    Permissions = new PermissionSet(PermissionFlags.ReadConnectionRequests | PermissionFlags.ReadConnections)
+                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
                 };
-
+                
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
                 Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
@@ -89,8 +89,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
                 Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
-                Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnectionRequests));
-                Assert.IsTrue(circle.Permissions.Permissions.HasFlag(PermissionFlags.ReadConnections));
+                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadConnections));
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);

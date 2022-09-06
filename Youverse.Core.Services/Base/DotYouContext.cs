@@ -36,13 +36,6 @@ namespace Youverse.Core.Services.Base
                 return;
             }
 
-            var permission = PermissionFlags.ApproveConnection | PermissionFlags.ReadConnections | PermissionFlags.UpdateConnections | PermissionFlags.DeleteConnections;
-            
-            if (PermissionsContext != null && PermissionsContext.HasPermission(permission))
-            {
-                return;
-            }
-
             throw new YouverseSecurityException("Unauthorized Action");
         }
     }
