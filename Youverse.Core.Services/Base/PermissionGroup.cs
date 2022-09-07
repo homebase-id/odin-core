@@ -26,7 +26,7 @@ public class PermissionGroup
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
         var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-        return grant != null && grant.Permission.HasFlag(permission);
+        return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
     }
 
     public bool HasPermission(int permission)
@@ -41,7 +41,7 @@ public class PermissionGroup
     /// <returns></returns>
     public Guid? GetDriveId(TargetDrive drive)
     {
-        var grant = _driveGrants?.SingleOrDefault(g => g.Drive.Alias == drive.Alias && g.Drive.Type == drive.Type);
+        var grant = _driveGrants?.SingleOrDefault(g => g.PermissionedDrive.Drive == drive);
         return grant?.DriveId;
     }
 

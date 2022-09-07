@@ -116,9 +116,12 @@ namespace Youverse.Hosting.Middleware
             var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
                 DriveId = d.Id,
-                Drive = d.TargetDriveInfo,
                 KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                Permission = DrivePermission.All
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = d.TargetDriveInfo,
+                    Permission = DrivePermission.All
+                },
             });
 
             //permission set is null because this is the owner
@@ -179,9 +182,12 @@ namespace Youverse.Hosting.Middleware
                 var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,
-                    Drive = d.TargetDriveInfo,
                     KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
-                    Permission = DrivePermission.Read
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = d.TargetDriveInfo,
+                        Permission = DrivePermission.Read
+                    }
                 }).ToList();
 
                 //HACK: granting ability to see friends list to anon users.

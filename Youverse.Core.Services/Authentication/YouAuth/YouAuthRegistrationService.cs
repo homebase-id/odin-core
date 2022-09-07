@@ -76,11 +76,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 var driveGrantRequests = sourceGrant.KeyStoreKeyEncryptedDriveGrants.Select(kdg => new DriveGrantRequest()
                 {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = kdg.Drive,
-                        Permission = kdg.Permission
-                    }
+                    PermissionedDrive = kdg.PermissionedDrive
                 });
 
                 var grant = _exchangeGrantService.CreateExchangeGrant(grantKeyStoreKey, sourceGrant.PermissionSet, driveGrantRequests, null).GetAwaiter().GetResult();
