@@ -31,11 +31,12 @@ namespace Youverse.Core.Services.Authorization.Permissions
     public static class PermissionKeys
     {
         //TODO: change to integer
-        public static readonly string ReadConnections = "ReadConnections";
+        public static readonly int ReadConnections = 10;
 
-        public static readonly string ReadConnectionRequests = "ReadConnectionRequests";
+        public static readonly int ReadConnectionRequests = 30;
 
-        public static readonly string ReadCircleMembership = "ReadCircleMembership";
+        public static readonly int ReadCircleMembership = 50;
+        
     }
 
     /// <summary>
@@ -45,32 +46,32 @@ namespace Youverse.Core.Services.Authorization.Permissions
     {
         static PermissionKeyAllowance()
         {
-            Apps = new ReadOnlyCollection<string>(new List<string>()
+            Apps = new ReadOnlyCollection<int>(new List<int>()
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
                 PermissionKeys.ReadConnectionRequests
             });
 
-            Circles = new ReadOnlyCollection<string>(new List<string>()
+            Circles = new ReadOnlyCollection<int>(new List<int>()
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership
             });
         }
 
-        public static bool IsValidAppPermission(string key)
+        public static bool IsValidAppPermission(int key)
         {
-            return Apps.Any(k => k.Equals(key, StringComparison.InvariantCultureIgnoreCase));
-        }
-        
-        public static bool IsValidCirclePermission(string key)
-        {
-            return Circles.Any(k => k.Equals(key, StringComparison.InvariantCultureIgnoreCase));
+            return Apps.Any(k => k == key);
         }
 
-        public static ReadOnlyCollection<string> Apps { get; }
+        public static bool IsValidCirclePermission(int key)
+        {
+            return Circles.Any(k => k == key);
+        }
 
-        public static ReadOnlyCollection<string> Circles { get; }
+        public static ReadOnlyCollection<int> Apps { get; }
+
+        public static ReadOnlyCollection<int> Circles { get; }
     }
 }

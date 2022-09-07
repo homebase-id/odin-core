@@ -160,13 +160,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanAcceptConnectionRequest_AndAccessCirclePermissions()
         {
             //basically create 2 circles on frodo's identity, then give sam access
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string> { PermissionKeys.ReadCircleMembership });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>());
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>());
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -267,13 +267,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>() { PermissionKeys.ReadCircleMembership });
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string>());
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -369,7 +369,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             // Create a new circle and grant frodo access circle access
             //
-            var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<string>() { PermissionKeys.ReadConnections });
+            var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<int>() { PermissionKeys.ReadConnections });
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -436,13 +436,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<string>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<string>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
-            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>() { PermissionKeys.ReadCircleMembership });
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string>());
+            var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -809,7 +809,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, IEnumerable<string> permissionKeys)
+        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, IEnumerable<int> permissionKeys)
         {
             var targetDrive1 = TargetDrive.NewTargetDrive();
             var targetDrive2 = TargetDrive.NewTargetDrive();

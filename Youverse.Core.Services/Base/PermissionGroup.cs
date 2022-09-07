@@ -29,7 +29,7 @@ public class PermissionGroup
         return grant != null && grant.Permission.HasFlag(permission);
     }
 
-    public bool HasPermission(string permission)
+    public bool HasPermission(int permission)
     {
         return this._permissionSet.HasKey(permission);
     }

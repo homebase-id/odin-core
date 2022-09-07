@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public bool HasPermission(string permissionKey)
+        public bool HasPermission(int permissionKey)
         {
             if (this._isOwner)
             {
@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
-        public void AssertHasPermission(string permissionKey)
+        public void AssertHasPermission(int permissionKey)
         {
             if (!HasPermission(permissionKey))
             {

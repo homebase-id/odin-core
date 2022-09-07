@@ -100,7 +100,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -142,7 +142,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle 1",
                     Description = "Test circle description 1",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
                 };
 
                 var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
@@ -154,7 +154,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle 2",
                     Description = "Test circle description 2",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
                 };
 
                 var createCircleResponse2 = await svc.CreateCircleDefinition(request2);
@@ -199,7 +199,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -221,7 +221,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 circle.Description = "updated description";
 
                 circle.DrivesGrants = null;
-                circle.Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadConnections });
+                circle.Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
                 Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
@@ -255,7 +255,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -307,7 +307,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadConnections })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -347,7 +347,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = "Test Circle",
                     Description = "Test circle description",
                     Drives = null,
-                    Permissions = new PermissionSet(new List<string>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);

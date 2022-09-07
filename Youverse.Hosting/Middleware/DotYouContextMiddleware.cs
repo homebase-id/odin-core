@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Middleware
                 }).ToList();
 
                 //HACK: granting ability to see friends list to anon users.
-                var permissionSet = new PermissionSet(new List<string>() { PermissionKeys.ReadConnections });
+                var permissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {

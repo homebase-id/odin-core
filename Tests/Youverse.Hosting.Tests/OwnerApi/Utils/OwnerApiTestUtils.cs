@@ -186,7 +186,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             if (canReadConnections)
             {
-                List<string> keys = new List<string>();
+                List<int> keys = new List<int>();
 
                 keys.Add(PermissionKeys.ReadConnections);
                 keys.Add(PermissionKeys.ReadConnectionRequests);

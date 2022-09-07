@@ -8,22 +8,22 @@ namespace Youverse.Core.Services.Authorization.Permissions
 {
     public class PermissionSet : IEquatable<PermissionSet>
     {
-        public List<string> Keys { get; init; }
+        public List<int> Keys { get; init; }
 
         public PermissionSet()
         {
         }
 
-        public PermissionSet(IEnumerable<string> permissionKeys)
+        public PermissionSet(IEnumerable<int> permissionKeys)
         {
             Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull().NotEmpty();
             // Keys = new ReadOnlyCollection<string>(permissionKeys.Select(p => p.ToLower()).ToList());
-            Keys = new List<string>(permissionKeys.Select(p => p.ToLower()).ToList());
+            Keys = new List<int>(permissionKeys.ToList());
         }
 
-        public bool HasKey(string key)
+        public bool HasKey(int key)
         {
-            return Keys.Contains(key.ToLower());
+            return Keys.Any(k => k == key);
         }
 
         public bool Equals(PermissionSet other)
@@ -54,8 +54,8 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            var p1Keys = p1.Keys ?? new List<string>();
-            var p2Keys = p2.Keys ?? new List<string>();
+            var p1Keys = p1.Keys ?? new List<int>();
+            var p2Keys = p2?.Keys ?? new List<int>();
 
             return p1Keys.SequenceEqual(p2Keys);
         }
