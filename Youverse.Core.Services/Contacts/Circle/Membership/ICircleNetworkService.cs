@@ -124,7 +124,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <returns></returns>
         Task<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
-        
+
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
         /// </summary>
@@ -137,5 +137,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         Task<IEnumerable<DotYouIdentity>> GetCircleMembers(ByteArrayId circleId);
         Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey);
+
+        /// <summary>
+        /// Tests if a circle has members and indicates if it can be deleted
+        /// </summary>
+        Task<bool> CanDeleteCircle(ByteArrayId circleId);
     }
 }

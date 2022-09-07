@@ -75,7 +75,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             }
 
             var permissionChanges = newCircleDefinition.Permissions != existingCircle.Permissions;
-            //var driveChanges = (newCircleDefinition.Drives?.Count() ?? 0) != (existingCircle.Drives?.Count() ?? 0);
             bool driveChanges = (existingCircle.DrivesGrants != null && newCircleDefinition.DrivesGrants != null) &&
                                 (newCircleDefinition.DrivesGrants.Except(existingCircle.DrivesGrants)).Any();
 

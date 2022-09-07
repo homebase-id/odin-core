@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity.Spatial;
 using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
@@ -289,6 +288,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each DotYouIdentity
             var memberBytesList = _circleMemberStorage.GetMembers(circleId);
             return memberBytesList.Select(id => DotYouIdentity.FromByteArrayId(new ByteArrayId(id)));
+        }
+
+        public async Task<bool> CanDeleteCircle(ByteArrayId circleId)
+        {
+            var members = await this.GetCircleMembers(circleId);
+            return !members.Any();
         }
 
         public async Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId)
