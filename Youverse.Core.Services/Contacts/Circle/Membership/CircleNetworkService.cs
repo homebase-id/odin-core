@@ -22,7 +22,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public class CircleNetworkService : ICircleNetworkService
     {
-        private readonly ISystemStorage _systemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly ExchangeGrantService _exchangeGrantService;
@@ -34,7 +33,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
-            _systemStorage = systemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
             _circleDefinitionService = circleDefinitionService;
@@ -100,25 +98,30 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("Invalid token");
             }
 
+            //note: duplicate code in YouAuthRegistrationService
             var grants = new Dictionary<string, ExchangeGrant>();
+            var enabledCircles = new List<ByteArrayId>();
             foreach (var kvp in accessGrant.CircleGrants)
             {
                 var cg = kvp.Value;
-                var xGrant = new ExchangeGrant()
+                if(_circleDefinitionService.IsEnabled(cg.CircleId))
                 {
-                    Created = 0,
-                    Modified = 0,
-                    IsRevoked = false, //TODO
-                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                    MasterKeyEncryptedKeyStoreKey = accessGrant.MasterKeyEncryptedKeyStoreKey,
-                    PermissionSet = cg.PermissionSet
-                };
-                grants.Add(kvp.Key, xGrant);
+                    enabledCircles.Add(cg.CircleId);
+                    var xGrant = new ExchangeGrant()
+                    {
+                        Created = 0,
+                        Modified = 0,
+                        IsRevoked = false, //TODO
+                        KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                        MasterKeyEncryptedKeyStoreKey = accessGrant.MasterKeyEncryptedKeyStoreKey,
+                        PermissionSet = cg.PermissionSet
+                    };
+                    grants.Add(kvp.Key, xGrant);
+                }
             }
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessGrant.AccessRegistration, false);
-            var circleIds = icr.GetCircleIds().ToList();
-            return (icr.IsConnected(), permissionCtx, circleIds);
+            return (icr.IsConnected(), permissionCtx, enabledCircles);
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)

@@ -9,6 +9,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
+using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
@@ -19,15 +20,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
-        private readonly object _mutex = new();
+        private readonly CircleDefinitionService _circleDefinitionService;
 
         public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
-            ICircleNetworkService circleNetworkService)
+            ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService)
         {
             _logger = logger;
             _youAuthRegistrationStorage = youAuthRegistrationStorage;
             _exchangeGrantService = exchangeGrantService;
             _circleNetworkService = circleNetworkService;
+            _circleDefinitionService = circleDefinitionService;
         }
 
         //
@@ -178,7 +180,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<PermissionContext> GetPermissionContext(ClientAuthenticationToken authToken)
+        public ValueTask<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var (isValid, client, registration) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();
 
@@ -187,24 +189,36 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 throw new YouverseSecurityException("Invalid token");
             }
 
+            //Note: I'm having to override to get the icr here.  I wonder if we could encrypt the icrClientAuthToken on the youauth reg (encrypt with the you-auth-client's access reg
+            var icr = _circleNetworkService.GetIdentityConnectionRegistration(new DotYouIdentity(registration.Subject), true).GetAwaiter().GetResult();
+            var isConnected = icr?.IsConnected() ?? false;
+
+            //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
+            // if they are different, we could force a logout and tell the user to log-in again
+            
             var grants = new Dictionary<string, ExchangeGrant>();
+            var enabledCircles = new List<ByteArrayId>();
             foreach (var kvp in registration.CircleGrants ?? new Dictionary<string, CircleGrant>())
             {
                 var cg = kvp.Value;
-                var xGrant = new ExchangeGrant()
+                if (_circleDefinitionService.IsEnabled(cg.CircleId))
                 {
-                    Created = 0,
-                    Modified = 0,
-                    IsRevoked = false, //TODO
-                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                    MasterKeyEncryptedKeyStoreKey = null,
-                    PermissionSet = cg.PermissionSet
-                };
-                grants.Add(kvp.Key, xGrant);
+                    enabledCircles.Add(cg.CircleId);
+                    var xGrant = new ExchangeGrant()
+                    {
+                        Created = 0,
+                        Modified = 0,
+                        IsRevoked = false, //TODO
+                        KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                        MasterKeyEncryptedKeyStoreKey = null,
+                        PermissionSet = cg.PermissionSet
+                    };
+                    grants.Add(kvp.Key, xGrant);
+                }
             }
 
             var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken, grants, client.AccessRegistration, false).GetAwaiter().GetResult();
-            return new ValueTask<PermissionContext>(permissionCtx);
+            return new ValueTask<(bool, PermissionContext, List<ByteArrayId>)>((isConnected, permissionCtx, enabledCircles));
         }
     }
 }

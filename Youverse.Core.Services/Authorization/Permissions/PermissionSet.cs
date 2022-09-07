@@ -54,7 +54,10 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            return p1.Keys.SequenceEqual((IEnumerable<string>)p2?.Keys ?? new List<string>());
+            var p1Keys = p1.Keys ?? new List<string>();
+            var p2Keys = p2.Keys ?? new List<string>();
+
+            return p1Keys.SequenceEqual(p2Keys);
         }
 
         public static bool operator !=(PermissionSet p1, PermissionSet p2)

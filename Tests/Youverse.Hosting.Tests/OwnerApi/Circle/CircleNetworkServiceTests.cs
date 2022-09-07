@@ -166,7 +166,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             // create 2 circles on sam's identity and give frodo access 
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<string>());
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string> { PermissionKeys.ReadConnections , PermissionKeys.ReadConnections });
+            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<string> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -839,7 +839,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = name,
                     Description = $"total hack {someId}",
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    Permissions = new PermissionSet(permissionKeys?.ToArray())
+                    Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);

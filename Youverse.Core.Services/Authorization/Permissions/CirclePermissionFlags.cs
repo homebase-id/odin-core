@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
@@ -29,6 +30,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
     public static class PermissionKeys
     {
+        //TODO: change to integer
         public static readonly string ReadConnections = "ReadConnections";
 
         public static readonly string ReadConnectionRequests = "ReadConnectionRequests";
@@ -55,6 +57,16 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership
             });
+        }
+
+        public static bool IsValidAppPermission(string key)
+        {
+            return Apps.Any(k => k.Equals(key, StringComparison.InvariantCultureIgnoreCase));
+        }
+        
+        public static bool IsValidCirclePermission(string key)
+        {
+            return Circles.Any(k => k.Equals(key, StringComparison.InvariantCultureIgnoreCase));
         }
 
         public static ReadOnlyCollection<string> Apps { get; }

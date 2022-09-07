@@ -11,7 +11,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
     [Route(YouAuthApiPathConstants.CirclesV1 + "/connections")]
-    [AuthorizeValidAppExchangeGrant]
+    // [AuthorizeValidAppExchangeGrant]
+    [AuthorizeValidExchangeGrant]
     public class CircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;

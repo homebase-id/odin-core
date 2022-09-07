@@ -16,6 +16,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
         public string Description { get; set; }
 
+        public bool Disabled { get; set; }
+        
         /// <summary>
         /// The drives granted to members of this Circle
         /// </summary>

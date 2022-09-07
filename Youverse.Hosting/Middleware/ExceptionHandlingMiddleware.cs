@@ -1,14 +1,16 @@
 ﻿using System;
-using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Quartz;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -111,6 +113,15 @@ namespace Youverse.Hosting.Middleware
             const int status = 500;
             const string title = "Internal Server Error";
 
+            string internalErrorMessage = "";
+            string stackTrace = "";
+            var hostingEnv = context.RequestServices.GetService<IWebHostEnvironment>();
+            if (hostingEnv != null && hostingEnv.IsDevelopment())
+            {
+                internalErrorMessage = exception.Message;
+                stackTrace = exception.StackTrace ?? "";
+            }
+
             _logger.LogError(exception, "{ErrorText}", exception.Message);
 
             var problemDetails = new ProblemDetails
@@ -119,7 +130,9 @@ namespace Youverse.Hosting.Middleware
                 Title = title,
                 Extensions =
                 {
-                    ["correlationId"] = _correlationContext.Id
+                    ["correlationId"] = _correlationContext.Id,
+                    ["InternalErrorMessage"] = internalErrorMessage,
+                    ["stackTrace"] = stackTrace
                 }
             };
 

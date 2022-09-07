@@ -103,20 +103,8 @@ namespace Youverse.Core.Services.EncryptionKeyService
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var response = _systemStorage.SingleKeyValueStorage.Get<GetOfflinePublicKeyResponse>(ByteArrayId.FromString(recipient.Id));
-
-            RsaPublicKeyData cacheItem = null;
-
-            if (response != null)
-            {
-                cacheItem = new RsaPublicKeyData()
-                {
-                    publicKey = response.PublicKey,
-                    crc32c = response.Crc32,
-                    expiration = response.Expiration
-                };
-            }
-
+            var cacheItem = _systemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(ByteArrayId.FromString(recipient.Id));
+            
             if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
             {
                 var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);

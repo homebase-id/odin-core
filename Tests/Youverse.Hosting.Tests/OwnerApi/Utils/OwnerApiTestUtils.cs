@@ -181,15 +181,22 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
             bool driveAllowAnonymousReads = false)
         {
-            List<string> keys = new List<string>();
+
+            PermissionSet permissionSet;
 
             if (canReadConnections)
             {
+                List<string> keys = new List<string>();
+
                 keys.Add(PermissionKeys.ReadConnections);
                 keys.Add(PermissionKeys.ReadConnectionRequests);
+                permissionSet = new PermissionSet(keys.ToArray());
+            }
+            else
+            {
+                permissionSet = new PermissionSet();
             }
 
-            var permissionSet = new PermissionSet(keys.ToArray());
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {

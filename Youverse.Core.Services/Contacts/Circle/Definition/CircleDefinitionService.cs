@@ -1,16 +1,18 @@
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition
 {
     public class CircleDefinitionService
     {
+        private readonly IDriveService _driveService;
+
         private readonly ByteArrayId _circleDataType = ByteArrayId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
@@ -31,8 +33,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
         //     }
         // }
 
-        public CircleDefinitionService(ISystemStorage systemStorage)
+        public CircleDefinitionService(ISystemStorage systemStorage, IDriveService driveService)
         {
+            _driveService = driveService;
             _circleValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
@@ -40,6 +43,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
+
+            AssertValid(request.Permissions, request.Drives?.ToList());
 
             var circle = new CircleDefinition()
             {
@@ -59,6 +64,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
         public Task Update(CircleDefinition newCircleDefinition)
         {
             Guard.Argument(newCircleDefinition, nameof(newCircleDefinition)).NotNull();
+
+            AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DrivesGrants?.ToList());
 
             var existingCircle = this.GetCircle(newCircleDefinition.Id);
 
@@ -96,6 +103,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             return def;
         }
 
+        public bool IsEnabled(ByteArrayId circleId)
+        {
+            var circle = this.GetCircle(circleId);
+            return !circle?.Disabled ?? false;
+        }
+
         public Task<IEnumerable<CircleDefinition>> GetCircles()
         {
             var circles = _circleValueStorage.GetByKey3<CircleDefinition>(_circleDataType);
@@ -118,5 +131,47 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
         }
 
         //
+
+        private void AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
+        {
+            bool hasDrives = driveGrantRequests?.Any() ?? false;
+            bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
+
+            if (!hasPermissions && !hasDrives)
+            {
+                throw new YouverseException("A circle must grant at least one drive or one permission");
+            }
+
+            if (hasPermissions)
+            {
+                AssertValidPermissionSet(permissionSet);
+            }
+
+            if (hasDrives)
+            {
+                AssertValidDriveGrants(driveGrantRequests);
+            }
+        }
+
+        private void AssertValidPermissionSet(PermissionSet permissionSet)
+        {
+            if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
+            {
+                throw new YouverseException("Invalid Permission key specified");
+            }
+        }
+
+        private void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
+        {
+            foreach (var dgr in driveGrantRequests)
+            {
+                //fail if the drive is invalid
+                var drive = _driveService.GetDriveIdByAlias(dgr.Drive, false).GetAwaiter().GetResult();
+                if (drive == null)
+                {
+                    throw new YouverseException("Invalid drive specified on DriveGrantRequest");
+                }
+            }
+        }
     }
 }

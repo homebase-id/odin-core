@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Drive
                     FileId = metadata.File.FileId,
                     ContentIsComplete = metadata.AppData.ContentIsComplete,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                    ThreadId = metadata.AppData.ThreadId,
+                    GroupId = metadata.AppData.GroupId,
                     FileType = metadata.AppData.FileType,
                     DataType = metadata.AppData.DataType,
                     UserDate = metadata.AppData.UserDate,

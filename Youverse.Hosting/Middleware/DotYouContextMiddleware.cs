@@ -215,34 +215,22 @@ namespace Youverse.Hosting.Middleware
             {
                 if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
                 {
-                    // Since the caller is authenticated, we can query directly to get their connection info
-                    //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
-                    // if they are different, we could force a logout and tell the user to log-in again
-
-                    //
-                    // If they're connected, we want to use their access from their connection
-                    //
-                    var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
-                    var icr = await circleNetworkService.GetIdentityConnectionRegistration(callerDotYouId, true);
+                    var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+                    var (isConnected, permissionContext, enabledCircleIds) = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
+                    dotYouContext.SetPermissionContext(permissionContext);
 
                     dotYouContext.Caller = new CallerContext(
                         dotYouId: callerDotYouId,
                         securityLevel: securityLevel,
                         masterKey: null,
-                        circleIds: icr.GetCircleIds().ToList()
+                        circleIds: enabledCircleIds
                     );
 
-                    if (icr.IsConnected())
+                    if (isConnected)
                     {
-                        //TODO: evaluate if this should come from youauth below. probably not because this is more up to date
-                        // and can be used to force the user to logout so youauth gets reconciled with reality
+                        dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
                         dotYouContext.Caller.SetIsConnected();
                     }
-
-                    var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-                    var permissionContext = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
-
-                    dotYouContext.SetPermissionContext(permissionContext);
                 }
 
                 return;
@@ -270,6 +258,7 @@ namespace Youverse.Hosting.Middleware
                     throw new YouverseSecurityException("Invalid connection");
                 }
 
+                dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
                 dotYouContext.Caller.Circles = circleIds;
                 dotYouContext.Caller.SetIsConnected();
                 dotYouContext.SetPermissionContext(permissionContext);

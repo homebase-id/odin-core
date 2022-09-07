@@ -206,7 +206,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public async Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<ByteArrayId> circleIds)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             var request = await GetPendingRequest(sender);
@@ -257,7 +256,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey), 
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(circleIds.ToList(), keyStoreKey),
+                CircleGrants = await _cns.CreateCircleGrantList(circleIds?.ToList() ??  new List<ByteArrayId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();

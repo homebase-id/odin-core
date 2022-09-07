@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Drive
         public List<byte[]> Tags { get; set; }
         public int FileType { get; set; }
         
-        public byte[] ThreadId { get; set; }
+        public byte[] GroupId { get; set; }
         public int DataType { get; set; }
         public bool ContentIsComplete { get; set; }
         public bool PayloadIsEncrypted { get; set; }

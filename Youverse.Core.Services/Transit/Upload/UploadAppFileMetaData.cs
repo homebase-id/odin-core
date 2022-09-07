@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Transit.Upload
         
         public ulong UserDate { get; set; }
 
-        public byte[] ThreadId { get; set; }
+        public byte[] GroupId { get; set; }
 
         public bool ContentIsComplete { get; set; }
 
