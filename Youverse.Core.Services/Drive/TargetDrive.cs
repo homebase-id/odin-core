@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Drive;
 ///  A drive specifier for incoming requests to perform actions on a drive.  (essentially, this hides the internal DriveId).
 /// </summary>
 [DebuggerDisplay("Alias={Alias.ToBase64()} Type={Type.ToBase64()}")]
-public class TargetDrive
+public class TargetDrive : IEquatable<TargetDrive>
 {
     public ByteArrayId Alias { get; set; }
     public ByteArrayId Type { get; set; }
@@ -49,5 +49,25 @@ public class TargetDrive
     public static bool operator !=(TargetDrive d1, TargetDrive d2)
     {
         return !(d1 == d2);
+    }
+
+    public bool Equals(TargetDrive other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return (Alias == other.Alias) && (Type == other.Type);
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((TargetDrive)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Alias, Type);
     }
 }

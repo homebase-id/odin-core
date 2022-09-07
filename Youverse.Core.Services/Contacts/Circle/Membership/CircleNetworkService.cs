@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -103,7 +104,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             foreach (var kvp in accessGrant.CircleGrants)
             {
                 var cg = kvp.Value;
-                if(_circleDefinitionService.IsEnabled(cg.CircleId))
+                if (_circleDefinitionService.IsEnabled(cg.CircleId))
                 {
                     enabledCircles.Add(cg.CircleId);
                     var xGrant = new ExchangeGrant()
@@ -383,6 +384,40 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _storage.Upsert(icr);
         }
 
+        public async Task ReconcileCircleGrant(ByteArrayId updatedCircleId)
+        {
+            Guard.Argument(updatedCircleId, nameof(updatedCircleId)).NotNull();
+            var circleDef = _circleDefinitionService.GetCircle(updatedCircleId);
+            Guard.Argument(circleDef, nameof(circleDef)).NotNull();
+
+            var members = await GetCircleMembers(updatedCircleId);
+
+            List<DotYouIdentity> invalidMembers = new List<DotYouIdentity>();
+            foreach (var dotYouId in members)
+            {
+                var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
+                var hasCg = icr.AccessGrant.CircleGrants.TryGetValue(circleDef.Id.ToBase64(), out var cg);
+                if (icr.IsConnected() && hasCg)
+                {
+                    // find all drives that have been granted which are no longer in the circle
+                    // var drivesToRemove = cg.KeyStoreKeyEncryptedDriveGrants.ExceptBy(circleDef.DrivesGrants, dg => dg.PermissionedDrive);
+                    
+                    foreach (var circleDriveGrant in circleDef.DrivesGrants)
+                    {
+                        // if the circle grant is missing a drive that is in the circle def, add it
+                    }
+                }
+                else
+                {
+                    //It should not occur that a circle has a member
+                    //who is not connected but let's capture it
+                    invalidMembers.Add(dotYouId);
+                }
+            }
+
+            //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
+        }
+
         public async Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -428,6 +463,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _circleMemberStorage.RemoveMembers(circleId, new List<byte[]>() { dotYouId.ToByteArrayId() });
             _storage.Upsert(icr);
         }
+
+        public async Task UpdateCircleDefinition(CircleDefinition newCircleDefinition)
+        {
+        }
+
+        //
 
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
         {

@@ -45,10 +45,10 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 foreach (var req in driveGrantRequests)
                 {
                     //Note: fail the whole operation (CreateExchangeGrant) if an invalid drive is specified (the true flag will ensure we throw an exception)
-                    var driveId = await _driveService.GetDriveIdByAlias(req.Drive, true);
+                    var driveId = await _driveService.GetDriveIdByAlias(req.PermissionedDrive.Drive, true);
                     var drive = await _driveService.GetDrive(driveId.GetValueOrDefault(), true);
 
-                    var driveGrant = CreateDriveGrant(drive, req.Permission, grantKeyStoreKey, masterKey);
+                    var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, grantKeyStoreKey, masterKey);
                     driveGrants.Add(driveGrant);
                 }
             }

@@ -181,7 +181,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
             bool driveAllowAnonymousReads = false)
         {
-
             PermissionSet permissionSet;
 
             if (canReadConnections)
@@ -217,8 +216,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                     drives.Add(new DriveGrantRequest()
                     {
-                        Drive = targetDrive,
-                        Permission = DrivePermission.Read
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = targetDrive,
+                            Permission = DrivePermission.Read
+                        }
                     });
                 }
 

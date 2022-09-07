@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Definition;
@@ -44,6 +46,35 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             //runs before each test 
             //_scaffold.DeleteData(); 
+        }
+
+        [Test]
+        public async Task FailToSendConnectionRequestToSelf()
+        {
+            Guid appId = Guid.NewGuid();
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
+            // var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
+
+            List<ByteArrayId> cids = new List<ByteArrayId>();
+
+            var id = Guid.NewGuid();
+
+            var requestHeader = new ConnectionRequestHeader()
+            {
+                Id = id,
+                Recipient = sender.Identity,
+                Message = "Please add me",
+                CircleIds = cids
+            };
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var response = await svc.SendConnectionRequest(requestHeader);
+
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError, $"Should have failed sending the request to self.  Response code was [{response.StatusCode}]");
+            }
         }
 
         [Test]
@@ -711,7 +742,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             foreach (var circleDriveGrant in circleDefinition.DrivesGrants)
             {
                 //be sure it's in the list of granted drives; use Single to be sure it's only in there once
-                var result = actual.DriveGrants.SingleOrDefault(x => x.Drive == circleDriveGrant.Drive && x.Permission == circleDriveGrant.Permission);
+                var result = actual.DriveGrants.SingleOrDefault(x => x.Drive == circleDriveGrant.PermissionedDrive.Drive && x.Permission == circleDriveGrant.PermissionedDrive.Permission);
                 Assert.NotNull(result);
             }
         }
@@ -824,14 +855,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Guid someId = Guid.NewGuid();
                 var dgr1 = new DriveGrantRequest()
                 {
-                    Drive = targetDrive1,
-                    Permission = DrivePermission.ReadWrite
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive1,
+                        Permission = DrivePermission.ReadWrite
+                    }
                 };
 
                 var dgr2 = new DriveGrantRequest()
                 {
-                    Drive = targetDrive2,
-                    Permission = DrivePermission.Write
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive2,
+                        Permission = DrivePermission.Write
+                    }
                 };
 
                 var request = new CreateCircleRequest()
@@ -854,8 +891,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //grab the circle by the id we put in the description.  we don't have the newly created circle's id because i need to update the create circle method  
                 var circle = definitionList.Single(c => c.Description.Contains(someId.ToString()));
 
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d == dgr1));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d == dgr2));
 
                 foreach (var k in permissionKeys)
                 {

@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -91,11 +88,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
+            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull().Require(r => r != _contextAccessor.GetCurrent().Caller.DotYouId, s => "Cannot send connection request to yourself");
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            
+
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey);
 
             //TODO: need to encrypt the message as well as the rsa credentials
@@ -148,7 +145,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
-            
+
             _sentRequestValueStorage.Upsert(new DotYouIdentity(request.Recipient).ToByteArrayId(), ByteArrayId.Empty, _sentRequestsDataType, request, _sentPrefix);
         }
 
@@ -254,9 +251,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var accessGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
-                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey), 
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(circleIds?.ToList() ??  new List<ByteArrayId>(), keyStoreKey),
+                CircleGrants = await _cns.CreateCircleGrantList(circleIds?.ToList() ?? new List<ByteArrayId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
@@ -377,9 +374,5 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 SharedSecret = sharedSecret.ToSensitiveByteArray()
             };
         }
-
-        
-
-        
     }
 }

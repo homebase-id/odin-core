@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
@@ -165,7 +166,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var drive = _driveService.GetDriveIdByAlias(dgr.Drive, false).GetAwaiter().GetResult();
+                var drive = _driveService.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
                 if (drive == null)
                 {
                     throw new YouverseException("Invalid drive specified on DriveGrantRequest");

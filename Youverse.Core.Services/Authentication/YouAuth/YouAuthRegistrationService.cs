@@ -76,8 +76,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 var driveGrantRequests = sourceGrant.KeyStoreKeyEncryptedDriveGrants.Select(kdg => new DriveGrantRequest()
                 {
-                    Drive = kdg.Drive,
-                    Permission = kdg.Permission
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = kdg.Drive,
+                        Permission = kdg.Permission
+                    }
                 });
 
                 var grant = _exchangeGrantService.CreateExchangeGrant(grantKeyStoreKey, sourceGrant.PermissionSet, driveGrantRequests, null).GetAwaiter().GetResult();
@@ -195,7 +198,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             //Note: here we could compare the number icr.AccessGrant.CircleGrants and compare to those granted in youauth (below.
             // if they are different, we could force a logout and tell the user to log-in again
-            
+
             var grants = new Dictionary<string, ExchangeGrant>();
             var enabledCircles = new List<ByteArrayId>();
             foreach (var kvp in registration.CircleGrants ?? new Dictionary<string, CircleGrant>())

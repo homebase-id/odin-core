@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 
 namespace Youverse.Core.Services.Contacts.Circle.Definition;

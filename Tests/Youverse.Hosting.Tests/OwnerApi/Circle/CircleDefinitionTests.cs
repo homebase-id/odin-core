@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Definition;
@@ -85,14 +86,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var dgr1 = new DriveGrantRequest()
                 {
-                    Drive = targetDrive1,
-                    Permission = DrivePermission.ReadWrite
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive1,
+                        Permission = DrivePermission.ReadWrite
+                    }
                 };
 
                 var dgr2 = new DriveGrantRequest()
                 {
-                    Drive = targetDrive1,
-                    Permission = DrivePermission.Write
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive1,
+                        Permission = DrivePermission.Write
+                    }
                 };
 
                 var request = new CreateCircleRequest()
@@ -114,8 +121,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var circle = definitionList.Single();
 
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+                // Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
+                // Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
+                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
 
                 Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
                 Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadConnections));
