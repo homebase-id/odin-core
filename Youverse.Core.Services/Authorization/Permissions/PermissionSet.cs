@@ -23,15 +23,14 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public bool HasKey(int key)
         {
-            return Keys.Any(k => k == key);
+            return Keys?.Any(k => k == key) ?? false;
         }
 
         public bool Equals(PermissionSet other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-
-            return Equals(Keys, other.Keys);
+            return this == other;
         }
 
         public override bool Equals(object obj)
@@ -54,8 +53,8 @@ namespace Youverse.Core.Services.Authorization.Permissions
                 return p2 is null;
             }
 
-            var p1Keys = p1.Keys ?? new List<int>();
-            var p2Keys = p2?.Keys ?? new List<int>();
+            var p1Keys = p1.Keys?.OrderBy(x => x).ToList() ?? new List<int>();
+            var p2Keys = p2?.Keys?.OrderBy(x => x).ToList() ?? new List<int>();
 
             return p1Keys.SequenceEqual(p2Keys);
         }
