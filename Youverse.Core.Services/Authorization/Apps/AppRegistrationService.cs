@@ -79,10 +79,13 @@ namespace Youverse.Core.Services.Authorization.Apps
             _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
 
             //RSA encrypt using the public key and send to client
-            var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
+            var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
+            var sharedSecret = cat.SharedSecret.GetKey();
+            
+            var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            var encryptedData = publicKey.Encrypt(data.GetKey());
-            data.Wipe();
+            var encryptedData = publicKey.Encrypt(data);
+            data.WriteZeros();
 
             return new AppClientRegistrationResponse()
             {
@@ -110,13 +113,14 @@ namespace Youverse.Core.Services.Authorization.Apps
             _appClientValueStorage.Upsert(reg.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
 
             //RSA encrypt using the public key and send to client - temp removed for early chat client development
-            var data = ByteArrayUtil.Combine(cat.Id.ToByteArray(), cat.AccessTokenHalfKey.GetKey(), cat.SharedSecret.GetKey()).ToSensitiveByteArray();
+            var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
+            var sharedSecret = cat.SharedSecret.GetKey();
 
             return new AppClientRegistrationResponse()
             {
-                EncryptionVersion = 72,
+                EncryptionVersion = 1,
                 Token = cat.Id,
-                Data = data.GetKey()
+                Data = ByteArrayUtil.Combine(tokenBytes, sharedSecret)
             };
         }
 
@@ -126,7 +130,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result?.Redacted();
         }
 
-        public async Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
+        public async Task<(ByteArrayId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var (isValid, accessReg, appReg) = await this.ValidateClientAuthToken(authToken);
 

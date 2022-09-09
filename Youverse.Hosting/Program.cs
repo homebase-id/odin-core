@@ -37,7 +37,7 @@ namespace Youverse.Hosting
 
             try
             {
-                Log.Information("Starting web host b3");
+                Log.Information("Starting web host");
                 CreateHostBuilder(args).Build().Run();
                 Log.Information("Stopped web host");
             }

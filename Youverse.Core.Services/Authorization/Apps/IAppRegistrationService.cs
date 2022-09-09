@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<RedactedAppRegistration> GetAppRegistration(ByteArrayId appId);
 
-        Task<(Guid appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
+        Task<(ByteArrayId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
 
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 

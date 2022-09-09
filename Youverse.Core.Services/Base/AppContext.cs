@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class AppContext : AppContextBase
     {
-        public AppContext(Guid appId, string appName) : base(appId, appName)
+        public AppContext(ByteArrayId appId, string appName) : base(appId, appName)
         {
         }
     }

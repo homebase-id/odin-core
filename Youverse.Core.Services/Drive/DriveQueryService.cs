@@ -129,7 +129,7 @@ namespace Youverse.Core.Services.Drive
                     GroupId = metadata.AppData.GroupId,
                     FileType = metadata.AppData.FileType,
                     DataType = metadata.AppData.DataType,
-                    UserDate = metadata.AppData.UserDate,
+                    UserDate = metadata.AppData.UserDate.GetValueOrDefault(),
                     JsonContent = options.IncludeJsonContent ? metadata.AppData.JsonContent : string.Empty,
                     Tags = metadata.AppData.Tags,
                     CreatedTimestamp = metadata.Created,

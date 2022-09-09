@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Youverse.Core;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Apps;
@@ -53,7 +54,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
         {
             if (!TryGetClientAuthToken(AppAuthConstants.ClientAuthTokenCookieName, out var clientAuthToken))
             {
-                return AuthenticateResult.Success(CreateAnonTicket());
+                AuthenticateResult.Fail("Invalid App Token");
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
@@ -61,7 +62,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             if (!isValid)
             {
-                return AuthenticateResult.Success(CreateAnonTicket());
+                AuthenticateResult.Fail("Invalid App Token");
             }
 
             var claims = new List<Claim>();

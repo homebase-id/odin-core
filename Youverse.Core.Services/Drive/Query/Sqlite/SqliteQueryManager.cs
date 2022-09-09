@@ -150,7 +150,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.DataType,
                 sender,
                 metadata.AppData.GroupId,
-                metadata.AppData.UserDate,
+                metadata.AppData.UserDate.GetValueOrDefault(),
                 securityGroup,
                 acl,
                 tags);
