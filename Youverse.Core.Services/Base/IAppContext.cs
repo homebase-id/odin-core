@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Base
 {
     public interface IAppContext
     {
-        Guid AppId { get; }
+        ByteArrayId AppId { get; }
 
         string AppName { get; }
         

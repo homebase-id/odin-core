@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Base
 {
     public class AppContextBase : IAppContext
     {
-        public AppContextBase(Guid appId, string appName)
+        public AppContextBase(ByteArrayId appId, string appName)
         {
             // Guard.Argument(appId, nameof(appId)).NotNull().NotEmpty();
             // Guard.Argument(deviceUid, nameof(deviceUid)).NotNull().NotEmpty();
@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Base
             this.AppName = appName;
         }
 
-        public Guid AppId { get; init; }
+        public ByteArrayId AppId { get; init; }
 
         public string AppName { get; init; }
         

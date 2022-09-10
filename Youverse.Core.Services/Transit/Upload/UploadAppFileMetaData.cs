@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
         public int DataType { get; set; }
         
-        public ulong UserDate { get; set; }
+        public ulong? UserDate { get; set; }
 
         public byte[] GroupId { get; set; }
 

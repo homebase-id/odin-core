@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class ClientAuthenticationToken
     {
         private static string SEPARATOR = "|";
-        
+
         /// <summary>
         /// The login session's Id
         /// </summary>
@@ -22,20 +22,33 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         public override string ToString()
         {
-            string b64 = Convert.ToBase64String(AccessTokenHalfKey.GetKey());
-            return $"{Id}{SEPARATOR}{b64}";
+            var data = ToPortableBytes();
+            return Convert.ToBase64String(data);
         }
 
-        public static ClientAuthenticationToken Parse(string value)
+        public byte[] ToPortableBytes()
         {
-            var arr = value.Split(SEPARATOR);
+            var data = ByteArrayUtil.Combine(this.Id.ToByteArray(), AccessTokenHalfKey.GetKey());
+            return data;
+        }
+
+        public static ClientAuthenticationToken FromPortableBytes(byte[] data)
+        {
+            var (idBytes, halfKeyBytes) = ByteArrayUtil.Split(data, 16, 16);
+
             return new ClientAuthenticationToken()
             {
-                Id = Guid.Parse(arr[0]),
-                AccessTokenHalfKey = new SensitiveByteArray(arr[1]) 
+                Id = new Guid(idBytes),
+                AccessTokenHalfKey = halfKeyBytes.ToSensitiveByteArray()
             };
         }
-        
+
+        public static ClientAuthenticationToken Parse(string value64)
+        {
+            var data = Convert.FromBase64String(value64);
+            return FromPortableBytes(data);
+        }
+
         public static bool TryParse(string value, out ClientAuthenticationToken result)
         {
             result = null;

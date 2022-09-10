@@ -18,11 +18,13 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     /// </summary>
     public class ExchangeGrantService
     {
+        private readonly ILogger<ExchangeGrantService> _logger;
         private readonly IDriveService _driveService;
         private readonly CircleDefinitionService _circleDefinitionService;
 
         public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveService driveService, CircleDefinitionService circleDefinitionService)
         {
+            _logger = logger;
             _driveService = driveService;
             _circleDefinitionService = circleDefinitionService;
         }
@@ -149,6 +151,12 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 { "exchange_grant", new PermissionGroup(grant.PermissionSet, grant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey) },
                 { "anonymous_drives", this.GetAnonymousDrivePermissionGroup() }
             };
+
+            
+            foreach (var x in grant.KeyStoreKeyEncryptedDriveGrants)
+            {
+                _logger.LogInformation($"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+            }
 
             var permissionCtx = new PermissionContext(
                 permissionGroupMap,

@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public byte[] GroupId { get; set; }
         
-        public ulong UserDate { get; set; }
+        public ulong? UserDate { get; set; }
 
         public bool ContentIsComplete { get; set; }
         

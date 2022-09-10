@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net.Mime;
 using System.Reflection;
 using Autofac;
 using Microsoft.AspNetCore.Builder;
@@ -98,7 +99,7 @@ namespace Youverse.Hosting
                 options.EnableForHttps = true;
                 options.MimeTypes = new[] { "application/json" };
             });
-            
+
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
@@ -130,7 +131,7 @@ namespace Youverse.Hosting
             //services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
             var pendingTransferService = new PendingTransfersService(config.Host.SystemDataRootPath);
             services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
-            
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
         }
@@ -183,7 +184,7 @@ namespace Youverse.Hosting
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseResponseCompression();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
- 
+
 
             // app.UseWebSockets();
             // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
@@ -221,6 +222,7 @@ namespace Youverse.Hosting
 
                         ownerApp.Run(async context =>
                         {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
                             return;
                         });
@@ -240,6 +242,7 @@ namespace Youverse.Hosting
 
                         homeApp.Run(async context =>
                         {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
                             return;
                         });
