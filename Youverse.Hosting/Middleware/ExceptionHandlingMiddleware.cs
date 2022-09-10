@@ -48,10 +48,39 @@ namespace Youverse.Hosting.Middleware
             {
                 await HandleSharedSecretException(context, sharedSecretException);
             }
+            catch (YouverseSecurityException yse)
+            {
+                await HandleSecurityException(context, yse);
+            }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(context, ex);
             }
+        }
+
+        private Task HandleSecurityException(HttpContext context, YouverseSecurityException exception)
+        {
+            const int status = 403;
+            const string title = "Security Error";
+
+            _logger.LogError(exception, "{ErrorText}", exception.Message);
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Detail = "No access",
+                Extensions =
+                {
+                    ["correlationId"] = _correlationContext.Id
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails, DotYouSystemSerializer.JsonSerializerOptions);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
         }
 
         private Task HandleSharedSecretException(HttpContext context, SharedSecretException sharedSecretException)
