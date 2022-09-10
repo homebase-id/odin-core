@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public bool HasKey(int key)
         {
-            return Keys.Any(k => k == key);
+            return Keys?.Any(k => k == key) ?? false;
         }
 
         public bool Equals(PermissionSet other)
