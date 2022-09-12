@@ -473,7 +473,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             var list = _storage.GetList().Where(icr => icr.Status == status);
             return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
         }
