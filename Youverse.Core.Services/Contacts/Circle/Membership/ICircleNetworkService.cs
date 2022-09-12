@@ -5,6 +5,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -142,5 +143,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Tests if a circle has members and indicates if it can be deleted
         /// </summary>
         Task<bool> CanDeleteCircle(ByteArrayId circleId);
+
+        /// <summary>
+        /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
+        /// </summary>
+        /// <param name="circleDefinition"></param>
+        /// <returns></returns>
+        Task UpdateCircleDefinition(CircleDefinition circleDefinition);
     }
 }

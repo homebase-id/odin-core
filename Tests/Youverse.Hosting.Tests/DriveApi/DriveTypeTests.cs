@@ -27,118 +27,147 @@ namespace Youverse.Hosting.Tests.DriveApi
 
     public class DriveTypeTests
     {
-        // [Test]
-        // public void PermissionedDriveComparer()
-        // {
-        //     //Note: both driveGrantRequest and DriveGrant inherit from PermissionedDrive
-        //     // so the test here is to ensure I can compare them and find diffs in lists
-        //     var driveGrantRequest1 = new DriveGrantRequest()
-        //     {
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("test-test-19999"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.ReadWrite
-        //     };
-        //
-        //     var driveGrantRequest2 = new DriveGrantRequest()
-        //     {
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("i-r-target-two"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.ReadWrite
-        //     };
-        //
-        //     var driveGrantRequest3 = new DriveGrantRequest()
-        //     {
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("abc123-3333"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.Read
-        //     };
-        //
-        //     var driveGrantRequest4 = new DriveGrantRequest()
-        //     {
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("test-test-19999"),
-        //             Type = ByteArrayId.FromString("ekle-iiowc-0944")
-        //         },
-        //         Permission = DrivePermission.Read
-        //     };
-        //
-        //     var driveGrantRequest5 = new DriveGrantRequest()
-        //     {
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("i-am-alias-99"),
-        //             Type = ByteArrayId.FromString("iam-type-19999")
-        //         },
-        //         Permission = DrivePermission.ReadWrite
-        //     };
-        //
-        //     var driveGrant1 = new DriveGrant()
-        //     {
-        //         DriveId = Guid.NewGuid(),
-        //         KeyStoreKeyEncryptedStorageKey = null,
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("test-test-19999"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.ReadWrite,
-        //     };
-        //
-        //     var driveGrant2 = new DriveGrant()
-        //     {
-        //         DriveId = Guid.NewGuid(),
-        //         KeyStoreKeyEncryptedStorageKey = null,
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("i-r-target-two"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.ReadWrite
-        //     };
-        //
-        //     var driveGrant3 = new DriveGrant()
-        //     {
-        //         DriveId = Guid.NewGuid(),
-        //         KeyStoreKeyEncryptedStorageKey = null,
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("5555-99999"),
-        //             Type = ByteArrayId.FromString("drive-type-19999")
-        //         },
-        //         Permission = DrivePermission.Read
-        //     };
-        //
-        //     var driveGrant4 = new DriveGrant()
-        //     {
-        //         DriveId = Guid.NewGuid(),
-        //         KeyStoreKeyEncryptedStorageKey = null,
-        //         Drive = new TargetDrive()
-        //         {
-        //             Alias = ByteArrayId.FromString("5555-99999"),
-        //             Type = ByteArrayId.FromString("durk8883gpp")
-        //         },
-        //         Permission = DrivePermission.ReadWrite
-        //     };
-        //
-        //     var driveGrantRequests = new List<DriveGrantRequest>()
-        //     {
-        //         driveGrantRequest1, driveGrantRequest2, driveGrantRequest3, driveGrantRequest4, driveGrantRequest5
-        //     };
-        //
-        //     var driveGrants = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3, driveGrant4 };
-        //
-        //     var diff = driveGrants.ExceptBy(driveGrantRequests, dg => dg.DriveId, new PermissionedDriveComparer());
-        // }
+        [Test]
+        public void PermissionedDriveComparer()
+        {
+            //Note: both driveGrantRequest and DriveGrant inherit from PermissionedDrive
+            // so the test here is to ensure I can compare them and find diffs in lists
+            var driveGrantRequest1 = new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("test-test-19999"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+            var driveGrant1 = new DriveGrant()
+            {
+                DriveId = Guid.NewGuid(),
+                KeyStoreKeyEncryptedStorageKey = null,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("test-test-19999"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.ReadWrite,
+                }
+            };
+
+            var driveGrantRequest2 = new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("i-r-target-two"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+            var driveGrantRequest3 = new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("abc123-3333"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.Read
+                }
+            };
+
+            var driveGrantRequest4 = new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("test-test-19999"),
+                        Type = ByteArrayId.FromString("ekle-iiowc-0944")
+                    },
+                    Permission = DrivePermission.Read
+                }
+            };
+
+            var driveGrantRequest5 = new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("i-am-alias-99"),
+                        Type = ByteArrayId.FromString("iam-type-19999")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+            var driveGrant2 = new DriveGrant()
+            {
+                DriveId = Guid.NewGuid(),
+                KeyStoreKeyEncryptedStorageKey = null,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("i-r-target-two"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+            var driveGrant3 = new DriveGrant()
+            {
+                DriveId = Guid.NewGuid(),
+                KeyStoreKeyEncryptedStorageKey = null,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("5555-99999"),
+                        Type = ByteArrayId.FromString("drive-type-19999")
+                    },
+                    Permission = DrivePermission.Read
+                }
+            };
+
+            var driveGrant4 = new DriveGrant()
+            {
+                DriveId = Guid.NewGuid(),
+                KeyStoreKeyEncryptedStorageKey = null,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("5555-99999"),
+                        Type = ByteArrayId.FromString("durk8883gpp")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+            // var circleDriveGrantRequests = new List<DriveGrantRequest>() { driveGrantRequest1, driveGrantRequest2, driveGrantRequest3, driveGrantRequest4, driveGrantRequest5 };
+            // var existingDriveGrants = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3, driveGrant4 };
+
+            var circleDriveGrantRequests = new List<DriveGrantRequest>() { driveGrantRequest1, };
+            var existingDriveGrants = new List<DriveGrant>() { driveGrant1, };
+            var existingDriveGrants2 = new List<DriveGrant>() { driveGrant1, };
+
+            var diff = existingDriveGrants.ExceptBy(existingDriveGrants2.Select(e => e.PermissionedDrive), k => k.PermissionedDrive).ToList();
+
+            // var diff = existingDriveGrants.IntersectBy(circleDriveGrantRequests.Select(dgr => dgr.PermissionedDrive), dg => dg.PermissionedDrive, new PermissionedDriveComparer()).ToList();
+        }
 
         [Test]
         public void CanCompareTargetDrives()

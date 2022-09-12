@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            await _circleDefinitionService.Update(circleDefinition);
+            await _cns.UpdateCircleDefinition(circleDefinition);
             return true;
         }
 
