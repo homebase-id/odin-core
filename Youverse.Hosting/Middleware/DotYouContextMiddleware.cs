@@ -211,7 +211,7 @@ namespace Youverse.Hosting.Middleware
                         sharedSecretKey: null,
                         isOwner: false
                     ));
-
+                
                 return;
             }
 
@@ -225,6 +225,9 @@ namespace Youverse.Hosting.Middleware
                     var (isConnected, permissionContext, enabledCircleIds) = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
                     dotYouContext.SetPermissionContext(permissionContext);
 
+                    //since user is authenticated, we can allow them to access youauth via their browser
+                    httpContext.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{callerDotYouId}");
+                    
                     dotYouContext.Caller = new CallerContext(
                         dotYouId: callerDotYouId,
                         securityLevel: securityLevel,
