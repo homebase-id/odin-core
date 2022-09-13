@@ -38,8 +38,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("test-test-19999"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
+                        Alias = ByteArrayId.FromString("drive_grant_one_alias"),
+                        Type = ByteArrayId.FromString("drive_grant_one_type")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -53,8 +53,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("test-test-19999"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
+                        Alias = ByteArrayId.FromString("drive_grant_one_alias"),
+                        Type = ByteArrayId.FromString("drive_grant_one_type")
                     },
                     Permission = DrivePermission.ReadWrite,
                 }
@@ -66,8 +66,24 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("i-r-target-two"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
+                        Alias = ByteArrayId.FromString("drive_grant_2_alias22"),
+                        Type = ByteArrayId.FromString("drive_grant_2_type22")
+                    },
+                    Permission = DrivePermission.ReadWrite
+                }
+            };
+
+
+            var driveGrant2 = new DriveGrant()
+            {
+                DriveId = Guid.NewGuid(),
+                KeyStoreKeyEncryptedStorageKey = null,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = new TargetDrive()
+                    {
+                        Alias = ByteArrayId.FromString("drive_grant_2_alias22"),
+                        Type = ByteArrayId.FromString("drive_grant_2_type22")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -79,51 +95,10 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("abc123-3333"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
+                        Alias = ByteArrayId.FromString("drive_grant_3_alias"),
+                        Type = ByteArrayId.FromString("drive_grant_3_type")
                     },
                     Permission = DrivePermission.Read
-                }
-            };
-
-            var driveGrantRequest4 = new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = new TargetDrive()
-                    {
-                        Alias = ByteArrayId.FromString("test-test-19999"),
-                        Type = ByteArrayId.FromString("ekle-iiowc-0944")
-                    },
-                    Permission = DrivePermission.Read
-                }
-            };
-
-            var driveGrantRequest5 = new DriveGrantRequest()
-            {
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = new TargetDrive()
-                    {
-                        Alias = ByteArrayId.FromString("i-am-alias-99"),
-                        Type = ByteArrayId.FromString("iam-type-19999")
-                    },
-                    Permission = DrivePermission.ReadWrite
-                }
-            };
-
-            var driveGrant2 = new DriveGrant()
-            {
-                DriveId = Guid.NewGuid(),
-                KeyStoreKeyEncryptedStorageKey = null,
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = new TargetDrive()
-                    {
-                        Alias = ByteArrayId.FromString("i-r-target-two"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
-                    },
-                    Permission = DrivePermission.ReadWrite
                 }
             };
 
@@ -135,38 +110,57 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("5555-99999"),
-                        Type = ByteArrayId.FromString("drive-type-19999")
+                        Alias = ByteArrayId.FromString("drive_grant_3_alias"),
+                        Type = ByteArrayId.FromString("drive_grant_3_type")
                     },
                     Permission = DrivePermission.Read
                 }
             };
 
-            var driveGrant4 = new DriveGrant()
+
+            var newDriveGrantRequest = new DriveGrantRequest()
             {
-                DriveId = Guid.NewGuid(),
-                KeyStoreKeyEncryptedStorageKey = null,
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("5555-99999"),
-                        Type = ByteArrayId.FromString("durk8883gpp")
+                        Alias = ByteArrayId.FromString("a_totally_new_alias99"),
+                        Type = ByteArrayId.FromString("a_totally_new_type99")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
             };
 
-            // var circleDriveGrantRequests = new List<DriveGrantRequest>() { driveGrantRequest1, driveGrantRequest2, driveGrantRequest3, driveGrantRequest4, driveGrantRequest5 };
-            // var existingDriveGrants = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3, driveGrant4 };
+            // No differences
+            var circleDriveGrantRequests = new List<DriveGrantRequest>() { driveGrantRequest1, driveGrantRequest2, driveGrantRequest3 };
+            var existingDriveGrants = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3 };
 
-            var circleDriveGrantRequests = new List<DriveGrantRequest>() { driveGrantRequest1, };
-            var existingDriveGrants = new List<DriveGrant>() { driveGrant1, };
-            var existingDriveGrants2 = new List<DriveGrant>() { driveGrant1, };
+            var noDiffResult = existingDriveGrants.ExceptBy(
+                circleDriveGrantRequests.Select(dgr => dgr.PermissionedDrive).ToList(),
+                dg => dg.PermissionedDrive);
 
-            var diff = existingDriveGrants.ExceptBy(existingDriveGrants2.Select(e => e.PermissionedDrive), k => k.PermissionedDrive).ToList();
+            Assert.IsFalse(noDiffResult.Any());
 
-            // var diff = existingDriveGrants.IntersectBy(circleDriveGrantRequests.Select(dgr => dgr.PermissionedDrive), dg => dg.PermissionedDrive, new PermissionedDriveComparer()).ToList();
+            //
+            // New drive for circle
+            //
+            var circleDriveGrantRequests_withNewDrive = new List<DriveGrantRequest>() { driveGrantRequest1, driveGrantRequest2, driveGrantRequest3, newDriveGrantRequest };
+            var existingDriveGrants_missingNewDrive = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3 };
+            var newDriveResult = circleDriveGrantRequests_withNewDrive.ExceptBy(
+                existingDriveGrants_missingNewDrive.Select(dgr => dgr.PermissionedDrive).ToList(),
+                dg => dg.PermissionedDrive);
+
+            Assert.IsTrue(newDriveResult.Single().PermissionedDrive == newDriveGrantRequest.PermissionedDrive);
+
+            //
+            // Drive removed from circle
+            //
+            var circleDriveGrantRequests_WithDriveRemoved = new List<DriveGrantRequest>() { driveGrantRequest1, driveGrantRequest2 };
+            var existingDriveGrants_withDriveToBeRemoved = new List<DriveGrant>() { driveGrant1, driveGrant2, driveGrant3 };
+            var removedDriveResult = existingDriveGrants_withDriveToBeRemoved.ExceptBy(
+                circleDriveGrantRequests_WithDriveRemoved.Select(dgr => dgr.PermissionedDrive),
+                dg => dg.PermissionedDrive);
+            Assert.IsTrue(removedDriveResult.Single().PermissionedDrive == driveGrant3.PermissionedDrive);
         }
 
         [Test]
