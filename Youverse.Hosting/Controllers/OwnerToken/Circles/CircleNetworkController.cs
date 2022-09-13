@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            await _circleNetwork.RevokeCircle(request.CircleId, new DotYouIdentity(request.DotYouId));
+            await _circleNetwork.RevokeCircleAccess(request.CircleId, new DotYouIdentity(request.DotYouId));
             return true;
         }
     }

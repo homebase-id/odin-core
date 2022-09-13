@@ -5,7 +5,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Definition;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -134,15 +134,31 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Removes drives and permissions of the specified circle from the dotYouId
         /// </summary>
-        Task RevokeCircle(ByteArrayId circleId, DotYouIdentity dotYouId);
+        Task RevokeCircleAccess(ByteArrayId circleId, DotYouIdentity dotYouId);
 
         Task<IEnumerable<DotYouIdentity>> GetCircleMembers(ByteArrayId circleId);
+
         Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey);
 
         /// <summary>
-        /// Tests if a circle has members and indicates if it can be deleted
+        /// Creates a circle definition
         /// </summary>
-        Task<bool> CanDeleteCircle(ByteArrayId circleId);
+        /// <param name="request"></param>
+        /// <returns></returns>
+        Task CreateCircleDefinition(CreateCircleRequest request);
+
+        /// <summary>
+        /// Gets a circle definition
+        /// </summary>
+        /// <param name="circleId"></param>
+        /// <returns></returns>
+        CircleDefinition GetCircleDefinition(ByteArrayId circleId);
+
+        /// <summary>
+        /// Gets a list of all circle definitions
+        /// </summary>
+        /// <returns></returns>
+        Task<IEnumerable<CircleDefinition>> GetCircleDefinitions();
 
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
@@ -150,5 +166,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="circleDefinition"></param>
         /// <returns></returns>
         Task UpdateCircleDefinition(CircleDefinition circleDefinition);
+
+        /// <summary>
+        /// Tests if a circle has members and indicates if it can be deleted
+        /// </summary>
+        Task DeleteCircleDefinition(ByteArrayId circleId);
     }
 }

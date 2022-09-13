@@ -11,8 +11,8 @@ using Youverse.Core;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 
@@ -198,7 +198,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         }
 
         [Test]
-        public async Task CanUpdateCircle()
+        public async Task CanUpdateCircleDefinition_NoMembershipReconciliation()
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {

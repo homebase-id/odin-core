@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle.Definition;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle

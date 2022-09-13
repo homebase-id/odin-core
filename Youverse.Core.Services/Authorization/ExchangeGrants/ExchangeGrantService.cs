@@ -8,7 +8,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Definition;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants

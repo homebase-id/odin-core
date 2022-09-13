@@ -9,8 +9,8 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Definition;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {

@@ -30,8 +30,6 @@ namespace Youverse.Hosting.Tests.DriveApi
         [Test]
         public void PermissionedDriveComparer()
         {
-            //Note: both driveGrantRequest and DriveGrant inherit from PermissionedDrive
-            // so the test here is to ensure I can compare them and find diffs in lists
             var driveGrantRequest1 = new DriveGrantRequest()
             {
                 PermissionedDrive = new PermissionedDrive()

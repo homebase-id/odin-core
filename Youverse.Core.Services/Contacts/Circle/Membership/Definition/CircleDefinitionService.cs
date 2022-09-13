@@ -8,7 +8,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Contacts.Circle.Definition
+namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 {
     public class CircleDefinitionService
     {
@@ -70,18 +70,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
             return Task.CompletedTask;
         }
+        
+        public bool IsEnabled(ByteArrayId circleId)
+        {
+            var circle = this.GetCircle(circleId);
+            return !circle?.Disabled ?? false;
+        }
 
         public CircleDefinition GetCircle(ByteArrayId circleId)
         {
             Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => ByteArrayId.IsValid(id));
             var def = _circleValueStorage.Get<CircleDefinition>(circleId);
             return def;
-        }
-
-        public bool IsEnabled(ByteArrayId circleId)
-        {
-            var circle = this.GetCircle(circleId);
-            return !circle?.Disabled ?? false;
         }
 
         public Task<IEnumerable<CircleDefinition>> GetCircles()
