@@ -175,8 +175,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var connectionsPage = await this.GetConnections(req, ConnectionStatus.Blocked);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
+            var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Blocked);
             var page = new PagedResult<DotYouProfile>(
                 connectionsPage.Request,
                 connectionsPage.TotalPages,
@@ -192,7 +192,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
-            var connectionsPage = await this.GetConnections(req, ConnectionStatus.Connected);
+            var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Connected);
             var page = new PagedResult<DotYouProfile>(
                 connectionsPage.Request,
                 connectionsPage.TotalPages,
@@ -429,9 +429,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _storage.Upsert(icr);
         }
 
-        private async Task<PagedResult<IdentityConnectionRegistration>> GetConnections(PageOptions req, ConnectionStatus status)
+        private async Task<PagedResult<IdentityConnectionRegistration>> GetConnectionsInternal(PageOptions req, ConnectionStatus status)
         {
-            _contextAccessor.GetCurrent().AssertCanManageConnections();
             var list = _storage.GetList().Where(icr => icr.Status == status);
             return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
         }
