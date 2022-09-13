@@ -19,21 +19,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
 
         public readonly ByteArrayId DefaultCircleId = ByteArrayId.FromString("default_circle");
 
-        // public void CreateInitialDefaultCircle()
-        // {
-        //     var defCircle = this.GetCircle(this.DefaultCircleId);
-        //     if (null == defCircle)
-        //     {
-        //         this.Create(new CreateCircleRequest()
-        //         {
-        //             Name = "System Circle",
-        //             Description = "Default Circle",
-        //             Drives = new List<DriveGrantRequest>() { },
-        //             Permissions = new PermissionSet(CirclePermissionFlags.None)
-        //         });
-        //     }
-        // }
-
         public CircleDefinitionService(ISystemStorage systemStorage, IDriveService driveService)
         {
             _driveService = driveService;
@@ -74,17 +59,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Definition
             {
                 throw new MissingDataException($"Invalid circle {newCircleDefinition.Id}");
             }
-
-            var permissionChanges = newCircleDefinition.Permissions != existingCircle.Permissions;
-            bool driveChanges = (existingCircle.DrivesGrants != null && newCircleDefinition.DrivesGrants != null) &&
-                                (newCircleDefinition.DrivesGrants.Except(existingCircle.DrivesGrants)).Any();
-
-            //TODO: apply new permissions to all circle members
-            if (permissionChanges || driveChanges)
-            {
-                //TODO: for each member of this circle, update their permissions
-            }
-
+            
             existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
