@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //RSA encrypt using the public key and send to client
             var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
             var sharedSecret = cat.SharedSecret.GetKey();
-            
+
             var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
@@ -138,8 +138,14 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 throw new YouverseSecurityException("Invalid token");
             }
+            
+            var grantDictionary = new Dictionary<string, ExchangeGrant>
+            {
+                { "app_exchange_grant", appReg.Grant }
+            };
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, appReg.Grant, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grantDictionary, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
+            // var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, appReg.Grant, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
             return (appReg.AppId, permissionCtx);
         }
 

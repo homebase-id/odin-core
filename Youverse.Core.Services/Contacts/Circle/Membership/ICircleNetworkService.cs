@@ -171,5 +171,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Tests if a circle has members and indicates if it can be deleted
         /// </summary>
         Task DeleteCircleDefinition(ByteArrayId circleId);
+
+        /// <summary>
+        /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
+        /// </summary>
+        /// <param name="circleId"></param>
+        /// <returns></returns>
+        Task DisableCircle(ByteArrayId circleId);
+        
+        /// <summary>
+        /// Enables a circle
+        /// </summary>
+        /// <param name="circleId"></param>
+        /// <returns></returns>
+        Task EnableCircle(ByteArrayId circleId);
     }
 }

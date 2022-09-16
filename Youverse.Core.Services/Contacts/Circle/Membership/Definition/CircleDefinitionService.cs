@@ -25,12 +25,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             _circleValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
-        public Task Create(CreateCircleRequest request)
+        public Task<CircleDefinition> Create(CreateCircleRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
 
-            AssertValid(request.Permissions, request.Drives?.ToList());
+            AssertValid(request.Permissions, request.DriveGrants?.ToList());
 
             var circle = new CircleDefinition()
             {
@@ -38,20 +38,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
                 Description = request.Description,
-                DrivesGrants = request.Drives,
+                DriveGrants = request.DriveGrants,
                 Permissions = request.Permissions
             };
 
             _circleValueStorage.Upsert(circle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, circle);
 
-            return Task.CompletedTask;
+            return Task.FromResult(circle);
         }
 
         public Task Update(CircleDefinition newCircleDefinition)
         {
             Guard.Argument(newCircleDefinition, nameof(newCircleDefinition)).NotNull();
 
-            AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DrivesGrants?.ToList());
+            AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
 
             var existingCircle = this.GetCircle(newCircleDefinition.Id);
 
@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
-            existingCircle.DrivesGrants = newCircleDefinition.DrivesGrants;
+            existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
             _circleValueStorage.Upsert(existingCircle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);

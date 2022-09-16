@@ -79,11 +79,12 @@ public class SqliteQueryManager : IDriveQueryManager
             groupIdAnyOf: qp.GroupId?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList() ?? null,
             tagsAllOf: qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
+    
 
     private List<byte[]> GetAcl(CallerContext callerContext)
     {

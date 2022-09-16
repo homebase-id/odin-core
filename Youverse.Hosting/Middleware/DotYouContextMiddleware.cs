@@ -162,90 +162,89 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadYouAuthContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            var user = httpContext.User;
+            // var user = httpContext.User;
+            //
+            // var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+            // var securityLevel = user.HasClaim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower())
+            //     ? SecurityGroupType.Authenticated
+            //     : SecurityGroupType.Anonymous;
+            //
+            // if (securityLevel == SecurityGroupType.Anonymous)
+            // {
+            //     var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
+            //     var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+            //
+            //     if (!anonymousDrives.Results.Any())
+            //     {
+            //         throw new YouverseException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.");
+            //     }
+            //
+            //     var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
+            //     {
+            //         DriveId = d.Id,
+            //         PermissionedDrive = new PermissionedDrive()
+            //         {
+            //             Drive = d.TargetDriveInfo,
+            //             Permission = DrivePermission.Read
+            //         }
+            //     }).ToList();
+            //
+            //     //HACK: granting ability to see friends list to anon users.
+            //     var permissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
+            //
+            //     var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            //     {
+            //         { "anon_drive_grants", new PermissionGroup(permissionSet, anonDriveGrants, null) },
+            //     };
+            //
+            //     dotYouContext.Caller = new CallerContext(
+            //         dotYouId: callerDotYouId,
+            //         securityLevel: securityLevel,
+            //         masterKey: null
+            //     );
+            //
+            //     //HACK: giving this the master key makes my hairs raise >:-[
+            //     dotYouContext.SetPermissionContext(
+            //         new PermissionContext(
+            //             permissionGroupMap,
+            //             sharedSecretKey: null,
+            //             isOwner: false
+            //         ));
+            //
+            //     return;
+            // }
+            //
+            // //TODO: all of this logic needs to be moved to the client token authentication handler instead of in this middleware
+            //
+            // if (securityLevel == SecurityGroupType.Authenticated)
+            // {
+            //     if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
+            //     {
+            //         var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+            //         var (isConnected, permissionContext, enabledCircleIds) = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
+            //         dotYouContext.SetPermissionContext(permissionContext);
+            //
+            //         //since user is authenticated, we can allow them to access youauth via their browser
+            //         //httpContext.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{callerDotYouId}");
+            //
+            //         dotYouContext.Caller = new CallerContext(
+            //             dotYouId: callerDotYouId,
+            //             securityLevel: securityLevel,
+            //             masterKey: null,
+            //             circleIds: enabledCircleIds
+            //         );
+            //
+            //         if (isConnected)
+            //         {
+            //             dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
+            //             dotYouContext.Caller.SetIsConnected();
+            //         }
+            //     }
+            //
+            //     return;
+            // }
 
-            var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
-            var securityLevel = user.HasClaim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower())
-                ? SecurityGroupType.Authenticated
-                : SecurityGroupType.Anonymous;
-
-            if (securityLevel == SecurityGroupType.Anonymous)
-            {
-                var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
-                var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
-
-                if (!anonymousDrives.Results.Any())
-                {
-                    throw new YouverseException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.");
-                }
-
-                var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
-                {
-                    DriveId = d.Id,
-                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey, //TODO wtf is this doing here?
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = d.TargetDriveInfo,
-                        Permission = DrivePermission.Read
-                    }
-                }).ToList();
-
-                //HACK: granting ability to see friends list to anon users.
-                var permissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
-
-                var permissionGroupMap = new Dictionary<string, PermissionGroup>
-                {
-                    { "anon_drive_grants", new PermissionGroup(permissionSet, anonDriveGrants, null) },
-                };
-
-                dotYouContext.Caller = new CallerContext(
-                    dotYouId: callerDotYouId,
-                    securityLevel: securityLevel,
-                    masterKey: null
-                );
-
-                //HACK: giving this the master key makes my hairs raise >:-[
-                dotYouContext.SetPermissionContext(
-                    new PermissionContext(
-                        permissionGroupMap,
-                        sharedSecretKey: null,
-                        isOwner: false
-                    ));
-                
-                return;
-            }
-
-            //TODO: all of this logic needs to be moved to the client token authentication handler instead of in this middleware
-
-            if (securityLevel == SecurityGroupType.Authenticated)
-            {
-                if (ClientAuthenticationToken.TryParse(httpContext.Request.Cookies[YouAuthDefaults.XTokenCookieName], out var clientAuthToken))
-                {
-                    var youAuthRegistrationService = httpContext.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-                    var (isConnected, permissionContext, enabledCircleIds) = await youAuthRegistrationService.GetPermissionContext(clientAuthToken);
-                    dotYouContext.SetPermissionContext(permissionContext);
-
-                    //since user is authenticated, we can allow them to access youauth via their browser
-                    httpContext.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{callerDotYouId}");
-                    
-                    dotYouContext.Caller = new CallerContext(
-                        dotYouId: callerDotYouId,
-                        securityLevel: securityLevel,
-                        masterKey: null,
-                        circleIds: enabledCircleIds
-                    );
-
-                    if (isConnected)
-                    {
-                        dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
-                        dotYouContext.Caller.SetIsConnected();
-                    }
-                }
-
-                return;
-            }
-
-            throw new YouverseSecurityException("LoadYouAuthContext - Invalid Configuration");
+            // throw new YouverseSecurityException("LoadYouAuthContext - Invalid Configuration");
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

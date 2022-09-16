@@ -54,5 +54,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             await _cns.DeleteCircleDefinition(new ByteArrayId(id.ToByteArray()));
             return true;
         }
+        
+        [HttpPost("enable")]
+        public async Task<bool> EnableCircle([FromBody] Guid id)
+        {
+            await _cns.EnableCircle(new ByteArrayId(id.ToByteArray()));
+            return true;
+        }
+        
+        [HttpPost("disable")]
+        public async Task<bool> DisableCircle([FromBody] Guid id)
+        {
+            await _cns.DisableCircle(new ByteArrayId(id.ToByteArray()));
+            return true;
+        }
     }
 }

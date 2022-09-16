@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -11,10 +12,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.ClientToken;
 
@@ -35,6 +42,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
+
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
@@ -44,7 +53,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(YouAuthApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
-                return await HandleYouAuth();
+                return await HandleYouAuth(dotYouContext);
             }
 
             return AuthenticateResult.Fail("Invalid Path");
@@ -74,23 +83,32 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return CreateAuthenticationResult(claims, AppAuthConstants.SchemeName);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuth()
+        private async Task<AuthenticateResult> HandleYouAuth(DotYouContext dotYouContext)
         {
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
             {
-                return AuthenticateResult.Success(CreateAnonTicket());
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
             }
 
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-            var (isValid, youAuthClient, _) = await youAuthRegService.ValidateClientAuthToken(clientAuthToken);
+            var (dotYouId, isValid, isConnected, permissionContext, enabledCircleIds) = await youAuthRegService.GetPermissionContext(clientAuthToken);
 
             if (!isValid)
             {
-                return AuthenticateResult.Success(CreateAnonTicket());
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
             }
 
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: dotYouId,
+                securityLevel: isConnected ? SecurityGroupType.Connected : SecurityGroupType.Authenticated,
+                masterKey: null,
+                circleIds: enabledCircleIds
+            );
+
+            dotYouContext.SetPermissionContext(permissionContext);
+            
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, youAuthClient.DotYouId));
+            claims.Add(new Claim(ClaimTypes.Name, dotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
@@ -110,11 +128,50 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return AuthenticateResult.Success(ticket);
         }
 
-        private AuthenticationTicket CreateAnonTicket()
+        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(DotYouContext dotYouContext)
         {
+            var driveService = Context.RequestServices.GetRequiredService<IDriveService>();
+            var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+
+            if (!anonymousDrives.Results.Any())
+            {
+                throw new YouverseException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.");
+            }
+
+            var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
+            {
+                DriveId = d.Id,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = d.TargetDriveInfo,
+                    Permission = DrivePermission.Read
+                }
+            }).ToList();
+
+            //HACK: granting ability to see friends list to anon users.
+            var permissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
+
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            {
+                { "anonymous_drives", new PermissionGroup(permissionSet, anonDriveGrants, null) },
+            };
+
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity)string.Empty,
+                securityLevel: SecurityGroupType.Anonymous,
+                masterKey: null
+            );
+
+            //HACK: giving this the master key makes my hairs raise >:-[
+            dotYouContext.SetPermissionContext(
+                new PermissionContext(
+                    permissionGroupMap,
+                    sharedSecretKey: null,
+                    isOwner: false
+                ));
+
             var claims = new[]
             {
-                // new Claim(YouAuthDefaults.IdentityClaim, YouAuthDefaults.AnonymousIdentifier), //TODO: figure out a better way to communicate this visitor is anonymous
                 new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };

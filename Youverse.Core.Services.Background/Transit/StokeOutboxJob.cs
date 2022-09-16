@@ -81,6 +81,7 @@ namespace Youverse.Core.Services.Workers.Transit
 
             if (!response.IsSuccessStatusCode)
             {
+                //TODO: need to log an error here and notify sys admins?
                 _logger.LogWarning($"Background stoking for [{uri}] failed.");
             }
         }

@@ -33,6 +33,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public void Delete(YouAuthRegistration registration)
         {
             _systemStorage.SingleKeyValueStorage.Delete(ByteArrayId.FromString(registration.Subject), _regPrefix);
+            
+            //TODO: delete clients as well
         }
 
         public YouAuthClient? GetYouAuthClient(Guid id)

@@ -135,38 +135,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, ExchangeGrant grant, AccessRegistration accessReg, bool isOwner)
-        {
-            //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var key = authToken.AccessTokenHalfKey;
-            var accessKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref key);
-            var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-
-            var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
-
-            //Note: we load all current anonymously-accessible drives in real time
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>
-            {
-                { "exchange_grant", new PermissionGroup(grant.PermissionSet, grant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey) },
-                { "anonymous_drives", this.GetAnonymousDrivePermissionGroup() }
-            };
-
-            
-            foreach (var x in grant.KeyStoreKeyEncryptedDriveGrants)
-            {
-                _logger.LogInformation($"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
-            }
-
-            var permissionCtx = new PermissionContext(
-                permissionGroupMap,
-                sharedSecretKey: sharedSecret,
-                isOwner: isOwner
-            );
-
-            return permissionCtx;
-        }
-
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg, bool isOwner)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
@@ -176,18 +144,23 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
             accessKey.Wipe();
 
-
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>
-            {
-                { "anonymous_drives", this.GetAnonymousDrivePermissionGroup() }
-            };
-
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>();
             foreach (var key in grants.Keys)
             {
                 var exchangeGrant = grants[key];
                 var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey);
                 permissionGroupMap.Add(key, pg);
+
+                foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
+                {
+                    _logger.LogInformation(
+                        $"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+                }
             }
+
+            //TODO: remove any anonymous drives which are explicitly granted above
+            permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup());
+            //MergeAnonymousDrives
 
             var permissionCtx = new PermissionContext(
                 permissionGroupMap,
@@ -198,6 +171,13 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return permissionCtx;
         }
 
+        public async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup()
+        {
+            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
+            var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
+
+            return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
+        }
         //
 
         private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray grantKeyStoreKey,
@@ -214,7 +194,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 AccessRegistrationClientType = clientType,
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
-                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(ref accessKeyStoreKey, ref sharedSecret),
+                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref sharedSecret),
                 IsRevoked = false,
                 AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
             };
@@ -253,18 +233,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             }
 
             return finalGrantList;
-        }
-
-        private PermissionGroup GetAnonymousDrivePermissionGroup()
-        {
-            var anonDriveGrants = this.GetAnonymousDriveGrants().GetAwaiter().GetResult();
-            return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
-        }
-
-        private async Task<IEnumerable<DriveGrant>> GetAnonymousDriveGrants()
-        {
-            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
-            return anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
         }
     }
 }

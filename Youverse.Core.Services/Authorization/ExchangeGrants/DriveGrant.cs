@@ -19,15 +19,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             return new RedactedDriveGrant()
             {
-                Drive = this.PermissionedDrive?.Drive,
-                Permission = this.PermissionedDrive?.Permission ?? DrivePermission.None
+                PermissionedDrive = this.PermissionedDrive
             };
         }
     }
 
     public class RedactedDriveGrant
     {
-        public TargetDrive Drive { get; set; }
-        public DrivePermission Permission { get; set; }
+        public PermissionedDrive PermissionedDrive { get; set; }
+
     }
 }

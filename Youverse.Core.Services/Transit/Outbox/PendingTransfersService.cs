@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,7 +34,8 @@ namespace Youverse.Core.Services.Transit.Outbox
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
-            byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
+            // byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
+            byte[] fileId = Guid.NewGuid().ToByteArray();
             try
             {
                 _table.InsertRow(sender.Id.ToLower().ToUtf8ByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());

@@ -396,7 +396,7 @@ namespace Youverse.Core.Services.Transit
                 var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 var thumbnails = new List<StreamPart>();
-                foreach (var thumb in redactedMetadata.AppData.AdditionalThumbnails)
+                foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ThumbnailHeader>())
                 {
                     var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
@@ -438,12 +438,13 @@ namespace Youverse.Core.Services.Transit
             {
                 tfr = TransferFailureReason.CouldNotEncrypt;
                 //TODO: logging
+                throw;
             }
-            catch (Exception)
-            {
-                tfr = TransferFailureReason.UnknownError;
-                //TODO: logging
-            }
+            // catch (Exception)
+            // {
+            //     tfr = TransferFailureReason.UnknownError;
+            //     //TODO: logging
+            // }
 
             return new SendResult()
             {

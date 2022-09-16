@@ -185,7 +185,6 @@ namespace Youverse.Hosting
             app.UseResponseCompression();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
 
-
             // app.UseWebSockets();
             // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 

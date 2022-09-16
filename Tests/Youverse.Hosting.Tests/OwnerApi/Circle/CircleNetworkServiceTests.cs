@@ -739,10 +739,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
         {
-            foreach (var circleDriveGrant in circleDefinition.DrivesGrants)
+            foreach (var circleDriveGrant in circleDefinition.DriveGrants)
             {
                 //be sure it's in the list of granted drives; use Single to be sure it's only in there once
-                var result = actual.DriveGrants.SingleOrDefault(x => x.Drive == circleDriveGrant.PermissionedDrive.Drive && x.Permission == circleDriveGrant.PermissionedDrive.Permission);
+                var result = actual.DriveGrants.SingleOrDefault(x => x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
                 Assert.NotNull(result);
             }
         }
@@ -875,7 +875,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Name = name,
                     Description = $"total hack {someId}",
-                    Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
+                    DriveGrants = new List<DriveGrantRequest>() { dgr1, dgr2 },
                     Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
                 };
 
@@ -891,8 +891,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //grab the circle by the id we put in the description.  we don't have the newly created circle's id because i need to update the create circle method  
                 var circle = definitionList.Single(c => c.Description.Contains(someId.ToString()));
 
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d == dgr1));
-                Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d == dgr2));
+                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr1));
+                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr2));
 
                 foreach (var k in permissionKeys)
                 {

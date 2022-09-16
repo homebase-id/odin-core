@@ -7,11 +7,13 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 
@@ -28,14 +30,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly CircleNetworkStorage _storage;
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TableCircleMember _circleMemberStorage;
+        private readonly IDriveService _driveService;
+        private readonly IYouAuthRegistrationService _youAuthRegistrationService;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService,
+            IDriveService driveService)
         {
             _contextAccessor = contextAccessor;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
             _circleDefinitionService = circleDefinitionService;
+            _driveService = driveService;
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
@@ -135,8 +141,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 info.AccessGrant = null;
                 info.Status = ConnectionStatus.None;
                 this.SaveIcr(info);
+
+                //TODO: resolve circular dependency and clean up youauth
+                // await _youAuthRegistrationService.DeleteFromSubject(info.DotYouId);
+
                 return true;
             }
+
 
             return false;
         }
@@ -218,6 +229,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
+            //
+            //
+            //
+            // To support youauth using this method as well, we need to look up additional access registration records
+            //
+            //
+            //
             if (connection?.AccessGrant.AccessRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
@@ -345,7 +363,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 }
             }
         }
-        
+
         public async Task GrantCircle(ByteArrayId circleId, DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -393,15 +411,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return circleGrants;
         }
 
-        public Task CreateCircleDefinition(CreateCircleRequest request)
-        {
-            return _circleDefinitionService.Create(request);
-        }
-
         private async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
-            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DrivesGrants, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
             return new CircleGrant()
             {
                 CircleId = def.Id,
@@ -435,11 +448,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return def;
         }
 
-        public Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
+        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
         {
-            var circles = _circleDefinitionService.GetCircles();
+            var circles = await _circleDefinitionService.GetCircles();
             return circles;
         }
+
+        public async Task CreateCircleDefinition(CreateCircleRequest request)
+        {
+            await _circleDefinitionService.Create(request);
+        }
+
 
         public async Task UpdateCircleDefinition(CircleDefinition circleDefinition)
         {
@@ -457,6 +476,24 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             await _circleDefinitionService.Delete(circleId);
+        }
+
+        public Task DisableCircle(ByteArrayId circleId)
+        {
+            var circle = _circleDefinitionService.GetCircle(circleId);
+            circle.Disabled = true;
+            circle.LastUpdated = DateTimeExtensions.UnixTimeSeconds();
+            _circleDefinitionService.Update(circle);
+            return Task.CompletedTask;
+        }
+
+        public Task EnableCircle(ByteArrayId circleId)
+        {
+            var circle = _circleDefinitionService.GetCircle(circleId);
+            circle.Disabled = false;
+            circle.LastUpdated = DateTimeExtensions.UnixTimeSeconds();
+            _circleDefinitionService.Update(circle);
+            return Task.CompletedTask;
         }
 
         //
@@ -502,7 +539,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var list = _storage.GetList().Where(icr => icr.Status == status);
             return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
         }
-        
+
         private void SaveIcr(IdentityConnectionRegistration icr)
         {
             //TODO: this is a critical change; need to audit this

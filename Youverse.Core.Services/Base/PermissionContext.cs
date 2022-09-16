@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive;
@@ -10,26 +11,28 @@ namespace Youverse.Core.Services.Base
     {
         private readonly Dictionary<string, PermissionGroup> _permissionGroups;
         private readonly bool _isOwner = false;
+        private readonly bool _isSystem = false;
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
-            bool isOwner)
+            bool isOwner,
+            bool isSystem = false)
         {
             Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
 
             this.SharedSecretKey = sharedSecretKey;
             _permissionGroups = permissionGroups;
 
-            //HACK: need to actually assign the permission
             this._isOwner = isOwner;
+            _isSystem = isSystem;
         }
 
         public SensitiveByteArray SharedSecretKey { get; }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
-            if (this._isOwner)
+            if (this._isOwner || _isSystem)
             {
                 return true;
             }
@@ -49,7 +52,7 @@ namespace Youverse.Core.Services.Base
 
         public bool HasPermission(int permissionKey)
         {
-            if (this._isOwner)
+            if (this._isOwner || _isSystem)
             {
                 return true;
             }
@@ -125,6 +128,20 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
+            // var hack = _permissionGroups.Keys.Where(k => k != "anonymous_drives");
+            //
+            // //TODO: Update the search pattern to prioritize drives with keys over the anonmyous drive grants
+            // foreach (var key in hack)
+            // {
+            //     var group = _permissionGroups[key];
+            //     var storageKey = group.GetDriveStorageKey(driveId);
+            //     if (storageKey != null)
+            //     {
+            //         //TODO: log key as source of permission.
+            //         return storageKey;
+            //     }
+            // }
+
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];
@@ -135,7 +152,7 @@ namespace Youverse.Core.Services.Base
                     return storageKey;
                 }
             }
-            
+
             //TODO: this sort of security check feels like it should be in a service..
             throw new DriveSecurityException($"No access permitted to drive {driveId}");
         }
