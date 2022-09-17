@@ -10,6 +10,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     {
         private static string SEPARATOR = "|";
 
+        public ClientAuthenticationToken()
+        {
+            ClientTokenType = ClientTokenType.Other;
+        }
+
         /// <summary>
         /// The login session's Id
         /// </summary>
@@ -20,6 +25,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         public SensitiveByteArray AccessTokenHalfKey { get; set; }
 
+        public ClientTokenType ClientTokenType { get; set; }
+
         public override string ToString()
         {
             var data = ToPortableBytes();
@@ -28,18 +35,20 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         public byte[] ToPortableBytes()
         {
-            var data = ByteArrayUtil.Combine(this.Id.ToByteArray(), AccessTokenHalfKey.GetKey());
+            var data = ByteArrayUtil.Combine(this.Id.ToByteArray(), AccessTokenHalfKey.GetKey(), new[] { (byte)this.ClientTokenType });
             return data;
         }
 
         public static ClientAuthenticationToken FromPortableBytes(byte[] data)
         {
-            var (idBytes, halfKeyBytes) = ByteArrayUtil.Split(data, 16, 16);
+            var (idBytes, secondSet) = ByteArrayUtil.Split(data, 16, 17);
+            var (halfKeyBytes, type) = ByteArrayUtil.Split(secondSet, 16, 1);
 
             return new ClientAuthenticationToken()
             {
                 Id = new Guid(idBytes),
-                AccessTokenHalfKey = halfKeyBytes.ToSensitiveByteArray()
+                AccessTokenHalfKey = halfKeyBytes.ToSensitiveByteArray(),
+                ClientTokenType = (ClientTokenType)type[0]
             };
         }
 

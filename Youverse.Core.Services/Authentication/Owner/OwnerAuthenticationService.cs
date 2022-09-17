@@ -84,7 +84,8 @@ namespace Youverse.Core.Services.Authentication.Owner
             var auth = new ClientAuthenticationToken()
             {
                 Id = serverToken.Id,
-                AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey())
+                AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey()),
+                ClientTokenType = ClientTokenType.Other
             };
 
             return (auth, serverToken.SharedSecret.ToSensitiveByteArray());

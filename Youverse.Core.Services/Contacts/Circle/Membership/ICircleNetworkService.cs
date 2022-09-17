@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
@@ -124,7 +122,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken clientAuthToken);
+        Task<(PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
+        
+        /// <summary>
+        /// Creates a <see cref="PermissionContext"/> for the specified caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the clientAuthToken
+        /// </summary>
+        /// <returns></returns>
+        Task<(DotYouIdentity dotYouId, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
@@ -185,5 +189,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="circleId"></param>
         /// <returns></returns>
         Task EnableCircle(ByteArrayId circleId);
+
+        /// <summary>
+        /// Creates a client for the IdentityConnectionRegistration
+        /// </summary>
+        /// <returns></returns>
+        Task<bool> TryCreateIdentityConnectionClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken);
+
+        /// <summary>
+        /// Returns the <see cref="IdentityConnectionRegistrationClient"/> 
+        /// </summary>
+        /// <param name="authToken"></param>
+        /// <returns></returns>
+        Task<IdentityConnectionRegistrationClient> GetIdentityConnectionClient(ClientAuthenticationToken authToken);
+
     }
 }

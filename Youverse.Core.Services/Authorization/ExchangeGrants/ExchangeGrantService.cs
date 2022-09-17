@@ -89,8 +89,9 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// </summary>
         /// <param name="grant"></param>
         /// <param name="masterKey"></param>
+        /// <param name="tokenType"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey, ClientTokenType tokenType)
         {
             if (grant.IsRevoked)
             {
@@ -104,14 +105,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             }
 
-            var token = await this.CreateClientAccessToken(grantKeyStoreKey);
+            var token = await this.CreateClientAccessToken(grantKeyStoreKey, tokenType);
             grantKeyStoreKey?.Wipe();
             return token;
         }
 
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray grantKeyStoreKey)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray grantKeyStoreKey, ClientTokenType tokenType)
         {
-            var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey);
+            var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
             return (accessReg, clientAccessToken);
         }
 
@@ -138,12 +139,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg, bool isOwner)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
-            var token = authToken.AccessTokenHalfKey;
-            var accessKey = accessReg.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            var sharedSecret = accessReg.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            var grantKeyStoreKey = accessReg.GetGrantKeyStoreKey(accessKey);
-            accessKey.Wipe();
-
+            var (grantKeyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
+            
             var permissionGroupMap = new Dictionary<string, PermissionGroup>();
             foreach (var key in grants.Keys)
             {
@@ -180,7 +177,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
         //
 
-        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray grantKeyStoreKey,
+        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray grantKeyStoreKey, ClientTokenType tokenType,
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -206,7 +203,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             {
                 Id = reg.Id,
                 AccessTokenHalfKey = clientAccessKey,
-                SharedSecret = sharedSecret
+                SharedSecret = sharedSecret,
+                ClientTokenType = tokenType
             };
 
             return Task.FromResult((reg, cat));

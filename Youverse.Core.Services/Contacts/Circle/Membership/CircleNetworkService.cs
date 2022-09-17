@@ -33,6 +33,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly IDriveService _driveService;
         private readonly IYouAuthRegistrationService _youAuthRegistrationService;
 
+        private readonly ByteArrayId _icrClientDataType = ByteArrayId.FromString("__icr_client_reg");
+        private readonly ThreeKeyValueStorage _icrClientValueStorage;
+
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService,
             IDriveService driveService)
@@ -47,6 +50,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _circleMemberStorage = new TableCircleMember(systemStorage.GetDBInstance());
             _circleMemberStorage.EnsureTableExists(false);
+
+            _icrClientValueStorage = new ThreeKeyValueStorage(systemStorage.GetDBInstance().TblKeyThreeValue);
         }
 
         public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
@@ -93,41 +98,47 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             throw new Exception($"Unknown notification Id {notification.NotificationId}");
         }
 
-        public async Task<(bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContext(DotYouIdentity callerDotYouId,
-            ClientAuthenticationToken authToken)
+        public async Task<(PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken authToken)
         {
-            var icr = await this.GetIdentityConnectionRegistration(callerDotYouId, authToken);
-            var accessGrant = icr.AccessGrant;
+            var icr = await this.GetIdentityConnectionRegistration(dotYouId, authToken);
 
-            if (null == accessGrant || !accessGrant.IsValid())
+            if (!icr?.AccessGrant?.IsValid() ?? false)
             {
                 throw new YouverseSecurityException("Invalid token");
             }
 
-            //note: duplicate code in YouAuthRegistrationService
-            var grants = new Dictionary<string, ExchangeGrant>();
-            var enabledCircles = new List<ByteArrayId>();
-            foreach (var kvp in accessGrant.CircleGrants)
+            if (!icr?.IsConnected() ?? false)
             {
-                var cg = kvp.Value;
-                if (_circleDefinitionService.IsEnabled(cg.CircleId))
-                {
-                    enabledCircles.Add(cg.CircleId);
-                    var xGrant = new ExchangeGrant()
-                    {
-                        Created = 0,
-                        Modified = 0,
-                        IsRevoked = false, //TODO
-                        KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                        MasterKeyEncryptedKeyStoreKey = accessGrant.MasterKeyEncryptedKeyStoreKey,
-                        PermissionSet = cg.PermissionSet
-                    };
-                    grants.Add(kvp.Key, xGrant);
-                }
+                throw new YouverseSecurityException("Invalid connection");
             }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessGrant.AccessRegistration, false);
-            return (icr.IsConnected(), permissionCtx, enabledCircles);
+            var (isValid, permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr?.AccessGrant, icr?.AccessGrant.AccessRegistration, authToken);
+
+            if (!isValid)
+            {
+                throw new YouverseSecurityException("Invalid connection");
+            }
+
+            return (permissionContext, enabledCircles);
+        }
+
+        public async Task<(DotYouIdentity dotYouId, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(
+            ClientAuthenticationToken authToken)
+        {
+            var client = await this.GetIdentityConnectionClient(authToken);
+
+            client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
+
+            var icr = await this.GetIdentityConnectionRegistrationInternal(client.DotYouId);
+
+            if (!icr?.AccessGrant?.IsValid() ?? false)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+            
+            var (isValid, permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr?.AccessGrant, client.AccessRegistration, authToken);
+
+            return (client.DotYouId, icr?.IsConnected() ?? false, permissionContext, enabledCircles);
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
@@ -229,13 +240,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            //
-            //
-            //
-            // To support youauth using this method as well, we need to look up additional access registration records
-            //
-            //
-            //
             if (connection?.AccessGrant.AccessRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
@@ -393,7 +397,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             this.SaveIcr(icr);
         }
 
-
         public async Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -459,7 +462,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             await _circleDefinitionService.Create(request);
         }
 
-
         public async Task UpdateCircleDefinition(CircleDefinition circleDefinition)
         {
             await ReconcileCircleGrant(circleDefinition);
@@ -496,7 +498,72 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return Task.CompletedTask;
         }
 
+        public Task<IdentityConnectionRegistrationClient> GetIdentityConnectionClient(ClientAuthenticationToken authToken)
+        {
+            var client = _icrClientValueStorage.Get<IdentityConnectionRegistrationClient>(authToken.Id);
+            return Task.FromResult(client);
+        }
+
+        public Task<bool> TryCreateIdentityConnectionClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
+        {
+            var icr = this.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
+
+            if (!icr.IsConnected())
+            {
+                clientAccessToken = null;
+                return Task.FromResult(false);
+            }
+
+            var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteIcrClientAuthToken);
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.IdentityConnectionRegistration).GetAwaiter().GetResult();
+            grantKeyStoreKey.Wipe();
+            ss.Wipe();
+
+            clientAccessToken = cat;
+
+            var icrClient = new IdentityConnectionRegistrationClient()
+            {
+                Id = accessRegistration.Id,
+                AccessRegistration = accessRegistration,
+                DotYouId = (DotYouIdentity)dotYouId
+            };
+
+            _icrClientValueStorage.Upsert(accessRegistration.Id, Array.Empty<byte>(), _icrClientDataType.Value, icrClient);
+
+            return Task.FromResult(true);
+        }
+
         //
+
+        private async Task<(bool isValid, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreatePermissionContextInternal(AccessExchangeGrant accessGrant,
+            AccessRegistration accessReg,
+            ClientAuthenticationToken authToken)
+        {
+            var grants = new Dictionary<string, ExchangeGrant>();
+            var enabledCircles = new List<ByteArrayId>();
+            foreach (var kvp in accessGrant.CircleGrants)
+            {
+                var cg = kvp.Value;
+                if (_circleDefinitionService.IsEnabled(cg.CircleId))
+                {
+                    enabledCircles.Add(cg.CircleId);
+                    var xGrant = new ExchangeGrant()
+                    {
+                        Created = 0,
+                        Modified = 0,
+                        IsRevoked = false, //TODO
+                        KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                        MasterKeyEncryptedKeyStoreKey = accessGrant.MasterKeyEncryptedKeyStoreKey,
+                        PermissionSet = cg.PermissionSet
+                    };
+                    grants.Add(kvp.Key, xGrant);
+                }
+            }
+
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, false);
+            return (true, permissionCtx, enabledCircles);
+        }
+
 
         private async Task ReconcileCircleGrant(CircleDefinition circleDef)
         {

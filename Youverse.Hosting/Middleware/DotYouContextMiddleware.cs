@@ -260,12 +260,7 @@ namespace Youverse.Hosting.Middleware
 
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                var (isConnected, permissionContext, circleIds) = await circleNetworkService.CreatePermissionContext(callerDotYouId, clientAuthToken);
-                if (!isConnected)
-                {
-                    throw new YouverseSecurityException("Invalid connection");
-                }
-
+                var (permissionContext, circleIds) = await circleNetworkService.CreateTransitPermissionContext(callerDotYouId, clientAuthToken);
                 dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
                 dotYouContext.Caller.Circles = circleIds;
                 dotYouContext.Caller.SetIsConnected();

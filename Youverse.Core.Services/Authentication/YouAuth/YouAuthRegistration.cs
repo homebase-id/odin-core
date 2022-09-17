@@ -12,17 +12,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public DateTimeOffset CreatedAt { get; init; }
         public string Subject { get; init; }
 
-        public SymmetricKeyEncryptedAes IcrRemoteKeyEncryptedKeyStoreKey { get; set; }
-
         public Dictionary<string, CircleGrant> CircleGrants { get; set; }
 
-
-        public YouAuthRegistration(string subject, Dictionary<string, CircleGrant> circleGrants, SymmetricKeyEncryptedAes icrRemoteKeyEncryptedKeyStoreKey)
+        public YouAuthRegistration(string subject, Dictionary<string, CircleGrant> circleGrants)
         {
             Subject = subject;
             CreatedAt = DateTimeOffset.Now;
             CircleGrants = circleGrants;
-            IcrRemoteKeyEncryptedKeyStoreKey = icrRemoteKeyEncryptedKeyStoreKey;
+            
         }
     }
 }

@@ -38,73 +38,43 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 throw new YouAuthException("Invalid subject");
             }
 
-            if (CreateAuthenticatedYouAuthClient(dotYouId, remoteIcrClientAuthToken, out ClientAccessToken youAuthClientAccessToken))
+            if (_circleNetworkService.TryCreateIdentityConnectionClient(dotYouId, remoteIcrClientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())
+            {
+                return new ValueTask<ClientAccessToken>(icrClientAccessToken);
+            }
+
+            if (TryCreateAuthenticatedYouAuthClient(dotYouId, remoteIcrClientAuthToken, out ClientAccessToken youAuthClientAccessToken))
             {
                 return new ValueTask<ClientAccessToken>(youAuthClientAccessToken);
             }
 
-            //
-            // dotYouId is connected so let's create a YouAuthClient that uses the ICR's access
-            //
-            var icr = _circleNetworkService.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
-
-            var token = remoteIcrClientAuthToken.AccessTokenHalfKey;
-            var accessKey = icr.AccessGrant.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            // var sharedSecret = icr.AccessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            var grantKeyStoreKey = icr.AccessGrant.AccessRegistration.GetGrantKeyStoreKey(accessKey);
-            var (accessRegistration, clientAccessToken) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey).GetAwaiter().GetResult();
-            grantKeyStoreKey.Wipe();
-            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration, YouAuthClientAccessRegistrationType.IdentityConnectionRegistration);
-            _youAuthRegistrationStorage.SaveClient(client);
-
-            return new ValueTask<ClientAccessToken>(clientAccessToken);
+            throw new YouverseSecurityException("Unhandled case when registering YouAuth access");
         }
+
 
         /// <summary>
         /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
         /// </summary>
-        private bool CreateAuthenticatedYouAuthClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
+        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
         {
             YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
-
-            if (null == remoteIcrClientAuthToken)
-            {
-                //create a youauth registration and/or client
-                clientAccessToken = CreateAuthenticatedClient(dotYouId, registration).Result;
-                return true;
-            }
-
-            //if the ICR is valid but not connected; need to consider - do we fall back to a youauth client or do we check if they're blocked?
-            var icr = _circleNetworkService.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
-            if (!icr?.IsConnected() ?? false)
-            {
-                clientAccessToken = CreateAuthenticatedClient(dotYouId, registration).Result;
-                return true;
-            }
-
-            clientAccessToken = null;
-            return false;
-        }
-
-        private ValueTask<ClientAccessToken> CreateAuthenticatedClient(string dotYouId, YouAuthRegistration registration)
-        {
-            //TODO: this is fine until a user gets connected.  then that client needs to re-login.  I wonder if we can detect this
+            
             var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-
             if (null == registration)
             {
-                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>(), null);
+                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
                 _youAuthRegistrationStorage.Save(registration);
             }
 
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey).GetAwaiter().GetResult();
-
-            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration, YouAuthClientAccessRegistrationType.YouAuth);
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
             _youAuthRegistrationStorage.SaveClient(client);
 
-            return new ValueTask<ClientAccessToken>(cat);
+            
+            clientAccessToken = cat;
+            return true;
         }
-
+        
         //
 
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
@@ -136,14 +106,15 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)> GetPermissionContext(
             ClientAuthenticationToken authToken)
         {
-            if (!this.ValidateClientAuthToken(authToken, out var client, out var registration, out var icr))
+            if (authToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)>(((DotYouIdentity)"", false, false, null,
-                    null));
-            }
+                if (!this.ValidateClientAuthToken(authToken, out var client, out var registration))
+                {
+                    return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
+                        null,
+                        null));
+                }
 
-            if (client.AccessRegistrationType == YouAuthClientAccessRegistrationType.YouAuth)
-            {
                 var token = authToken.AccessTokenHalfKey;
                 var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
 
@@ -160,25 +131,24 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<ByteArrayId>)>((client.DotYouId, true, false, permissionCtx, null));
             }
 
-            if (client.AccessRegistrationType == YouAuthClientAccessRegistrationType.IdentityConnectionRegistration)
+            if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
-                var (isConnected, permissionContext, circleIds) = _circleNetworkService.CreatePermissionContext(client.DotYouId, authToken).GetAwaiter().GetResult();
+                var (dotYouId, isConnected, permissionContext, circleIds) = _circleNetworkService.CreateClientPermissionContext(authToken).GetAwaiter().GetResult();
                 return new ValueTask<(DotYouIdentity dotYouId,
                     bool isValid,
                     bool isConnected,
                     PermissionContext permissionContext,
                     List<ByteArrayId> enabledCircleIds)>((
-                    client.DotYouId, true, isConnected, permissionContext, circleIds));
+                    dotYouId, true, isConnected, permissionContext, circleIds));
             }
 
             throw new YouverseSecurityException("Unhandled access registration type");
         }
 
-        private bool ValidateClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient client, out YouAuthRegistration registration, out IdentityConnectionRegistration icr)
+        private bool ValidateClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient client, out YouAuthRegistration registration)
         {
             client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
             registration = null;
-            icr = null;
 
             var accessReg = client?.AccessRegistration;
             if (accessReg?.IsRevoked ?? true)
@@ -186,29 +156,15 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 return false;
             }
 
-            //this should work for both youAuth and icr
             accessReg.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
-            if (client.AccessRegistrationType == YouAuthClientAccessRegistrationType.YouAuth)
+            registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
+            if (null == registration)
             {
-                registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
-                if (null == registration)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            
-            if (client.AccessRegistrationType == YouAuthClientAccessRegistrationType.IdentityConnectionRegistration)
-            {
-                //here - the auth token is the Youauth Client's auth token and yet the method GetIdentityConnectionRegistration only works w/ the 
-                // client.AccessRegistration.GetGrantKeyStoreKey()
-                icr = _circleNetworkService.GetIdentityConnectionRegistration(client.DotYouId, true).GetAwaiter().GetResult();
-                return icr != null;
+                return false;
             }
 
-            throw new YouverseSecurityException("Unhandled access registration type");
+            return true;
         }
     }
 }

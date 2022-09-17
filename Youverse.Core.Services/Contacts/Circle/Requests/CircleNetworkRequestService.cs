@@ -93,7 +93,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey);
+            var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
 
             //TODO: need to encrypt the message as well as the rsa credentials
             var request = new ConnectionRequest
@@ -218,7 +218,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var remoteClientAccessToken = this.DecryptRequestExchangeCredentials(request.RSAEncryptedExchangeCredentials);
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey);
+            var (accessRegistration, clientAccessTokenReply) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey,ClientTokenType.Other);
 
             ConnectionRequestReply acceptedReq = new()
             {
@@ -344,7 +344,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             {
                 Id = new Guid(remoteAccessRegistrationId),
                 AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
-                SharedSecret = sharedSecret.ToSensitiveByteArray()
+                SharedSecret = sharedSecret.ToSensitiveByteArray(),
+                ClientTokenType = ClientTokenType.Other
             };
         }
 
@@ -371,7 +372,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             {
                 Id = new Guid(remoteAccessRegistrationIdBytes),
                 AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
-                SharedSecret = sharedSecret.ToSensitiveByteArray()
+                SharedSecret = sharedSecret.ToSensitiveByteArray(),
+                ClientTokenType = ClientTokenType.Other
             };
         }
     }

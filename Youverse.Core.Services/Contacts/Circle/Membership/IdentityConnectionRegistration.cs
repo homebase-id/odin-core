@@ -57,7 +57,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var clientAuthToken = new ClientAuthenticationToken()
             {
                 Id = this.ClientAccessTokenId,
-                AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray()
+                AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray(),
+                ClientTokenType = ClientTokenType.IdentityConnectionRegistration
             };
 
             return clientAuthToken;
@@ -98,5 +99,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         // accessRegistration created
         public long Created { get; set; }
         public long LastUpdated { get; set; }
+    }
+
+    public class IdentityConnectionRegistrationClient
+    {
+        public Guid Id { get; init; }
+
+        public DotYouIdentity DotYouId { get; init; }
+
+        public AccessRegistration AccessRegistration { get; init; }
     }
 }

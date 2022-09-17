@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new YouverseException("App must be registered to add a client");
             }
 
-            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
             var appClient = new AppClient(appId, accessRegistration);
             _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
@@ -108,7 +108,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new YouverseException("App must be registered to add a client");
             }
 
-            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey());
+            var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
             var appClient = new AppClient(appId, reg);
             _appClientValueStorage.Upsert(reg.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
 
@@ -145,7 +145,6 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
 
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grantDictionary, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
-            // var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, appReg.Grant, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
             return (appReg.AppId, permissionCtx);
         }
 

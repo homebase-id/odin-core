@@ -287,7 +287,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 ClientAuthenticationToken authenticationResult = new ClientAuthenticationToken()
                 {
                     Id = reply.Token,
-                    AccessTokenHalfKey = clientAccessHalfKey.ToSensitiveByteArray()
+                    AccessTokenHalfKey = clientAccessHalfKey.ToSensitiveByteArray(),
+                    ClientTokenType = ClientTokenType.Other
                 };
 
                 return (authenticationResult, sharedSecret);

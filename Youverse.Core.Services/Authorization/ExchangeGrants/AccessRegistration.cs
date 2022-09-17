@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public ByteArrayId Id { get; set; }
 
         public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
-        
+
         public UInt64 Created { get; set; }
 
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
@@ -23,14 +23,18 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey { get; set; }
 
         /// <summary>
-        /// Decrypts the grant key store key using your AccessKey; returns null if this AccessRegistration is bound to an 
+        /// Decrypts the grant key store key and shared secret using your Client Auth Token 
         /// </summary>
-        /// <param name="accessKey"></param>
         /// <returns></returns>
-        public SensitiveByteArray GetGrantKeyStoreKey(SensitiveByteArray accessKey)
+        public (SensitiveByteArray grantKeyStoreKey, SensitiveByteArray sharedSecret) DecryptUsingClientAuthenticationToken(ClientAuthenticationToken authToken)
         {
+            var token = authToken.AccessTokenHalfKey;
+            var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
             var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(ref accessKey);
-            return grantKeyStoreKey;
+            accessKey.Wipe();
+
+            return (grantKeyStoreKey, sharedSecret);
         }
 
         public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
