@@ -240,7 +240,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(dotYouId);
 
-            if (connection?.AccessGrant.AccessRegistration == null)
+            if (connection?.AccessGrant?.AccessRegistration == null)
             {
                 throw new YouverseSecurityException("Unauthorized Action");
             }
@@ -506,6 +506,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public Task<bool> TryCreateIdentityConnectionClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
         {
+            if (null == remoteIcrClientAuthToken)
+            {
+                clientAccessToken = null;
+                return Task.FromResult(false);
+            }
+            
             var icr = this.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
 
             if (!icr.IsConnected())
