@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Security;
 using System.Threading.Tasks;
 using Dawn;
@@ -122,23 +123,32 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return (permissionContext, enabledCircles);
         }
 
-        public async Task<(DotYouIdentity dotYouId, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(
+        public async Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(
             ClientAuthenticationToken authToken)
         {
             var client = await this.GetIdentityConnectionClient(authToken);
-
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             var icr = await this.GetIdentityConnectionRegistrationInternal(client.DotYouId);
+            bool isAuthenticated = icr!.AccessGrant?.IsValid() ?? false;
+            bool isConnected = icr!.IsConnected();
 
-            if (!icr?.AccessGrant?.IsValid() ?? false)
+            //only return the permissions if the identity is connected.  Otherwise, fall back to anonymous drives
+            if (isAuthenticated && isConnected)
             {
-                throw new YouverseSecurityException("Invalid token");
+                var (isValid, permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr?.AccessGrant, client.AccessRegistration, authToken);
+                return (client.DotYouId, isAuthenticated: true, isConnected: true, permissionContext, enabledCircles);
             }
-            
-            var (isValid, permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr?.AccessGrant, client.AccessRegistration, authToken);
 
-            return (client.DotYouId, icr?.IsConnected() ?? false, permissionContext, enabledCircles);
+            if (isAuthenticated)
+            {
+                //create permission context with anonymous drives only
+                var noGrants = new Dictionary<string, ExchangeGrant>();
+                var anonPermissionContext = await _exchangeGrantService.CreatePermissionContext(authToken, noGrants, icr.AccessGrant.AccessRegistration, isOwner: false);
+                return (client.DotYouId, isAuthenticated: true, isConnected: false, anonPermissionContext, null);
+            }
+
+            throw new YouverseSecurityException("Invalid auth token");
         }
 
         public async Task<bool> Disconnect(DotYouIdentity dotYouId)
@@ -150,11 +160,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 //destroy all access
                 info.AccessGrant = null;
+
+                //TODO: remove ICR clients
+
                 info.Status = ConnectionStatus.None;
                 this.SaveIcr(info);
-
-                //TODO: resolve circular dependency and clean up youauth
-                // await _youAuthRegistrationService.DeleteFromSubject(info.DotYouId);
 
                 return true;
             }
@@ -432,7 +442,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
             var circle64 = circleId.ToBase64();
-            if (icr.AccessGrant.CircleGrants.ContainsKey(circle64))
+            if (icr.AccessGrant?.CircleGrants.ContainsKey(circle64) ?? false)
             {
                 if (!icr.AccessGrant.CircleGrants.Remove(circleId.ToBase64()))
                 {
@@ -511,7 +521,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 clientAccessToken = null;
                 return Task.FromResult(false);
             }
-            
+
             var icr = this.GetIdentityConnectionRegistration(new DotYouIdentity(dotYouId), remoteIcrClientAuthToken).GetAwaiter().GetResult();
 
             if (!icr.IsConnected())
@@ -566,7 +576,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 }
             }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, false);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, isOwner: false);
             return (true, permissionCtx, enabledCircles);
         }
 
@@ -615,6 +625,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private void SaveIcr(IdentityConnectionRegistration icr)
         {
+            if (icr.Status == ConnectionStatus.None)
+            {
+                _circleMemberStorage.DeleteMembers(new List<byte[]>() { icr.DotYouId.ToByteArrayId().Value });
+            }
+            
             //TODO: this is a critical change; need to audit this
             _storage.Upsert(icr);
         }

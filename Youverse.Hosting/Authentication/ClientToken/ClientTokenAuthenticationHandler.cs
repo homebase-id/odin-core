@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
-                return await HandleAppAuth();
+                return await HandleAppAuth(dotYouContext);
             }
 
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(YouAuthApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
@@ -59,27 +59,37 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return AuthenticateResult.Fail("Invalid Path");
         }
 
-        private async Task<AuthenticateResult> HandleAppAuth()
+        private async Task<AuthenticateResult> HandleAppAuth(DotYouContext dotYouContext)
         {
-            if (!TryGetClientAuthToken(AppAuthConstants.ClientAuthTokenCookieName, out var clientAuthToken))
+            if (!TryGetClientAuthToken(AppAuthConstants.ClientAuthTokenCookieName, out var authToken))
             {
                 AuthenticateResult.Fail("Invalid App Token");
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var (isValid, _, _) = await appRegService.ValidateClientAuthToken(clientAuthToken);
+            var (isValid, _, _) = await appRegService.ValidateClientAuthToken(authToken);
 
             if (!isValid)
             {
                 AuthenticateResult.Fail("Invalid App Token");
             }
 
+            dotYouContext.Caller = new CallerContext(
+                dotYouId: (DotYouIdentity)Request.Host.Host,
+                masterKey: null,
+                securityLevel: SecurityGroupType.Owner);
+
+            var (appId, permissionContext) = await appRegService.GetPermissionContext(authToken);
+
+            dotYouContext.SetPermissionContext(permissionContext);
+            dotYouContext.AuthContext = AppAuthConstants.SchemeName;
+
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-
+            
             return CreateAuthenticationResult(claims, AppAuthConstants.SchemeName);
         }
 
@@ -106,7 +116,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
             );
 
             dotYouContext.SetPermissionContext(permissionContext);
-            
+            dotYouContext.AuthContext = ClientTokenConstants.Scheme;
+
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, dotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));

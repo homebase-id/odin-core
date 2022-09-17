@@ -128,7 +128,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the clientAuthToken
         /// </summary>
         /// <returns></returns>
-        Task<(DotYouIdentity dotYouId, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(ClientAuthenticationToken authToken);
+        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
