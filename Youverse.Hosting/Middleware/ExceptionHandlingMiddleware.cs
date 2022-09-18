@@ -144,8 +144,9 @@ namespace Youverse.Hosting.Middleware
 
             string internalErrorMessage = "";
             string stackTrace = "";
-            var hostingEnv = context.RequestServices.GetService<IWebHostEnvironment>();
-            if (hostingEnv != null && hostingEnv.IsDevelopment())
+
+            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
+            if (b && env == 1)
             {
                 internalErrorMessage = exception.Message;
                 stackTrace = exception.StackTrace ?? "";
