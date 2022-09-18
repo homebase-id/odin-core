@@ -28,6 +28,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);
 
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] Guid id);
+        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] ByteArrayId id);
     }
 }
