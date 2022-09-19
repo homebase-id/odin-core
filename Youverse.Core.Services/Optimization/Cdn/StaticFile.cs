@@ -8,7 +8,7 @@ public class StaticFile
 {
     public ClientFileHeader Header { get; set; }
 
-    public IEnumerable<ThumbnailContent> AdditionalThumbnails { get; set; }
+    public IEnumerable<ImageDataContent> AdditionalThumbnails { get; set; }
 
     /// <summary>
     /// Base64 encoded byte array of the payload

@@ -22,9 +22,9 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public string JsonContent { get; set; }
         
-        public ThumbnailContent PreviewThumbnail { get; set; }
+        public ImageDataContent PreviewThumbnail { get; set; }
         
-        public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
+        public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
     }
 
 }

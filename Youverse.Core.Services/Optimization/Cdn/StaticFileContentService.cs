@@ -104,14 +104,14 @@ public class StaticFileContentService
             foreach (var fileHeader in filteredHeaders)
             {
                 byte[] payload = null;
-                var thumbnails = new List<ThumbnailContent>();
+                var thumbnails = new List<ImageDataContent>();
 
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData.AdditionalThumbnails)
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(fileHeader.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-                        thumbnails.Add(new ThumbnailContent()
+                        thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
                             PixelWidth = thumbHeader.PixelWidth,

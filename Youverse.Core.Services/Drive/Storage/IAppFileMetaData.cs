@@ -40,11 +40,11 @@ namespace Youverse.Core.Services.Drive.Storage
         /// A tiny thumbnail, blurry and small to be seen when previewing
         /// content (i.e. scrolling past an image in chat or list of blog posts during first page load)
         /// </summary>
-        public ThumbnailContent PreviewThumbnail { get; set; }
+        public ImageDataContent PreviewThumbnail { get; set; }
 
         /// <summary>
         /// Set of thumbnails for this file in addition to the <see cref="PreviewThumbnail"/>
         /// </summary>
-        public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
+        public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
     }
 }

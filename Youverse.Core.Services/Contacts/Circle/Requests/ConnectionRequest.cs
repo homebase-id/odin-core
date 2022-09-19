@@ -17,12 +17,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         // public DotYouIdentity SenderDotYouId { get; set; }
         public string SenderDotYouId { get; set; }
-
-        /// <summary>
-        /// The name to be shown the recipient on the request
-        /// </summary>
-        public string Name { get; set; }
-
+        
         public Int64 ReceivedTimestampMilliseconds { get; set; }
 
         public string RSAEncryptedExchangeCredentials { get; set; }

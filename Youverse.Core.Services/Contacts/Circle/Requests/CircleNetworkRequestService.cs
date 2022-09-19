@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var request = new ConnectionRequest
             {
                 Id = header.Id,
-                Name = header.Name,
+                ContactData = header.ContactData,
                 Recipient = header.Recipient,
                 Message = header.Message,
                 SenderDotYouId = this._tenantContext.HostDotYouId, //this should not be required since it's set on the receiving end

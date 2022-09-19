@@ -1,6 +1,6 @@
 namespace Youverse.Core.Services.Drive.Storage;
 
-public class ThumbnailContent : ThumbnailHeader
+public class ImageDataContent : ImageDataHeader
 {
     /// <summary>
     /// The thumbnail data

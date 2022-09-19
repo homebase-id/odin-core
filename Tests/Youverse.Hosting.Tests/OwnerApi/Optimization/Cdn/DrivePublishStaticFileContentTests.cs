@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
             var identity = TestIdentities.Frodo;
             var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
 
-            var thumbnail1 = new ThumbnailContent()
+            var thumbnail1 = new ImageDataContent()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Content = TestMedia.ThumbnailBytes300
             };
 
-            var thumbnail2 = new ThumbnailContent()
+            var thumbnail2 = new ImageDataContent()
             {
                 PixelHeight = 400,
                 PixelWidth = 400,
@@ -74,14 +74,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
                 payloadContent: null,
-                previewThumbnail: new ThumbnailContent()
+                previewThumbnail: new ImageDataContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ThumbnailContent>() { thumbnail1, thumbnail2 });
+                additionalThumbs: new List<ImageDataContent>() { thumbnail1, thumbnail2 });
 
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -90,14 +90,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
                 payloadContent: "this is just a bit of text payload".ToUtf8ByteArray(),
-                previewThumbnail: new ThumbnailContent()
+                previewThumbnail: new ImageDataContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ThumbnailContent>() { thumbnail2 });
+                additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
             await CreateAnonymousUnEncryptedFile(
                 testContext,
@@ -106,14 +106,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "stuff" }),
                 tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
                 payloadContent: "payload".ToUtf8ByteArray(),
-                previewThumbnail: new ThumbnailContent()
+                previewThumbnail: new ImageDataContent()
                 {
                     PixelHeight = 100,
                     PixelWidth = 100,
                     ContentType = "image/png",
                     Content = TestMedia.PreviewPngThumbnailBytes
                 },
-                additionalThumbs: new List<ThumbnailContent>() { thumbnail2 });
+                additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
@@ -201,8 +201,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
         }
 
         public async Task CreateAnonymousUnEncryptedFile(TestSampleAppContext testContext, int fileType, int dataType, string jsonContent, List<byte[]> tags, byte[] payloadContent,
-            ThumbnailContent previewThumbnail,
-            List<ThumbnailContent> additionalThumbs)
+            ImageDataContent previewThumbnail,
+            List<ImageDataContent> additionalThumbs)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
             {

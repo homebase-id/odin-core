@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
@@ -21,10 +19,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         }
         
         /// <summary>
-        /// The display name to be shown to the recipient
+        /// Initial data sent with a connection request
         /// </summary>
-        public string Name { get; set; }
-
+        public ContactRequestData ContactData { get; set; }
+        
         /// <summary>
         /// Individual receiving the invite
         /// </summary>
@@ -33,12 +31,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             get => _recipient;
             set => _recipient = value;
         }
-        
+
         /// <summary>
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>
         public string Message { get; set; }
-        
+
+
         /// <summary>
         /// The circles 
         /// </summary>

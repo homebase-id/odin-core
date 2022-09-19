@@ -1,6 +1,6 @@
 namespace Youverse.Core.Services.Drive.Storage;
 
-public class ThumbnailHeader
+public class ImageDataHeader
 {
     public int PixelWidth { get; set; }
 

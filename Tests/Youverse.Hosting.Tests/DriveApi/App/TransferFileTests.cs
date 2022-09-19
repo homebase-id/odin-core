@@ -78,7 +78,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var thumbnail1 = new ThumbnailHeader()
+            var thumbnail1 = new ImageDataHeader()
             {
                 PixelHeight = 300,
                 PixelWidth = 300,
@@ -86,7 +86,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             };
             var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
 
-            var thumbnail2 = new ThumbnailHeader()
+            var thumbnail2 = new ImageDataHeader()
             {
                 PixelHeight = 400,
                 PixelWidth = 400,
@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                         Tags = new List<byte[]>() { fileTag },
                         ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
-                        PreviewThumbnail = new ThumbnailContent()
+                        PreviewThumbnail = new ImageDataContent()
                         {
                             PixelHeight = 100,
                             PixelWidth = 100,

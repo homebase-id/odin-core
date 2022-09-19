@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Drive
         public int Priority { get; set; }
 
         public string ContentType { get; set; }
-        public IEnumerable<ThumbnailHeader> AdditionalThumbnails { get; set; }
-        public ThumbnailContent PreviewThumbnail { get; set; }
+        public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
+        public ImageDataContent PreviewThumbnail { get; set; }
     }
 }

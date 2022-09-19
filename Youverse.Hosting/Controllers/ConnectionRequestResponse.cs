@@ -7,8 +7,6 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
 {
     public string SenderDotYouId { get; set; }
 
-    public string Name { get; set; }
-
     public Int64 ReceivedTimestampMilliseconds { get; set; }
 
     public static ConnectionRequestResponse FromConnectionRequest(ConnectionRequest arg)
@@ -16,7 +14,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
         return new ConnectionRequestResponse()
         {
             Id = arg.Id,
-            Name = arg.Name,
+            ContactData = arg.ContactData,
             SenderDotYouId = arg.SenderDotYouId,
             CircleIds = arg.CircleIds,
             Message = arg.Message,

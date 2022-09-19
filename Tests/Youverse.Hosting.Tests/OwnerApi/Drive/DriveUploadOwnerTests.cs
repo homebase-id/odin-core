@@ -180,7 +180,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
-                var thumbnail1 = new ThumbnailHeader()
+                var thumbnail1 = new ImageDataHeader()
                 {
                     PixelHeight = 300,
                     PixelWidth = 300,
@@ -188,7 +188,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 };
                 var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
 
-                var thumbnail2 = new ThumbnailHeader()
+                var thumbnail2 = new ImageDataHeader()
                 {
                     PixelHeight = 400,
                     PixelWidth = 400,
@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { content = "some content" }),
 
-                            PreviewThumbnail = new ThumbnailContent()
+                            PreviewThumbnail = new ImageDataContent()
                             {
                                 PixelHeight = 100,
                                 PixelWidth = 100,
