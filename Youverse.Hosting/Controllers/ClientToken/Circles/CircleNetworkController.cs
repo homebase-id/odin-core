@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         /// <param name="omitContactData">If true, the OriginalContactData field is not returned; default is true</param>
         /// <returns></returns>
         [HttpGet("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = true)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = false)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
             return new PagedResult<RedactedIdentityConnectionRegistration>(

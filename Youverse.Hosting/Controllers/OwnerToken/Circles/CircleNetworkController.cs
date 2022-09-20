@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = true)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = false)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
             return RedactIcr(result, omitContactData);
