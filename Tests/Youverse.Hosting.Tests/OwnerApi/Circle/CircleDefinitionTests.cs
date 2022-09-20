@@ -50,10 +50,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var targetDrive2 = TargetDrive.NewTargetDrive();
 
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive1, "Drive 1 for Circle Test", "", false);
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive2, "Drive 2 for Circle Test", "", false);
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive2, "Drive 2 for Circle Test", "", false);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -77,8 +77,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var targetDrive2 = TargetDrive.NewTargetDrive();
 
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive1, "Drive 1 for Circle Test", "", false);
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive2, "Drive 2 for Circle Test", "", false);
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive2, "Drive 2 for Circle Test", "", false);
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {

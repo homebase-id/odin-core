@@ -29,7 +29,7 @@ public class DriveManagementTests
     [Test]
     public async Task CanCreateAndGetDrive()
     {
-        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.DotYouId, out var ownerSharedSecret))
         {
             var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 

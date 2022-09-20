@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Dawn;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
@@ -15,4 +16,11 @@ public class AcceptRequestHeader
     /// Initial data sent with a connection request
     /// </summary>
     public ContactRequestData ContactData { get; set; }
+
+    public void Validate()
+    {
+        Guard.Argument(Sender, nameof(Sender)).NotEmpty().NotNull();
+        Guard.Argument(ContactData, nameof(ContactData)).NotNull();
+        ContactData.Validate();
+    }
 }

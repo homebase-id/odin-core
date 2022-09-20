@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -205,7 +205,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {

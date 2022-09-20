@@ -42,13 +42,13 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
 
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var qp = new FileQueryParams()
                 {
@@ -87,15 +87,15 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
 
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(identity, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
-            var anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            var securedFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
+            var anonymousFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
-            securedFileUploadContext = await this.UploadFile2(identity, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
-            anonymousFileUploadContext = await this.UploadFile2(identity, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
+            securedFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
+            anonymousFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -133,9 +133,9 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
+            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var qp = new FileQueryParams()
                 {
@@ -171,9 +171,9 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
+            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var qp = new FileQueryParams()
                 {
@@ -227,9 +227,9 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Anonymous);
+            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var qp = new FileQueryParams()
                 {

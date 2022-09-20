@@ -18,6 +18,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
 
@@ -93,7 +94,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 {
                     Id = id,
                     Recipient = recipient.Identity,
-                    Message = "Please add me"
+                    Message = "Please add me",
+                    ContactData = sender.ContactData
                 };
 
                 var response = await svc.SendConnectionRequest(requestHeader);
@@ -111,6 +113,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
+                
+                Assert.IsTrue(response.Content.ContactData.GivenName == sender.ContactData.GivenName);
+                Assert.IsTrue(response.Content.ContactData.Surname == sender.ContactData.Surname);
+                Assert.IsTrue(response.Content.ContactData.Image.ContentType == sender.ContactData.Image.ContentType);
+                Assert.IsTrue(response.Content.ContactData.Image.PixelWidth == sender.ContactData.Image.PixelWidth);
+                Assert.IsTrue(response.Content.ContactData.Image.PixelHeight == sender.ContactData.Image.PixelHeight);
+                Assert.IsTrue(response.Content.ContactData.Image.Content.Length == sender.ContactData.Image.Content.Length);
             }
         }
 
@@ -191,8 +200,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanAcceptConnectionRequest_AndAccessCirclePermissions()
         {
             //basically create 2 circles on frodo's identity, then give sam access
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
@@ -206,7 +215,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id }
+                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await connectionRequestService.AcceptConnectionRequest(header);
@@ -228,6 +238,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
+
+                //
+                // Validate the contact data sent by frodo was set on his ICR on sam's identity
+                //
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.GivenName == frodo.ContactData.GivenName);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Surname == frodo.ContactData.Surname);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.ContentType == frodo.ContactData.Image.ContentType);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.PixelWidth == frodo.ContactData.Image.PixelWidth);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.PixelHeight == frodo.ContactData.Image.PixelHeight);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.Content.Length == frodo.ContactData.Image.Content.Length);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
@@ -270,6 +290,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
+                
+                //
+                // Validate the contact data sent by sam was set on his ICR on frodo's identity
+                //
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.GivenName == sam.ContactData.GivenName);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Surname == sam.ContactData.Surname);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.ContentType == sam.ContactData.Image.ContentType);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.PixelWidth == sam.ContactData.Image.PixelWidth);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.PixelHeight == sam.ContactData.Image.PixelHeight);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.Content.Length == sam.ContactData.Image.Content.Length);
 
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
@@ -298,8 +328,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
@@ -313,7 +343,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id }
+                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await connectionRequestService.AcceptConnectionRequest(header);
@@ -467,8 +498,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access 
@@ -482,7 +513,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id }
+                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await connectionRequestService.AcceptConnectionRequest(header);
@@ -643,8 +675,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
-                    CircleIds = new List<ByteArrayId>()
+                    CircleIds = new List<ByteArrayId>(),
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -677,8 +709,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
-                    CircleIds = new List<ByteArrayId>()
+                    CircleIds = new List<ByteArrayId>(),
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -713,8 +745,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
-                    CircleIds = new List<ByteArrayId>()
+                    CircleIds = new List<ByteArrayId>(),
+                    ContactData = sam.ContactData
                 };
 
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -733,7 +765,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.DotYouId, ConnectionStatus.None);
             }
         }
 
@@ -742,7 +774,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             foreach (var circleDriveGrant in circleDefinition.DriveGrants)
             {
                 //be sure it's in the list of granted drives; use Single to be sure it's only in there once
-                var result = actual.DriveGrants.SingleOrDefault(x => x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
+                var result = actual.DriveGrants.SingleOrDefault(x =>
+                    x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
                 Assert.NotNull(result);
             }
         }
@@ -792,7 +825,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Id = id,
                 Recipient = recipient.Identity,
                 Message = "Please add me",
-                CircleIds = cids
+                CircleIds = cids,
+                ContactData = sender.ContactData
             };
 
             //have frodo send it
@@ -828,7 +862,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.DotYouId, ConnectionStatus.None);
             }
 
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
@@ -836,7 +870,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.DotYouId, ConnectionStatus.None);
             }
         }
 

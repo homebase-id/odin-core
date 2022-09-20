@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
             byte[] fileTag = new byte[] { 1, 1, 2, 3, 8 };
 
-            await _scaffold.OwnerApi.CreateConnection(sender, recipient);
+            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient }
+                    Recipients = new List<string>() { recipient.DotYouId }
                 }
             };
 
@@ -151,7 +151,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 }
             }
 
-            await _scaffold.OwnerApi.ProcessOutbox(sender);
+            await _scaffold.OwnerApi.ProcessOutbox(sender.DotYouId);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipient, recipientContext.ClientAuthenticationToken))
             {
@@ -295,7 +295,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender, recipientContext.Identity);
+            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
         // [Test(Description = "Updates a thumbnail")]

@@ -32,6 +32,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             _ownerApi = ownerApi;
         }
 
+        public HttpClient CreateAppApiHttpClient(TestIdentity identity, ClientAuthenticationToken token)
+        {
+            return this.CreateAppApiHttpClient(identity.DotYouId, token);
+        }
+        
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
@@ -56,36 +61,36 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
-        public async Task<AppTransitTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
-        {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        // public async Task<AppTransitTestUtilsContext> Upload(DotYouIdentity identity, TransitTestUtilsOptions options = null)
+        // {
+        //     var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        //
+        //     var instructionSet = new UploadInstructionSet()
+        //     {
+        //         TransferIv = transferIv,
+        //         StorageOptions = new StorageOptions()
+        //         {
+        //             Drive = TargetDrive.NewTargetDrive(),
+        //             OverwriteFileId = null,
+        //             ExpiresTimestamp = null
+        //         },
+        //         TransitOptions = null
+        //     };
+        //
+        //     var fileMetadata = new UploadFileMetadata()
+        //     {
+        //         ContentType = "application/json",
+        //         AppData = new()
+        //         {
+        //             ContentIsComplete = true,
+        //             JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+        //         }
+        //     };
+        //
+        //     return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+        // }
 
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = TargetDrive.NewTargetDrive(),
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
-                },
-                TransitOptions = null
-            };
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                ContentType = "application/json",
-                AppData = new()
-                {
-                    ContentIsComplete = true,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-                }
-            };
-
-            return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
-        }
-
-        public async Task<AppTransitTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> Upload(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -113,60 +118,60 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         /// Transfers a file using default file metadata
         /// </summary>
         /// <returns></returns>
-        public async Task<AppTransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
-        {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        // public async Task<AppTransitTestUtilsContext> TransferFile(TestIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
+        // {
+        //     var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        //
+        //     var instructionSet = new UploadInstructionSet()
+        //     {
+        //         TransferIv = transferIv,
+        //         StorageOptions = new StorageOptions()
+        //         {
+        //             Drive = TargetDrive.NewTargetDrive(),
+        //             OverwriteFileId = null,
+        //             ExpiresTimestamp = null,
+        //         },
+        //
+        //         TransitOptions = new TransitOptions()
+        //         {
+        //             Recipients = recipients
+        //         }
+        //     };
+        //
+        //     List<byte[]> tags = null;
+        //     if (options?.AppDataCategoryId != null)
+        //     {
+        //         tags = new List<byte[]>() { options.AppDataCategoryId.ToByteArray() };
+        //     }
+        //
+        //     var fileMetadata = new UploadFileMetadata()
+        //     {
+        //         ContentType = "application/json",
+        //         PayloadIsEncrypted = true,
+        //         AppData = new()
+        //         {
+        //             Tags = tags,
+        //             ContentIsComplete = true,
+        //             JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+        //         }
+        //     };
+        //
+        //     var o = options ?? TransitTestUtilsOptions.Default;
+        //
+        //     var result = await TransferFile(sender, instructionSet, fileMetadata, o);
+        //
+        //     if (o.DisconnectIdentitiesAfterTransfer)
+        //     {
+        //         foreach (var recipient in recipients)
+        //         {
+        //             await _ownerApi.DisconnectIdentities(sender, (DotYouIdentity)recipient);
+        //         }
+        //     }
+        //
+        //     return result;
+        // }
 
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = TargetDrive.NewTargetDrive(),
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null,
-                },
-
-                TransitOptions = new TransitOptions()
-                {
-                    Recipients = recipients
-                }
-            };
-
-            List<byte[]> tags = null;
-            if (options?.AppDataCategoryId != null)
-            {
-                tags = new List<byte[]>() { options.AppDataCategoryId.ToByteArray() };
-            }
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                ContentType = "application/json",
-                PayloadIsEncrypted = true,
-                AppData = new()
-                {
-                    Tags = tags,
-                    ContentIsComplete = true,
-                    JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-                }
-            };
-
-            var o = options ?? TransitTestUtilsOptions.Default;
-
-            var result = await TransferFile(sender, instructionSet, fileMetadata, o);
-
-            if (o.DisconnectIdentitiesAfterTransfer)
-            {
-                foreach (var recipient in recipients)
-                {
-                    await _ownerApi.DisconnectIdentities(sender, (DotYouIdentity)recipient);
-                }
-            }
-
-            return result;
-        }
-
-        private async Task<AppTransitTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<AppTransitTestUtilsContext> TransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -182,16 +187,16 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = (DotYouIdentity)r;
+                var recipient = TestIdentities.All[r];
                 var ctx = await _ownerApi.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
-                recipientContexts.Add(recipient, ctx);
+                recipientContexts.Add(recipient.DotYouId, ctx);
 
-                await _ownerApi.CreateConnection(sender, recipient);
+                await _ownerApi.CreateConnection(sender.DotYouId, recipient.DotYouId);
             }
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateAppApiHttpClient(sender, testAppContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(sender.DotYouId, testAppContext.ClientAuthenticationToken))
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
@@ -240,7 +245,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                 if (options is { ProcessOutbox: true })
                 {
-                    await _ownerApi.ProcessOutbox(sender);
+                    await _ownerApi.ProcessOutbox(sender.DotYouId);
                 }
 
                 if (options is { ProcessTransitBox: true })

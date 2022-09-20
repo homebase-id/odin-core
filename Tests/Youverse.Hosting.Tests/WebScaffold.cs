@@ -52,9 +52,9 @@ namespace Youverse.Hosting.Tests
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();
 
-            foreach (var identity in TestIdentities.All)
+            foreach (var dotYouId in TestIdentities.All.Keys)
             {
-                _ownerApi.SetupOwnerAccount(identity).GetAwaiter().GetResult();
+                _ownerApi.SetupOwnerAccount((DotYouIdentity)dotYouId).GetAwaiter().GetResult();
             }
 
             _appApi = new AppApiTestUtils(_ownerApi);

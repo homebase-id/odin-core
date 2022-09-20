@@ -90,6 +90,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull().Require(r => r != _contextAccessor.GetCurrent().Caller.DotYouId, s => "Cannot send connection request to yourself");
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
+            Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
+            header.ContactData.Validate();
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -204,14 +206,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task AcceptConnectionRequest(AcceptRequestHeader header)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-
+            
+            Guard.Argument(header, nameof(header)).NotNull();
+            header.Validate();
+            
             var pendingRequest = await GetPendingRequest((DotYouIdentity)header.Sender);
-
-            if (null == pendingRequest)
-            {
-                throw new InvalidOperationException($"No pending request was found from sender [{header.Sender}]");
-            }
-
+            Guard.Argument(pendingRequest, nameof(pendingRequest)).NotNull($"No pending request was found from sender [{header.Sender}]");
             pendingRequest.Validate();
 
             _logger.LogInformation($"Accept Connection request called for sender {pendingRequest.SenderDotYouId} to {pendingRequest.Recipient}");

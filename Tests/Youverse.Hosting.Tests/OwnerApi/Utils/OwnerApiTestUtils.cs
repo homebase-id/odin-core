@@ -151,6 +151,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
+        public HttpClient CreateOwnerApiHttpClient(TestIdentity identity, out SensitiveByteArray sharedSecret)
+        {
+            return this.CreateOwnerApiHttpClient(identity.DotYouId, out sharedSecret);
+        }
+        
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -307,7 +312,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
-        public async Task<TestSampleAppContext> SetupTestSampleApp(DotYouIdentity identity)
+        public async Task<TestSampleAppContext> SetupTestSampleApp(TestIdentity identity)
         {
             Guid appId = Guid.NewGuid();
             TargetDrive targetDrive = new TargetDrive()
@@ -318,7 +323,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await this.SetupTestSampleApp(appId, identity, false, targetDrive);
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, DotYouIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
+        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
             bool driveAllowAnonymousReads = false)
         {
             //TODO: we might need to let the callers pass this in at some point for testing
@@ -334,12 +339,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             //note; this is intentionally not global
 
-            this.AddApp(identity, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
+            this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
 
-            var (authResult, sharedSecret) = this.AddAppClient(identity, appId).GetAwaiter().GetResult();
+            var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
             {
-                Identity = identity,
+                Identity = identity.DotYouId,
+                ContactData = identity.ContactData,
                 AppId = appId,
                 ClientAuthenticationToken = authResult,
                 SharedSecret = sharedSecret,
@@ -412,14 +418,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.DotYouId, ConnectionStatus.None);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(dotYouId2, out var ownerSharedSecret))
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.DotYouId, ConnectionStatus.None);
             }
         }
 

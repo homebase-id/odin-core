@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -116,7 +116,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.DotYouId, out var ownerSharedSecret))
             {
 
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
@@ -144,7 +144,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> GetSampleApp(Guid appId)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });

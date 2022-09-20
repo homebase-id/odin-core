@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public long LastUpdated { get; set; }
         public long Created { get; set; }
-        
+
         /// <summary>
         /// The contact data received when the connection was established 
         /// </summary>
@@ -81,6 +81,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
+                OriginalContactData = this.OriginalContactData,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }
@@ -105,6 +106,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         // accessRegistration created
         public long Created { get; set; }
         public long LastUpdated { get; set; }
+        public ContactRequestData OriginalContactData { get; set; }
     }
 
     public class IdentityConnectionRegistrationClient

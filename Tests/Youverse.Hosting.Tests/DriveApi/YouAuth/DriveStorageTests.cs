@@ -39,9 +39,9 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
+            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -60,9 +60,9 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity, tag, SecurityGroupType.Connected);
+            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
