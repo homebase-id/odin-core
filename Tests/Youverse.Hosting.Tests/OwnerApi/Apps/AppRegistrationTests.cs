@@ -10,6 +10,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Apps
@@ -97,14 +98,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(decryptedData, Is.Not.Null);
-                Assert.That(decryptedData.Length, Is.EqualTo(48));
+                Assert.That(decryptedData.Length, Is.EqualTo(49));
+                
+                var (tokenPortableBytes, sharedSecret) = ByteArrayUtil.Split(decryptedData, 33, 16);
 
-                var (idBytes, clientAccessHalfKey, sharedSecret) = ByteArrayUtil.Split(decryptedData, 16, 16, 16);
+                ClientAuthenticationToken authenticationResult = ClientAuthenticationToken.FromPortableBytes(tokenPortableBytes);
 
-                Assert.False(new Guid(idBytes) == Guid.Empty);
-                Assert.IsNotNull(clientAccessHalfKey);
+                Assert.False(authenticationResult.Id == Guid.Empty);
+                Assert.IsNotNull(authenticationResult.AccessTokenHalfKey);
+                Assert.That(authenticationResult.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
+                Assert.IsTrue(authenticationResult.AccessTokenHalfKey.IsSet());
+                
                 Assert.IsNotNull(sharedSecret);
-                Assert.That(clientAccessHalfKey.Length, Is.EqualTo(16));
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
             }
         }

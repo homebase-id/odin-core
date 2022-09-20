@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
@@ -68,9 +69,23 @@ namespace Youverse.Hosting
         {
             var cfg = LoadConfig();
 
-            Directory.CreateDirectory(cfg.Logging.LogFilePath);
-            Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
-            Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
+            var loggingDirInfo = Directory.CreateDirectory(cfg.Logging.LogFilePath);
+            if (!loggingDirInfo.Exists)
+            {
+                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+            }
+
+            var dataRootDirInfo = Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
+            if (!dataRootDirInfo.Exists)
+            {
+                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+            }
+
+            var tempDataRootDirInfo = Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
+            if (!tempDataRootDirInfo.Exists)
+            {
+                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+            }
 
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
             _registry = cfg.Host.UseLocalCertificateRegistry
@@ -78,7 +93,7 @@ namespace Youverse.Hosting
                 : new IdentityRegistryRpc(cfg);
 
             _registry.Initialize();
-            
+
             return Host.CreateDefaultBuilder(args)
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
@@ -121,7 +136,7 @@ namespace Youverse.Hosting
                                     {
                                         //TODO: add caching of loaded certificates
                                         Guid domainId = _registry.ResolveId(hostName);
-                                        DotYouIdentity dotYouId = (DotYouIdentity) hostName;
+                                        DotYouIdentity dotYouId = (DotYouIdentity)hostName;
                                         var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
                                         if (null == cert)
                                         {
@@ -135,7 +150,7 @@ namespace Youverse.Hosting
                                     return null;
                                 };
 
-                                
+
                                 //Let the OS decide
                                 //TODO: revisit if we should let the OS decide
                                 //opts.SslProtocols = SslProtocols.None;
