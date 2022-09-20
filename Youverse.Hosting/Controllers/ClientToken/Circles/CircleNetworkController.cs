@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Hosting.Controllers.Anonymous;
 
@@ -11,7 +10,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]
     [Route(YouAuthApiPathConstants.CirclesV1 + "/connections")]
-    // [AuthorizeValidAppExchangeGrant]
     [AuthorizeValidExchangeGrant]
     public class CircleNetworkController : ControllerBase
     {
@@ -21,25 +19,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         {
             _circleNetwork = cn;
         }
-
-        // /// <summary>
-        // /// Gets the status of a connection between this identity and the specified identity
-        // /// </summary>
-        // /// <param name="request"></param>
-        // /// <returns></returns>
-        // [HttpPost("status")]
-        // // public async Task<ConnectionInfoResponse> GetConnectionInfo([FromBody] DotYouIdRequest request)
-        // // {
-        // //     var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
-        // //
-        // //     return new ConnectionInfoResponse()
-        // //     {
-        // //         Status = result.Status,
-        // //         LastUpdated = result.LastUpdated,
-        // //         GrantIsRevoked = !result.AccessGrant.IsValid()
-        // //     };
-        // // }
-
+        
         /// <summary>
         /// Gets a list of connected identities
         /// </summary>
@@ -47,13 +27,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         /// <param name="pageSize"></param>
         /// <returns></returns>
         [HttpGet("connected")]
-        public async Task<PagedResult<string>> GetConnectedIdentities(int pageNumber, int pageSize)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactImage = true)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
-            return new PagedResult<string>(
+            return new PagedResult<RedactedIdentityConnectionRegistration>(
                 result.Request,
                 result.TotalPages,
-                result.Results.Select(p => p.DotYouId.Id).ToList());
+                result.Results.Select(p => p.Redacted(omitContactImage)).ToList());
         }
     }
 }

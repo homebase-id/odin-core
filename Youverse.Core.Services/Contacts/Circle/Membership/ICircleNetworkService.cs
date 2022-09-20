@@ -50,9 +50,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Returns a list of identities which are connected to this DI
         /// </summary>
-        /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req);
+        Task<PagedResult<IdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req);
 
         /// <summary>
         /// Gets the current connection info
@@ -105,7 +104,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req);
+        Task<PagedResult<IdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req);
 
         /// <summary>
         /// Gets the access registration granted to the <param name="dotYouId"></param>
@@ -125,12 +124,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <returns></returns>
         Task<(PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
-        
+
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the clientAuthToken
         /// </summary>
         /// <returns></returns>
-        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(ClientAuthenticationToken authToken);
+        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(
+            ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
@@ -184,7 +184,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="circleId"></param>
         /// <returns></returns>
         Task DisableCircle(ByteArrayId circleId);
-        
+
         /// <summary>
         /// Enables a circle
         /// </summary>
@@ -204,6 +204,5 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="authToken"></param>
         /// <returns></returns>
         Task<IdentityConnectionRegistrationClient> GetIdentityConnectionClient(ClientAuthenticationToken authToken);
-
     }
 }

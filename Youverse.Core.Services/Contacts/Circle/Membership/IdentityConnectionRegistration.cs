@@ -74,15 +74,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Returns the minimal info needed for external systems using this data.
         /// </summary>
         /// <returns></returns>
-        public RedactedIdentityConnectionRegistration Redacted()
+        public RedactedIdentityConnectionRegistration Redacted(bool omitImage = true)
         {
+            ContactRequestData contactData = omitImage
+                ? new ContactRequestData()
+                {
+                    GivenName = OriginalContactData.GivenName,
+                    Surname = OriginalContactData.Surname
+                }
+                : OriginalContactData;
+            
             return new RedactedIdentityConnectionRegistration()
             {
                 DotYouId = this.DotYouId,
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
-                OriginalContactData = this.OriginalContactData,
+                OriginalContactData = contactData,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }
@@ -96,7 +104,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     public class RedactedIdentityConnectionRegistration
     {
         public DotYouIdentity DotYouId { get; set; }
-        
+
         public ConnectionStatus Status { get; set; }
 
         /// <summary>
@@ -107,15 +115,5 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         public long Created { get; set; }
         public long LastUpdated { get; set; }
         public ContactRequestData OriginalContactData { get; set; }
-        
-    }
-
-    public class IdentityConnectionRegistrationClient
-    {
-        public Guid Id { get; init; }
-
-        public DotYouIdentity DotYouId { get; init; }
-
-        public AccessRegistration AccessRegistration { get; init; }
     }
 }

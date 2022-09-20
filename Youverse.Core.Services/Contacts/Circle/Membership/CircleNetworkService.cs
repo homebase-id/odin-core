@@ -1,21 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Security;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 
@@ -32,21 +29,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly CircleNetworkStorage _storage;
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TableCircleMember _circleMemberStorage;
-        private readonly IDriveService _driveService;
-        private readonly IYouAuthRegistrationService _youAuthRegistrationService;
 
         private readonly ByteArrayId _icrClientDataType = ByteArrayId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService,
-            IDriveService driveService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
             _circleDefinitionService = circleDefinitionService;
-            _driveService = driveService;
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
@@ -207,25 +200,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return false;
         }
 
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req)
+        public async Task<PagedResult<IdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req)
         {
             var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Blocked);
-            var page = new PagedResult<RedactedIdentityConnectionRegistration>(
-                connectionsPage.Request,
-                connectionsPage.TotalPages,
-                connectionsPage.Results.Select(c => c.Redacted()).ToList());
-            return page;
+            return connectionsPage;
         }
 
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req)
+        public async Task<PagedResult<IdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req)
         {
             var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Connected);
-            var page = new PagedResult<RedactedIdentityConnectionRegistration>(
-                connectionsPage.Request,
-                connectionsPage.TotalPages,
-                connectionsPage.Results.Select(c => c.Redacted()).ToList());
-
-            return page;
+            return connectionsPage;
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false)
