@@ -369,7 +369,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var definitionList = getCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(definitionList);
 
-                var deleteCircleResponse = await svc.DeleteCircleDefinition(definitionList.Single().Id);
+                var id = definitionList.Single().Id;
+                var deleteCircleResponse = await svc.DeleteCircleDefinition(id);
                 Assert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
 
                 var secondGetCircleDefinitionsResponse = await svc.GetCircleDefinitions();

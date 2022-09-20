@@ -15,6 +15,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Storage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Optimization.Cdn;
 
@@ -56,8 +57,8 @@ public class StaticFileContentService
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
         //
 
-        //Note: I need to add a permission that bettter describes that we only wnt this done when the owner is in full
-        //admin mode, not just from an app.  master key idicates you're in full admin mode
+        //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
+        //admin mode, not just from an app.  master key indicates you're in full admin mode
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
@@ -173,7 +174,7 @@ public class StaticFileContentService
 
     private GuidId GetConfigKey(string filename)
     {
-        return new GuidId(filename.ToLower().ToUtf8ByteArray());
+        return new GuidId(HashUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
     private string EnsurePath()

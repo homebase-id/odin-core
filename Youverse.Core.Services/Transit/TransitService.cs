@@ -23,6 +23,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Storage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -465,7 +466,8 @@ namespace Youverse.Core.Services.Transit
 
         private GuidId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            return new GuidId(ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
+            var key = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(recipient.ToGuidIdentifier().ToByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
+            return new GuidId(key);
         }
     }
 }
