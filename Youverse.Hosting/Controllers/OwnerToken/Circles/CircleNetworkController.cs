@@ -54,24 +54,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("status")]
-        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request, bool omitContactImage = true)
+        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request, bool omitContactData = true)
         {
             var result = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)request.DotYouId);
-            return result?.Redacted(omitContactImage);
+            return result?.Redacted(omitContactData);
         }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactImage = true)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = true)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
-            return RedactIcr(result, omitContactImage);
+            return RedactIcr(result, omitContactData);
         }
 
         [HttpPost("blocked")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactImage = true)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactData = true)
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
-            return RedactIcr(result, omitContactImage);
+            return RedactIcr(result, omitContactData);
         }
 
         [HttpPost("circles/list")]
@@ -95,13 +95,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return true;
         }
 
-        private PagedResult<RedactedIdentityConnectionRegistration> RedactIcr(PagedResult<IdentityConnectionRegistration> page, bool omitContactImage)
+        private PagedResult<RedactedIdentityConnectionRegistration> RedactIcr(PagedResult<IdentityConnectionRegistration> page, bool omitContactData)
         {
             return new PagedResult<RedactedIdentityConnectionRegistration>()
             {
                 Request = page.Request,
                 TotalPages = page.TotalPages,
-                Results = page.Results.Select(c => c.Redacted(omitContactImage)).ToList()
+                Results = page.Results.Select(c => c.Redacted(omitContactData)).ToList()
             };
         }
     }

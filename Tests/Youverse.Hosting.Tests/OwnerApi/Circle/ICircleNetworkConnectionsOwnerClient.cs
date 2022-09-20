@@ -33,12 +33,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> Disconnect([Body] DotYouIdRequest request);
 
         [Post(root_path + "/status")]
-        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] DotYouIdRequest request, bool omitContactImage = true);
+        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] DotYouIdRequest request, bool omitContactData = true);
 
         [Post(root_path + "/connected")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactImage = true);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
 
         [Post(root_path + "/blocked")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactImage = true);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
     }
 }

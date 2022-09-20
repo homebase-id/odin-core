@@ -74,23 +74,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Returns the minimal info needed for external systems using this data.
         /// </summary>
         /// <returns></returns>
-        public RedactedIdentityConnectionRegistration Redacted(bool omitImage = true)
+        public RedactedIdentityConnectionRegistration Redacted(bool omitContactData = true)
         {
-            ContactRequestData contactData = omitImage
-                ? new ContactRequestData()
-                {
-                    GivenName = OriginalContactData.GivenName,
-                    Surname = OriginalContactData.Surname
-                }
-                : OriginalContactData;
-            
             return new RedactedIdentityConnectionRegistration()
             {
                 DotYouId = this.DotYouId,
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
-                OriginalContactData = contactData,
+                OriginalContactData = omitContactData ? null : this.OriginalContactData,
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }

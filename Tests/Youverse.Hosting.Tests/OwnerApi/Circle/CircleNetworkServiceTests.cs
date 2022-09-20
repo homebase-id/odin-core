@@ -234,7 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity }, omitContactImage: false);
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity }, omitContactData: false);
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
@@ -286,7 +286,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity }, omitContactImage: false);
+                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity }, omitContactData: false);
 
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
