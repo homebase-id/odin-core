@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("circle")]
-        public CircleDefinition GetCircle([FromBody] GuidId id)
+        public CircleDefinition GetCircle([FromBody] Guid id)
         {
             return _cns.GetCircleDefinition(id);
         }
@@ -49,21 +49,21 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("delete")]
-        public async Task<bool> DeleteCircle([FromBody] byte[] id)
+        public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
             await _cns.DeleteCircleDefinition(new GuidId(id));
             return true;
         }
         
         [HttpPost("enable")]
-        public async Task<bool> EnableCircle([FromBody] byte[] id)
+        public async Task<bool> EnableCircle([FromBody] Guid id)
         {
             await _cns.EnableCircle(new GuidId(id));
             return true;
         }
         
         [HttpPost("disable")]
-        public async Task<bool> DisableCircle([FromBody] byte[] id)
+        public async Task<bool> DisableCircle([FromBody] Guid id)
         {
             await _cns.DisableCircle(new GuidId(id));
             return true;

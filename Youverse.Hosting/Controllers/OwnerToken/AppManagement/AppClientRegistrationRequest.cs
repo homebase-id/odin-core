@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// <summary>
         /// The Id of the application
         /// </summary>
-        public GuidId AppId { get; set; }
+        public Guid AppId { get; set; }
         
         /// <summary>
         /// Base64 encoded RSA public key from the client.
