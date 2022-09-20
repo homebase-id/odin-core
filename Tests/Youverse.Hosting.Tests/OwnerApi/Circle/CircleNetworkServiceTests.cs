@@ -113,7 +113,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
-                
+
                 Assert.IsTrue(response.Content.ContactData.GivenName == sender.ContactData.GivenName);
                 Assert.IsTrue(response.Content.ContactData.Surname == sender.ContactData.Surname);
                 Assert.IsTrue(response.Content.ContactData.Image.ContentType == sender.ContactData.Image.ContentType);
@@ -200,7 +200,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         public async Task CanAcceptConnectionRequest_AndAccessCirclePermissions()
         {
             //basically create 2 circles on frodo's identity, then give sam access
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 =
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
             var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
@@ -233,7 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Frodo should be in Sam's contacts network.
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity }, omitContactImage: false);
 
                 Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
@@ -285,12 +286,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity });
+                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity }, omitContactImage: false);
 
                 Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-                
+
                 //
                 // Validate the contact data sent by sam was set on his ICR on frodo's identity
                 //
