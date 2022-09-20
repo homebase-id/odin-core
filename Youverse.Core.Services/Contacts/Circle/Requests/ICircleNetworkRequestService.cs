@@ -29,10 +29,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// Accepts a connection request.  This will store the public key certificate 
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="drives">The drives which should be accessible to the recipient of this request</param>
-        /// <param name="permissions">The permissions which should be granted to the recipient</param>
-        Task AcceptConnectionRequest(DotYouIdentity sender, IEnumerable<ByteArrayId> circleIds);
+        Task AcceptConnectionRequest(AcceptRequestHeader header);
 
         /// <summary>
         /// Get outgoing requests awaiting approval by their recipient

@@ -34,10 +34,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            Console.Write("ReceiveConnectionRequest 0");
-
             var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
-
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
@@ -45,12 +42,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
 
             ConnectionRequest request = DotYouSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
-
-            Console.Write("ReceiveConnectionRequest 1");
-
             await _circleNetworkRequestService.ReceiveConnectionRequest(request);
-            Console.Write("ReceiveConnectionRequest 2");
-
             return new JsonResult(new NoResultResponse(true));
         }
 

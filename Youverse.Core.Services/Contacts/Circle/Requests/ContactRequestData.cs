@@ -1,3 +1,4 @@
+using Dawn;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests;
@@ -21,4 +22,10 @@ public class ContactRequestData
     /// An image to be sent with the connection request
     /// </summary>
     public ImageDataContent Image { get; set; }
+
+    public void Validate()
+    {
+        Guard.Argument(GivenName, nameof(GivenName)).NotNull().NotEmpty();
+        Guard.Argument(Surname, nameof(Surname)).NotNull().NotEmpty();
+    }
 }

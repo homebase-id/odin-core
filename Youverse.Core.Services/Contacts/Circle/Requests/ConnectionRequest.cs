@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         // public DotYouIdentity SenderDotYouId { get; set; }
         public string SenderDotYouId { get; set; }
-        
+
         public Int64 ReceivedTimestampMilliseconds { get; set; }
 
         public string RSAEncryptedExchangeCredentials { get; set; }
@@ -26,22 +26,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// The exchange grant which will be given to the recipient if the connection request is accepted
         /// </summary>
         public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
-        
+
+        public ContactRequestData ReceivedContactData { get; set; }
+
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.
         /// </summary>
         public virtual void Validate()
         {
-            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
-            // Guard.Argument(SenderPublicKeyCertificate, nameof(SenderPublicKeyCertificate)).NotEmpty().NotNull();
-            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
-            // Guard.Argument(Name, nameof(Name)).NotNull();
-            // Guard.Argument(this.Name.Personal, nameof(this.Name.Personal)).NotEmpty().NotNull();
-            // Guard.Argument(this.Name.Surname, nameof(this.Name.Surname)).NotEmpty().NotNull();
-
-            Guard.Argument(Recipient.ToString(), nameof(Recipient)).NotEmpty().NotNull();
-
+            Guard.Argument(SenderDotYouId, nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(Recipient, nameof(Recipient)).NotEmpty().NotNull();
             Guard.Argument(Id, nameof(Id)).NotEqual(Guid.Empty);
+            Guard.Argument(ContactData, nameof(ContactData)).NotNull();
+
+            ContactData.Validate();
         }
     }
 }

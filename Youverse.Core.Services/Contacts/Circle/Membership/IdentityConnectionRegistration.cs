@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -51,6 +52,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public long LastUpdated { get; set; }
         public long Created { get; set; }
+        
+        /// <summary>
+        /// The contact data received when the connection was established 
+        /// </summary>
+        public ContactRequestData OriginalContactData { get; set; }
 
         public ClientAuthenticationToken CreateClientAuthToken()
         {

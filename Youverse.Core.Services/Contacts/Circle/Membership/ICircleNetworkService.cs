@@ -5,6 +5,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -95,8 +96,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
         /// <param name="accessGrant">The access to be given to this connection</param>
         /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
+        /// <param name="handshakeResponseContactData"></param>
         /// <returns></returns>
-        Task Connect(string dotYouId, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken);
+        Task Connect(string dotYouId, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData handshakeResponseContactData);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>

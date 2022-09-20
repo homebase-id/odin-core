@@ -14,6 +14,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
@@ -334,7 +335,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken)
+        public async Task Connect(string dotYouIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData contactData)
         {
             //TODO: need to add security that this method can be called
 
@@ -360,7 +361,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 AccessGrant = accessGrant,
                 ClientAccessTokenId = remoteClientAccessToken.Id,
                 ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
-                ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey()
+                ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey(),
+                OriginalContactData = contactData
             };
 
             this.SaveIcr(newConnection);
