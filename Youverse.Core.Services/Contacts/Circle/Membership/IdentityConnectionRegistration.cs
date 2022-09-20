@@ -78,6 +78,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             return new RedactedIdentityConnectionRegistration()
             {
+                DotYouId = this.DotYouId,
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
@@ -94,6 +95,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
     public class RedactedIdentityConnectionRegistration
     {
+        public DotYouIdentity DotYouId { get; set; }
+        
         public ConnectionStatus Status { get; set; }
 
         /// <summary>
@@ -101,12 +104,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         public RedactedAccessExchangeGrant AccessGrant { get; set; }
 
-        // access exchange grant isRevoked
-        // accessRegistration isRevoked
-        // accessRegistration created
         public long Created { get; set; }
         public long LastUpdated { get; set; }
         public ContactRequestData OriginalContactData { get; set; }
+        
     }
 
     public class IdentityConnectionRegistrationClient

@@ -97,7 +97,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 {
                     Id = id,
                     Recipient = recipient.Identity,
-                    Message = "Please add me"
+                    Message = "Please add me",
+                    ContactData = sender.ContactData
                 };
 
                 var response = await svc.SendConnectionRequest(requestHeader);

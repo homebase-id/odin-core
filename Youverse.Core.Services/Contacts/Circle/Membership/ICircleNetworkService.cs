@@ -48,11 +48,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         Task<bool> Unblock(DotYouIdentity dotYouId);
 
         /// <summary>
-        /// Returns a list of <see cref="DotYouProfile"/>s which are connected to this DI
+        /// Returns a list of identities which are connected to this DI
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<DotYouProfile>> GetConnectedIdentities(PageOptions req);
+        Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req);
 
         /// <summary>
         /// Gets the current connection info
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req);
+        Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req);
 
         /// <summary>
         /// Gets the access registration granted to the <param name="dotYouId"></param>

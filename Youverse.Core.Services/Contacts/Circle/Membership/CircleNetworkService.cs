@@ -207,30 +207,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return false;
         }
 
-        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(PageOptions req)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req)
         {
             var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Blocked);
-            var page = new PagedResult<DotYouProfile>(
+            var page = new PagedResult<RedactedIdentityConnectionRegistration>(
                 connectionsPage.Request,
                 connectionsPage.TotalPages,
-                connectionsPage.Results.Select(c => new DotYouProfile()
-                {
-                    DotYouId = c.DotYouId,
-                }).ToList());
-
+                connectionsPage.Results.Select(c => c.Redacted()).ToList());
             return page;
         }
 
-        public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(PageOptions req)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req)
         {
             var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Connected);
-            var page = new PagedResult<DotYouProfile>(
+            var page = new PagedResult<RedactedIdentityConnectionRegistration>(
                 connectionsPage.Request,
                 connectionsPage.TotalPages,
-                connectionsPage.Results.Select(c => new DotYouProfile()
-                {
-                    DotYouId = c.DotYouId,
-                }).ToList());
+                connectionsPage.Results.Select(c => c.Redacted()).ToList());
 
             return page;
         }
@@ -631,7 +624,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 _circleMemberStorage.DeleteMembers(new List<byte[]>() { icr.DotYouId.ToByteArrayId().Value });
             }
-            
+
             //TODO: this is a critical change; need to audit this
             _storage.Upsert(icr);
         }

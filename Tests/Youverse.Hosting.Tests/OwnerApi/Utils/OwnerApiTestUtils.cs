@@ -452,6 +452,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
         {
+            //HACK;
+            if (!TestIdentities.All.TryGetValue(sender, out var senderIdentity))
+            {
+                throw new NotImplementedException("need to add your sender to the list of identities");
+            }
+            
+            if (!TestIdentities.All.TryGetValue(recipient, out var recipientIdentity))
+            {
+                throw new NotImplementedException("need to add your recipient to the list of identities");
+            }
+
             //have frodo send it
             using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
@@ -462,7 +473,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 {
                     Id = id,
                     Recipient = recipient,
-                    Message = "Please add me"
+                    Message = "Please add me",
+                    ContactData = senderIdentity.ContactData
                 };
 
                 var response = await svc.SendConnectionRequest(requestHeader);
@@ -479,8 +491,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    // CircleIds = new List<ByteArrayId>() { defaultCircleId }
-                    CircleIds = new List<ByteArrayId>()
+                    CircleIds = new List<ByteArrayId>(),
+                    ContactData = recipientIdentity.ContactData
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");

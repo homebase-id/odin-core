@@ -66,14 +66,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<DotYouProfile>> GetConnectedIdentities(int pageNumber, int pageSize)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
             return result;
         }
 
         [HttpPost("blocked")]
-        public async Task<PagedResult<DotYouProfile>> GetBlockedProfiles(int pageNumber, int pageSize)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int pageNumber, int pageSize)
         {
             var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
             return result;

@@ -36,9 +36,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] DotYouIdRequest request);
 
         [Post(root_path + "/connected")]
-        Task<ApiResponse<PagedResult<DotYouProfile>>> GetConnectedProfiles(int pageNumber, int pageSize);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize);
 
         [Post(root_path + "/blocked")]
-        Task<ApiResponse<PagedResult<DotYouProfile>>> GetBlockedProfiles(int pageNumber, int pageSize);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetBlockedProfiles(int pageNumber, int pageSize);
     }
 }
