@@ -12,8 +12,8 @@ namespace Youverse.Core.Services.Drive;
 [DebuggerDisplay("Alias={Alias.ToBase64()} Type={Type.ToBase64()}")]
 public class TargetDrive : IEquatable<TargetDrive>
 {
-    public ByteArrayId Alias { get; set; }
-    public ByteArrayId Type { get; set; }
+    public GuidId Alias { get; set; }
+    public GuidId Type { get; set; }
 
     public byte[] ToKey()
     {
@@ -22,15 +22,15 @@ public class TargetDrive : IEquatable<TargetDrive>
 
     public bool IsValid()
     {
-        return ByteArrayId.IsValid(this.Alias) && ByteArrayId.IsValid(this.Type);
+        return GuidId.IsValid(this.Alias) && GuidId.IsValid(this.Type);
     }
 
     public static TargetDrive NewTargetDrive()
     {
         return new TargetDrive()
         {
-            Alias = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8),
-            Type = (ByteArrayId)ByteArrayUtil.GetRndByteArray(8)
+            Alias = (GuidId)ByteArrayUtil.GetRndByteArray(8),
+            Type = (GuidId)ByteArrayUtil.GetRndByteArray(8)
         };
     }
 

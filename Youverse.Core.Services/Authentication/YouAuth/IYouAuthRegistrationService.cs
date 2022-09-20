@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);
 
-        ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)> GetPermissionContext(
+        ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)> GetPermissionContext(
             ClientAuthenticationToken authToken);
     }
 }

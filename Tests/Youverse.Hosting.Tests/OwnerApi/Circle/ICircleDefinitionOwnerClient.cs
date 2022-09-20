@@ -19,7 +19,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
 
         [Post(RootPath + "/get")]
-        Task<ApiResponse<bool>> GetCircleDefinition([Body] ByteArrayId id);
+        Task<ApiResponse<bool>> GetCircleDefinition([Body] GuidId id);
 
         [Post(RootPath + "/create")]
         Task<ApiResponse<bool>> CreateCircleDefinition([Body] CreateCircleRequest request);
@@ -28,6 +28,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> UpdateCircleDefinition([Body] CircleDefinition circleDefinition);
 
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] ByteArrayId id);
+        Task<ApiResponse<bool>> DeleteCircleDefinition([Body] GuidId id);
     }
 }

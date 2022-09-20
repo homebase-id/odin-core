@@ -187,7 +187,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             var reg = new AccessRegistration()
             {
-                Id = ByteArrayId.NewId(),
+                Id = GuidId.NewId(),
                 AccessRegistrationClientType = clientType,
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,

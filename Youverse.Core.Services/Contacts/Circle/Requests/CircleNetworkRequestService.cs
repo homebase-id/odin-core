@@ -22,10 +22,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
     public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
         private readonly string _pendingPrefix = "pnd";
-        private readonly ByteArrayId _pendingRequestsDataType = ByteArrayId.FromString("pnd_requests");
+        private readonly GuidId _pendingRequestsDataType = GuidId.FromString("pnd_requests");
 
         private readonly string _sentPrefix = "snt";
-        private readonly ByteArrayId _sentRequestsDataType = ByteArrayId.FromString("sent_requests");
+        private readonly GuidId _sentRequestsDataType = GuidId.FromString("sent_requests");
 
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _cns;
@@ -166,7 +166,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
 
             request.SenderDotYouId = sender;
-            _pendingRequestValueStorage.Upsert(sender.ToByteArrayId(), ByteArrayId.Empty, _pendingRequestsDataType, request, _pendingPrefix);
+            _pendingRequestValueStorage.Upsert(sender.ToGuidIdentifier(), GuidId.Empty, _pendingRequestsDataType, request, _pendingPrefix);
 
 #pragma warning disable CS4014
             //let this happen in the background w/o blocking
@@ -180,7 +180,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var result = _pendingRequestValueStorage.Get<ConnectionRequest>(sender.ToByteArrayId(), _pendingPrefix);
+            var result = _pendingRequestValueStorage.Get<ConnectionRequest>(sender.ToGuidIdentifier(), _pendingPrefix);
             return result;
         }
 
@@ -199,7 +199,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeleteSentRequestInternal(DotYouIdentity recipient)
         {
-            _sentRequestValueStorage.Delete(recipient.ToByteArrayId(), _sentPrefix);
+            _sentRequestValueStorage.Delete(recipient.ToGuidIdentifier(), _sentPrefix);
             return Task.CompletedTask;
         }
 
@@ -254,7 +254,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<ByteArrayId>(), keyStoreKey),
+                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
@@ -310,18 +310,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private void UpsertSentConnectionRequest(ConnectionRequest request)
         {
-            _sentRequestValueStorage.Upsert(new DotYouIdentity(request.Recipient).ToByteArrayId(), ByteArrayId.Empty, _sentRequestsDataType, request, _sentPrefix);
+            _sentRequestValueStorage.Upsert(new DotYouIdentity(request.Recipient).ToGuidIdentifier(), GuidId.Empty, _sentRequestsDataType, request, _sentPrefix);
         }
 
         private Task DeletePendingRequestInternal(DotYouIdentity sender)
         {
-            _pendingRequestValueStorage.Delete(sender.ToByteArrayId(), _pendingPrefix);
+            _pendingRequestValueStorage.Delete(sender.ToGuidIdentifier(), _pendingPrefix);
             return Task.CompletedTask;
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternal(DotYouIdentity recipient)
         {
-            var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToByteArrayId(), _sentPrefix);
+            var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToGuidIdentifier(), _sentPrefix);
             return result;
         }
 

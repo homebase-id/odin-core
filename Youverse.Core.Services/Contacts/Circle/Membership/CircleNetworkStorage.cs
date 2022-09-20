@@ -12,7 +12,7 @@ public class CircleNetworkStorage
 {
     private readonly KeyValueDatabase _db;
     private readonly SingleKeyValueStorage _storage;
-    private readonly ByteArrayId _key = ByteArrayId.FromString("circle_network_storage");
+    private readonly GuidId _key = GuidId.FromString("circle_network_storage");
     private readonly object _sync = new object();
 
     public CircleNetworkStorage(string dbPath)
@@ -42,9 +42,9 @@ public class CircleNetworkStorage
 
         lock (_sync)
         {
-            if (!list.TryAdd(icr.DotYouId.ToByteArrayId().ToBase64(), icr))
+            if (!list.TryAdd(icr.DotYouId.ToByteArray().ToBase64(), icr))
             {
-                list[icr.DotYouId.ToByteArrayId().ToBase64()] = icr;
+                list[icr.DotYouId.ToByteArray().ToBase64()] = icr;
             }
 
             _storage.Upsert(_key, list);

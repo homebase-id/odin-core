@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Drive
             return await this.GetDrivesInternal(true, pageOptions);
         }
 
-        public async Task<PagedResult<StorageDrive>> GetDrives(ByteArrayId type, PageOptions pageOptions)
+        public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions)
         {
             Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
 

@@ -10,7 +10,7 @@ public class AcceptRequestHeader
 {
     public string Sender { get; set; }
     
-    public IEnumerable<ByteArrayId> CircleIds { get; set; }
+    public IEnumerable<GuidId> CircleIds { get; set; }
     
     /// <summary>
     /// Initial data sent with a connection request

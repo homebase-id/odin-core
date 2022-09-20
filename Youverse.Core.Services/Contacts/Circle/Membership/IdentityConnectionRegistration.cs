@@ -87,9 +87,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
         }
 
-        public IEnumerable<ByteArrayId> GetCircleIds()
+        public IEnumerable<GuidId> GetCircleIds()
         {
-            return this.AccessGrant?.CircleGrants?.Values.Select(cg => cg.CircleId) ?? new List<ByteArrayId>();
+            return this.AccessGrant?.CircleGrants?.Values.Select(cg => cg.CircleId) ?? new List<GuidId>();
         }
     }
 

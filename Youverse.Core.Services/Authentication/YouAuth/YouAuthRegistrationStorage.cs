@@ -18,21 +18,21 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public YouAuthRegistration? LoadFromSubject(string subject)
         {
-            return _systemStorage.SingleKeyValueStorage.Get<YouAuthRegistration>(ByteArrayId.FromString(subject), _regPrefix);
+            return _systemStorage.SingleKeyValueStorage.Get<YouAuthRegistration>(GuidId.FromString(subject), _regPrefix);
         }
 
         //
 
         public void Save(YouAuthRegistration registration)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(registration.Subject), registration, _regPrefix);
+            _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(registration.Subject), registration, _regPrefix);
         }
 
         //
 
         public void Delete(YouAuthRegistration registration)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(ByteArrayId.FromString(registration.Subject), _regPrefix);
+            _systemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(registration.Subject), _regPrefix);
             
             //TODO: delete clients as well
         }

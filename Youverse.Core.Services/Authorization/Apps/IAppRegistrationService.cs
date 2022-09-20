@@ -14,11 +14,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
+        Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
 
-        Task<RedactedAppRegistration> GetAppRegistration(ByteArrayId appId);
+        Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 
-        Task<(ByteArrayId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
+        Task<(GuidId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
 
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 
@@ -33,14 +33,14 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <param name="appId"></param>
         /// <returns></returns>
-        Task RevokeApp(ByteArrayId appId);
+        Task RevokeApp(GuidId appId);
 
         /// <summary>
         /// Allows an app that has been revoked
         /// </summary>
         /// <param name="appId"></param>
         /// <returns></returns>
-        Task RemoveAppRevocation(ByteArrayId appId);
+        Task RemoveAppRevocation(GuidId appId);
 
         /// <summary>
         /// Registers an application on a given device.  Returns the information required by the device
@@ -50,9 +50,9 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="friendlyName"></param>
         /// >
         /// <returns></returns>
-        Task<AppClientRegistrationResponse> RegisterClient(ByteArrayId appId, byte[] clientPublicKey, string friendlyName);
+        Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
-        Task<AppClientRegistrationResponse> RegisterChatClient_Temp(ByteArrayId appId, string friendlyName);
+        Task<AppClientRegistrationResponse> RegisterChatClient_Temp(GuidId appId, string friendlyName);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
     }

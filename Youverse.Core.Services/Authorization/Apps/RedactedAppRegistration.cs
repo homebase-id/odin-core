@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 {
     public class RedactedAppRegistration
     {
-        public ByteArrayId AppId { get; set; }
+        public GuidId AppId { get; set; }
 
         public string Name { get; set; }
 

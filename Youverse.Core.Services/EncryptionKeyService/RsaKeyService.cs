@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task InvalidatePublicKey(DotYouIdentity recipient)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(ByteArrayId.FromString(recipient.Id));
+            _systemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.Id));
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)
@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var cacheItem = _systemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(ByteArrayId.FromString(recipient.Id));
+            var cacheItem = _systemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
             
             if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
             {
@@ -123,7 +123,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     expiration = tpkResponse.Content.Expiration
                 };
 
-                _systemStorage.SingleKeyValueStorage.Upsert(ByteArrayId.FromString(recipient.Id), cacheItem);
+                _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
             }
 
             if (null == cacheItem && failIfCannotRetrieve)

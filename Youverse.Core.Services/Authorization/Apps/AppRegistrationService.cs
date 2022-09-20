@@ -21,10 +21,10 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly ISystemStorage _systemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
 
-        private readonly ByteArrayId _appRegistrationDataType = ByteArrayId.FromString("__app_reg");
+        private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
         private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
 
-        private readonly ByteArrayId _appClientDataType = ByteArrayId.FromString("__app_client_reg");
+        private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
         private readonly ThreeKeyValueStorage _appClientValueStorage;
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _appClientValueStorage = systemStorage.ThreeKeyValueStorage;
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(ByteArrayId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
@@ -54,12 +54,12 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Grant = grant
             };
 
-            _appRegistrationValueStorage.Upsert(appReg.AppId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
+            _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             return appReg.Redacted();
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterClient(ByteArrayId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(clientPublicKey, nameof(clientPublicKey)).NotNull().Require(x => x.Length > 200);
@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
             var appClient = new AppClient(appId, accessRegistration);
-            _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
+            _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId, _appClientDataType, appClient);
 
             //RSA encrypt using the public key and send to client
             var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
@@ -95,7 +95,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterChatClient_Temp(ByteArrayId appId, string friendlyName)
+        public async Task<AppClientRegistrationResponse> RegisterChatClient_Temp(GuidId appId, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
             var appClient = new AppClient(appId, reg);
-            _appClientValueStorage.Upsert(reg.Id, appReg.AppId.Value, _appClientDataType.Value, appClient);
+            _appClientValueStorage.Upsert(reg.Id, appReg.AppId, _appClientDataType, appClient);
 
             //RSA encrypt using the public key and send to client - temp removed for early chat client development
             var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
@@ -124,13 +124,13 @@ namespace Youverse.Core.Services.Authorization.Apps
             };
         }
 
-        public async Task<RedactedAppRegistration> GetAppRegistration(ByteArrayId appId)
+        public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
         }
 
-        public async Task<(ByteArrayId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
+        public async Task<(GuidId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var (isValid, accessReg, appReg) = await this.ValidateClientAuthToken(authToken);
 
@@ -171,7 +171,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return (true, appClient.AccessRegistration, appReg);
         }
 
-        public async Task RevokeApp(ByteArrayId appId)
+        public async Task RevokeApp(GuidId appId)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
@@ -181,10 +181,10 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             //TODO: revoke all clients? or is the one flag enough?
-            _appRegistrationValueStorage.Upsert(appId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
+            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
         }
 
-        public async Task RemoveAppRevocation(ByteArrayId appId)
+        public async Task RemoveAppRevocation(GuidId appId)
         {
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null != appReg)
@@ -193,7 +193,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 appReg.Grant.IsRevoked = false;
             }
 
-            _appRegistrationValueStorage.Upsert(appId, ByteArrayId.Empty.Value, _appRegistrationDataType.Value, appReg);
+            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
@@ -216,7 +216,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return Task.FromResult(redactedList);
         }
 
-        private async Task<AppRegistration> GetAppRegistrationInternal(ByteArrayId appId)
+        private async Task<AppRegistration> GetAppRegistrationInternal(GuidId appId)
         {
             var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
             return appReg;

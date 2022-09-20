@@ -93,10 +93,10 @@ public class SqliteQueryManager : IDriveQueryManager
         {
             if (!callerContext.IsAnonymous)
             {
-                aclList.Add(callerContext.DotYouId.ToByteArrayId().Value);
+                aclList.Add(callerContext.DotYouId.ToGuidIdentifier().ToByteArray());
             }
 
-            aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<byte[]>());
+            aclList.AddRange(callerContext.Circles?.Select(c => c.Value.ToByteArray()) ?? Array.Empty<byte[]>());
         }
 
         return aclList.Any() ? aclList : null;
@@ -113,13 +113,13 @@ public class SqliteQueryManager : IDriveQueryManager
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
-        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArrayId().Value;
+        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
 
         var acl = new List<byte[]>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((DotYouIdentity)dotYouId).ToByteArrayId().Value
+            ((DotYouIdentity)dotYouId).ToGuidIdentifier().ToByteArray()
         );
         acl.AddRange(ids.ToList());
 

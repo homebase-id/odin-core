@@ -13,8 +13,8 @@ namespace Youverse.Core.Services.Authentication.Owner
 {
     public class OwnerSecretService : IOwnerSecretService
     {
-        private readonly ByteArrayId _passwordKey = ByteArrayId.FromString("_passwordKey");
-        private readonly ByteArrayId _rsaKeyStorageId = ByteArrayId.FromString("_rsaKeyStorageId");
+        private readonly GuidId _passwordKey = GuidId.FromString("_passwordKey");
+        private readonly GuidId _rsaKeyStorageId = GuidId.FromString("_rsaKeyStorageId");
 
         private readonly ISystemStorage _systemStorage;
 

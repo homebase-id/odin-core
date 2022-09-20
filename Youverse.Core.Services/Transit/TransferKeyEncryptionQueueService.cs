@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransferKeyEncryptionQueueService : ITransferKeyEncryptionQueueService
     {
-        private readonly ByteArrayId _queueKey = ByteArrayId.FromString("tkequeue__");
+        private readonly GuidId _queueKey = GuidId.FromString("tkequeue__");
         private readonly ISystemStorage _systemStorage;
 
         public TransferKeyEncryptionQueueService(ISystemStorage systemStorage)

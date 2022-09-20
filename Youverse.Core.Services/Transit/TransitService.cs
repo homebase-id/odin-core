@@ -290,7 +290,7 @@ namespace Youverse.Core.Services.Transit
             var now = DateTimeExtensions.UnixTimeMilliseconds();
             var item = new TransitKeyEncryptionQueueItem()
             {
-                Id = ByteArrayId.NewId(),
+                Id = GuidId.NewId(),
                 FileId = package.InternalFile.FileId,
                 Recipient = recipient,
                 FirstAddedTimestampMs = now,
@@ -463,9 +463,9 @@ namespace Youverse.Core.Services.Transit
             return Task.FromResult(instructionSet);
         }
 
-        private ByteArrayId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
+        private GuidId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            return new ByteArrayId(ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
+            return new GuidId(ByteArrayUtil.Combine(recipient.Id.ToUtf8ByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
         }
     }
 }

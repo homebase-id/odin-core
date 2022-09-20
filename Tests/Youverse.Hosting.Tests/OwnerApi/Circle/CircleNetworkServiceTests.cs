@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
             // var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
-            List<ByteArrayId> cids = new List<ByteArrayId>();
+            List<GuidId> cids = new List<GuidId>();
 
             var id = Guid.NewGuid();
 
@@ -216,7 +216,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    CircleIds = new List<GuidId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
                     ContactData = sam.ContactData
                 };
 
@@ -344,7 +344,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    CircleIds = new List<GuidId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
                     ContactData = sam.ContactData
                 };
 
@@ -514,7 +514,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
+                    CircleIds = new List<GuidId>() { circleOnSamsIdentity1.Id, circleOnSamsIdentity2.Id },
                     ContactData = sam.ContactData
                 };
 
@@ -676,7 +676,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>(),
+                    CircleIds = new List<GuidId>(),
                     ContactData = sam.ContactData
                 };
 
@@ -710,7 +710,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>(),
+                    CircleIds = new List<GuidId>(),
                     ContactData = sam.ContactData
                 };
 
@@ -746,7 +746,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var header = new AcceptRequestHeader()
                 {
                     Sender = frodo.Identity,
-                    CircleIds = new List<ByteArrayId>(),
+                    CircleIds = new List<GuidId>(),
                     ContactData = sam.ContactData
                 };
 
@@ -781,7 +781,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, ByteArrayId circleId, DotYouIdentity expectedIdentity)
+        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, DotYouIdentity expectedIdentity)
         {
             var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
@@ -809,7 +809,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
             var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
-            List<ByteArrayId> cids = new List<ByteArrayId>();
+            List<GuidId> cids = new List<GuidId>();
             if (null != circleDefinition1)
             {
                 cids.Add(circleDefinition1.Id);

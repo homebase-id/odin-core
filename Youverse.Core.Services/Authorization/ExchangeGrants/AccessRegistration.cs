@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
     public class AccessRegistration
     {
-        public ByteArrayId Id { get; set; }
+        public GuidId Id { get; set; }
 
         public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
 

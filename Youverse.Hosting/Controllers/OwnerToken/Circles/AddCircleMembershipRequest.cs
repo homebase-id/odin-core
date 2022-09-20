@@ -6,5 +6,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles;
 public class AddCircleMembershipRequest
 {
     public string DotYouId { get; set; }
-    public ByteArrayId CircleId { get; set; }
+    public GuidId CircleId { get; set; }
 }

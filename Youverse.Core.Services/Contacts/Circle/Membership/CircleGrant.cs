@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership;
 /// </summary>
 public class CircleGrant
 {
-    public ByteArrayId CircleId { get; set; }
+    public GuidId CircleId { get; set; }
     public PermissionSet PermissionSet { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
 
@@ -27,7 +27,7 @@ public class CircleGrant
 
 public class RedactedCircleGrant
 {
-    public ByteArrayId CircleId { get; set; }
+    public GuidId CircleId { get; set; }
     public PermissionSet PermissionSet { get; set; }
     public List<RedactedDriveGrant> DriveGrants { get; set; }
 }

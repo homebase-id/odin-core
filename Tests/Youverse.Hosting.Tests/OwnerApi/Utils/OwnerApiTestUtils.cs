@@ -490,7 +490,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    CircleIds = new List<ByteArrayId>(),
+                    CircleIds = new List<GuidId>(),
                     ContactData = recipientIdentity.ContactData
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);

@@ -123,28 +123,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
+        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
 
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the clientAuthToken
         /// </summary>
         /// <returns></returns>
-        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> circleIds)> CreateClientPermissionContext(
+        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<GuidId> circleIds)> CreateClientPermissionContext(
             ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
         /// </summary>
-        Task GrantCircle(ByteArrayId circleId, DotYouIdentity dotYouId);
+        Task GrantCircle(GuidId circleId, DotYouIdentity dotYouId);
 
         /// <summary>
         /// Removes drives and permissions of the specified circle from the dotYouId
         /// </summary>
-        Task RevokeCircleAccess(ByteArrayId circleId, DotYouIdentity dotYouId);
+        Task RevokeCircleAccess(GuidId circleId, DotYouIdentity dotYouId);
 
-        Task<IEnumerable<DotYouIdentity>> GetCircleMembers(ByteArrayId circleId);
+        Task<IEnumerable<DotYouIdentity>> GetCircleMembers(GuidId circleId);
 
-        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<ByteArrayId> circleIds, SensitiveByteArray keyStoreKey);
+        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
 
         /// <summary>
         /// Creates a circle definition
@@ -158,7 +158,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="circleId"></param>
         /// <returns></returns>
-        CircleDefinition GetCircleDefinition(ByteArrayId circleId);
+        CircleDefinition GetCircleDefinition(GuidId circleId);
 
         /// <summary>
         /// Gets a list of all circle definitions
@@ -176,21 +176,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Tests if a circle has members and indicates if it can be deleted
         /// </summary>
-        Task DeleteCircleDefinition(ByteArrayId circleId);
+        Task DeleteCircleDefinition(GuidId circleId);
 
         /// <summary>
         /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
         /// </summary>
         /// <param name="circleId"></param>
         /// <returns></returns>
-        Task DisableCircle(ByteArrayId circleId);
+        Task DisableCircle(GuidId circleId);
 
         /// <summary>
         /// Enables a circle
         /// </summary>
         /// <param name="circleId"></param>
         /// <returns></returns>
-        Task EnableCircle(ByteArrayId circleId);
+        Task EnableCircle(GuidId circleId);
 
         /// <summary>
         /// Creates a client for the IdentityConnectionRegistration

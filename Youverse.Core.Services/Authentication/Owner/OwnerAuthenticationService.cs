@@ -59,13 +59,13 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(new ByteArrayId(key));
+            var noncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist. 
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _systemStorage.SingleKeyValueStorage.Delete(new ByteArrayId(key));
+            _systemStorage.SingleKeyValueStorage.Delete(new GuidId(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server

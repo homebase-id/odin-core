@@ -171,9 +171,9 @@ public class StaticFileContentService
         return Task.FromResult((config, (Stream)fileStream));
     }
 
-    private ByteArrayId GetConfigKey(string filename)
+    private GuidId GetConfigKey(string filename)
     {
-        return new ByteArrayId(filename.ToLower().ToUtf8ByteArray());
+        return new GuidId(filename.ToLower().ToUtf8ByteArray());
     }
 
     private string EnsurePath()

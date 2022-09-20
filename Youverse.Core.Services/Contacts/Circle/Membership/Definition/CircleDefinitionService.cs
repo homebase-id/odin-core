@@ -14,10 +14,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
     {
         private readonly IDriveService _driveService;
 
-        private readonly ByteArrayId _circleDataType = ByteArrayId.FromString("circle__");
+        private readonly GuidId _circleDataType = GuidId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public readonly ByteArrayId DefaultCircleId = ByteArrayId.FromString("default_circle");
+        public readonly GuidId DefaultCircleId = GuidId.FromString("default_circle");
 
         public CircleDefinitionService(ISystemStorage systemStorage, IDriveService driveService)
         {
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             var circle = new CircleDefinition()
             {
-                Id = ByteArrayId.NewId(),
+                Id = GuidId.NewId(),
                 Created = DateTimeExtensions.UnixTimeMilliseconds(),
                 Name = request.Name,
                 Description = request.Description,
@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 Permissions = request.Permissions
             };
 
-            _circleValueStorage.Upsert(circle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, circle);
+            _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);
 
             return Task.FromResult(circle);
         }
@@ -66,20 +66,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            _circleValueStorage.Upsert(existingCircle.Id, ByteArrayId.Empty.Value, _circleDataType.Value, newCircleDefinition);
+            _circleValueStorage.Upsert(existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
 
             return Task.CompletedTask;
         }
         
-        public bool IsEnabled(ByteArrayId circleId)
+        public bool IsEnabled(GuidId circleId)
         {
             var circle = this.GetCircle(circleId);
             return !circle?.Disabled ?? false;
         }
 
-        public CircleDefinition GetCircle(ByteArrayId circleId)
+        public CircleDefinition GetCircle(GuidId circleId)
         {
-            Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => ByteArrayId.IsValid(id));
+            Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => GuidId.IsValid(id));
             var def = _circleValueStorage.Get<CircleDefinition>(circleId);
             return def;
         }
@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             return Task.FromResult(circles);
         }
 
-        public Task Delete(ByteArrayId id)
+        public Task Delete(GuidId id)
         {
             var circle = GetCircle(id);
 

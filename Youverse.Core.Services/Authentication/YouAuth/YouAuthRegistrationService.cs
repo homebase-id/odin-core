@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
-        public ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)> GetPermissionContext(
+        public ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)> GetPermissionContext(
             ClientAuthenticationToken authToken)
         {
             /*
@@ -122,7 +122,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     bool isValid,
                     bool isConnected,
                     PermissionContext permissionContext,
-                    List<ByteArrayId> enabledCircleIds)>((
+                    List<GuidId> enabledCircleIds)>((
                     dotYouId, isAuthenticated, isConnected, permissionContext, circleIds));
             }
 
@@ -130,7 +130,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 if (!this.ValidateClientAuthToken(authToken, out var client, out var registration))
                 {
-                    return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<ByteArrayId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
+                    return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
                         null,
                         null));
                 }
@@ -148,7 +148,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     sharedSecretKey: client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey),
                     isOwner: false);
 
-                return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<ByteArrayId>)>((client.DotYouId, true, false, permissionCtx, null));
+                return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<GuidId>)>((client.DotYouId, true, false, permissionCtx, null));
             }
 
 

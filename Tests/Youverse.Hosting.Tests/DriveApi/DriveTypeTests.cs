@@ -36,8 +36,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_one_alias"),
-                        Type = ByteArrayId.FromString("drive_grant_one_type")
+                        Alias = GuidId.FromString("drive_grant_one_alias"),
+                        Type = GuidId.FromString("drive_grant_one_type")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -51,8 +51,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_one_alias"),
-                        Type = ByteArrayId.FromString("drive_grant_one_type")
+                        Alias = GuidId.FromString("drive_grant_one_alias"),
+                        Type = GuidId.FromString("drive_grant_one_type")
                     },
                     Permission = DrivePermission.ReadWrite,
                 }
@@ -64,8 +64,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_2_alias22"),
-                        Type = ByteArrayId.FromString("drive_grant_2_type22")
+                        Alias = GuidId.FromString("drive_grant_2_alias22"),
+                        Type = GuidId.FromString("drive_grant_2_type22")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -80,8 +80,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_2_alias22"),
-                        Type = ByteArrayId.FromString("drive_grant_2_type22")
+                        Alias = GuidId.FromString("drive_grant_2_alias22"),
+                        Type = GuidId.FromString("drive_grant_2_type22")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -93,8 +93,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_3_alias"),
-                        Type = ByteArrayId.FromString("drive_grant_3_type")
+                        Alias = GuidId.FromString("drive_grant_3_alias"),
+                        Type = GuidId.FromString("drive_grant_3_type")
                     },
                     Permission = DrivePermission.Read
                 }
@@ -108,8 +108,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("drive_grant_3_alias"),
-                        Type = ByteArrayId.FromString("drive_grant_3_type")
+                        Alias = GuidId.FromString("drive_grant_3_alias"),
+                        Type = GuidId.FromString("drive_grant_3_type")
                     },
                     Permission = DrivePermission.Read
                 }
@@ -122,8 +122,8 @@ namespace Youverse.Hosting.Tests.DriveApi
                 {
                     Drive = new TargetDrive()
                     {
-                        Alias = ByteArrayId.FromString("a_totally_new_alias99"),
-                        Type = ByteArrayId.FromString("a_totally_new_type99")
+                        Alias = GuidId.FromString("a_totally_new_alias99"),
+                        Type = GuidId.FromString("a_totally_new_type99")
                     },
                     Permission = DrivePermission.ReadWrite
                 }
@@ -166,25 +166,25 @@ namespace Youverse.Hosting.Tests.DriveApi
         {
             var target1 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("test-test-19999"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("test-test-19999"),
+                Type = GuidId.FromString("drive-type-19999")
             };
             var target2 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("test-test-19999"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("test-test-19999"),
+                Type = GuidId.FromString("drive-type-19999")
             };
 
             var target3 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("abc123-3333"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("abc123-3333"),
+                Type = GuidId.FromString("drive-type-19999")
             };
 
             var target4 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("test-test-19999"),
-                Type = ByteArrayId.FromString("ekle-iiowc-0944")
+                Alias = GuidId.FromString("test-test-19999"),
+                Type = GuidId.FromString("ekle-iiowc-0944")
             };
 
             Assert.IsTrue(target1 == target2);
@@ -201,32 +201,32 @@ namespace Youverse.Hosting.Tests.DriveApi
         {
             var target1 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("test-test-19999"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("test-test-19999"),
+                Type = GuidId.FromString("drive-type-19999")
             };
 
             var target2 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("i-r-target-two"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("i-r-target-two"),
+                Type = GuidId.FromString("drive-type-19999")
             };
 
             var target3 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("abc123-3333"),
-                Type = ByteArrayId.FromString("drive-type-19999")
+                Alias = GuidId.FromString("abc123-3333"),
+                Type = GuidId.FromString("drive-type-19999")
             };
 
             var target4 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("test-test-19999"),
-                Type = ByteArrayId.FromString("ekle-iiowc-0944")
+                Alias = GuidId.FromString("test-test-19999"),
+                Type = GuidId.FromString("ekle-iiowc-0944")
             };
 
             var target5 = new TargetDrive()
             {
-                Alias = ByteArrayId.FromString("i-am-alias-99"),
-                Type = ByteArrayId.FromString("iam-type-19999")
+                Alias = GuidId.FromString("i-am-alias-99"),
+                Type = GuidId.FromString("iam-type-19999")
             };
 
             var list1 = new List<TargetDrive>() { target1, target2, target3, target4, target5 };

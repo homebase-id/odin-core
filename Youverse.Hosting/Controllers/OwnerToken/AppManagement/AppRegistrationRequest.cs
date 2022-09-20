@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
     public class AppRegistrationRequest
     {
-        public ByteArrayId AppId { get; set; } 
+        public GuidId AppId { get; set; } 
         
         public string Name { get; set; }
         

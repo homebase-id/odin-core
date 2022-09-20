@@ -14,12 +14,12 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<ByteArrayId> circleIds = null)
+        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null)
         {
             this.DotYouId = dotYouId;
             this._masterKey = masterKey;
             this.SecurityLevel = securityLevel;
-            this.Circles = circleIds ?? new List<ByteArrayId>();
+            this.Circles = circleIds ?? new List<GuidId>();
         }
 
         /// <summary>
@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Base
         public SecurityGroupType SecurityLevel { get; set; }
 
 
-        public IEnumerable<ByteArrayId> Circles { get; set; }
+        public IEnumerable<GuidId> Circles { get; set; }
 
         /// <summary>
         /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API

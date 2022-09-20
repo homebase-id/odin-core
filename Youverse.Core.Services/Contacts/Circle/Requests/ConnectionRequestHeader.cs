@@ -41,6 +41,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// The circles 
         /// </summary>
-        public List<ByteArrayId> CircleIds { get; set; }
+        public List<GuidId> CircleIds { get; set; }
     }
 }
