@@ -452,7 +452,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
         {
-            //HACK;
             if (!TestIdentities.All.TryGetValue(sender, out var senderIdentity))
             {
                 throw new NotImplementedException("need to add your sender to the list of identities");
