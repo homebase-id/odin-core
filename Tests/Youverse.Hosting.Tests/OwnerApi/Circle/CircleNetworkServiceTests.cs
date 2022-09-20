@@ -121,10 +121,31 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.ContactData.Image.PixelHeight == sender.ContactData.Image.PixelHeight);
                 Assert.IsTrue(response.Content.ContactData.Image.Content.Length == sender.ContactData.Image.Content.Length);
             }
+            
+            await DeleteConnectionRequestsFromFrodoToSam(sender, recipient);
         }
 
         [Test]
-        public async Task CanDeleteConnectionRequest()
+        public async Task CanDeletePendingConnectionRequest()
+        {
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+            }
+
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
+        }
+
+        [Test]
+        public async Task CanDeleteSentConnectionRequest()
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
@@ -132,12 +153,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
-                var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                var deleteResponse = await svc.DeleteSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
                 var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
+            
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
         [Test]
@@ -157,6 +180,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
             }
+            
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
         [Test]
@@ -177,6 +202,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
             }
+            
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
         [Test]
@@ -194,6 +221,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
                 Assert.IsTrue(response.Content.Recipient == sam.Identity);
             }
+            
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
         [Test]
@@ -854,6 +883,31 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
 
             return (sender, recipient, requestHeader);
+        }
+
+        private async Task DeleteConnectionRequestsFromFrodoToSam(TestSampleAppContext frodo, TestSampleAppContext sam)
+        {
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var deleteResponse = await svc.DeletePendingRequest(new DotYouIdRequest() { DotYouId = frodo.Identity });
+                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+            }
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var deleteResponse = await svc.DeleteSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+
+                var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
+                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+            }
         }
 
         private async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)

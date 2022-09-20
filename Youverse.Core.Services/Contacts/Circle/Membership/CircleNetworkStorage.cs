@@ -42,9 +42,10 @@ public class CircleNetworkStorage
 
         lock (_sync)
         {
-            if (!list.TryAdd(icr.DotYouId.ToByteArray().ToBase64(), icr))
+            var id64 = icr.DotYouId.ToGuidIdentifier().ToByteArray().ToBase64();
+            if (!list.TryAdd(id64, icr))
             {
-                list[icr.DotYouId.ToByteArray().ToBase64()] = icr;
+                list[id64] = icr;
             }
 
             _storage.Upsert(_key, list);

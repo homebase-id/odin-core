@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Post(SentPathRoot+ "/single")]
         Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] DotYouIdRequest request);
 
-        [Delete(SentPathRoot + "/delete")]
+        [Post(SentPathRoot + "/delete")]
         Task<ApiResponse<bool>> DeleteSentRequest([Body] DotYouIdRequest request);
 
         [Get(PendingPathRoot + "/list")]

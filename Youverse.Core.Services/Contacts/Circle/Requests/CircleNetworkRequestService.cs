@@ -6,6 +6,7 @@ using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -92,7 +93,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
             Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
             header.ContactData.Validate();
+            
+            var incomingRequest = await this.GetPendingRequest((DotYouIdentity)header.Recipient);
+            if (null != incomingRequest)
+            {
+                throw new YouverseException("You have an incoming request from the recipient.");
+            }
 
+            var existingRequest = await this.GetSentRequest((DotYouIdentity)header.Recipient);
+            if (existingRequest != null)
+            {
+                throw new YouverseException("You already sent a request to this recipient.");
+            }
+            
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
@@ -166,7 +179,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
 
             request.SenderDotYouId = sender;
-            _pendingRequestValueStorage.Upsert(sender.ToGuidIdentifier(), GuidId.Empty, _pendingRequestsDataType, request, _pendingPrefix);
+            _pendingRequestValueStorage.Upsert(sender.ToGuidIdentifier(), GuidId.Empty, _pendingRequestsDataType, request);
 
 #pragma warning disable CS4014
             //let this happen in the background w/o blocking
@@ -310,7 +323,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private void UpsertSentConnectionRequest(ConnectionRequest request)
         {
-            _sentRequestValueStorage.Upsert(new DotYouIdentity(request.Recipient).ToGuidIdentifier(), GuidId.Empty, _sentRequestsDataType, request, _sentPrefix);
+            _sentRequestValueStorage.Upsert(new DotYouIdentity(request.Recipient).ToGuidIdentifier(), GuidId.Empty, _sentRequestsDataType, request);
         }
 
         private Task DeletePendingRequestInternal(DotYouIdentity sender)

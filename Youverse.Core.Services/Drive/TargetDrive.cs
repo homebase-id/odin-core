@@ -29,8 +29,8 @@ public class TargetDrive : IEquatable<TargetDrive>
     {
         return new TargetDrive()
         {
-            Alias = (GuidId)ByteArrayUtil.GetRndByteArray(8),
-            Type = (GuidId)ByteArrayUtil.GetRndByteArray(8)
+            Alias = Guid.NewGuid(),
+            Type = Guid.NewGuid()
         };
     }
 
