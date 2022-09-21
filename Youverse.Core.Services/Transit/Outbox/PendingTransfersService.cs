@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             byte[] fileId = Guid.NewGuid().ToByteArray();
             try
             {
-                _table.InsertRow(sender.Id.ToLower().ToUtf8ByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+                _table.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {

@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
-        public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType(GetDrivesByTypeRequest request)
+        public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
         {
             var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
             var clientDriveData = drives.Results.Select(drive =>
