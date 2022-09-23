@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security;
+using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -13,6 +15,8 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 
@@ -21,7 +25,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
-    public class CircleNetworkService : ICircleNetworkService
+    public class CircleNetworkService : ICircleNetworkService, INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
@@ -49,19 +53,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _icrClientValueStorage = new ThreeKeyValueStorage(systemStorage.GetDBInstance().TblKeyThreeValue);
         }
 
-        public async Task UpdateConnectionProfileCache(DotYouIdentity dotYouId)
-        {
-            //updates a local cache of profile data
-            //HACK: use the override to get the connection auth token
-            var clientAuthToken = await this.GetConnectionAuthToken(dotYouId, true, true);
-            var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkProfileCacheClient>(dotYouId, clientAuthToken);
-
-            var response = await client.GetProfile(Guid.Empty);
-            if (response.IsSuccessStatusCode)
-            {
-            }
-        }
-
         public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected, bool overrideHack = false)
         {
             //TODO: need to NOT use the override version of GetIdentityConnectionRegistration but rather pass in some identifying token?
@@ -83,12 +74,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: thse should go into a background queue for processing offline.
             // processing them here means they're going to be called using the senderDI's context
-
-            //TODO: need to expand on these numbers by using an enum or something
-            if (notification.NotificationId == (int)CircleNetworkNotificationType.ProfileDataChanged)
-            {
-                await this.UpdateConnectionProfileCache(senderDotYouId);
-            }
 
             throw new Exception($"Unknown notification Id {notification.NotificationId}");
         }
@@ -252,23 +237,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return connection.AccessGrant.AccessRegistration;
         }
 
-        private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
-        {
-            var info = _storage.Get(dotYouId);
-
-            if (null == info)
-            {
-                return new IdentityConnectionRegistration()
-                {
-                    DotYouId = dotYouId,
-                    Status = ConnectionStatus.None,
-                    LastUpdated = -1
-                };
-            }
-
-            return info;
-        }
-
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
             //allow the caller to see if s/he is connected, otherwise 
@@ -328,6 +296,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
 
+
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
             {
@@ -357,6 +326,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
+        /// <summary>
+        /// Gives access to all resource granted by the specified circle to the dotYouId
+        /// </summary>
         public async Task GrantCircle(GuidId circleId, DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -401,18 +373,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return circleGrants;
-        }
-
-        private async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
-        {
-            //map the exchange grant to a structure that matches ICR
-            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
-            return new CircleGrant()
-            {
-                CircleId = def.Id,
-                KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-                PermissionSet = grant.PermissionSet,
-            };
         }
 
         public async Task RevokeCircleAccess(GuidId circleId, DotYouIdentity dotYouId)
@@ -528,7 +488,53 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return Task.FromResult(true);
         }
 
+
+        /// <summary>
+        /// Updates the system circle's drive grants
+        /// </summary>
+        private async Task UpdateSystemCircle(StorageDrive drive)
+        {
+            //only add anonymous drives
+            if (drive.AllowAnonymousReads == false)
+            {
+                return;
+            }
+
+            CircleDefinition def = this.GetCircleDefinition(CircleConstants.SystemCircleId);
+
+            var grants = def.DriveGrants.ToList();
+            grants.Add(new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = drive.TargetDriveInfo,
+                    Permission = DrivePermission.Read
+                }
+            });
+
+            def.DriveGrants = grants;
+            await this.UpdateCircleDefinition(def);
+        }
+
+        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        {
+            this.UpdateSystemCircle(notification.Drive).GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        }
+
         //
+
+        private async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
+        {
+            //map the exchange grant to a structure that matches ICR
+            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
+            return new CircleGrant()
+            {
+                CircleId = def.Id,
+                KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+                PermissionSet = grant.PermissionSet,
+            };
+        }
 
         private async Task<(bool isValid, PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(AccessExchangeGrant accessGrant,
             AccessRegistration accessReg,
@@ -573,13 +579,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
 
                 var circleKey = circleDef.Id.ToBase64();
-                var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out var oldCircleGrant);
+                var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
 
                 if (icr.IsConnected() && hasCg)
                 {
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-                    var newGrant = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
-                    icr.AccessGrant.CircleGrants[circleKey] = newGrant;
+                    icr.AccessGrant.CircleGrants[circleKey] = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
+                    keyStoreKey.Wipe();
                 }
                 else
                 {
@@ -600,6 +606,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var list = _storage.GetList().Where(icr => icr.Status == status);
             return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
+        }
+
+        private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(DotYouIdentity dotYouId)
+        {
+            var info = _storage.Get(dotYouId);
+
+            if (null == info)
+            {
+                return new IdentityConnectionRegistration()
+                {
+                    DotYouId = dotYouId,
+                    Status = ConnectionStatus.None,
+                    LastUpdated = -1
+                };
+            }
+
+            return info;
         }
 
         private void SaveIcr(IdentityConnectionRegistration icr)

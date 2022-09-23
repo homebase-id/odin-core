@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -23,11 +24,13 @@ namespace Youverse.Hosting.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
+        private readonly TenantProvisioningService _tenantProvisioner;
 
-        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
+        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider, TenantProvisioningService tenantProvisioner)
         {
             _next = next;
             _tenantProvider = tenantProvider;
+            _tenantProvisioner = tenantProvisioner;
         }
 
         public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
@@ -50,7 +53,7 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-            
+
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
@@ -102,16 +105,19 @@ namespace Youverse.Hosting.Middleware
             //permission set is null because this is the owner
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
+                //HACK: giving this the master key makes my hairs raise >:-[
                 { "owner_drive_grants", new PermissionGroup(null, allDriveGrants, masterKey) },
             };
 
-            //HACK: giving this the master key makes my hairs raise >:-[
             dotYouContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
                     sharedSecretKey: clientSharedSecret,
                     isOwner: true
                 ));
+
+            //TODO: need to find another place to do this
+            await _tenantProvisioner.EnsureInitialOwnerSetup();
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

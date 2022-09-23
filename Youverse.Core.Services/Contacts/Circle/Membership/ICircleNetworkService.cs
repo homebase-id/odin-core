@@ -15,12 +15,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     public interface ICircleNetworkService
     {
         /// <summary>
-        /// Updates the local cache of profile data for a given connection
-        /// </summary>
-        /// <returns></returns>
-        Task UpdateConnectionProfileCache(DotYouIdentity dotYouId);
-
-        /// <summary>
         /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
         /// </summary>
         /// <returns></returns>

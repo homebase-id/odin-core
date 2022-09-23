@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("circles/add")]
-        public async Task<bool> AddCircle([FromBody] AddCircleMembershipRequest request)
+        public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
             await _circleNetwork.GrantCircle(request.CircleId, new DotYouIdentity(request.DotYouId));
             return true;

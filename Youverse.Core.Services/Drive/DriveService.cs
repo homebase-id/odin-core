@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
@@ -93,12 +92,17 @@ namespace Youverse.Core.Services.Drive
                 };
 
                 secret.Wipe();
-                
+
                 _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, targetDrive.ToKey(), _driveDataType, sdb);
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();
             }
+
+            _mediator.Publish(new DriveDefinitionAddedNotification()
+            {
+                Drive = storageDrive
+            });
 
             return Task.FromResult(storageDrive);
         }
