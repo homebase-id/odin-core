@@ -80,7 +80,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
+            var results = _sentRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
             return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
         }
 
