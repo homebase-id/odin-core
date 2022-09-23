@@ -155,7 +155,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
             return this.CreateOwnerApiHttpClient(identity.DotYouId, out sharedSecret);
         }
-        
+
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -289,7 +289,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.IsNotNull(authenticationResult.AccessTokenHalfKey);
                 Assert.That(authenticationResult.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
                 Assert.IsTrue(authenticationResult.AccessTokenHalfKey.IsSet());
-                
+
                 Assert.IsNotNull(sharedSecret);
                 Assert.That(sharedSecret.Length, Is.EqualTo(16));
 
@@ -456,7 +456,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             {
                 throw new NotImplementedException("need to add your sender to the list of identities");
             }
-            
+
             if (!TestIdentities.All.TryGetValue(recipient, out var recipientIdentity))
             {
                 throw new NotImplementedException("need to add your recipient to the list of identities");
@@ -496,6 +496,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
                 Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
+        }
+
+        public async Task<bool> IsConnected(DotYouIdentity sender, DotYouIdentity recipient)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            {
+                var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var existingConnectionInfo = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient });
+                if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null && existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task CreateDrive(DotYouIdentity identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)

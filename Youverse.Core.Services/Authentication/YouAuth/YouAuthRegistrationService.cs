@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 return new ValueTask<ClientAccessToken>(icrClientAccessToken);
             }
 
-            if (TryCreateAuthenticatedYouAuthClient(dotYouId, remoteIcrClientAuthToken, out ClientAccessToken youAuthClientAccessToken))
+            if (TryCreateAuthenticatedYouAuthClient(dotYouId, out ClientAccessToken youAuthClientAccessToken))
             {
                 return new ValueTask<ClientAccessToken>(youAuthClientAccessToken);
             }
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// <summary>
         /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
         /// </summary>
-        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
+        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
         {
             YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
 
@@ -69,7 +69,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
             var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
             _youAuthRegistrationStorage.SaveClient(client);
-
 
             clientAccessToken = cat;
             return true;

@@ -46,16 +46,18 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Task.FromResult(false);
             }
 
-            if (acl.GetRequiredCircles().Any())
+            //if file has required circles, see if caller has at least one
+            var requiredCircles = acl.GetRequiredCircles().ToList();
+            if (requiredCircles.Any() && !requiredCircles.Intersect(caller!.Circles.Select(c => c.Value)).Any())
             {
-                throw new NotImplementedException("TODO: enforce logic for circles");
+                return Task.FromResult(false);
             }
-            
+
             if (acl.GetRequiredIdentities().Any())
             {
                 throw new NotImplementedException("TODO: enforce logic for required identities");
             }
-            
+
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:

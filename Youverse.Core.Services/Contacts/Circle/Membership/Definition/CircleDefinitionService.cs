@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,13 +30,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-
+            Guard.Argument(request.Id, nameof(request.Id)).Require(id => id != Guid.Empty);
+            
             AssertValid(request.Permissions, request.DriveGrants?.ToList());
 
+            if (null != this.GetCircle(request.Id))
+            {
+                throw new YouverseException("Circle with Id already exists");
+            }
+
+            var now = DateTimeExtensions.UnixTimeMilliseconds();
             var circle = new CircleDefinition()
             {
-                Id = GuidId.NewId(),
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                Id = request.Id,
+                Created = now,
+                LastUpdated = now,
                 Name = request.Name,
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
