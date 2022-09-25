@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            
+
             return CreateAuthenticationResult(claims, AppAuthConstants.SchemeName);
         }
 
@@ -101,25 +101,18 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-            var (dotYouId, isValid, isConnected, permissionContext, enabledCircleIds) = await youAuthRegService.GetPermissionContext(clientAuthToken);
-
-            if (!isValid)
+            var (cc, permissionContext) = await youAuthRegService.GetPermissionContextX(clientAuthToken);
+            if (null == cc)
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
             }
 
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: dotYouId,
-                securityLevel: isConnected ? SecurityGroupType.Connected : SecurityGroupType.Authenticated,
-                masterKey: null,
-                circleIds: enabledCircleIds
-            );
-
+            dotYouContext.Caller = cc;
             dotYouContext.SetPermissionContext(permissionContext);
             dotYouContext.AuthContext = ClientTokenConstants.Scheme;
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, dotYouId));
+            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 

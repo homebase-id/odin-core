@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Drive
         /// Creates a new storage drive
         /// </summary>
         /// <returns></returns>
-        Task<StorageDrive> CreateDrive(string name, TargetDrive drive, string metadata, bool allowAnonymousReads = false);
+        Task<StorageDrive> CreateDrive(CreateDriveRequest request);
 
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 

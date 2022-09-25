@@ -25,6 +25,7 @@ using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Notifications;
 using Youverse.Core.Services.Optimization.Cdn;
+using Youverse.Core.Services.Provisioning;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
@@ -55,6 +56,7 @@ namespace Youverse.Hosting
                 .AsSelf()
                 .SingleInstance();
 
+            cb.RegisterType<TenantConfigService>().AsSelf().SingleInstance();
             cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
@@ -155,6 +157,7 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
+            var tenantConfigSvc = scope.Resolve<TenantConfigService>();
 
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
@@ -164,6 +167,7 @@ namespace Youverse.Hosting
             ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
             ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
+            ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
         }
     }
 }

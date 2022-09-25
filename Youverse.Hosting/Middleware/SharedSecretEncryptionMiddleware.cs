@@ -91,7 +91,7 @@ namespace Youverse.Hosting.Middleware
                         responseStream.Seek(0L, SeekOrigin.Begin);
                         await EncryptResponse(context, originalBody);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         context.Response.Body = originalBody;
                         throw;

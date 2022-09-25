@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -18,15 +20,17 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleDefinitionService _circleDefinitionService;
+        private readonly TenantContext _tenantContext;
 
         public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
-            ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService)
+            ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
         {
             _logger = logger;
             _youAuthRegistrationStorage = youAuthRegistrationStorage;
             _exchangeGrantService = exchangeGrantService;
             _circleNetworkService = circleNetworkService;
             _circleDefinitionService = circleDefinitionService;
+            _tenantContext = tenantContext;
         }
 
         //
@@ -89,8 +93,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask<YouAuthRegistration?>(session);
         }
 
-        //
-
         public ValueTask DeleteFromSubject(string subject)
         {
             var session = _youAuthRegistrationStorage.LoadFromSubject(subject);
@@ -105,56 +107,106 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)> GetPermissionContext(
             ClientAuthenticationToken authToken)
         {
+            throw new NotImplementedException();
             /*
              * trying to determine if the icr token given was valid but was blocked
              * if it is invalid, knock you down to anonymous
              * if it is valid but blocked, we knock you down to authenticated
-             * 
+             */
+            // if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
+            // {
+            //     var (dotYouId, isAuthenticated, isConnected, permissionContext, circleIds) = _circleNetworkService.CreateClientPermissionContext(authToken).GetAwaiter().GetResult();
+            //
+            //     return new ValueTask<(DotYouIdentity dotYouId,
+            //         bool isValid,
+            //         bool isConnected,
+            //         PermissionContext permissionContext,
+            //         List<GuidId> enabledCircleIds)>((
+            //         dotYouId, isAuthenticated, isConnected, permissionContext, circleIds));
+            // }
+            //
+            // if (authToken.ClientTokenType == ClientTokenType.YouAuth)
+            // {
+            //     if (!this.HasValidClientAuthToken(authToken, out var client, out _))
+            //     {
+            //         return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
+            //             null,
+            //             null));
+            //     }
+            //
+            //     var token = authToken.AccessTokenHalfKey;
+            //     var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+            //     var ss = client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+            //     PermissionContext permissionCtx = CreateYouAuthPermissionContext(ss);
+            //     return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<GuidId>)>((client.DotYouId, true, false, permissionCtx, null));
+            // }
+            //
+            // throw new YouverseSecurityException("Unhandled access registration type");
+        }
+
+        public ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextX(ClientAuthenticationToken authToken)
+        {
+            /*
+             * trying to determine if the icr token given was valid but was blocked
+             * if it is invalid, knock you down to anonymous
+             * if it is valid but blocked, we knock you down to authenticated
              */
             if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
-                var (dotYouId, isAuthenticated, isConnected, permissionContext, circleIds) = _circleNetworkService.CreateClientPermissionContext(authToken).GetAwaiter().GetResult();
-
-                //if the token provided was for an ICR but it returned not connected, we want to let the user in as authenticated
-
-                return new ValueTask<(DotYouIdentity dotYouId,
-                    bool isValid,
-                    bool isConnected,
-                    PermissionContext permissionContext,
-                    List<GuidId> enabledCircleIds)>((
-                    dotYouId, isAuthenticated, isConnected, permissionContext, circleIds));
+                var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
+                return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
             }
 
             if (authToken.ClientTokenType == ClientTokenType.YouAuth)
             {
-                if (!this.ValidateClientAuthToken(authToken, out var client, out var registration))
+                if (!this.HasValidClientAuthToken(authToken, out var client, out _))
                 {
-                    return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
-                        null,
-                        null));
+                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((null, null));
                 }
 
-                var token = authToken.AccessTokenHalfKey;
-                var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+                var cc = new CallerContext(
+                    dotYouId: client.DotYouId,
+                    securityLevel: SecurityGroupType.Authenticated,
+                    masterKey: null,
+                    circleIds: null
+                );
 
-                var permissionCtx = new PermissionContext(
-                    new Dictionary<string, PermissionGroup>
-                    {
-                        {
-                            "anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult()
-                        }
-                    },
-                    sharedSecretKey: client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey),
-                    isOwner: false);
 
-                return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<GuidId>)>((client.DotYouId, true, false, permissionCtx, null));
+                PermissionContext permissionCtx = CreateAuthenticatedYouAuthPermissionContext(authToken, client);
+                return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionCtx));
             }
-
 
             throw new YouverseSecurityException("Unhandled access registration type");
         }
 
-        private bool ValidateClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient client, out YouAuthRegistration registration)
+        private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)
+        {
+            List<int> permissionKeys = new List<int>() { };
+            if (_tenantContext.TenantSystemConfig.AuthenticatedIdentitiesCanViewConnections)
+            {
+                permissionKeys.Add(PermissionKeys.ReadConnections);
+            }
+
+            var token = authToken.AccessTokenHalfKey;
+            var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+            var ss = client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+            accessKey.Wipe();
+
+            var permissionCtx = new PermissionContext(
+                new Dictionary<string, PermissionGroup>
+                {
+                    { "anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
+                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null) }
+                },
+                sharedSecretKey:
+                ss,
+                isOwner:
+                false);
+
+            return permissionCtx;
+        }
+
+        private bool HasValidClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient client, out YouAuthRegistration registration)
         {
             client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
             registration = null;

@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Provisioning;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
@@ -10,21 +14,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 [Route(OwnerApiPathConstants.ConfigurationV1)]
 public class ConfigurationController : Controller
 {
-    private readonly TenantProvisioningService _tenantProvisioningService;
+    private readonly TenantConfigService _tenantConfigService;
+    private readonly IDriveService _driveService;
 
-    public ConfigurationController(TenantProvisioningService tenantProvisioningService)
+    /// <summary />
+    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService)
     {
-        _tenantProvisioningService = tenantProvisioningService;
+        _tenantConfigService = tenantConfigService;
+        _driveService = driveService;
     }
 
     /// <summary>
     /// Ensures all new configuration is setup when a new tenant is configured.  Only needs to be called once
     /// but will not cause issues if called multiple times
     /// </summary>
-    [HttpPost("ensureInitialSetup")]
-    public async Task<bool> EnsureInitialSetup()
+    [HttpPost("system/initialize")]
+    public async Task<bool> InitializeIdentity(InitialSetupRequest request)
     {
-        await _tenantProvisioningService.EnsureInitialOwnerSetup();
+        await _tenantConfigService.EnsureInitialOwnerSetup(request);
         return true;
     }
 
@@ -32,8 +39,38 @@ public class ConfigurationController : Controller
     /// Updates the specified
     /// </summary>
     /// <returns></returns>
-    [HttpPost("updateFlag")]
-    public async Task<bool> UpdateFlag([FromBody] UpdateFlagRequest request)
+    [HttpPost("system/updateflag")]
+    public async Task<bool> UpdateSystemConfigFlag([FromBody] UpdateFlagRequest request)
+    {
+        Guard.Argument(request, nameof(request)).NotNull();
+        Guard.Argument(request.FlagName, nameof(request.FlagName)).NotNull().NotEmpty();
+
+        _tenantConfigService.UpdateSystemFlag(request);
+        
+
+        //todo: map to all the various flags
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the built-in <see cref="TargetDrive"/>Info for the built-in drives
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet("system/driveinfo")]
+    public Task<Dictionary<string, TargetDrive>> GetSystemDriveInfo()
+    {
+        var d = new Dictionary<string, TargetDrive>()
+        {
+            { "contact", SystemDriveConstants.ContactDrive },
+            { "profile", SystemDriveConstants.ProfileDrive }
+        };
+
+        return Task.FromResult(d);
+    }
+
+
+    [HttpPost("ownerapp/udpateflag")]
+    public async Task<bool> UpdateOwnerAppSetting([FromBody] UpdateFlagRequest request)
     {
         Guard.Argument(request, nameof(request)).NotNull();
         Guard.Argument(request.FlagName, nameof(request.FlagName)).NotNull().NotEmpty();
@@ -41,10 +78,6 @@ public class ConfigurationController : Controller
         //todo: map to all the various flags
         return false;
     }
-}
 
-public class UpdateFlagRequest
-{
-    public string FlagName { get; set; }
-    public bool Value { get; set; }
+    //
 }

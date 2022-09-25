@@ -56,9 +56,10 @@ namespace Youverse.Core.Services.Drive
         private readonly object _createDriveLock = new object();
         private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
-        public Task<StorageDrive> CreateDrive(string name, TargetDrive targetDrive, string metadata, bool allowAnonymousReads = false)
+        public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
         {
-            Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
+            Guard.Argument(request, nameof(request)).NotNull();
+            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
 
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
@@ -67,7 +68,7 @@ namespace Youverse.Core.Services.Drive
             lock (_createDriveLock)
             {
                 //driveAlias and type must be unique
-                if (null != this.GetDriveIdByAlias(targetDrive, false).GetAwaiter().GetResult())
+                if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
                 {
                     throw new ConfigException("Drive alias and type must be unique");
                 }
@@ -82,18 +83,18 @@ namespace Youverse.Core.Services.Drive
                 var sdb = new StorageDriveBase()
                 {
                     Id = id,
-                    Name = name,
-                    TargetDriveInfo = targetDrive,
-                    Metadata = metadata,
+                    Name = request.Name,
+                    TargetDriveInfo = request.TargetDrive,
+                    Metadata = request.Metadata,
                     MasterKeyEncryptedStorageKey = driveKey,
                     EncryptedIdIv = encryptedIdIv,
                     EncryptedIdValue = encryptedIdValue,
-                    AllowAnonymousReads = allowAnonymousReads,
+                    AllowAnonymousReads = request.AllowAnonymousReads,
                 };
 
                 secret.Wipe();
 
-                _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, targetDrive.ToKey(), _driveDataType, sdb);
+                _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
                 storageDrive = ToStorageDrive(sdb);
                 storageDrive.EnsureDirectories();

@@ -119,12 +119,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <returns></returns>
         Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
 
+        
         /// <summary>
-        /// Creates a <see cref="PermissionContext"/> for the specified caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the clientAuthToken
+        /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        /// <returns></returns>
-        Task<(DotYouIdentity dotYouId, bool isAuthenticated, bool isConnected, PermissionContext permissionContext, List<GuidId> circleIds)> CreateClientPermissionContext(
-            ClientAuthenticationToken authToken);
+        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle

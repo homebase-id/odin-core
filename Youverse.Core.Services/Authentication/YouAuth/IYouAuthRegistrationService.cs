@@ -23,5 +23,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)> GetPermissionContext(
             ClientAuthenticationToken authToken);
+        
+        ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextX(ClientAuthenticationToken authToken);
     }
 }

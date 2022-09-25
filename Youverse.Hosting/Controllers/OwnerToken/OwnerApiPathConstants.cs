@@ -29,7 +29,7 @@
         public const string CirclesV1 = BasePathV1 + "/circles";
 
         public const string NotificationsV1 = BasePathV1 + "/notify";
-        
+
         public const string ConfigurationV1 = BasePathV1 + "/config";
     }
 }

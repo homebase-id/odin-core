@@ -23,6 +23,9 @@ public class AccessExchangeGrant
 
     public AccessRegistration AccessRegistration { get; set; }
 
+    /// <summary>
+    /// if true, revokes access while remaining connected.
+    /// </summary>
     public bool IsRevoked { get; set; }
 
     public bool IsValid()

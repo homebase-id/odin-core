@@ -136,28 +136,40 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg, bool isOwner)
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg, bool isOwner,
+            List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
             var (grantKeyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
-            
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>();
-            foreach (var key in grants.Keys)
-            {
-                var exchangeGrant = grants[key];
-                var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey);
-                permissionGroupMap.Add(key, pg);
 
-                foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>();
+            if (grants != null)
+            {
+                foreach (var key in grants.Keys)
                 {
-                    _logger.LogInformation(
-                        $"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+                    var exchangeGrant = grants[key];
+                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey);
+                    permissionGroupMap.Add(key, pg);
+
+                    foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
+                    {
+                        _logger.LogInformation(
+                            $"Auth Token with Id: [{authToken.Id}] Access granted to [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias.ToBase64()} | type: {x.PermissionedDrive.Drive.Type.ToBase64()})");
+                    }
                 }
             }
 
-            //TODO: remove any anonymous drives which are explicitly granted above
-            permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup());
-            //MergeAnonymousDrives
+            if(includeAnonymousDrives)
+            {
+                //MergeAnonymousDrives
+                //TODO: remove any anonymous drives which are explicitly granted above
+                permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup());
+            }
+            
+            if(additionalPermissionKeys != null)
+            {
+                permissionGroupMap.Add("additional_permissions", new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null));
+            }
 
             var permissionCtx = new PermissionContext(
                 permissionGroupMap,
@@ -168,11 +180,16 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return permissionCtx;
         }
 
+
+        /// <summary>
+        /// Creates a permission group of anonymous drives
+        /// </summary>
+        /// <param name="permissionKeys">The permission keys to add to the permission group</param>
+        /// <returns></returns>
         public async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup()
         {
             var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
-
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
         }
         //

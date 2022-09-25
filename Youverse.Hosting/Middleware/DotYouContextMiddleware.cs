@@ -24,9 +24,9 @@ namespace Youverse.Hosting.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
-        private readonly TenantProvisioningService _tenantProvisioner;
+        private readonly TenantConfigService _tenantProvisioner;
 
-        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider, TenantProvisioningService tenantProvisioner)
+        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider, TenantConfigService tenantProvisioner)
         {
             _next = next;
             _tenantProvider = tenantProvider;
@@ -115,9 +115,6 @@ namespace Youverse.Hosting.Middleware
                     sharedSecretKey: clientSharedSecret,
                     isOwner: true
                 ));
-
-            //TODO: need to find another place to do this
-            await _tenantProvisioner.EnsureInitialOwnerSetup();
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

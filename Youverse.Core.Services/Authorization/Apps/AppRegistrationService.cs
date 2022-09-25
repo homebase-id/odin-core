@@ -138,13 +138,13 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 throw new YouverseSecurityException("Invalid token");
             }
-            
+
             var grantDictionary = new Dictionary<string, ExchangeGrant>
             {
                 { "app_exchange_grant", appReg.Grant }
             };
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grantDictionary, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grantDictionary, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner, includeAnonymousDrives: true);
             return (appReg.AppId, permissionCtx);
         }
 

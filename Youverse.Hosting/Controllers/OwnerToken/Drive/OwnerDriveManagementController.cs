@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
-            var _ = await _driveService.CreateDrive(request.Name, request.TargetDrive, request.Metadata, request.AllowAnonymousReads);
+            var _ = await _driveService.CreateDrive(request);
             return true;
         }
 

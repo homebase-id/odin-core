@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Provisioning;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base
@@ -29,10 +30,14 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public string StaticFileDataRoot => Path.Combine(this.TempDataRoot, "static");
 
-
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.
         /// </summary>
         public TenantStorageConfig StorageConfig { get; set; }
+
+        /// <summary>
+        /// Configuration set by the tenant indicating various settings
+        /// </summary>
+        public TenantSystemConfig TenantSystemConfig { get; set; }
     }
 }

@@ -1,6 +1,4 @@
-using Youverse.Core.Services.Drive;
-
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive;
+namespace Youverse.Core.Services.Drive;
 
 public class CreateDriveRequest
 {
