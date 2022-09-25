@@ -587,7 +587,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             List<int> permissionKeys = new List<int>() { };
-            if (_tenantContext.TenantSystemConfig.AllConnectedIdentitiesCanViewConnections)
+            if (_tenantContext.TenantSystemConfig?.AllConnectedIdentitiesCanViewConnections ?? false)
             {
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }

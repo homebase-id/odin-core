@@ -157,7 +157,7 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
-            var tenantConfigSvc = scope.Resolve<TenantConfigService>();
+            // var tenantConfigSvc = scope.Resolve<TenantConfigService>();
 
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
@@ -167,7 +167,7 @@ namespace Youverse.Hosting
             ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
             ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
-            ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
+            // ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
         }
     }
 }

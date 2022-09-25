@@ -24,13 +24,11 @@ namespace Youverse.Hosting.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
-        private readonly TenantConfigService _tenantProvisioner;
 
-        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider, TenantConfigService tenantProvisioner)
+        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
         {
             _next = next;
             _tenantProvider = tenantProvider;
-            _tenantProvisioner = tenantProvisioner;
         }
 
         public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)

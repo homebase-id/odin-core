@@ -16,8 +16,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public PermissionSet(IEnumerable<int> permissionKeys)
         {
-            Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull().NotEmpty();
-            // Keys = new ReadOnlyCollection<string>(permissionKeys.Select(p => p.ToLower()).ToList());
+            Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull();
             Keys = new List<int>(permissionKeys.ToList());
         }
 
