@@ -102,11 +102,40 @@ namespace Youverse.Core.Services.Drive
 
             _mediator.Publish(new DriveDefinitionAddedNotification()
             {
+                IsNewDrive = true,
                 Drive = storageDrive
             });
 
             return Task.FromResult(storageDrive);
         }
+
+        public Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            StorageDrive storageDrive = this.GetDrive(driveId).GetAwaiter().GetResult();
+
+            if (storageDrive.TargetDriveInfo == SystemDriveConstants.ContactDrive || storageDrive.TargetDriveInfo == SystemDriveConstants.ProfileDrive)
+            {
+                throw new YouverseSecurityException("Cannot change system drive");
+            }
+
+            //only change if needed
+            if (storageDrive.AllowAnonymousReads != allowAnonymous)
+            {
+                storageDrive.AllowAnonymousReads = allowAnonymous;
+
+                _systemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+
+                _mediator.Publish(new DriveDefinitionAddedNotification()
+                {
+                    IsNewDrive = false,
+                    Drive = storageDrive
+                });
+            }
+
+            return Task.CompletedTask;
+        }
+
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {

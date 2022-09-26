@@ -519,10 +519,32 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         }
 
 
+        private async Task HandleDriveUpdated(StorageDrive drive)
+        {
+            //examine system circle; remove drive if needed
+            CircleDefinition systemCircle = this.GetCircleDefinition(CircleConstants.SystemCircleId);
+
+            var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
+            if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
+            {
+                //remove the drive as it no longer allows anonymous reads
+                systemCircle.DriveGrants = systemCircle.DriveGrants.Where(dg => dg.PermissionedDrive.Drive != drive.TargetDriveInfo).ToList();
+                await this.UpdateCircleDefinition(systemCircle);
+                return;
+            }
+
+            if (drive.AllowAnonymousReads && null == existingDriveGrant)
+            {
+                //act like it's new
+                await this.HandleDriveAdded(drive);
+            }
+        }
+
+
         /// <summary>
         /// Updates the system circle's drive grants
         /// </summary>
-        private async Task UpdateSystemCircle(StorageDrive drive)
+        private async Task HandleDriveAdded(StorageDrive drive)
         {
             //only add anonymous drives
             if (drive.AllowAnonymousReads == false)
@@ -548,7 +570,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
-            this.UpdateSystemCircle(notification.Drive).GetAwaiter().GetResult();
+            if (notification.IsNewDrive)
+            {
+                this.HandleDriveAdded(notification.Drive).GetAwaiter().GetResult();
+            }
+            else
+            {
+                this.HandleDriveUpdated(notification.Drive).GetAwaiter().GetResult();
+            }
+
             return Task.CompletedTask;
         }
 

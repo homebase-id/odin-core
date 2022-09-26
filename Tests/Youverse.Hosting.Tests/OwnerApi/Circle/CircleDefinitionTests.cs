@@ -43,6 +43,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //_scaffold.DeleteData(); 
         }
 
+
+        [Test]
+        public async Task SystemCircleUpdatedWhenAnonymousDriveAdded()
+        {
+            Assert.Inconclusive("TODO");
+        }
+        
+        [Test]
+        public async Task SystemCircleUpdatedWhenAnonymousDriveRemoved()
+        {
+            Assert.Inconclusive("TODO");
+        }
+        
         [Test]
         public async Task FailToCreateInvalidCircle()
         {

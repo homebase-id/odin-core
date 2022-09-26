@@ -48,6 +48,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return true;
         }
 
+        [HttpPost("setdrivemode")]
+        public async Task<bool> SetDriveReadMode([FromBody] UpdateDriveDefinitionRequest request)
+        {
+            var driveId = await _driveService.GetDriveIdByAlias(request.TargetDrive, true);
+            await _driveService.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
+            return true;
+        }
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
@@ -66,5 +74,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
         }
+    }
+
+    public class UpdateDriveDefinitionRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool AllowAnonymousReads { get; set; }
     }
 }

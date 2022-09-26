@@ -19,6 +19,13 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         Task<StorageDrive> CreateDrive(CreateDriveRequest request);
 
+        /// <summary>
+        /// Sets a drive to allow anonymous or not
+        /// TODO: this is pending how we support owner drives
+        /// </summary>
+        /// <returns></returns>
+        public Task SetDriveReadMode(Guid driveId, bool allowAnonymous);
+        
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false);

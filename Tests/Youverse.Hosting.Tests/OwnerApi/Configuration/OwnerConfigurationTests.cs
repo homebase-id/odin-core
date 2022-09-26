@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
         }
 
         [Test]
-        public async Task CanInitializeSystem_WithNoOptions()
+        public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
             //success = system drives created, other drives created
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
@@ -100,7 +100,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
         }
 
         [Test]
-        public async Task CanCreateSystemDrives_And_AdditionalDrives_NoAdditionaCircles()
+        public async Task CanCreateSystemDrives_And_AdditionalDrives_NoAdditionalCircles()
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
@@ -157,11 +157,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
                 Assert.IsTrue(systemCircle.DriveGrants.Count(dg => dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read) == 1,
                     "There should be one drive in the system circle due to the 'newDrive' with allowAnonymous=true added above");
+
+                //take out the anonymous drive so future tests have a chance
+                var setDriveModeResponse = await driveSvc.SetDriveReadMode(new UpdateDriveDefinitionRequest()
+                {
+                    TargetDrive = newDrive.TargetDrive,
+                    AllowAnonymousReads = false
+                });
+                
+                Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode, "Failed setting drive mode");
             }
         }
 
         [Test]
-        public async Task CanCreateSystemCircle_And_AdditionalCircles_NoAdditionalDrive()
+        public async Task CanCreateSystemCircle_And_AdditionalCircles_NoAdditionalDrives()
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
@@ -204,7 +213,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsNotNull(createdDrivesResponse.Content);
                 var createdDrives = createdDrivesResponse.Content;
                 Assert.IsTrue(createdDrives.Results.Count == 2);
-                
+
                 var expectedDrives = getSystemDrivesResponse.Content.Values.Select(td => td).ToList();
                 foreach (var expectedDrive in expectedDrives)
                 {

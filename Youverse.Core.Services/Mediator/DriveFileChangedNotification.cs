@@ -7,9 +7,10 @@ namespace Youverse.Core.Services.Mediator
 {
     public class DriveDefinitionAddedNotification : EventArgs, INotification
     {
+        public bool IsNewDrive { get; set; }
         public StorageDrive Drive { get; set; }
     }
-    
+
     public class DriveFileChangedNotification : EventArgs, INotification
     {
         public InternalDriveFileId File { get; set; }
