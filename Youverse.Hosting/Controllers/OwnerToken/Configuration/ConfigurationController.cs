@@ -28,8 +28,7 @@ public class ConfigurationController : Controller
     }
 
     /// <summary>
-    /// Ensures all new configuration is setup when a new tenant is configured.  Only needs to be called once
-    /// but will not cause issues if called multiple times
+    /// Ensures all new configuration is setup when a new tenant is configured.
     /// </summary>
     [HttpPost("system/initialize")]
     public async Task<bool> InitializeIdentity([FromBody]InitialSetupRequest request)

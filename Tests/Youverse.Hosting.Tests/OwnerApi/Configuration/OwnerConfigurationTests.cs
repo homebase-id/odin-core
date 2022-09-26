@@ -164,7 +164,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                     TargetDrive = newDrive.TargetDrive,
                     AllowAnonymousReads = false
                 });
-                
+
                 Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode, "Failed setting drive mode");
             }
         }
@@ -179,8 +179,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 var getSystemDrivesResponse = await svc.GetSystemDrives();
                 Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
                 Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive not returned");
-
+                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
+                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
+                
                 var additionalCircleRequest = new CreateCircleRequest()
                 {
                     Id = Guid.NewGuid(),
@@ -238,8 +239,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
-                Assert.IsTrue(!systemCircle.DriveGrants.Any(), "There should be no drives on the system circle since we did not create any with allowAnonymous");
 
+
+                var standardProfileDriveGrant = systemCircle.DriveGrants.SingleOrDefault();
+                Assert.IsNotNull(standardProfileDriveGrant);
+                Assert.IsTrue(standardProfileDriveGrant.PermissionedDrive.Drive == standardProfileDrive && standardProfileDriveGrant.PermissionedDrive.Permission == DrivePermission.Read);
                 //
                 // additional circle exists
                 //
