@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Drive;
 /// <summary>
 ///  A drive specifier for incoming requests to perform actions on a drive.  (essentially, this hides the internal DriveId).
 /// </summary>
-[DebuggerDisplay("Alias={Alias.ToBase64()} Type={Type.ToBase64()}")]
+[DebuggerDisplay("Alias={Alias} Type={Type}")]
 public class TargetDrive : IEquatable<TargetDrive>
 {
     public GuidId Alias { get; set; }

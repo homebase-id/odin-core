@@ -39,37 +39,24 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        await this.CreateSystemDrives();
-        foreach (var rd in request.Drives)
+        //Note: the order here is important.  if the request includes any anonymous
+        //drives, they should be added after the system circle exists
+
+        await _cns.CreateSystemCircle();
+
+        //Create system drives
+        var contactDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateContactDriveRequest);
+        var profileDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateProfileDriveRequest);
+
+        foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await _driveService.CreateDrive(rd);
         }
 
-        //best to create system circle after all drives are created so anon are provisioned correctly
-        await this.CreateSystemCircle();
-    }
-
-    public async Task CreateSystemDrives()
-    {
-        var contactDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateContactDriveRequest);
-        var profileDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateProfileDriveRequest);
-    }
-
-    private async Task CreateSystemCircle()
-    {
-        if (null == _cns.GetCircleDefinition(CircleConstants.SystemCircleId))
+        //Create additional circles last in case they rely on any of the drives above
+        foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await _cns.CreateCircleDefinition(new CreateCircleRequest()
-            {
-                Id = CircleConstants.SystemCircleId.Value,
-                Name = "System Circle",
-                Description = "All Connected Identities",
-                DriveGrants = new DriveGrantRequest[] { },
-                Permissions = new PermissionSet()
-                {
-                    Keys = new List<int>() { PermissionKeys.ReadConnections }
-                }
-            });
+            await _cns.CreateCircleDefinition(rc);
         }
     }
 
@@ -98,7 +85,7 @@ public class TenantConfigService
                 // update system circle
                 break;
             default:
-                throw new YouverseException("Flag is valid but not handled");
+                throw new YouverseException("Flag name is valid but not handled");
         }
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);
@@ -106,6 +93,10 @@ public class TenantConfigService
 
     public TenantSystemConfig GetTenantSystemConfig()
     {
-        return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey);
+        return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? TenantSystemConfig.Default;
     }
+
+
+    //
+    
 }

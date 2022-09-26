@@ -477,6 +477,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return Task.FromResult(client);
         }
 
+        public Task CreateSystemCircle()
+        {
+            _circleDefinitionService.CreateSystemCircle();
+            return Task.CompletedTask;
+        }
+
         public Task<bool> TryCreateIdentityConnectionClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
         {
             if (null == remoteIcrClientAuthToken)

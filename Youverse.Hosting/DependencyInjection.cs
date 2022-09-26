@@ -86,26 +86,30 @@ namespace Youverse.Hosting
                 .SingleInstance();
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
-            
+
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
-            cb.RegisterType<CircleNetworkService>().As<ICircleNetworkService>().SingleInstance();
-            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+            cb.RegisterType<CircleNetworkService>()
+                .As<ICircleNetworkService>()
+                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+                .SingleInstance();
             
+            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
             cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
-            
+
 
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
-            
+
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
-            
+
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
@@ -157,17 +161,20 @@ namespace Youverse.Hosting
             var registry = scope.Resolve<IIdentityContextRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
-            // var tenantConfigSvc = scope.Resolve<TenantConfigService>();
 
             //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
             var id = registry.ResolveId(tenant.Name);
             ctx.DotYouRegistryId = id;
-            ctx.HostDotYouId = (DotYouIdentity) tenant.Name;
+            ctx.HostDotYouId = (DotYouIdentity)tenant.Name;
 
             ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
             ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
-            // ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
+
+            //Note: the TenantConfigService relies on ctx.StorageConfig so you must do this after setting it. 
+            //TODO: consider putting this tenant system config elsewhere so the order is less important
+            var tenantConfigSvc = scope.Resolve<TenantConfigService>();
+            ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
         }
     }
 }

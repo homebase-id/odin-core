@@ -197,5 +197,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="authToken"></param>
         /// <returns></returns>
         Task<IdentityConnectionRegistrationClient> GetIdentityConnectionClient(ClientAuthenticationToken authToken);
+
+        /// <summary>
+        /// Creates the system circle
+        /// </summary>
+        /// <returns></returns>
+        Task CreateSystemCircle();
     }
 }

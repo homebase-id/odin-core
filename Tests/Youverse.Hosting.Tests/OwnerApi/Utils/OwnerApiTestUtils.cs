@@ -21,6 +21,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Provisioning;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -34,6 +35,7 @@ using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Youverse.Hosting.Tests.OwnerApi.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Utils
@@ -122,7 +124,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             throw new Exception($"No token found for {identity}");
         }
 
-        public async Task SetupOwnerAccount(DotYouIdentity identity)
+        public async Task SetupOwnerAccount(DotYouIdentity identity, bool initializeIdentity)
         {
             const string password = "EnSøienØ";
             await this.ForceNewPassword(identity, password);
@@ -137,11 +139,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             _ownerLoginTokens.Add(identity, context);
 
-            // using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
-            // {
-            //     var svc = RestService.For<IProvisioningClient>(client);
-            //     await svc.EnsureSystemApps();
-            // }
+            if(initializeIdentity)
+            {
+                using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
+                {
+                    var svc = RestService.For<IOwnerConfigurationClient>(client);
+                    var setupConfig = new InitialSetupRequest();
+                    await svc.InitializeIdentity(setupConfig);
+                }
+            }
         }
 
         public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)

@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Tests
         }
 
         [OneTimeSetUp]
-        public void RunBeforeAnyTests()
+        public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
@@ -54,10 +54,15 @@ namespace Youverse.Hosting.Tests
 
             foreach (var dotYouId in TestIdentities.All.Keys)
             {
-                _ownerApi.SetupOwnerAccount((DotYouIdentity)dotYouId).GetAwaiter().GetResult();
+                _ownerApi.SetupOwnerAccount((DotYouIdentity)dotYouId, initializeIdentity).GetAwaiter().GetResult();
             }
 
             _appApi = new AppApiTestUtils(_ownerApi);
+        }
+
+        public void SetAppApi(AppApiTestUtils appApi)
+        {
+            _appApi = appApi;
         }
 
         [OneTimeTearDown]
@@ -71,9 +76,9 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public OwnerApiTestUtils OwnerApi => this._ownerApi;
+        public OwnerApiTestUtils OwnerApi => this._ownerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
-        public AppApiTestUtils AppApi => this._appApi;
+        public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         /// <summary>
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.

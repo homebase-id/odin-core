@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Provisioning;
@@ -12,4 +13,6 @@ public class InitialSetupRequest
     /// Drives to be created
     /// </summary>
     public List<CreateDriveRequest> Drives { get; set; }
+
+    public List<CreateCircleRequest> Circles { get; set; }
 }

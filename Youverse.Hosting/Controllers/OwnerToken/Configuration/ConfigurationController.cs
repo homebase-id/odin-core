@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Exceptions;
+using Refit;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Provisioning;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 
+/// <summary>
+/// Configuration for the owner's system
+/// </summary>
 [ApiController]
 [AuthorizeValidOwnerToken]
 [Route(OwnerApiPathConstants.ConfigurationV1)]
@@ -29,7 +32,7 @@ public class ConfigurationController : Controller
     /// but will not cause issues if called multiple times
     /// </summary>
     [HttpPost("system/initialize")]
-    public async Task<bool> InitializeIdentity(InitialSetupRequest request)
+    public async Task<bool> InitializeIdentity([FromBody]InitialSetupRequest request)
     {
         await _tenantConfigService.EnsureInitialOwnerSetup(request);
         return true;
@@ -46,7 +49,6 @@ public class ConfigurationController : Controller
         Guard.Argument(request.FlagName, nameof(request.FlagName)).NotNull().NotEmpty();
 
         _tenantConfigService.UpdateSystemFlag(request);
-        
 
         //todo: map to all the various flags
         return false;
@@ -57,7 +59,7 @@ public class ConfigurationController : Controller
     /// </summary>
     /// <returns></returns>
     [HttpGet("system/driveinfo")]
-    public Task<Dictionary<string, TargetDrive>> GetSystemDriveInfo()
+    public Task<Dictionary<string, TargetDrive>> GetSystemDrives()
     {
         var d = new Dictionary<string, TargetDrive>()
         {
@@ -68,8 +70,10 @@ public class ConfigurationController : Controller
         return Task.FromResult(d);
     }
 
-
-    [HttpPost("ownerapp/udpateflag")]
+    /// <summary>
+    /// Updates a setting for use in the owner-app
+    /// </summary>
+    [HttpPost("ownerapp/updatesetting")]
     public async Task<bool> UpdateOwnerAppSetting([FromBody] UpdateFlagRequest request)
     {
         Guard.Argument(request, nameof(request)).NotNull();

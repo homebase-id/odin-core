@@ -28,33 +28,27 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
         public Task<CircleDefinition> Create(CreateCircleRequest request)
         {
-            Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.Id, nameof(request.Id)).Require(id => id != Guid.Empty);
-            
-            AssertValid(request.Permissions, request.DriveGrants?.ToList());
-
-            if (null != this.GetCircle(request.Id))
-            {
-                throw new YouverseException("Circle with Id already exists");
-            }
-
-            var now = DateTimeExtensions.UnixTimeMilliseconds();
-            var circle = new CircleDefinition()
-            {
-                Id = request.Id,
-                Created = now,
-                LastUpdated = now,
-                Name = request.Name,
-                Description = request.Description,
-                DriveGrants = request.DriveGrants,
-                Permissions = request.Permissions
-            };
-
-            _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);
-
-            return Task.FromResult(circle);
+            return this.CreateCircleInternal(request);
         }
+
+        public void CreateSystemCircle()
+        {
+            if (null == this.GetCircle(CircleConstants.SystemCircleId))
+            {
+                this.CreateCircleInternal(new CreateCircleRequest()
+                {
+                    Id = CircleConstants.SystemCircleId.Value,
+                    Name = "System Circle",
+                    Description = "All Connected Identities",
+                    DriveGrants = new DriveGrantRequest[] { },
+                    Permissions = new PermissionSet()
+                    {
+                        Keys = new List<int>() { }
+                    }
+                }, skipValidation: true); //bypassing because this circle starts empty
+            }
+        }
+
 
         public Task Update(CircleDefinition newCircleDefinition)
         {
@@ -68,7 +62,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             {
                 throw new MissingDataException($"Invalid circle {newCircleDefinition.Id}");
             }
-            
+
             existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
@@ -79,7 +73,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             return Task.CompletedTask;
         }
-        
+
         public bool IsEnabled(GuidId circleId)
         {
             var circle = this.GetCircle(circleId);
@@ -156,6 +150,39 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                     throw new YouverseException("Invalid drive specified on DriveGrantRequest");
                 }
             }
+        }
+
+        private Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
+        {
+            Guard.Argument(request, nameof(request)).NotNull();
+            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
+            Guard.Argument(request.Id, nameof(request.Id)).Require(id => id != Guid.Empty);
+            
+            if(!skipValidation)
+            {
+                AssertValid(request.Permissions, request.DriveGrants?.ToList());
+            }
+            
+            if (null != this.GetCircle(request.Id))
+            {
+                throw new YouverseException("Circle with Id already exists");
+            }
+
+            var now = DateTimeExtensions.UnixTimeMilliseconds();
+            var circle = new CircleDefinition()
+            {
+                Id = request.Id,
+                Created = now,
+                LastUpdated = now,
+                Name = request.Name,
+                Description = request.Description,
+                DriveGrants = request.DriveGrants,
+                Permissions = request.Permissions
+            };
+
+            _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);
+
+            return Task.FromResult(circle);
         }
     }
 }
