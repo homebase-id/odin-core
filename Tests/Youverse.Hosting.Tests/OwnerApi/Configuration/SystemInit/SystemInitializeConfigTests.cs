@@ -48,6 +48,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
 
+                var getIsIdentityConfiguredResponse1 = await svc.IsIdentityConfigured();
+                Assert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
+                Assert.IsFalse(getIsIdentityConfiguredResponse1.Content);
+                
                 var setupConfig = new InitialSetupRequest()
                 {
                     Drives = null,
@@ -56,6 +60,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+                
+                var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
+                Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
+                Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
 
                 //check if system drives exist
                 var getSystemDrivesResponse = await svc.GetSystemDrives();

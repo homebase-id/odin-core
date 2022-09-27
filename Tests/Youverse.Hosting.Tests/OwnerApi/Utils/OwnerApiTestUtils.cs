@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             _ownerLoginTokens.Add(identity, context);
 
-            if(initializeIdentity)
+            if (initializeIdentity)
             {
                 using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
                 {
@@ -425,9 +425,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+
+                var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
+                Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
+                Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
             }
         }
-        
+
         public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1, out var ownerSharedSecret))

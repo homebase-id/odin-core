@@ -34,7 +34,7 @@ public class TenantConfigService
         _configStorage = storage.SingleKeyValueStorage;
     }
 
-    public async Task<bool> IsIdentityServerConfigured()
+    public bool IsIdentityServerConfigured()
     {
         var firstRunInfo = _configStorage.Get<FirstRunInfo>(FirstRunInfo.Key);
         return firstRunInfo != null;

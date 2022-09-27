@@ -12,7 +12,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
     {
         private const string RootEndpoint = OwnerApiPathConstants.ConfigurationV1;
 
-        
+
+        [Post(RootEndpoint + "/system/isconfigured")]
+        Task<ApiResponse<bool>> IsIdentityConfigured();
+
         [Post(RootEndpoint + "/system/initialize")]
         Task<ApiResponse<bool>> InitializeIdentity([Body] InitialSetupRequest request);
 
@@ -21,10 +24,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
         [Get(RootEndpoint + "/system/driveinfo")]
         Task<ApiResponse<Dictionary<string, TargetDrive>>> GetSystemDrives();
-        
+
         [Post(RootEndpoint + "/ownerapp/settings/update")]
         Task<ApiResponse<bool>> UpdateOwnerAppSetting([Body] OwnerAppSettings settings);
-        
+
         [Post(RootEndpoint + "/ownerapp/settings/list")]
         Task<ApiResponse<OwnerAppSettings>> GetOwnerAppSettings();
     }

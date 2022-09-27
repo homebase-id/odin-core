@@ -32,10 +32,10 @@ public class ConfigurationController : Controller
     /// </summary>
     /// <returns></returns>
     [HttpPost("system/isconfigured")]
-    public async Task<bool> IsIdentityServerConfigured()
+    public Task<bool> IsIdentityServerConfigured()
     {
-        var result = await _tenantConfigService.IsIdentityServerConfigured();
-        return result;
+        var result = _tenantConfigService.IsIdentityServerConfigured();
+        return Task.FromResult(result);
     }
 
     /// <summary>
