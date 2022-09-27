@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
-            await UpdateSystemConfigFlag(identity, TenantConfigFlagNames.AnonymousVisitorsCanViewConnections.ToString(), bool.TrueString);
+            await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.AnonymousVisitorsCanViewConnections.ToString(), bool.TrueString);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
             {
@@ -64,21 +64,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await utils.DisconnectIdentities(frodo, sam);
         }
 
-        private async Task UpdateSystemConfigFlag(TestIdentity identity, string flag, string value)
-        {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
-            {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-                var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()
-                {
-                    FlagName = flag,
-                    Value = value
-                });
-
-                Assert.IsTrue(updateFlagResponse.IsSuccessStatusCode, "system should return empty settings when first initialized");
-            }
-        }
-        
         [Test]
         public async Task SystemDefault_AnonymousAnonymousVisitorsCannotViewConnections()
         {

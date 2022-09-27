@@ -24,7 +24,7 @@ public class ConfigurationTestUtilities
     {
         _scaffold = scaffold;
     }
-    
+
     public void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
     {
         foreach (var circleDriveGrant in circleDefinition.DriveGrants)
@@ -159,6 +159,21 @@ public class ConfigurationTestUtilities
             var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
             Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
             await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.DotYouId, ConnectionStatus.None);
+        }
+    }
+
+    public async Task UpdateSystemConfigFlag(TestIdentity identity, string flag, string value)
+    {
+        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+            var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()
+            {
+                FlagName = flag,
+                Value = value
+            });
+
+            Assert.IsTrue(updateFlagResponse.IsSuccessStatusCode, "system should return empty settings when first initialized");
         }
     }
 }

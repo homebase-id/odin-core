@@ -38,7 +38,7 @@ public class ConfigurationController : Controller
     }
 
     /// <summary>
-    /// Updates the specified
+    /// Updates the specified flag
     /// </summary>
     /// <returns></returns>
     [HttpPost("system/updateflag")]
@@ -79,6 +79,9 @@ public class ConfigurationController : Controller
         return true;
     }
 
+    /// <summary>
+    /// Gets a map/dictionary of all settings specified by the owner-app
+    /// </summary>
     [HttpPost("ownerapp/settings/list")]
     public OwnerAppSettings GetOwnerSettings()
     {

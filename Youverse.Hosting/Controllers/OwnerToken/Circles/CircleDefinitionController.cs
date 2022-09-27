@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             return result;
         }
 
-        [HttpPost("circle")]
+        [HttpPost("get")]
         public CircleDefinition GetCircle([FromBody] Guid id)
         {
             return _cns.GetCircleDefinition(id);

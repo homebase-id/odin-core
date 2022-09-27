@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
@@ -83,17 +86,39 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-
-                // update system circle
+                this.UpdateSystemCircle(cfg.AllConnectedIdentitiesCanViewConnections);
                 break;
+
             default:
                 throw new YouverseException("Flag name is valid but not handled");
         }
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);
-        
+
         //TODO: use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
+    }
+
+    private void UpdateSystemCircle(bool canReadConnections)
+    {
+        var systemCircle = _cns.GetCircleDefinition(CircleConstants.SystemCircleId);
+
+        if (canReadConnections)
+        {
+            if (!systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
+            {
+                systemCircle.Permissions.Keys.Add(PermissionKeys.ReadConnections);
+            }
+        }
+        else
+        {
+            if (systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
+            {
+                systemCircle.Permissions.Keys.Remove(PermissionKeys.ReadConnections);
+            }
+        }
+
+        _cns.UpdateCircleDefinition(systemCircle);
     }
 
     public TenantSystemConfig GetTenantSystemConfig()
@@ -110,14 +135,13 @@ public class TenantConfigService
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        
+
         Guard.Argument(newSettings, nameof(newSettings)).NotNull();
         Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
     //
-
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
     {
         var existingCircleDef = _cns.GetCircleDefinition(request.Id);
