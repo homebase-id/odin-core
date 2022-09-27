@@ -6,6 +6,7 @@ using System.Text;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
 {
@@ -41,8 +42,8 @@ namespace Youverse.Core.Services.Registry
         public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
         {
             Guid domainId = CalculateDomainId(dotYouId);
-            string certificatePath = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
-            string privateKeyPath = Path.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
+            string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
+            string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
@@ -61,7 +62,21 @@ namespace Youverse.Core.Services.Registry
                 {
                     rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
 
-                    return publicKey.CopyWithPrivateKey(rsaPrivateKey);
+
+                    if(Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    {
+                        using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
+                        {
+                            // Export as PFX and re-import if you want "normal PFX private key lifetime"
+                            // (this step is currently required for SslStream, but not for most other things
+                            // using certificates)
+                            return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
+                        }
+                    }
+                    else
+                    {
+                        return publicKey.CopyWithPrivateKey(rsaPrivateKey);
+                    }
 
                     //// Disabled this part as it causes too many changes within Keychain causing Chrome to not open the Page:
                     // using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
