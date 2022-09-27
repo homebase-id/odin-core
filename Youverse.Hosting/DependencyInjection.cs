@@ -174,7 +174,7 @@ namespace Youverse.Hosting
             //Note: the TenantConfigService relies on ctx.StorageConfig so you must do this after setting it. 
             //TODO: consider putting this tenant system config elsewhere so the order is less important
             var tenantConfigSvc = scope.Resolve<TenantConfigService>();
-            ctx.TenantSystemConfig = tenantConfigSvc.GetTenantSystemConfig();
+            ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
         }
     }
 }

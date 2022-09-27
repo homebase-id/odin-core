@@ -101,7 +101,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-            var (cc, permissionContext) = await youAuthRegService.GetPermissionContextX(clientAuthToken);
+            var (cc, permissionContext) = await youAuthRegService.GetPermissionContext(clientAuthToken);
             if (null == cc)
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
@@ -152,8 +152,10 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 }
             }).ToList();
 
-            //HACK: granting ability to see friends list to anon users.
-            var permissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
+            var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
+            var permissionSet = tenantContext.TenantSystemConfig.AnonymousVisitorsCanViewConnections
+                ? new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                : new PermissionSet();
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {

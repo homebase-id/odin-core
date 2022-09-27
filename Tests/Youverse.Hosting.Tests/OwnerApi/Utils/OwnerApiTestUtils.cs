@@ -418,6 +418,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return null;
         }
 
+        public async Task InitializeIdentity(TestIdentity identity, InitialSetupRequest setupConfig)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
+                Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+            }
+        }
+        
         public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1, out var ownerSharedSecret))

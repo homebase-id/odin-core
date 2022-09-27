@@ -38,6 +38,11 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Configuration set by the tenant indicating various settings
         /// </summary>
-        public TenantSystemConfig TenantSystemConfig { get; set; }
+        public TenantSystemConfig TenantSystemConfig { get; private set; }
+
+        public void UpdateSystemConfig(TenantSystemConfig newConfig)
+        {
+            this.TenantSystemConfig = newConfig;
+        }
     }
 }

@@ -104,47 +104,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
-        public ValueTask<(DotYouIdentity dotYouId, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)> GetPermissionContext(
-            ClientAuthenticationToken authToken)
-        {
-            throw new NotImplementedException();
-            /*
-             * trying to determine if the icr token given was valid but was blocked
-             * if it is invalid, knock you down to anonymous
-             * if it is valid but blocked, we knock you down to authenticated
-             */
-            // if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
-            // {
-            //     var (dotYouId, isAuthenticated, isConnected, permissionContext, circleIds) = _circleNetworkService.CreateClientPermissionContext(authToken).GetAwaiter().GetResult();
-            //
-            //     return new ValueTask<(DotYouIdentity dotYouId,
-            //         bool isValid,
-            //         bool isConnected,
-            //         PermissionContext permissionContext,
-            //         List<GuidId> enabledCircleIds)>((
-            //         dotYouId, isAuthenticated, isConnected, permissionContext, circleIds));
-            // }
-            //
-            // if (authToken.ClientTokenType == ClientTokenType.YouAuth)
-            // {
-            //     if (!this.HasValidClientAuthToken(authToken, out var client, out _))
-            //     {
-            //         return new ValueTask<(DotYouIdentity, bool isValid, bool isConnected, PermissionContext permissionContext, List<GuidId> enabledCircleIds)>(((DotYouIdentity)"", false, false,
-            //             null,
-            //             null));
-            //     }
-            //
-            //     var token = authToken.AccessTokenHalfKey;
-            //     var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            //     var ss = client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            //     PermissionContext permissionCtx = CreateYouAuthPermissionContext(ss);
-            //     return new ValueTask<(DotYouIdentity, bool, bool, PermissionContext, List<GuidId>)>((client.DotYouId, true, false, permissionCtx, null));
-            // }
-            //
-            // throw new YouverseSecurityException("Unhandled access registration type");
-        }
-
-        public ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextX(ClientAuthenticationToken authToken)
+        public ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             /*
              * trying to determine if the icr token given was valid but was blocked
@@ -198,10 +158,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     { "anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
                     { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null) }
                 },
-                sharedSecretKey:
-                ss,
-                isOwner:
-                false);
+                sharedSecretKey: ss,
+                isOwner: false);
 
             return permissionCtx;
         }

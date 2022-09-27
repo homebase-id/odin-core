@@ -19,14 +19,15 @@ public class TenantConfigService
     private readonly ICircleNetworkService _cns;
     private readonly IDriveService _driveService;
     private readonly DotYouContextAccessor _contextAccessor;
-
+    private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ISystemStorage storage)
+    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ISystemStorage storage, TenantContext tenantContext)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
         _driveService = driveService;
+        _tenantContext = tenantContext;
         _configStorage = storage.SingleKeyValueStorage;
     }
 
@@ -61,6 +62,8 @@ public class TenantConfigService
 
     public void UpdateSystemFlag(UpdateFlagRequest request)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
             throw new YouverseException("Invalid flag name");
@@ -88,6 +91,9 @@ public class TenantConfigService
         }
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);
+        
+        //TODO: use mediator instead
+        _tenantContext.UpdateSystemConfig(cfg);
     }
 
     public TenantSystemConfig GetTenantSystemConfig()
@@ -97,11 +103,14 @@ public class TenantConfigService
 
     public OwnerAppSettings GetOwnerAppSettings()
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
     public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        
         Guard.Argument(newSettings, nameof(newSettings)).NotNull();
         Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
