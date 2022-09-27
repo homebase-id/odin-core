@@ -1,10 +1,10 @@
-namespace Youverse.Core.Services.Provisioning;
+namespace Youverse.Core.Services.Configuration;
 
 public class TenantSystemConfig
 {
     public static readonly GuidId ConfigKey = GuidId.FromString("tenant_config");
 
-    private static TenantSystemConfig _default = new TenantSystemConfig()
+    public static TenantSystemConfig Default { get; } = new TenantSystemConfig()
     {
         AnonymousVisitorsCanViewConnections = false,
         AuthenticatedIdentitiesCanViewConnections = false,
@@ -19,6 +19,5 @@ public class TenantSystemConfig
 
     /// <summary/>
     public bool AllConnectedIdentitiesCanViewConnections { get; set; }
-
-    public static TenantSystemConfig Default => _default;
+    
 }

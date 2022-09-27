@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Provisioning;
+namespace Youverse.Core.Services.Configuration;
 
 /// <summary>
 /// Set of parameters specifying how initial setup should be executed

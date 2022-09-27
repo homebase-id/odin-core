@@ -1,18 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
+using Dawn;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Provisioning;
+namespace Youverse.Core.Services.Configuration;
 
 /// <summary>
 /// Manages initial setup and system configuration for the identity and owner-app
@@ -96,6 +93,18 @@ public class TenantConfigService
     public TenantSystemConfig GetTenantSystemConfig()
     {
         return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? TenantSystemConfig.Default;
+    }
+
+    public OwnerAppSettings GetOwnerAppSettings()
+    {
+        return _configStorage.Get<OwnerAppSettings>(OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
+    }
+
+    public void UpdateOwnerAppSettings(OwnerAppSettings newSettings)
+    {
+        Guard.Argument(newSettings, nameof(newSettings)).NotNull();
+        Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
+        _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
     //

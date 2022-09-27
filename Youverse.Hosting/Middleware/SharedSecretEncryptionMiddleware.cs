@@ -49,7 +49,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
                 "/api/apps/v1/drive/files/upload",
-                "/api/youauth/v1/auth/is-authenticated"
+                "/api/youauth/v1/auth/is-authenticated",
+                //"/api/owner/v1/config/ownerapp/settings/list"
             };
 
             //Paths that should not have their responses encrypted with shared secret
@@ -173,11 +174,16 @@ namespace Youverse.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
+            if (context.Request.Headers.ContentLength == 0)
+            {
+                return false;
+            }
+            
             if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST" || !CallerMustHaveSharedSecret(context))
             {
                 return false;
             }
-
+            
             return !IgnoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 

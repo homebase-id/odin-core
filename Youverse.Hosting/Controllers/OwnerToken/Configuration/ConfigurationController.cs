@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Provisioning;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 
@@ -31,7 +31,7 @@ public class ConfigurationController : Controller
     /// Ensures all new configuration is setup when a new tenant is configured.
     /// </summary>
     [HttpPost("system/initialize")]
-    public async Task<bool> InitializeIdentity([FromBody]InitialSetupRequest request)
+    public async Task<bool> InitializeIdentity([FromBody] InitialSetupRequest request)
     {
         await _tenantConfigService.EnsureInitialOwnerSetup(request);
         return true;
@@ -72,15 +72,18 @@ public class ConfigurationController : Controller
     /// <summary>
     /// Updates a setting for use in the owner-app
     /// </summary>
-    [HttpPost("ownerapp/updatesetting")]
-    public async Task<bool> UpdateOwnerAppSetting([FromBody] UpdateFlagRequest request)
+    [HttpPost("ownerapp/settings/update")]
+    public async Task<bool> UpdateOwnerAppSetting([FromBody] OwnerAppSettings settings)
     {
-        Guard.Argument(request, nameof(request)).NotNull();
-        Guard.Argument(request.FlagName, nameof(request.FlagName)).NotNull().NotEmpty();
-
-        //todo: map to all the various flags
-        return false;
+        _tenantConfigService.UpdateOwnerAppSettings(settings);
+        return true;
     }
 
+    [HttpPost("ownerapp/settings/list")]
+    public OwnerAppSettings GetOwnerSettings()
+    {
+        var settings = _tenantConfigService.GetOwnerAppSettings();
+        return settings;
+    }
     //
 }

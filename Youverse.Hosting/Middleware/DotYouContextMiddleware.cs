@@ -13,7 +13,6 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Provisioning;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;

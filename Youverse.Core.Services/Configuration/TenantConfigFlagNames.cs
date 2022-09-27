@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Provisioning;
+namespace Youverse.Core.Services.Configuration;
 
 public enum TenantConfigFlagNames
 {

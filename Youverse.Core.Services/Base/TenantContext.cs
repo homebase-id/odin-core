@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Provisioning;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Base

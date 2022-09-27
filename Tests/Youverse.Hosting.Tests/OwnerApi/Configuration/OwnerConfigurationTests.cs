@@ -11,12 +11,12 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Provisioning;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
@@ -203,7 +203,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                     "The contact drive should be in the additional circle");
             }
         }
-
 
         [Test]
         public async Task CanAllowConnectedContactsToViewConnections()
