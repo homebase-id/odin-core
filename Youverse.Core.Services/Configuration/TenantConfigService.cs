@@ -34,6 +34,11 @@ public class TenantConfigService
         _configStorage = storage.SingleKeyValueStorage;
     }
 
+    public async Task<bool> IsIdentityServerConfigured()
+    {
+        var firstRunInfo = _configStorage.Get<FirstRunInfo>(FirstRunInfo.Key);
+        return firstRunInfo != null;
+    }
 
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
@@ -61,6 +66,11 @@ public class TenantConfigService
         {
             await CreateCircleIfNotExists(rc);
         }
+
+        _configStorage.Upsert(FirstRunInfo.Key, new FirstRunInfo()
+        {
+            FirstRunDate = DateTimeExtensions.UnixTimeMilliseconds()
+        });
     }
 
     public void UpdateSystemFlag(UpdateFlagRequest request)

@@ -28,6 +28,17 @@ public class ConfigurationController : Controller
     }
 
     /// <summary>
+    /// Indicates if the identity has been completed first-run configuration
+    /// </summary>
+    /// <returns></returns>
+    [HttpPost("system/isconfigured")]
+    public async Task<bool> IsIdentityServerConfigured()
+    {
+        var result = await _tenantConfigService.IsIdentityServerConfigured();
+        return result;
+    }
+
+    /// <summary>
     /// Ensures all new configuration is setup when a new tenant is configured.
     /// </summary>
     [HttpPost("system/initialize")]
