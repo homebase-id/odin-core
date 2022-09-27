@@ -26,11 +26,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             _scaffold.RunAfterAnyTests();
         }
-        
+
         [Test]
         public async Task CanAllowAnonymousToViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
+
+            await _scaffold.OwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            {
+                Drives = null,
+                Circles = null
+            });
+
 
             var identity = TestIdentities.Samwise;
             await _scaffold.OwnerApi.InitializeIdentity(identity, new InitialSetupRequest()
@@ -38,7 +45,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Drives = null,
                 Circles = null
             });
-            
+
+
             var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
 
@@ -87,6 +95,5 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             await utils.DisconnectIdentities(frodo, sam);
         }
-
     }
 }
