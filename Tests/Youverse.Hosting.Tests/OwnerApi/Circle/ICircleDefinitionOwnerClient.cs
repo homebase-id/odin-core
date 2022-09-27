@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private const string RootPath = OwnerApiPathConstants.CirclesV1 + "/definitions";
 
         [Get(RootPath + "/list")]
-        Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions();
+        Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);
 
 
         [Post(RootPath + "/get")]

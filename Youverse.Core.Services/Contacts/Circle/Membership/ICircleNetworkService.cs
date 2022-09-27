@@ -157,7 +157,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Gets a list of all circle definitions
         /// </summary>
         /// <returns></returns>
-        Task<IEnumerable<CircleDefinition>> GetCircleDefinitions();
+        Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle);
 
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members

@@ -18,8 +18,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         private readonly GuidId _circleDataType = GuidId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public readonly GuidId DefaultCircleId = GuidId.FromString("default_circle");
-
         public CircleDefinitionService(ISystemStorage systemStorage, IDriveService driveService)
         {
             _driveService = driveService;
@@ -87,9 +85,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             return def;
         }
 
-        public Task<IEnumerable<CircleDefinition>> GetCircles()
+        public Task<IEnumerable<CircleDefinition>> GetCircles(bool includeSystemCircle)
         {
             var circles = _circleValueStorage.GetByKey3<CircleDefinition>(_circleDataType);
+            if (!includeSystemCircle)
+            {
+                return Task.FromResult(circles.Where(c => c.Id != CircleConstants.SystemCircleId.Value));
+            }
             return Task.FromResult(circles);
         }
 

@@ -424,9 +424,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return def;
         }
 
-        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
+        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
         {
-            var circles = await _circleDefinitionService.GetCircles();
+            var circles = await _circleDefinitionService.GetCircles(includeSystemCircle);
             return circles;
         }
 

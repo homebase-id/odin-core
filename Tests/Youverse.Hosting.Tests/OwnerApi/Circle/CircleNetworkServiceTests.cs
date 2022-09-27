@@ -962,6 +962,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = name,
                     Description = $"total hack {someId}",
                     DriveGrants = new List<DriveGrantRequest>() { dgr1, dgr2 },

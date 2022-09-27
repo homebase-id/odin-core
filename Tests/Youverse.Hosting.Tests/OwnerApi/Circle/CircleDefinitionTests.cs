@@ -117,6 +117,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = new List<DriveGrantRequest>() { dgr1, dgr2 },
@@ -162,6 +163,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request1 = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle 1",
                     Description = "Test circle description 1",
                     DriveGrants = null,
@@ -174,6 +176,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request2 = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle 2",
                     Description = "Test circle description 2",
                     DriveGrants = null,
@@ -219,6 +222,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = null,
@@ -275,6 +279,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = null,
@@ -327,6 +332,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = null,
@@ -367,6 +373,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = null,

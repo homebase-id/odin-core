@@ -32,7 +32,7 @@ public class TenantConfigService
         _driveService = driveService;
         _configStorage = storage.SingleKeyValueStorage;
     }
-    
+
 
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
@@ -49,6 +49,7 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
 
+
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);
@@ -57,7 +58,7 @@ public class TenantConfigService
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-         await   CreateCircleIfNotExists(rc);
+            await CreateCircleIfNotExists(rc);
         }
     }
 
@@ -96,9 +97,9 @@ public class TenantConfigService
     {
         return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? TenantSystemConfig.Default;
     }
-    
+
     //
-    
+
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
     {
         var existingCircleDef = _cns.GetCircleDefinition(request.Id);

@@ -21,10 +21,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             _cns = cns;
         }
 
+        /// <summary>
+        /// Returns a list of circle definitions.
+        /// </summary>
+        /// <param name="includeSystemCircle">if true, the system circle will be included in the results; default is false</param>
         [HttpGet("list")]
-        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions()
+        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
         {
-            var result = await _cns.GetCircleDefinitions();
+            var result = await _cns.GetCircleDefinitions(includeSystemCircle);
             return result;
         }
 
@@ -54,14 +58,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
             await _cns.DeleteCircleDefinition(new GuidId(id));
             return true;
         }
-        
+
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
             await _cns.EnableCircle(new GuidId(id));
             return true;
         }
-        
+
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {

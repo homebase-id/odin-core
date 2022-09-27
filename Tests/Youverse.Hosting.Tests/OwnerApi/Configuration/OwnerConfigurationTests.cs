@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
             //success = system drives created, other drives created
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
 
@@ -65,6 +65,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
                 Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
                 var expectedDrives = getSystemDrivesResponse.Content.Values.Select(td => td).ToList();
+                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
+                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
 
                 //
                 // system drives should be created (neither allow anonymous)
@@ -83,7 +85,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
-                var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions();
+                var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions(includeSystemCircle: true);
                 Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getCircleDefinitionsResponse.Content);
                 var circleDefs = getCircleDefinitionsResponse.Content;
@@ -94,17 +96,26 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-                Assert.IsTrue(!systemCircle.DriveGrants.Any(), "By default, there should be no drive grants because none of the system drives allow anonymous");
+                Assert.IsTrue(systemCircle.DriveGrants.Count() == 1, "By default, there should be one  drive grant (standard profile drive allows anonymous)");
+                Assert.IsNotNull(systemCircle.DriveGrants.Single(dg => dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
             }
         }
 
         [Test]
-        public async Task CanCreateSystemDrives_And_AdditionalDrives_NoAdditionalCircles()
+        public async Task CanCreateSystemDrives_With_AdditionalDrivesAndCircles()
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+
+                var getSystemDrivesResponse = await svc.GetSystemDrives();
+                Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
+
+                var systemDrives = getSystemDrivesResponse.Content;
+                Assert.IsTrue(systemDrives.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
+                Assert.IsTrue(systemDrives.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
 
                 var newDrive = new CreateDriveRequest()
                 {
@@ -114,74 +125,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                     TargetDrive = TargetDrive.NewTargetDrive()
                 };
 
-                var setupConfig = new InitialSetupRequest()
-                {
-                    Drives = new List<CreateDriveRequest>() { newDrive },
-                    Circles = null
-                };
-
-                var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
-                Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
-
-                //check if system drives exist
-                var getSystemDrivesResponse = await svc.GetSystemDrives();
-                Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
-                Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
-                var expectedDrives = getSystemDrivesResponse.Content.Values.Select(td => td).ToList();
-                expectedDrives.Add(newDrive.TargetDrive);
-
-                var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
-                var createdDrivesResponse = await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-                Assert.IsNotNull(createdDrivesResponse.Content);
-                var createdDrives = createdDrivesResponse.Content;
-                Assert.IsTrue(createdDrives.Results.Count == 3);
-
-                foreach (var expectedDrive in expectedDrives)
-                {
-                    Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
-                }
-
-                var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
-
-                var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getCircleDefinitionsResponse.Content);
-                var circleDefs = getCircleDefinitionsResponse.Content;
-
-                Assert.IsTrue(circleDefs.Count(c=>c.Id == CircleConstants.SystemCircleId) == 1, "Only the system circle should exist");
-
-                var systemCircle = circleDefs.Single();
-                Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
-                Assert.IsTrue(systemCircle.Name == "System Circle");
-                Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-                Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
-                Assert.IsTrue(systemCircle.DriveGrants.Count(dg => dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read) == 1,
-                    "There should be one drive in the system circle due to the 'newDrive' with allowAnonymous=true added above");
-
-                //take out the anonymous drive so future tests have a chance
-                var setDriveModeResponse = await driveSvc.SetDriveReadMode(new UpdateDriveDefinitionRequest()
-                {
-                    TargetDrive = newDrive.TargetDrive,
-                    AllowAnonymousReads = false
-                });
-
-                Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode, "Failed setting drive mode");
-            }
-        }
-
-        [Test]
-        public async Task CanCreateSystemCircle_And_AdditionalCircles_NoAdditionalDrives()
-        {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
-            {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-
-                var getSystemDrivesResponse = await svc.GetSystemDrives();
-                Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
-                Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
-                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
-                
                 var additionalCircleRequest = new CreateCircleRequest()
                 {
                     Id = Guid.NewGuid(),
@@ -202,20 +145,23 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
                 var setupConfig = new InitialSetupRequest()
                 {
-                    Drives = null,
+                    Drives = new List<CreateDriveRequest>() { newDrive },
                     Circles = new List<CreateCircleRequest>() { additionalCircleRequest }
                 };
 
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
+                //check if system drives exist
+                var expectedDrives = systemDrives.Values.Select(td => td).ToList();
+                expectedDrives.Add(newDrive.TargetDrive);
+
                 var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                 var createdDrivesResponse = await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
                 Assert.IsNotNull(createdDrivesResponse.Content);
                 var createdDrives = createdDrivesResponse.Content;
-                Assert.IsTrue(createdDrives.Results.Count == 2);
+                Assert.IsTrue(createdDrives.Results.Count == 3);
 
-                var expectedDrives = getSystemDrivesResponse.Content.Values.Select(td => td).ToList();
                 foreach (var expectedDrive in expectedDrives)
                 {
                     Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
@@ -223,31 +169,32 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
-                var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions();
+                var getCircleDefinitionsResponse = await circleDefinitionService.GetCircleDefinitions(includeSystemCircle: true);
                 Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getCircleDefinitionsResponse.Content);
-                var circleDefs = getCircleDefinitionsResponse.Content;
-
-                Assert.IsTrue(circleDefs.Count() == 2, "Only the system circle should exist");
+                var circleDefs = getCircleDefinitionsResponse.Content.ToList();
 
                 //
-                // system circle exists
+                // System circle exists and has correct grants
                 //
+
                 var systemCircle = circleDefs.SingleOrDefault(c => c.Id == CircleConstants.SystemCircleId);
-                Assert.IsNotNull(systemCircle);
+                Assert.IsNotNull(systemCircle, "system circle should exist");
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
+                var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                Assert.IsNotNull(newDriveGrant, "The new drive should be in the system circle");
 
-                var standardProfileDriveGrant = systemCircle.DriveGrants.SingleOrDefault();
-                Assert.IsNotNull(standardProfileDriveGrant);
-                Assert.IsTrue(standardProfileDriveGrant.PermissionedDrive.Drive == standardProfileDrive && standardProfileDriveGrant.PermissionedDrive.Permission == DrivePermission.Read);
+                var standardProfileDriveGrant =
+                    systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                Assert.IsNotNull(standardProfileDriveGrant, "The new drive should be in the system circle");
+
                 //
                 // additional circle exists
                 //
-
                 var additionalCircle = circleDefs.SingleOrDefault(c => c.Id == additionalCircleRequest.Id);
                 Assert.IsNotNull(additionalCircle);
                 Assert.IsTrue(additionalCircle.Name == "le circle");
@@ -257,9 +204,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
             }
         }
 
+
         [Test]
         public async Task CanAllowConnectedContactsToViewConnections()
         {
+            Assert.Inconclusive("TODO");
+
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
             //
             // using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
@@ -294,26 +244,31 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
         [Test]
         public async Task CanAllowAuthenticatedVisitorsToViewConnections()
         {
+            Assert.Inconclusive("TODO");
         }
 
         [Test]
         public async Task CanAllowAnonymousToViewConnections()
         {
+            Assert.Inconclusive("TODO");
         }
 
         [Test]
         public async Task CanBlockConnectedContactsFromViewingConnectionsUnlessInCircle()
         {
+            Assert.Inconclusive("TODO");
         }
 
         [Test]
         public async Task CanBlockAuthenticatedVisitorsFromViewingConnections()
         {
+            Assert.Inconclusive("TODO");
         }
 
         [Test]
         public async Task CanBlockAnonymousVisitorsFromViewingConnections()
         {
+            Assert.Inconclusive("TODO");
         }
 
 
@@ -480,6 +435,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
                 var request = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = name,
                     Description = $"total hack {someId}",
                     DriveGrants = new List<DriveGrantRequest>() { dgr1, dgr2 },

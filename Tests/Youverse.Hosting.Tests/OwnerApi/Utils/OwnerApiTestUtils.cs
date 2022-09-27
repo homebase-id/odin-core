@@ -141,9 +141,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             if(initializeIdentity)
             {
-                using (var client = this.CreateOwnerApiHttpClient(identity, out var _))
+                using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
                 {
-                    var svc = RestService.For<IOwnerConfigurationClient>(client);
+                    var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
                     var setupConfig = new InitialSetupRequest();
                     await svc.InitializeIdentity(setupConfig);
                 }
