@@ -93,11 +93,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
             Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
             header.ContactData.Validate();
+
+            if (header.Recipient == _contextAccessor.GetCurrent().Caller.DotYouId)
+            {
+                throw new YouverseException("I get it, connecting with yourself is critical..yet send a connection request to yourself");
+            }
             
             var incomingRequest = await this.GetPendingRequest((DotYouIdentity)header.Recipient);
             if (null != incomingRequest)
             {
-                throw new YouverseException("You have an incoming request from the recipient.");
+                throw new YouverseException("You already have an incoming request from the recipient.");
             }
 
             var existingRequest = await this.GetSentRequest((DotYouIdentity)header.Recipient);

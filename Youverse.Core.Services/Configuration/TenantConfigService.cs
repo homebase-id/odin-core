@@ -95,7 +95,7 @@ public class TenantConfigService
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);
 
-        //TODO: use mediator instead
+        //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
 

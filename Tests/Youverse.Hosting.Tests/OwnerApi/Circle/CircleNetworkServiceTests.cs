@@ -21,6 +21,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
+using Youverse.Hosting.Tests.OwnerApi.Configuration;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
 {
@@ -121,7 +122,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.ContactData.Image.PixelHeight == sender.ContactData.Image.PixelHeight);
                 Assert.IsTrue(response.Content.ContactData.Image.Content.Length == sender.ContactData.Image.Content.Length);
             }
-            
+
             await DeleteConnectionRequestsFromFrodoToSam(sender, recipient);
         }
 
@@ -159,7 +160,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var getResponse = await svc.GetPendingRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
-            
+
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
@@ -180,7 +181,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderDotYouId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
             }
-            
+
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
@@ -202,7 +203,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
             }
-            
+
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
@@ -221,7 +222,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(response.Content, $"No request found with recipient [{sam.Identity}]");
                 Assert.IsTrue(response.Content.Recipient == sam.Identity);
             }
-            
+
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
@@ -799,6 +800,91 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
+
+        [Test(Description = "All connected identities go into the system circle")]
+        public async Task ConnectedIdentitiesAreInSystemCircleUponApproval()
+        {
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
+
+            await AcceptConnectionRequest(sender: frodo, recipient: sam);
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            {
+                var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
+                var systemCircleDef = getSystemCircleDefinitionResponse.Content;
+                
+                //
+                var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity }, omitContactData: false);
+
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
+                Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
+
+                var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
+                var frodoAccessFromSystemCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.SystemCircleId);
+                Assert.NotNull(frodoAccessFromSystemCircle);
+
+                AssertAllDrivesGrantedFromCircle(systemCircleDef, frodoAccessFromSystemCircle);
+
+                //check if system drives exist
+                // var configSvc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                // var getSystemDrivesResponse = await configSvc.GetSystemDrives();
+                // Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
+                // Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode, "No system drives defined");
+                // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
+                // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
+
+                // Frodo should show up in the member list for each circle
+                // 
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, frodo.Identity);
+            }
+
+
+            //
+            // Now connect to Frodo to see that sam is a connection with correct access
+            //
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            {
+                var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
+                var systemCircleDef = getSystemCircleDefinitionResponse.Content;
+                
+                //
+                var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+                var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity }, omitContactData: false);
+
+                Assert.IsTrue(getSamInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamInfoResponse.StatusCode}");
+                Assert.IsNotNull(getSamInfoResponse.Content, $"No status for {sam.Identity} found");
+                Assert.IsTrue(getSamInfoResponse.Content.Status == ConnectionStatus.Connected);
+
+                var samAccess = getSamInfoResponse.Content.AccessGrant;
+                var samAccessFromSystemCircle = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.SystemCircleId);
+                Assert.NotNull(samAccessFromSystemCircle);
+
+                AssertAllDrivesGrantedFromCircle(systemCircleDef, samAccessFromSystemCircle);
+
+                //check if system drives exist
+                // var configSvc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+                // var getSystemDrivesResponse = await configSvc.GetSystemDrives();
+                // Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
+                // Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode, "No system drives defined");
+                // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
+                // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
+
+                // Frodo should show up in the member list for each circle
+                // 
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, sam.Identity);
+            }
+
+            await DisconnectIdentities(frodo, sam);
+        }
+
         private void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
         {
             foreach (var circleDriveGrant in circleDefinition.DriveGrants)
@@ -883,6 +969,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
 
             return (sender, recipient, requestHeader);
+        }
+
+        private async Task AcceptConnectionRequest(TestSampleAppContext sender, TestSampleAppContext recipient)
+        {
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var header = new AcceptRequestHeader()
+                {
+                    Sender = sender.Identity,
+                    CircleIds = new List<GuidId>(),
+                    ContactData = recipient.ContactData
+                };
+
+                var acceptResponse = await svc.AcceptConnectionRequest(header);
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+                await AssertConnectionStatus(client, ownerSharedSecret, sender.Identity, ConnectionStatus.Connected);
+            }
         }
 
         private async Task DeleteConnectionRequestsFromFrodoToSam(TestSampleAppContext frodo, TestSampleAppContext sam)

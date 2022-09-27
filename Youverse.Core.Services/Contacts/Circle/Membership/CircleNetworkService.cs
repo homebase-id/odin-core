@@ -388,7 +388,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var circleGrants = new Dictionary<string, CircleGrant>();
 
-            foreach (var id in circleIds ?? new List<GuidId>())
+            // Always put identities in the system circle
+            var cids = circleIds ?? new List<GuidId>();
+            cids.Add(CircleConstants.SystemCircleId);
+
+            foreach (var id in cids ?? new List<GuidId>())
             {
                 var def = _circleDefinitionService.GetCircle(id);
 

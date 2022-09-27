@@ -93,7 +93,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-                Assert.IsTrue(systemCircle.DriveGrants.Count() == 1, "By default, there should be one  drive grant (standard profile drive allows anonymous)");
+                Assert.IsTrue(systemCircle.DriveGrants.Count() == 1, "By default, there should be one drive grant (standard profile drive allows anonymous)");
                 Assert.IsNotNull(systemCircle.DriveGrants.Single(dg => dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
             }
