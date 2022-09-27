@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -31,6 +32,7 @@ public class TenantConfigService
         _driveService = driveService;
         _configStorage = storage.SingleKeyValueStorage;
     }
+    
 
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
@@ -44,19 +46,18 @@ public class TenantConfigService
 
         await _cns.CreateSystemCircle();
 
-        //Create system drives
-        var contactDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateContactDriveRequest);
-        var profileDrive = await _driveService.CreateDrive(SystemDriveConstants.CreateProfileDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
-            await _driveService.CreateDrive(rd);
+            await CreateDriveIfNotExists(rd);
         }
 
         //Create additional circles last in case they rely on any of the drives above
         foreach (var rc in request.Circles ?? new List<CreateCircleRequest>())
         {
-            await _cns.CreateCircleDefinition(rc);
+         await   CreateCircleIfNotExists(rc);
         }
     }
 
@@ -95,8 +96,31 @@ public class TenantConfigService
     {
         return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? TenantSystemConfig.Default;
     }
-
-
+    
     //
     
+    private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
+    {
+        var existingCircleDef = _cns.GetCircleDefinition(request.Id);
+        if (null == existingCircleDef)
+        {
+            await _cns.CreateCircleDefinition(request);
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request)
+    {
+        var drive = await _driveService.GetDriveIdByAlias(request.TargetDrive, false);
+
+        if (null == drive)
+        {
+            await _driveService.CreateDrive(request);
+            return true;
+        }
+
+        return false;
+    }
 }

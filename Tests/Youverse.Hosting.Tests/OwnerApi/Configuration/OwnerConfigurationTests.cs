@@ -148,7 +148,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
                 Assert.IsNotNull(getCircleDefinitionsResponse.Content);
                 var circleDefs = getCircleDefinitionsResponse.Content;
 
-                Assert.IsTrue(circleDefs.Count() == 1, "Only the system circle should exist");
+                Assert.IsTrue(circleDefs.Count(c=>c.Id == CircleConstants.SystemCircleId) == 1, "Only the system circle should exist");
 
                 var systemCircle = circleDefs.Single();
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
