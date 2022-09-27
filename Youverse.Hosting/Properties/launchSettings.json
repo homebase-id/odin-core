@@ -6,7 +6,7 @@
       "launchBrowser": false,
       "applicationUrl": "https://frodo.digital",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Production",
+        "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTYOUCORE_EX_INFO": "1"
       }
     }
