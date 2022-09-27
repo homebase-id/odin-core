@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Requests;
@@ -20,13 +21,7 @@ namespace Youverse.Hosting.Tests
             {
                 GivenName = "frodo",
                 Surname = "baggins",
-                Image = new ImageDataContent()
-                {
-                    PixelHeight = 400,
-                    PixelWidth = 400,
-                    ContentType = "image/jpeg",
-                    Content = TestMedia.ThumbnailBytes400
-                }
+                ImageId = new Guid()
             }
         };
         
@@ -37,13 +32,7 @@ namespace Youverse.Hosting.Tests
             {
                 GivenName = "Samwise",
                 Surname = "Gamgee",
-                Image = new ImageDataContent()
-                {
-                    PixelHeight = 300,
-                    PixelWidth = 300,
-                    ContentType = "image/jpeg",
-                    Content = TestMedia.ThumbnailBytes300
-                }
+                ImageId = new Guid()
             }
         };
 

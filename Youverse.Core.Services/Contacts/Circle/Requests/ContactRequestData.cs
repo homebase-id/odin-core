@@ -1,3 +1,4 @@
+using System;
 using Dawn;
 using Youverse.Core.Services.Drive.Storage;
 
@@ -21,7 +22,7 @@ public class ContactRequestData
     /// <summary>
     /// An image to be sent with the connection request
     /// </summary>
-    public ImageDataContent Image { get; set; }
+    public Guid ImageId { get; set; }
 
     public void Validate()
     {

@@ -117,10 +117,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 Assert.IsTrue(response.Content.ContactData.GivenName == sender.ContactData.GivenName);
                 Assert.IsTrue(response.Content.ContactData.Surname == sender.ContactData.Surname);
-                Assert.IsTrue(response.Content.ContactData.Image.ContentType == sender.ContactData.Image.ContentType);
-                Assert.IsTrue(response.Content.ContactData.Image.PixelWidth == sender.ContactData.Image.PixelWidth);
-                Assert.IsTrue(response.Content.ContactData.Image.PixelHeight == sender.ContactData.Image.PixelHeight);
-                Assert.IsTrue(response.Content.ContactData.Image.Content.Length == sender.ContactData.Image.Content.Length);
+                Assert.IsTrue(response.Content.ContactData.ImageId == sender.ContactData.ImageId);
             }
 
             await DeleteConnectionRequestsFromFrodoToSam(sender, recipient);
@@ -275,10 +272,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.GivenName == frodo.ContactData.GivenName);
                 Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Surname == frodo.ContactData.Surname);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.ContentType == frodo.ContactData.Image.ContentType);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.PixelWidth == frodo.ContactData.Image.PixelWidth);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.PixelHeight == frodo.ContactData.Image.PixelHeight);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Image.Content.Length == frodo.ContactData.Image.Content.Length);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.ImageId == frodo.ContactData.ImageId);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
@@ -327,10 +321,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.GivenName == sam.ContactData.GivenName);
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Surname == sam.ContactData.Surname);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.ContentType == sam.ContactData.Image.ContentType);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.PixelWidth == sam.ContactData.Image.PixelWidth);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.PixelHeight == sam.ContactData.Image.PixelHeight);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Image.Content.Length == sam.ContactData.Image.Content.Length);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.ImageId == sam.ContactData.ImageId);
 
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
