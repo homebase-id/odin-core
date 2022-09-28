@@ -36,6 +36,7 @@ public class TenantConfigService
 
     public bool IsIdentityServerConfigured()
     {
+        //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = _configStorage.Get<FirstRunInfo>(FirstRunInfo.Key);
         return firstRunInfo != null;
     }
