@@ -21,10 +21,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
 
         [Post(RootEndpoint + "/system/updateflag")]
         Task<ApiResponse<bool>> UpdateSystemConfigFlag([Body] UpdateFlagRequest request);
-
-        [Get(RootEndpoint + "/system/driveinfo")]
-        Task<ApiResponse<Dictionary<string, TargetDrive>>> GetSystemDrives();
-
+        
         [Post(RootEndpoint + "/ownerapp/settings/update")]
         Task<ApiResponse<bool>> UpdateOwnerAppSetting([Body] OwnerAppSettings settings);
 

@@ -43,6 +43,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
+            var contactDrive = SystemDriveConstants.ContactDrive;
+            var standardProfileDrive = SystemDriveConstants.ProfileDrive;
+
             //success = system drives created, other drives created
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
@@ -51,7 +54,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var getIsIdentityConfiguredResponse1 = await svc.IsIdentityConfigured();
                 Assert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
                 Assert.IsFalse(getIsIdentityConfiguredResponse1.Content);
-                
+
                 var setupConfig = new InitialSetupRequest()
                 {
                     Drives = null,
@@ -60,18 +63,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
-                
+
                 var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
                 Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
                 Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
-
-                //check if system drives exist
-                var getSystemDrivesResponse = await svc.GetSystemDrives();
-                Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
-                Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
-                var expectedDrives = getSystemDrivesResponse.Content.Values.Select(td => td).ToList();
-                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
-                Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
 
                 //
                 // system drives should be created (neither allow anonymous)
@@ -83,10 +78,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var createdDrives = createdDrivesResponse.Content;
                 Assert.IsTrue(createdDrives.Results.Count == 2);
 
-                foreach (var expectedDrive in expectedDrives)
-                {
-                    Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
-                }
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == contactDrive), $"expected drive [{contactDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == standardProfileDrive), $"expected drive [{standardProfileDrive}] not found");
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -113,15 +106,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-
-                var getSystemDrivesResponse = await svc.GetSystemDrives();
-                Assert.IsTrue(getSystemDrivesResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getSystemDrivesResponse.Content, "No system drives defined");
-
-                var systemDrives = getSystemDrivesResponse.Content;
-                Assert.IsTrue(systemDrives.TryGetValue("contact", out var contactDrive), "contact system drive should have returned");
-                Assert.IsTrue(systemDrives.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
-
+                
+                var contactDrive = SystemDriveConstants.ContactDrive;
+                var standardProfileDrive = SystemDriveConstants.ProfileDrive;
+                    
                 var newDrive = new CreateDriveRequest()
                 {
                     Name = "test",
@@ -158,8 +146,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
                 //check if system drives exist
-                var expectedDrives = systemDrives.Values.Select(td => td).ToList();
-                expectedDrives.Add(newDrive.TargetDrive);
+                var expectedDrives = new List<TargetDrive>()
+                {
+                    standardProfileDrive,
+                    contactDrive,
+                    newDrive.TargetDrive
+                };
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                 var createdDrivesResponse = await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
@@ -208,6 +200,5 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     "The contact drive should be in the additional circle");
             }
         }
-
     }
 }
