@@ -19,6 +19,11 @@ namespace Youverse.Core.Services.Registry
             _tenantContext = tenantContext;
         }
 
+        public CertificateLocation GetSigningCertificate()
+        {
+            throw new NotImplementedException();
+        }
+
         public X509Certificate2 GetSslCertificate()
         {
             Guid domainId = CalculateDomainId(_tenantContext.HostDotYouId);
@@ -26,12 +31,7 @@ namespace Youverse.Core.Services.Registry
             string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
             return LoadCertificate(certificatePath, privateKeyPath);
         }
-
-        public CertificateLocation GetSigningCertificate()
-        {
-            throw new NotImplementedException();
-        }
-
+        
         /// <summary>
         /// Loads and returns a certificate for the given dotYouId
         /// </summary>
@@ -92,14 +92,7 @@ namespace Youverse.Core.Services.Registry
 
         public static Guid CalculateDomainId(DotYouIdentity input)
         {
-            var adjustedInput = input.ToString().ToLower();
-            using SHA256 hashAlgo = SHA256.Create();
-            byte[] bytes = hashAlgo.ComputeHash(Encoding.UTF8.GetBytes(adjustedInput));
-            var half = bytes.Length / 2;
-            var (part1, part2) = ByteArrayUtil.Split(bytes, half, half);
-            var reducedBytes = ByteArrayUtil.EquiByteArrayXor(part1, part2);
-
-            return new Guid(reducedBytes);
+            return HashUtil.ReduceSHA256Hash(input);
         }
     }
 }

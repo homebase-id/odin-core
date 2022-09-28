@@ -79,6 +79,12 @@ namespace Youverse.Core.Services.Drive
             get => _inner.AllowAnonymousReads;
             set { }
         }
+        
+        public override bool OwnerOnly
+        {
+            get => _inner.OwnerOnly;
+            set { }
+        }
 
         public string GetStoragePath(StorageDisposition storageDisposition)
         {
@@ -99,6 +105,7 @@ namespace Youverse.Core.Services.Drive
         }
     }
 
+
     public class StorageDriveBase
     {
         public virtual Guid Id { get; init; }
@@ -110,6 +117,8 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         public virtual string Metadata { get; set; }
 
+        public virtual bool OwnerOnly { get; set; }
+        
         /// <summary>
         /// Specifies a public identifier for accessing this drive.  This stops us from sharing the Id outside of this system.
         /// </summary>

@@ -43,12 +43,6 @@
         <Content Include="https\samwisegamgee.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <Content Include="https\samwisegamgee.me\certificate.crt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="https\frodobaggins.me\certificate.crt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
         <Content Include="https\frodobaggins.me\private.key">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>

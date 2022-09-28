@@ -6,4 +6,6 @@ public class CreateDriveRequest
     public TargetDrive TargetDrive { get; set; }
     public string Metadata { get; set; }
     public bool AllowAnonymousReads { get; set; }
+    
+    public bool OwnerOnly { get; set; }
 }

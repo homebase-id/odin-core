@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Identity;
 using Youverse.Core.Trie;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
 {
@@ -35,10 +36,21 @@ namespace Youverse.Core.Services.Registry
 
         public void Initialize()
         {
-            _certificates.Add(Guid.Parse("FBABCc39-1111-4442-9120-57ef89a11111"), "frodobaggins.me");
-            _certificates.Add(Guid.Parse("55BBCc39-0001-0042-9120-57ef89a00000"), "samwisegamgee.me");
-            _certificates.Add(Guid.Parse("00ABCc39-1111-4442-9120-57ef89a11111"), "frodo.digital");
-            _certificates.Add(Guid.Parse("11BBCc39-0001-0042-9120-57ef89a00000"), "samwise.digital");
+            //demo server
+            _certificates.Add(HashUtil.ReduceSHA256Hash("frodobaggins-me"), "frodobaggins.me");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("samwisegamgee-me"), "samwisegamgee.me");
+
+            //local development
+            _certificates.Add(HashUtil.ReduceSHA256Hash("frodo-digital"), "frodo.digital");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("samwise-digital"), "samwise.digital");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("merry-onekin-io"), "merry.onekin.io");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("pippin-onekin-io"), "pippin.onekin.io");
+
+            //app-development 
+            _certificates.Add(HashUtil.ReduceSHA256Hash("legolas-onekin-io"), "legolas.onekin.io");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("gimli-onekin-io"), "gimli.onekin.io");
+            _certificates.Add(HashUtil.ReduceSHA256Hash("aragorn-onekin-io"), "aragorn.onekin.io");
+            
 
             foreach (var c in _certificates)
             {

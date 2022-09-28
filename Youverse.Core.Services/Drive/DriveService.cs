@@ -61,6 +61,11 @@ namespace Youverse.Core.Services.Drive
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
 
+            if (request.OwnerOnly && request.AllowAnonymousReads)
+            {
+                throw new YouverseException("A drive cannot be owner-only and allow anonymous reads");
+            }
+            
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
             StorageDrive storageDrive;
