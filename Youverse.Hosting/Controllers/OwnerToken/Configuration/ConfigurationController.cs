@@ -63,6 +63,16 @@ public class ConfigurationController : Controller
         //todo: map to all the various flags
         return false;
     }
+    
+    /// <summary>
+    /// Gets the system flags
+    /// </summary>
+    [HttpPost("system/flags")]
+    public TenantSystemConfig GetSystemSettings()
+    {
+        var settings = _tenantConfigService.GetTenantSystemConfig();
+        return settings;
+    }
 
     /// <summary>
     /// Returns the built-in <see cref="TargetDrive"/>Info for the built-in drives
