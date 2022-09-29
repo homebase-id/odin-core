@@ -16,11 +16,13 @@ namespace Youverse.Core.Services.Base
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICertificateResolver _certificateResolver;
+        private readonly TenantContext _tenantContext;
 
-        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver)
+        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _certificateResolver = certificateResolver;
+            _tenantContext = tenantContext;
         }
 
         public T CreateClientUsingAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
@@ -35,16 +37,14 @@ namespace Youverse.Core.Services.Base
 
         public T CreateClient<T>(DotYouIdentity dotYouId)
         {
-
             return this.CreateClientInternal<T>(dotYouId, null);
         }
 
         ///
-        
         private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
-            
+
             var handler = new HttpClientHandler();
 
             //HACK: this appIdOverride is strange but required so the background sender
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Base
             var cert = _certificateResolver.GetSslCertificate();
             if (null == cert)
             {
-                throw new Exception($"No certificate configured for {dotYouId}");
+                throw new Exception($"No certificate configured for {_tenantContext.HostDotYouId}");
             }
 
             handler.ClientCertificates.Add(cert);
@@ -76,6 +76,13 @@ namespace Youverse.Core.Services.Base
                 //TODO: need to encrypt this token somehow? (shared secret?)
                 client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
+            
+            // start hack
+            if (cert.Subject.Contains("*.onekin.io"))
+            {
+                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostDotYouId);
+            }
+            // end hack
 
             var ogClient = RestService.For<T>(client);
             return ogClient;
