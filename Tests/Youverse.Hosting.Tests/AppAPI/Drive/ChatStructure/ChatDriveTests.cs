@@ -60,6 +60,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
         }
 
         [Test]
+        [Ignore("wip")]
         public async Task CreateGroupAndSendMessage()
         {
             var chatApps = await this.InitializeApps();

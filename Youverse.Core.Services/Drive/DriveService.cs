@@ -207,7 +207,8 @@ namespace Youverse.Core.Services.Drive
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
             var page = await this.GetDrivesInternal(false, pageOptions);
-            var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads && drive.OwnerOnly == false).ToList();
+            // var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads && drive.OwnerOnly == false).ToList();
+            var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
             return results;
         }
@@ -455,13 +456,13 @@ namespace Youverse.Core.Services.Drive
         {
             var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
 
-            if (_contextAccessor.GetCurrent().Caller.IsOwner)
+            if (_contextAccessor.GetCurrent()?.Caller?.IsOwner ?? false)
             {
                 return new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Select(ToStorageDrive).ToList());
             }
 
             Func<StorageDriveBase, bool> predicate = null;
-            predicate = drive => drive.OwnerOnly = false;
+            predicate = drive => drive.OwnerOnly == false;
             if (enforceSecurity)
             {
                 if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
