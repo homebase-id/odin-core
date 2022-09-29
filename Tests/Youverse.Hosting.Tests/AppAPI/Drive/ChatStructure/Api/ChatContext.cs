@@ -21,13 +21,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatContext
 {
-    private DotYouIdentity _sender;
+    public DotYouIdentity Sender { get; }
     private TestSampleAppContext _appContext;
     private Dictionary<Guid, List<string>> _groups;
 
     public ChatContext(DotYouIdentity sender, TestSampleAppContext appContext, WebScaffold scaffold)
     {
-        _sender = sender;
+        Sender = sender;
         Scaffold = scaffold;
         _appContext = appContext;
     }
@@ -69,7 +69,7 @@ public class ChatContext
     public async Task ProcessIncomingTransfers(int delaySeconds = 0)
     {
         Task.Delay(delaySeconds).Wait();
-        using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_sender, _appContext.ClientAuthenticationToken))
+        using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(Sender, _appContext.ClientAuthenticationToken))
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
             var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = _appContext.TargetDrive });
@@ -79,12 +79,12 @@ public class ChatContext
 
     public async Task ProcessOutbox()
     {
-        await Scaffold.OwnerApi.ProcessOutbox(_sender);
+        await Scaffold.OwnerApi.ProcessOutbox(Sender);
     }
 
     public async Task SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
     {
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_sender, _appContext.ClientAuthenticationToken))
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(Sender, _appContext.ClientAuthenticationToken))
         {
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;

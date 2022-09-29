@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core;
 using Youverse.Core.Serialization;
@@ -60,7 +61,7 @@ public class ChatMessageService
             },
             TransitOptions = new TransitOptions()
             {
-                Recipients = recipients
+                Recipients = recipients.Where(r => r != this._ctx.Sender).ToList()
             }
         };
 
@@ -69,7 +70,6 @@ public class ChatMessageService
 
     public async Task<(IEnumerable<ChatMessage> messages, string CursorState)> GetMessages(TestIdentity identity, string cursorState)
     {
-        
         var queryParams = new FileQueryParams()
         {
             FileType = new List<int>() { ChatFileType }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core;
 using Youverse.Core.Identity;
@@ -65,7 +66,7 @@ public class ChatCommandService
             },
             TransitOptions = new TransitOptions()
             {
-                Recipients = cmd.Recipients
+                Recipients = cmd.Recipients.Where(r=>r!= _context.Sender).ToList()
             }
         };
 
