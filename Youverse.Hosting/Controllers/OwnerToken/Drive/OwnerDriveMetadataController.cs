@@ -40,7 +40,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                     TargetDriveInfo = drive.TargetDriveInfo,
                     Metadata = drive.Metadata,
                     IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads
+                    AllowAnonymousReads = drive.AllowAnonymousReads,
+                    OwnerOnly = drive.OwnerOnly
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

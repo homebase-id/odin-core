@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -9,6 +10,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
@@ -153,6 +155,63 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 decryptedKeyHeader.AesKey.Wipe();
 
                 keyHeader.AesKey.Wipe();
+            }
+        }
+
+        [Test(Description = "Test upload as owner")]
+        public async Task FailsToUploadInvalidRequiredSecurityGroupToOwnerOnlyDrive()
+        {
+            var identity = TestIdentities.Frodo;
+
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity, ownerOnlyDrive: true);
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var transferIv = ByteArrayUtil.GetRndByteArray(16);
+                var keyHeader = KeyHeader.NewRandom16();
+
+                var instructionSet = new UploadInstructionSet()
+                {
+                    TransferIv = transferIv,
+                    StorageOptions = new StorageOptions()
+                    {
+                        Drive = testContext.TargetDrive
+                    }
+                };
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
+
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
+                    FileMetadata = new()
+                    {
+                        ContentType = "application/json",
+                        PayloadIsEncrypted = true,
+                        AppData = new()
+                        {
+                            Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                            ContentIsComplete = true,
+                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        },
+                        AccessControlList = new() { RequiredSecurityGroup = SecurityGroupType.Anonymous }
+                    },
+                };
+
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+
+                var payloadDataRaw = "{payload:true, image:'b64 data'}";
+                var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
+
+                var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
+                var response = await driveSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError);
             }
         }
 

@@ -171,10 +171,10 @@ namespace Youverse.Hosting
             ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
             ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
 
-            //Note: the TenantConfigService relies on ctx.StorageConfig so you must do this after setting it. 
-            //TODO: consider putting this tenant system config elsewhere so the order is less important
-            var tenantConfigSvc = scope.Resolve<TenantConfigService>();
-            ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
+            // //Note: the TenantConfigService relies on ctx.StorageConfig so you must do this after setting it. 
+            // //TODO: consider putting this tenant system config elsewhere so the order is less important
+            // var tenantConfigSvc = scope.Resolve<TenantConfigService>();
+            // ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
         }
     }
 }

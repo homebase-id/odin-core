@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Drive
             {
                 throw new YouverseException("A drive cannot be owner-only and allow anonymous reads");
             }
-            
+
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
             StorageDrive storageDrive;
@@ -95,6 +95,7 @@ namespace Youverse.Core.Services.Drive
                     EncryptedIdIv = encryptedIdIv,
                     EncryptedIdValue = encryptedIdValue,
                     AllowAnonymousReads = request.AllowAnonymousReads,
+                    OwnerOnly = request.OwnerOnly
                 };
 
                 secret.Wipe();
@@ -122,6 +123,11 @@ namespace Youverse.Core.Services.Drive
             if (storageDrive.TargetDriveInfo == SystemDriveConstants.ContactDrive || storageDrive.TargetDriveInfo == SystemDriveConstants.ProfileDrive)
             {
                 throw new YouverseSecurityException("Cannot change system drive");
+            }
+
+            if (storageDrive.OwnerOnly && allowAnonymous)
+            {
+                throw new YouverseSecurityException("Cannot set Owner Only drive to allow anonymous");
             }
 
             //only change if needed
@@ -188,7 +194,7 @@ namespace Youverse.Core.Services.Drive
 
             if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
             {
-                predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true;
+                predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
             }
 
             var page = await this.GetDrivesInternal(false, pageOptions);
@@ -200,10 +206,8 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
-            Func<StorageDrive, bool> predicate = drive => drive.AllowAnonymousReads;
             var page = await this.GetDrivesInternal(false, pageOptions);
-
-            var storageDrives = page.Results.Where(predicate).ToList();
+            var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads && drive.OwnerOnly == false).ToList();
             var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
             return results;
         }
@@ -451,17 +455,22 @@ namespace Youverse.Core.Services.Drive
         {
             var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
 
-            var predicate = new Func<StorageDriveBase, bool>(drive => true);
+            if (_contextAccessor.GetCurrent().Caller.IsOwner)
+            {
+                return new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Select(ToStorageDrive).ToList());
+            }
+
+            Func<StorageDriveBase, bool> predicate = null;
+            predicate = drive => drive.OwnerOnly = false;
             if (enforceSecurity)
             {
                 if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
                 {
-                    predicate = drive => drive.AllowAnonymousReads == true;
+                    predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
                 }
             }
 
-            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
-            return results;
+            return new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
         }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)
@@ -486,8 +495,8 @@ namespace Youverse.Core.Services.Drive
 
         private async Task InitializeStorageDrives()
         {
-            var drives = await this.GetDrivesInternal(false, PageOptions.All);
-            foreach (var drive in drives.Results)
+            var drives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType) ?? new List<StorageDrive>();
+            foreach (var drive in drives.Select(ToStorageDrive))
             {
                 LoadLongTermStorage(drive, out var _);
             }

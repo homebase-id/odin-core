@@ -22,7 +22,8 @@ public static class SystemDriveConstants
         Name = "Contacts",
         AllowAnonymousReads = false,
         Metadata = "",
-        TargetDrive = ContactDrive
+        TargetDrive = ContactDrive,
+        OwnerOnly = true
     };
 
     public static readonly CreateDriveRequest CreateProfileDriveRequest = new()
@@ -30,6 +31,7 @@ public static class SystemDriveConstants
         Name = "Standard Profile Info",
         AllowAnonymousReads = true,
         Metadata = "",
-        TargetDrive = ProfileDrive
+        TargetDrive = ProfileDrive,
+        OwnerOnly = false
     };
 }

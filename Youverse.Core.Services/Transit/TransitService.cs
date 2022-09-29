@@ -99,6 +99,12 @@ namespace Youverse.Core.Services.Transit
                 throw new UploadException("Cannot upload an encrypted file that is accessible to anonymous visitors");
             }
 
+            var drive = await _driveService.GetDrive(package.InternalFile.DriveId, true);
+            if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
+            {
+                throw new UploadException("Drive is owner only so all files must have RequiredSecurityGroup of Owner");
+            }
+
             await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
             var ext = new ExternalFileIdentifier()

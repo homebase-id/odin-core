@@ -32,6 +32,10 @@ public class TenantConfigService
         _driveService = driveService;
         _tenantContext = tenantContext;
         _configStorage = storage.SingleKeyValueStorage;
+        
+        //var tenantConfigSvc = scope.Resolve<TenantConfigService>();
+        //ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
+        _tenantContext.UpdateSystemConfig(this.GetTenantSystemConfig());
     }
 
     public bool IsIdentityServerConfigured()

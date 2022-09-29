@@ -190,7 +190,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         }
 
         public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
-            bool driveAllowAnonymousReads = false)
+            bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
             PermissionSet permissionSet;
 
@@ -220,7 +220,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                             TargetDrive = targetDrive,
                             Name = $"Test Drive name with type {targetDrive.Type}",
                             Metadata = "{data:'test metadata'}",
-                            AllowAnonymousReads = driveAllowAnonymousReads
+                            AllowAnonymousReads = driveAllowAnonymousReads,
+                            OwnerOnly = ownerOnlyDrive
                         });
 
                     Assert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
@@ -318,7 +319,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
-        public async Task<TestSampleAppContext> SetupTestSampleApp(TestIdentity identity)
+        public async Task<TestSampleAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
         {
             Guid appId = Guid.NewGuid();
             TargetDrive targetDrive = new TargetDrive()
@@ -326,11 +327,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Alias = Guid.NewGuid(),
                 Type = Guid.NewGuid()
             };
-            return await this.SetupTestSampleApp(appId, identity, false, targetDrive);
+            return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
         }
 
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
-            bool driveAllowAnonymousReads = false)
+            bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
             //TODO: we might need to let the callers pass this in at some point for testing
 
@@ -345,7 +346,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             //note; this is intentionally not global
 
-            this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads).GetAwaiter().GetResult();
+            this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
             return new TestSampleAppContext()
