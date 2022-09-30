@@ -69,22 +69,35 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
 
             var frodoChatApp = chatApps[TestIdentities.Frodo.DotYouId];
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
+            var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
 
-            var hobbitsGroupMembers = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).ToList();
+            var hobbitsGroupMembers = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList();
             var groupId = frodoChatApp.CommandService.CreateGroup("le hobbits", hobbitsGroupMembers);
-            
+
+            //see if the group exists on all member servers
+            samwiseChatApp.CommandService.ProcessIncomingCommands();
+            merryChatApp.CommandService.ProcessIncomingCommands();
+
+            var samsGroups = samwiseChatApp.MessageService.GetGroups();
+            var merrysGroups = merryChatApp.MessageService.GetGroups();
+
+            //sam should have the group and merry should match
+            Assert.IsNotNull(samsGroups.SingleOrDefault(g => g.Id == groupId));
+            //CollectionAssert.AreEquivalent(samsGroups, merrysGroups);
+
             await frodoChatApp.MessageService.SendGroupMessage(
-                sender: TestIdentities.Frodo,
                 groupId: groupId,
-                message: new ChatMessage() { Message = "south fathering time, anyone ;)?" },
+                message: new ChatMessage() { Message = "south farthing time, anyone ;)?" },
                 recipients: hobbitsGroupMembers);
 
-            // await frodoChatApp.MessageService.SendChatMessage(sender: TestIdentities.Frodo, recipient: TestIdentities.Samwise, "Let's roll kato");
+            var samMessages = await samwiseChatApp.MessageService.GetGroupMessages(groupId, "");
+            var merryMessages = await merryChatApp.MessageService.GetGroupMessages(groupId, "");
 
             //TODO
-            // string prevCursorState = "";
-            // var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(TestIdentities.Frodo, prevCursorState);
-            // var (samwiseReceivedMessages, samwiseCursorState) = await samwiseChatApp.MessageService.GetMessages(TestIdentities.Samwise, prevCursorState);
+            string frodoPrevCursorState = "";
+            var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(frodoPrevCursorState);
+            // string samPrevCursorState = "";
+            // var (samwiseReceivedMessages, samwiseCursorState) = await samwiseChatApp.MessageService.GetMessages(prevCursorState);
 
             //CollectionAssert.AreEquivalent(frodoSentMessages.ToList(), samwiseReceivedMessages.ToList());
             Assert.Pass();

@@ -252,7 +252,7 @@ namespace Youverse.Core.Services.Transit
 
                     results.Add(recipient, TransferStatus.TransferKeyCreated);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     AddToTransferKeyEncryptionQueue(recipient, package);
                     results.Add(recipient, TransferStatus.AwaitingTransferKey);

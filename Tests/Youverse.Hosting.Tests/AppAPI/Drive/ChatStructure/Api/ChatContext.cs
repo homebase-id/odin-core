@@ -13,6 +13,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.DriveApi.App;
@@ -34,13 +35,13 @@ public class ChatContext
 
     public WebScaffold Scaffold { get; }
 
-    public async Task<(IEnumerable<T> items, string CursorState)> QueryBatch<T>(TestIdentity identity, FileQueryParams queryParams, string cursorState)
+    public async Task<(IEnumerable<T> items, string cursorState)> QueryBatch<T>(FileQueryParams queryParams, string cursorState)
     {
         await this.ProcessIncomingTransfers();
 
         queryParams.TargetDrive = _appContext.TargetDrive;
-        
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, _appContext.ClientAuthenticationToken))
+
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this.Sender, _appContext.ClientAuthenticationToken))
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -63,6 +64,33 @@ public class ChatContext
                 DotYouSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
 
             return (items, batch.CursorState);
+        }
+    }
+
+    public async Task<QueryBatchResponse> QueryBatch(FileQueryParams queryParams, string cursorState)
+    {
+        await this.ProcessIncomingTransfers();
+
+        queryParams.TargetDrive = _appContext.TargetDrive;
+
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this.Sender, _appContext.ClientAuthenticationToken))
+        {
+            var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
+            var request = new QueryBatchRequest()
+            {
+                QueryParams = queryParams,
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    CursorState = cursorState,
+                    MaxRecords = 100,
+                    IncludeMetadataHeader = true
+                }
+            };
+
+            var response = await svc.QueryBatch(request);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            var batch = response.Content!;
+            return batch;
         }
     }
 

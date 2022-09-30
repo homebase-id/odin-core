@@ -107,6 +107,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             ClientAuthenticationToken authToken)
         {
             var client = await this.GetIdentityConnectionClient(authToken);
+            if (null == client)
+            {
+                throw new YouverseSecurityException("Invalid token");
+            }
+            
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             var icr = await this.GetIdentityConnectionRegistrationInternal(client.DotYouId);

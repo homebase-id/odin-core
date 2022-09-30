@@ -25,14 +25,15 @@ public class ChatMessageService
     {
         var groupId = ByteArrayUtil.EquiByteArrayXor(sender.DotYouId.ToGuidIdentifier().ToByteArray(), recipient.DotYouId.ToGuidIdentifier().ToByteArray());
         await SendGroupMessage(
-            sender,
             new Guid(groupId),
             message: new ChatMessage() { Message = message },
             recipients: new List<string>() { recipient.DotYouId });
     }
 
-    public async Task SendGroupMessage(TestIdentity sender, Guid groupId, ChatMessage message, List<string> recipients)
+    public async Task SendGroupMessage(Guid groupId, ChatMessage message, List<string> recipients)
     {
+        //TODO: save a copy on the sender's server too.
+
         var fileMetadata = new UploadFileMetadata()
         {
             ContentType = "application/json",
@@ -68,15 +69,45 @@ public class ChatMessageService
         await _ctx.SendFile(fileMetadata, instructionSet);
     }
 
-    public async Task<(IEnumerable<ChatMessage> messages, string CursorState)> GetMessages(TestIdentity identity, string cursorState)
+    public async Task<(IEnumerable<ChatMessage> messages, string CursorState)> GetMessages(string cursorState)
     {
         var queryParams = new FileQueryParams()
         {
             FileType = new List<int>() { ChatFileType }
         };
 
-        var (messages, cursor) = await _ctx.QueryBatch<ChatMessage>(identity, queryParams, cursorState);
+        var (messages, cursor) = await _ctx.QueryBatch<ChatMessage>(queryParams, cursorState);
 
         return (messages, cursor);
+    }
+
+    public async Task<(IEnumerable<ChatGroupMessage> messages, string CursorState)> GetGroupMessages(Guid groupId, string cursorState)
+    {
+        var queryParams = new FileQueryParams()
+        {
+            FileType = new List<int>() { ChatFileType },
+            GroupId = new List<byte[]>() { groupId.ToByteArray() }
+        };
+
+        var batch = await _ctx.QueryBatch(queryParams, cursorState);
+
+        var messages = batch.SearchResults.Select(item => new ChatGroupMessage()
+        {
+            GroupId = new Guid(item.FileMetadata.AppData.GroupId),
+            ChatMessage = DotYouSystemSerializer.Deserialize<ChatMessage>(item.FileMetadata.AppData.JsonContent)
+        });
+
+        return (messages, batch.CursorState);
+    }
+
+
+    public IEnumerable<ChatGroup> GetGroups()
+    {
+        //query my server for all chat group file types
+        var prevCursorState = "";
+        var query = new FileQueryParams() { FileType = new List<int>() { ChatGroup.GroupFileType } };
+        var (groups, cursorState) = this._ctx.QueryBatch<ChatGroup>(query, prevCursorState).GetAwaiter().GetResult();
+
+        return groups;
     }
 }
