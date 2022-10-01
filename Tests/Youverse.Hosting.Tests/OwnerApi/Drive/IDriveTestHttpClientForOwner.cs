@@ -43,6 +43,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessOutbox();
+        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
     }
 }

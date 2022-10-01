@@ -97,18 +97,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             // });
         }
 
-        public async Task<List<OutboxItem>> GetNext(Guid driveId)
+        public async Task<List<OutboxItem>> GetNext(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), 10, out var marker);
-
-            //Uses .Single to fail if there's more than one returned since we can't handle it correctly
-            // var item = records.SingleOrDefault();
-            // if (item == null)
-            // {
-            //     return new List<OutboxItem>();
-            // }
-
+            var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), batchSize, out var marker);
+            
             var items = records.Select(r =>
             {
                 var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());

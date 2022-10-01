@@ -450,13 +450,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task ProcessOutbox(DotYouIdentity sender)
+        public async Task ProcessOutbox(DotYouIdentity sender, int batchSize = 1)
         {
             using (var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitSvc.ProcessOutbox();
+                var resp = await transitSvc.ProcessOutbox(batchSize);
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
         }
@@ -723,7 +723,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 if (options is { ProcessOutbox: true })
                 {
-                    var resp = await transitSvc.ProcessOutbox();
+                    var resp = await transitSvc.ProcessOutbox(options.OutboxProcessingBatchSize);
                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 }
 

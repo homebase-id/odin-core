@@ -20,6 +20,7 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.DriveApi.App

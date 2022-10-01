@@ -31,6 +31,7 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
         /// </summary>
-        Task ProcessOutbox();
+        /// <param name="batchSize"></param>
+        Task ProcessOutbox(int batchSize);
     }
 }

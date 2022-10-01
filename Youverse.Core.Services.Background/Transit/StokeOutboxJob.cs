@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Workers.Transit
             _client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
             var svc = RestService.For<IOutboxHttpClient>(_client);
 
-            var response = await svc.ProcessOutbox();
+            var response = await svc.ProcessOutbox(batchSize: 1);
             //TODO: needs information to determine if it should stoke again; and when
 
             if (!response.IsSuccessStatusCode)

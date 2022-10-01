@@ -8,6 +8,6 @@ namespace Youverse.Core.Services.Workers.Transit
         private const string TransitRootEndpoint = "/api/owner/v1/transit/outbox/processor";
 
         [Post(TransitRootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessOutbox();
+        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
     }
 }

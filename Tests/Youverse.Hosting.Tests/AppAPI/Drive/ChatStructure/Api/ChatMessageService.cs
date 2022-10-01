@@ -12,8 +12,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatMessageService
 {
-    private const int ChatFileType = 101;
-
     private readonly ChatContext _ctx;
 
     public ChatMessageService(ChatContext ctx)
@@ -33,6 +31,11 @@ public class ChatMessageService
     public async Task SendGroupMessage(Guid groupId, ChatMessage message, List<string> recipients)
     {
         //TODO: save a copy on the sender's server too.
+        var m = new ChatGroupMessage()
+        {
+            GroupId = groupId,
+            ChatMessage = message
+        };
 
         var fileMetadata = new UploadFileMetadata()
         {
@@ -42,7 +45,7 @@ public class ChatMessageService
             {
                 ContentIsComplete = false,
                 JsonContent = DotYouSystemSerializer.Serialize(message),
-                FileType = ChatFileType,
+                FileType = ChatGroupMessage.FileType,
                 GroupId = groupId.ToByteArray()
             },
             AccessControlList = new AccessControlList()
@@ -73,7 +76,7 @@ public class ChatMessageService
     {
         var queryParams = new FileQueryParams()
         {
-            FileType = new List<int>() { ChatFileType }
+            FileType = new List<int>() { ChatMessage.FileType }
         };
 
         var (messages, cursor) = await _ctx.QueryBatch<ChatMessage>(queryParams, cursorState);
@@ -85,7 +88,7 @@ public class ChatMessageService
     {
         var queryParams = new FileQueryParams()
         {
-            FileType = new List<int>() { ChatFileType },
+            FileType = new List<int>() { ChatMessage.FileType },
             GroupId = new List<byte[]>() { groupId.ToByteArray() }
         };
 

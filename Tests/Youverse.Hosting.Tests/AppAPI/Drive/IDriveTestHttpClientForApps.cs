@@ -1,16 +1,14 @@
-﻿using System;
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
-namespace Youverse.Hosting.Tests.DriveApi.App
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     /// <summary>
     /// The interface for storing files
@@ -37,5 +35,8 @@ namespace Youverse.Hosting.Tests.DriveApi.App
 
         [Post(RootEndpoint + "/query/batch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request);
+
+        [Post(RootEndpoint + "/files/delete")]
+        Task<ApiResponse<bool>> DeleteFile([Body] ExternalFileIdentifier file);
     }
 }

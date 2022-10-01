@@ -8,6 +8,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -16,24 +17,22 @@ using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
-using Youverse.Hosting.Tests.DriveApi.App;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatContext
 {
-    public DotYouIdentity Sender { get; }
     private TestSampleAppContext _appContext;
-    private Dictionary<Guid, List<string>> _groups;
 
-    public ChatContext(DotYouIdentity sender, TestSampleAppContext appContext, WebScaffold scaffold)
+    public ChatContext(TestSampleAppContext appContext, WebScaffold scaffold)
     {
-        Sender = sender;
         Scaffold = scaffold;
         _appContext = appContext;
     }
 
     public WebScaffold Scaffold { get; }
+
+    public string Sender => this._appContext.Identity;
 
     public async Task<(IEnumerable<T> items, string cursorState)> QueryBatch<T>(FileQueryParams queryParams, string cursorState)
     {
@@ -41,7 +40,7 @@ public class ChatContext
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this.Sender, _appContext.ClientAuthenticationToken))
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -73,7 +72,7 @@ public class ChatContext
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this.Sender, _appContext.ClientAuthenticationToken))
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -97,7 +96,7 @@ public class ChatContext
     public async Task ProcessIncomingTransfers(int delaySeconds = 0)
     {
         Task.Delay(delaySeconds).Wait();
-        using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(Sender, _appContext.ClientAuthenticationToken))
+        using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
             var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = _appContext.TargetDrive });
@@ -105,14 +104,14 @@ public class ChatContext
         }
     }
 
-    public async Task ProcessOutbox()
+    public async Task ProcessOutbox(int batchSize)
     {
-        await Scaffold.OwnerApi.ProcessOutbox(Sender);
+        await Scaffold.OwnerApi.ProcessOutbox(_appContext.Identity, batchSize);
     }
 
     public async Task SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
     {
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(Sender, _appContext.ClientAuthenticationToken))
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;
@@ -160,6 +159,11 @@ public class ChatContext
             keyHeader.AesKey.Wipe();
         }
 
-        await this.ProcessOutbox();
+        await this.ProcessOutbox(instructionSet?.TransitOptions?.Recipients?.Count ?? 1);
+    }
+
+    public void DeleteFile(ExternalFileIdentifier fileId)
+    {
+        this.Scaffold.AppApi.DeleteFile(_appContext, fileId).GetAwaiter().GetResult();
     }
 }

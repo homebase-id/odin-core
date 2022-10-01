@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Tests
         public bool DriveAllowAnonymousReads { get; set; } = false;
 
         public bool DisconnectIdentitiesAfterTransfer { get; set; } = true;
-        
+
         /// <summary>
         /// Indicates if the process outbox endpoint should be called after sending a transfer
         /// </summary>
@@ -41,5 +41,6 @@ namespace Youverse.Hosting.Tests
         public string PayloadData { get; set; }
 
         public bool EncryptPayload { get; set; } = true;
+        public int OutboxProcessingBatchSize { get; set; } = 1;
     }
 }

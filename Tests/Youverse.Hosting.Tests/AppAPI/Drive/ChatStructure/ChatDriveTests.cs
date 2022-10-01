@@ -62,6 +62,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
         [Test]
         public async Task CreateGroupAndSendMessage()
         {
+            //Scenarios: 
+            //create group
+            //leave group
+            //remove someone from group
+
+            //send reaction
+            //send delivered notification
+            //send read notification
+            //send reply
+
+
             var chatApps = await this.InitializeApps();
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
@@ -70,14 +81,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             var frodoChatApp = chatApps[TestIdentities.Frodo.DotYouId];
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
             var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
+            var pippinChat = chatApps[TestIdentities.Pippin.DotYouId];
+
+            //TODO: create a connection between other parties; what happens when other parties are not connected but put into the same group?
 
             var hobbitsGroupMembers = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList();
             var groupId = frodoChatApp.CommandService.CreateGroup("le hobbits", hobbitsGroupMembers);
 
             //see if the group exists on all member servers
-            samwiseChatApp.CommandService.ProcessIncomingCommands();
-            merryChatApp.CommandService.ProcessIncomingCommands();
 
+            samwiseChatApp.SynchronizeData();
+            merryChatApp.SynchronizeData();
+            pippinChat.SynchronizeData();
+
+            //everyone should have the group
             var samsGroups = samwiseChatApp.MessageService.GetGroups();
             var merrysGroups = merryChatApp.MessageService.GetGroups();
 
@@ -89,10 +106,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
                 groupId: groupId,
                 message: new ChatMessage() { Message = "south farthing time, anyone ;)?" },
                 recipients: hobbitsGroupMembers);
-
+            
             var samMessages = await samwiseChatApp.MessageService.GetGroupMessages(groupId, "");
             var merryMessages = await merryChatApp.MessageService.GetGroupMessages(groupId, "");
 
+            
             //TODO
             string frodoPrevCursorState = "";
             var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(frodoPrevCursorState);
@@ -109,7 +127,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             foreach (var (dotYouId, identity) in TestIdentities.All)
             {
                 var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(ChatApiConfig.AppId, identity, canReadConnections: true, ChatApiConfig.Drive, driveAllowAnonymousReads: false);
-                var chatApp = new ChatApp((DotYouIdentity)dotYouId, testAppContext, _scaffold);
+                var chatApp = new ChatApp(testAppContext, _scaffold);
                 apps.Add(dotYouId, chatApp);
             }
 

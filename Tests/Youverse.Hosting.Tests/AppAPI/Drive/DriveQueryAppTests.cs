@@ -10,6 +10,7 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Tests.AppAPI.Drive;
 
 namespace Youverse.Hosting.Tests.DriveApi.App
 {

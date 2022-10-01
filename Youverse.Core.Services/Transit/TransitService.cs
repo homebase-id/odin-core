@@ -334,14 +334,14 @@ namespace Youverse.Core.Services.Transit
             });
         }
 
-        public async Task ProcessOutbox()
+        public async Task ProcessOutbox(int batchSize)
         {
             //Note: here we can prioritize outbox processing by drive if need be
             var page = await _driveService.GetDrives(PageOptions.All);
 
             foreach (var drive in page.Results)
             {
-                var batch = await _outboxService.GetNext(drive.Id);
+                var batch = await _outboxService.GetNext(drive.Id, batchSize);
                 // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
                 await this.SendBatchNow(batch);
