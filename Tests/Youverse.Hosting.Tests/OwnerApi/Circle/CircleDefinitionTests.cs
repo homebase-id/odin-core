@@ -49,13 +49,130 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             Assert.Inconclusive("TODO");
         }
-        
+
         [Test]
         public async Task SystemCircleUpdatedWhenAnonymousDriveRemoved()
         {
             Assert.Inconclusive("TODO");
         }
-        
+
+
+        [Test]
+        public async Task FailToCreateCircleWithOwnerOnlyDrive()
+        {
+            var targetDrive1 = TargetDrive.NewTargetDrive();
+
+            var identity = TestIdentities.Samwise;
+            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive1, "Owner Only for Circle Test", "", false, true);
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity.DotYouId, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+
+                var requestWithOwnerOnlyDrive = new CreateCircleRequest()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Test Circle",
+                    Description = "Test circle description",
+                    DriveGrants = new List<DriveGrantRequest>()
+                    {
+                        new()
+                        {
+                            PermissionedDrive = new()
+                            {
+                                Drive = targetDrive1,
+                                Permission = DrivePermission.Read
+                            }
+                        }
+                    },
+                    Permissions = new PermissionSet()
+                };
+
+                var createCircleResponse = await svc.CreateCircleDefinition(requestWithOwnerOnlyDrive);
+                Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+            }
+        }
+
+
+        [Test]
+        public async Task FailToUpdateExistingCircleDefinitionByAddingOwnerOnlyDrive()
+        {
+            var identity = TestIdentities.Samwise;
+
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+
+                var request = new CreateCircleRequest()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Test Circle",
+                    Description = "Test circle description",
+                    DriveGrants = null,
+                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
+                };
+
+                var createCircleResponse = await svc.CreateCircleDefinition(request);
+                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+
+                var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+
+                var definitionList = getCircleDefinitionsResponse.Content;
+                Assert.IsNotNull(definitionList);
+
+                var circle = definitionList.Single();
+                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+
+                //Add an owner-only drive
+
+                var targetDrive1 = TargetDrive.NewTargetDrive();
+                await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive1, "Owner Only for Circle Test", "", false, true);
+
+
+                //
+
+                circle.Name = "updated name";
+                circle.Description = "updated description";
+
+                circle.DriveGrants = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = targetDrive1,
+                            Permission = DrivePermission.Read
+                        }
+                    }
+                };
+                
+                circle.Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
+
+                var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
+                Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Actual response {updateCircleResponse.StatusCode}");
+
+                var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
+                
+                var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
+                Assert.IsNotNull(updatedDefinitionList);
+
+                var circle2 = updatedDefinitionList.Single();
+
+
+                Assert.AreNotEqual(circle.Name, circle2.Name);
+                Assert.AreNotEqual(circle.Description, circle2.Description);
+                CollectionAssert.AreNotEqual(circle.DriveGrants, circle2.DriveGrants);
+                Assert.IsFalse(circle.Permissions == circle2.Permissions);
+
+                await svc.DeleteCircleDefinition(circle.Id);
+
+                //TODO: test that the changes to the drives and permissions were applied
+            }
+        }
+
+
         [Test]
         public async Task FailToCreateInvalidCircle()
         {
@@ -72,6 +189,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var requestWithNoPermissionsOrDrives = new CreateCircleRequest()
                 {
+                    Id = Guid.NewGuid(),
                     Name = "Test Circle",
                     Description = "Test circle description",
                     DriveGrants = new List<DriveGrantRequest>() { },
@@ -253,7 +371,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
                 Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
 
-                var updatedDefinitionList = getCircleDefinitionsResponse.Content;
+                var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
+
+                var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(updatedDefinitionList);
 
                 var circle2 = updatedDefinitionList.Single();
