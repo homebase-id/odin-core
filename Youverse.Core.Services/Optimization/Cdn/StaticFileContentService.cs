@@ -42,7 +42,8 @@ public class StaticFileContentService
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ISystemStorage _systemStorage;
 
-    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
+    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService,
+        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
     {
         _driveService = driveService;
         _driveQueryService = driveQueryService;
@@ -51,7 +52,8 @@ public class StaticFileContentService
         _systemStorage = systemStorage;
     }
 
-    public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config, List<QueryParamSection> sections)
+    public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
+        List<QueryParamSection> sections)
     {
         //
         //TODO: optimize we need update this method to serialize in small chunks and write to stream instead of building a huge array of everything then serialization
@@ -111,7 +113,8 @@ public class StaticFileContentService
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData.AdditionalThumbnails)
                     {
-                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(fileHeader.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
+                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
+                            fileHeader.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
                         thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -141,21 +144,21 @@ public class StaticFileContentService
                 Name = sectionOutput.Name,
                 FileCount = sectionOutput.Files.Count
             });
-
-            await using var fileStream = File.Create(tempTargetPath);
-
-            await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
-
-            string finalTargetPath = Path.Combine(targetFolder, filename);
-            File.Move(tempTargetPath, finalTargetPath, true);
         }
 
+        await using var fileStream = File.Create(tempTargetPath);
+        await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
+        fileStream.Close();
+
+        string finalTargetPath = Path.Combine(targetFolder, filename);
+            
+        File.Move(tempTargetPath, finalTargetPath, true);
         config.ContentType = MediaTypeNames.Application.Json;
         _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
-
+    
     public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
     {
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
@@ -191,6 +194,8 @@ public class StaticFileContentService
 
     private IEnumerable<ClientFileHeader> Filter(IEnumerable<ClientFileHeader> headers)
     {
-        return headers.Where(r => r.FileMetadata.PayloadIsEncrypted == false && r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
+        return headers.Where(r =>
+            r.FileMetadata.PayloadIsEncrypted == false && r.ServerMetadata.AccessControlList.RequiredSecurityGroup ==
+            SecurityGroupType.Anonymous);
     }
 }

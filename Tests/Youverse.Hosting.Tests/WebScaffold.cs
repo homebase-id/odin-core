@@ -154,7 +154,7 @@ namespace Youverse.Hosting.Tests
         }
 
         private bool isDev => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
-        private string home => Environment.GetEnvironmentVariable("HOME") ?? "";
+        private string home => Environment.GetEnvironmentVariable("HOME") ?? Environment.GetEnvironmentVariable("HOMEPATH");
 
         private string TempDataPath
         {
