@@ -114,63 +114,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        /// <summary>
-        /// Transfers a file using default file metadata
-        /// </summary>
-        /// <returns></returns>
-        // public async Task<AppTransitTestUtilsContext> TransferFile(TestIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
-        // {
-        //     var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        //
-        //     var instructionSet = new UploadInstructionSet()
-        //     {
-        //         TransferIv = transferIv,
-        //         StorageOptions = new StorageOptions()
-        //         {
-        //             Drive = TargetDrive.NewTargetDrive(),
-        //             OverwriteFileId = null,
-        //             ExpiresTimestamp = null,
-        //         },
-        //
-        //         TransitOptions = new TransitOptions()
-        //         {
-        //             Recipients = recipients
-        //         }
-        //     };
-        //
-        //     List<byte[]> tags = null;
-        //     if (options?.AppDataCategoryId != null)
-        //     {
-        //         tags = new List<byte[]>() { options.AppDataCategoryId.ToByteArray() };
-        //     }
-        //
-        //     var fileMetadata = new UploadFileMetadata()
-        //     {
-        //         ContentType = "application/json",
-        //         PayloadIsEncrypted = true,
-        //         AppData = new()
-        //         {
-        //             Tags = tags,
-        //             ContentIsComplete = true,
-        //             JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-        //         }
-        //     };
-        //
-        //     var o = options ?? TransitTestUtilsOptions.Default;
-        //
-        //     var result = await TransferFile(sender, instructionSet, fileMetadata, o);
-        //
-        //     if (o.DisconnectIdentitiesAfterTransfer)
-        //     {
-        //         foreach (var recipient in recipients)
-        //         {
-        //             await _ownerApi.DisconnectIdentities(sender, (DotYouIdentity)recipient);
-        //         }
-        //     }
-        //
-        //     return result;
-        // }
-
         private async Task<AppTransitTestUtilsContext> TransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();

@@ -42,7 +42,7 @@ public class ChatMessageService
                 ContentIsComplete = false,
                 JsonContent = DotYouSystemSerializer.Serialize(message),
                 FileType = ChatFileType,
-                GroupId = groupId.ToByteArray()
+                GroupId = groupId
             },
             AccessControlList = new AccessControlList()
             {

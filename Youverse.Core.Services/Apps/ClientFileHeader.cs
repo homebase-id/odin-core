@@ -14,4 +14,5 @@ namespace Youverse.Core.Services.Apps
         public int Priority { get; set; }
         
     }
+    
 }

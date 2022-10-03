@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
+using Guid = System.Guid;
 
 namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 {
@@ -79,7 +80,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
         private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
-            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
+            List<Guid> tags = new List<Guid>() { tag };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {

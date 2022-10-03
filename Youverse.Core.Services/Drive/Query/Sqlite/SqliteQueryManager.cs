@@ -52,8 +52,8 @@ public class SqliteQueryManager : IDriveQueryManager
             groupIdAnyOf: qp.GroupId?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
+            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
@@ -79,12 +79,12 @@ public class SqliteQueryManager : IDriveQueryManager
             groupIdAnyOf: qp.GroupId?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList() ?? null,
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
+            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
-    
+
 
     private List<byte[]> GetAcl(CallerContext callerContext)
     {
@@ -123,8 +123,7 @@ public class SqliteQueryManager : IDriveQueryManager
         );
         acl.AddRange(ids.ToList());
 
-        // var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
-        var tags = metadata.AppData.Tags;
+        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
 
         // !!!
         //NOTE: when you update payload is encrypted, be sure to update
@@ -138,7 +137,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId,
+                metadata.AppData.GroupId.ToByteArray(),
                 metadata.AppData.UserDate,
                 securityGroup,
                 acl,
@@ -150,7 +149,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId,
+                metadata.AppData.GroupId.ToByteArray(),
                 metadata.AppData.UserDate.GetValueOrDefault(),
                 securityGroup,
                 acl,

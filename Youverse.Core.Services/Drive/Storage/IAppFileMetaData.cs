@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Tags for describing the file.  this is indexed and can be used to find files by one or more tags
         /// </summary>
-        List<byte[]> Tags { get; set; }
+        List<Guid> Tags { get; set; }
 
         /// <summary>
         /// A file type specific to an app.  This is indexed and be used to query data
@@ -36,6 +36,11 @@ namespace Youverse.Core.Services.Drive.Storage
         /// </summary>
         string JsonContent { get; set; }
 
+        /// <summary>
+        /// An id that can be used by the client to group this file with others
+        /// </summary>
+        public Guid GroupId { get; set; }
+        
         /// <summary>
         /// A tiny thumbnail, blurry and small to be seen when previewing
         /// content (i.e. scrolling past an image in chat or list of blog posts during first page load)

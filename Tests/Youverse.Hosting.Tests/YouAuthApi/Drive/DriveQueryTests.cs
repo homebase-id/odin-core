@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         {
             _scaffold.RunAfterAnyTests();
         }
-        
+
         [Test]
         public async Task ShouldNotReturnSecuredFile_QueryBatch()
         {
@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = securedFileUploadContext.UploadedFile.TargetDrive,
-                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                    TagsMatchAtLeastOne = new List<Guid>() { tag }
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = targetDrive,
-                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                    TagsMatchAtLeastOne = new List<Guid>() { tag }
                 };
 
                 var resultOptions = new QueryModifiedResultOptions()
@@ -140,7 +140,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.UploadedFile.TargetDrive,
-                    TagsMatchAtLeastOne = new List<byte[]>() { tag.ToByteArray() }
+                    TagsMatchAtLeastOne = new List<Guid>() { tag }
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -162,7 +162,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
             }
         }
 
@@ -262,7 +262,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
         private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
-            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
+            List<Guid> tags = new List<Guid>() { tag};
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -321,7 +321,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     FileType = 100,
                     DataType = 202,
                     UserDate = 0,
-                    Tags = new List<byte[]>() { tag.ToByteArray() }
+                    Tags = new List<Guid>() { tag }
                 },
                 AccessControlList = new AccessControlList()
                 {

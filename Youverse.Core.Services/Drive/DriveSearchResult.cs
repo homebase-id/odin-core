@@ -13,10 +13,10 @@ namespace Youverse.Core.Services.Drive
         
         public Guid FileId { get; set; }
 
-        public List<byte[]> Tags { get; set; }
+        public List<Guid> Tags { get; set; }
         public int FileType { get; set; }
         
-        public byte[] GroupId { get; set; }
+        public Guid GroupId { get; set; }
         public int DataType { get; set; }
         public bool ContentIsComplete { get; set; }
         public bool PayloadIsEncrypted { get; set; }

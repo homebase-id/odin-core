@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            List<byte[]> tags = new List<byte[]>() { tag.ToByteArray() };
+            List<Guid> tags = new List<Guid>() { tag};
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -93,7 +93,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => ByteArrayUtil.EquiByteArrayCompare(t, tag.ToByteArray()))));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
             }
         }
 

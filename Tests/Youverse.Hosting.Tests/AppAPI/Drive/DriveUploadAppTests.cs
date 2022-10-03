@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {
-                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                        Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                         ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
@@ -193,7 +193,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {
-                        Tags = new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                        Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                         ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     },
