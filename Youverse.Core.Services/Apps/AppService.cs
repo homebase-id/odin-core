@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Apps
@@ -35,7 +36,7 @@ namespace Youverse.Core.Services.Apps
             }
 
             int priority = 1000;
-            
+
             //TODO: this a strange place to calculate priority yet it was the best place w/o having to send back the acl outisde of this method
             switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
             {
@@ -57,8 +58,9 @@ namespace Youverse.Core.Services.Apps
             {
                 return new ClientFileHeader()
                 {
+                    FileId = header.FileMetadata.File.FileId,
                     SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-                    FileMetadata = header.FileMetadata,
+                    FileMetadata = RedactFileMetadata(header.FileMetadata),
                     ServerMetadata = header.ServerMetadata,
                     Priority = priority
                 };
@@ -66,10 +68,25 @@ namespace Youverse.Core.Services.Apps
 
             return new ClientFileHeader()
             {
+                FileId = header.FileMetadata.File.FileId,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-                FileMetadata = header.FileMetadata,
+                FileMetadata = RedactFileMetadata(header.FileMetadata),
                 Priority = priority
             };
+        }
+
+        private ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
+        {
+            var clientFile = new ClientFileMetadata();
+            clientFile.Created = fileMetadata.Created;
+            clientFile.Updated = fileMetadata.Updated;
+            clientFile.AppData = fileMetadata.AppData;
+            clientFile.ContentType = fileMetadata.ContentType;
+            clientFile.PayloadSize = fileMetadata.PayloadSize;
+            clientFile.OriginalRecipientList = fileMetadata.OriginalRecipientList;
+            clientFile.PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted;
+            clientFile.SenderDotYouId = fileMetadata.SenderDotYouId;
+            return clientFile;
         }
     }
 }

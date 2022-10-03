@@ -84,7 +84,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = await _driveService.GetDriveIdByAlias(qp.TargetDrive, true);
+            var driveId = (await _driveService.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {
@@ -94,7 +94,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _driveQueryService.GetBatch(driveId.GetValueOrDefault(), qp, options);
+            var results = await _driveQueryService.GetBatch(driveId, qp, options);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -108,13 +108,19 @@ public class StaticFileContentService
             {
                 byte[] payload = null;
                 var thumbnails = new List<ImageDataContent>();
-
+                var internalFileId = new InternalDriveFileId()
+                {
+                    FileId = fileHeader.FileId,
+                    DriveId = driveId
+                };
+                
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData.AdditionalThumbnails)
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
-                            fileHeader.FileMetadata.File, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
+                            internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
+                        
                         thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -127,7 +133,7 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _driveService.GetPayloadStream(fileHeader.FileMetadata.File);
+                    var payloadStream = await _driveService.GetPayloadStream(internalFileId);
                     payload = payloadStream.ToByteArray();
                 }
 

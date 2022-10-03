@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 
@@ -124,7 +124,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
                 Assert.IsNotNull(batch);
                 Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileMetadata.File.FileId == anonymousFileUploadContext.UploadedFile.FileId);
+                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
 

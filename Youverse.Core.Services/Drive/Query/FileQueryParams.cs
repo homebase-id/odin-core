@@ -9,9 +9,13 @@ public class FileQueryParams
     public TargetDrive TargetDrive { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;
+    
+    /// <summary>
+    /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
+    /// </summary>
     public IEnumerable<byte[]> Sender { get; set; } = null;
     
-    public IEnumerable<byte[]> GroupId { get; set; } = null;
+    public IEnumerable<Guid> GroupId { get; set; } = null;
 
     public TimeRange UserDate { get; set; } = null;
     

@@ -49,7 +49,7 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
@@ -76,7 +76,7 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
@@ -114,7 +114,6 @@ public class SqliteQueryManager : IDriveQueryManager
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
         var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
-
         var acl = new List<byte[]>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
