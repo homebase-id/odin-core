@@ -92,6 +92,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             {
                 return Task.FromResult(circles.Where(c => c.Id != CircleConstants.SystemCircleId.Value));
             }
+
             return Task.FromResult(circles);
         }
 
@@ -109,7 +110,33 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             _circleValueStorage.Delete(id);
             return Task.CompletedTask;
         }
+        
+        public void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
+        {
+            if(null == driveGrantRequests)
+            {
+                return;
+            }
+            
+            foreach (var dgr in driveGrantRequests)
+            {
+                //fail if the drive is invalid
+                var driveId = _driveService.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
 
+                if (driveId == null)
+                {
+                    throw new YouverseException("Invalid drive specified on DriveGrantRequest");
+                }
+
+                var drive = _driveService.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
+
+                if (drive.OwnerOnly)
+                {
+                    throw new YouverseSecurityException("Cannot grant access to owner-only drives to circles");
+                }
+            }
+        }
+        
         //
 
         private void AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
@@ -141,30 +168,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             }
         }
 
-        private void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
-        {
-            foreach (var dgr in driveGrantRequests)
-            {
-                //fail if the drive is invalid
-                var drive = _driveService.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
-                if (drive == null)
-                {
-                    throw new YouverseException("Invalid drive specified on DriveGrantRequest");
-                }
-            }
-        }
-
         private Task<CircleDefinition> CreateCircleInternal(CreateCircleRequest request, bool skipValidation = false)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.Id, nameof(request.Id)).Require(id => id != Guid.Empty);
-            
-            if(!skipValidation)
+
+            if (!skipValidation)
             {
                 AssertValid(request.Permissions, request.DriveGrants?.ToList());
             }
-            
+
             if (null != this.GetCircle(request.Id))
             {
                 throw new YouverseException("Circle with Id already exists");
