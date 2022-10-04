@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, TargetDrive.NewTargetDrive(), driveAllowAnonymousReads: true);
             var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.TargetDrive);
 
-            byte[] fileTag = new byte[] { 1, 1, 2, 3, 8 };
+            Guid fileTag = Guid.NewGuid();
 
             await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId);
 
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     ContentType = "application/json",
                     AppData = new()
                     {
-                        Tags = new List<byte[]>() { fileTag },
+                        Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
@@ -172,7 +172,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                     QueryParams = new FileQueryParams()
                     {
                         TargetDrive = recipientContext.TargetDrive,
-                        TagsMatchAll = new List<byte[]>() { fileTag }
+                        TagsMatchAll = new List<Guid>() { fileTag }
                     },
                     ResultOptionsRequest = new Youverse.Hosting.Controllers.QueryBatchResultOptionsRequest()
                     {
@@ -188,7 +188,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 var uploadedFile = new ExternalFileIdentifier()
                 {
                     TargetDrive = recipientContext.TargetDrive,
-                    FileId = queryBatchResponse.Content.SearchResults.Single().FileMetadata.File.FileId
+                    FileId = queryBatchResponse.Content.SearchResults.Single().FileId
                 };
 
                 var fileResponse = await driveSvc.GetFileHeader(uploadedFile);

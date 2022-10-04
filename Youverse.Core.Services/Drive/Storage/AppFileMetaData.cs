@@ -8,13 +8,13 @@ namespace Youverse.Core.Services.Drive.Storage
     /// </summary>
     public class AppFileMetaData : IAppFileMetaData
     {
-        public List<byte[]> Tags { get; set; }
+        public List<Guid> Tags { get; set; }
         
         public int FileType { get; set; }
         
         public int DataType { get; set; }
         
-        public byte[] GroupId { get; set; }
+        public Guid GroupId { get; set; }
         
         public ulong? UserDate { get; set; }
 

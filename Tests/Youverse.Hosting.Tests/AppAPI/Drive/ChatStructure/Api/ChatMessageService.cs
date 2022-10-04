@@ -46,7 +46,7 @@ public class ChatMessageService
                 ContentIsComplete = false,
                 JsonContent = DotYouSystemSerializer.Serialize(message),
                 FileType = ChatGroupMessage.FileType,
-                GroupId = groupId.ToByteArray()
+                GroupId = groupId
             },
             AccessControlList = new AccessControlList()
             {
@@ -89,14 +89,14 @@ public class ChatMessageService
         var queryParams = new FileQueryParams()
         {
             FileType = new List<int>() { ChatMessage.FileType },
-            GroupId = new List<byte[]>() { groupId.ToByteArray() }
+            GroupId = new List<Guid>() { groupId }
         };
 
         var batch = await _ctx.QueryBatch(queryParams, cursorState);
 
         var messages = batch.SearchResults.Select(item => new ChatGroupMessage()
         {
-            GroupId = new Guid(item.FileMetadata.AppData.GroupId),
+            GroupId = item.FileMetadata.AppData.GroupId,
             ChatMessage = DotYouSystemSerializer.Deserialize<ChatMessage>(item.FileMetadata.AppData.JsonContent)
         });
 

@@ -102,51 +102,7 @@ namespace Youverse.Core.Services.Drive
 
             throw new NoValidIndexException(driveId);
         }
-
-        private async Task<IEnumerable<DriveSearchResult>> CreateSearchResult(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
-        {
-            var results = new List<DriveSearchResult>();
-
-            foreach (var fileId in fileIdList)
-            {
-                var file = new InternalDriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = fileId
-                };
-
-                var header = await _appService.GetClientEncryptedFileHeader(file);
-
-                var metadata = header.FileMetadata;
-
-                var dsr = new DriveSearchResult()
-                {
-                    SharedSecretEncryptedKeyHeader = header.SharedSecretEncryptedKeyHeader,
-                    ContentType = metadata.ContentType,
-                    FileId = metadata.File.FileId,
-                    ContentIsComplete = metadata.AppData.ContentIsComplete,
-                    PayloadIsEncrypted = metadata.PayloadIsEncrypted,
-                    GroupId = metadata.AppData.GroupId,
-                    FileType = metadata.AppData.FileType,
-                    DataType = metadata.AppData.DataType,
-                    UserDate = metadata.AppData.UserDate.GetValueOrDefault(),
-                    JsonContent = options.IncludeJsonContent ? metadata.AppData.JsonContent : string.Empty,
-                    Tags = metadata.AppData.Tags,
-                    CreatedTimestamp = metadata.Created,
-                    LastUpdatedTimestamp = metadata.Updated,
-                    SenderDotYouId = metadata.SenderDotYouId,
-                    AccessControlList = header.ServerMetadata?.AccessControlList,
-                    Priority = header.Priority,
-                    PreviewThumbnail = options.ExcludePreviewThumbnail ? null : metadata.AppData.PreviewThumbnail,
-                    AdditionalThumbnails = metadata.AppData.AdditionalThumbnails
-                };
-
-                results.Add(dsr);
-            }
-
-            return results;
-        }
-
+        
         private async Task<IEnumerable<ClientFileHeader>> CreateClientFileHeaders(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
         {
             var results = new List<ClientFileHeader>();

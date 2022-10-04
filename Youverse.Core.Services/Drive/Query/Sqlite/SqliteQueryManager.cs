@@ -49,11 +49,11 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
+            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
@@ -76,15 +76,15 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList() ?? null,
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
+            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
         return Task.FromResult((cursor, results.Select(r => new Guid(r))));
     }
-    
+
 
     private List<byte[]> GetAcl(CallerContext callerContext)
     {
@@ -114,7 +114,6 @@ public class SqliteQueryManager : IDriveQueryManager
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
         var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
-
         var acl = new List<byte[]>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
@@ -123,8 +122,7 @@ public class SqliteQueryManager : IDriveQueryManager
         );
         acl.AddRange(ids.ToList());
 
-        // var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
-        var tags = metadata.AppData.Tags;
+        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
 
         // !!!
         //NOTE: when you update payload is encrypted, be sure to update
@@ -138,7 +136,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId,
+                metadata.AppData.GroupId.ToByteArray(),
                 metadata.AppData.UserDate,
                 securityGroup,
                 acl,
@@ -150,7 +148,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId,
+                metadata.AppData.GroupId.ToByteArray(),
                 metadata.AppData.UserDate.GetValueOrDefault(),
                 securityGroup,
                 acl,

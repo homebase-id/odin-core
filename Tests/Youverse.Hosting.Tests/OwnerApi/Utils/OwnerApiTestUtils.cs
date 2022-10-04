@@ -534,18 +534,24 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return false;
         }
 
-        public async Task CreateDrive(DotYouIdentity identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads)
+        public async Task CreateDrive(DotYouIdentity identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
+                if (ownerOnly && allowAnonymousReads)
+                {
+                    throw new Exception("cannot have an owner only drive that allows anonymous reads");
+                }
+                
                 var response = await svc.CreateDrive(new CreateDriveRequest()
                 {
                     TargetDrive = targetDrive,
                     Name = name,
                     Metadata = metadata,
-                    AllowAnonymousReads = allowAnonymousReads
+                    AllowAnonymousReads = allowAnonymousReads,
+                    OwnerOnly = ownerOnly
                 });
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");

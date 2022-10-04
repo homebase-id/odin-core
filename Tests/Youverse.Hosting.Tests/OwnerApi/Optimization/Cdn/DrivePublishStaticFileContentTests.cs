@@ -72,7 +72,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 fileType: section_1_filetype,
                 dataType: 0,
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
-                tags: new List<byte[]>() { Guid.NewGuid().ToByteArray(), Guid.NewGuid().ToByteArray() },
+                tags: new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                 payloadContent: null,
                 previewThumbnail: new ImageDataContent()
                 {
@@ -88,7 +88,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 fileType: section_1_filetype,
                 dataType: 0,
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
-                tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
+                tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "this is just a bit of text payload".ToUtf8ByteArray(),
                 previewThumbnail: new ImageDataContent()
                 {
@@ -104,7 +104,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 fileType: 0,
                 dataType: section_2_datatype,
                 jsonContent: DotYouSystemSerializer.Serialize(new { content = "stuff" }),
-                tags: new List<byte[]>() { Guid.NewGuid().ToByteArray() },
+                tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "payload".ToUtf8ByteArray(),
                 previewThumbnail: new ImageDataContent()
                 {
@@ -200,7 +200,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
             }
         }
 
-        public async Task CreateAnonymousUnEncryptedFile(TestSampleAppContext testContext, int fileType, int dataType, string jsonContent, List<byte[]> tags, byte[] payloadContent,
+        public async Task CreateAnonymousUnEncryptedFile(TestSampleAppContext testContext, int fileType, int dataType, string jsonContent, List<Guid> tags, byte[] payloadContent,
             ImageDataContent previewThumbnail,
             List<ImageDataContent> additionalThumbs)
         {

@@ -143,7 +143,7 @@ public class ChatCommandService
         ExternalFileIdentifier fileId = new ExternalFileIdentifier()
         {
             TargetDrive = ChatApiConfig.Drive,
-            FileId = clientFileHeader.FileMetadata.File.FileId
+            FileId = clientFileHeader.FileId
         };
         
         _context.DeleteFile(fileId);

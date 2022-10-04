@@ -444,10 +444,42 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             await _circleDefinitionService.Create(request);
         }
 
-        public async Task UpdateCircleDefinition(CircleDefinition circleDefinition)
+        public async Task UpdateCircleDefinition(CircleDefinition circleDef)
         {
-            await ReconcileCircleGrant(circleDefinition);
-            await _circleDefinitionService.Update(circleDefinition);
+            Guard.Argument(circleDef, nameof(circleDef)).NotNull();
+
+            _circleDefinitionService.AssertValidDriveGrants(circleDef.DriveGrants);
+
+            var members = await GetCircleMembers(circleDef.Id);
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+            List<DotYouIdentity> invalidMembers = new List<DotYouIdentity>();
+            foreach (var dotYouId in members)
+            {
+                var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
+
+                var circleKey = circleDef.Id.ToBase64();
+                var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
+
+                if (icr.IsConnected() && hasCg)
+                {
+                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                    icr.AccessGrant.CircleGrants[circleKey] = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
+                    keyStoreKey.Wipe();
+                }
+                else
+                {
+                    //It should not occur that a circle has a member
+                    //who is not connected but let's capture it
+                    invalidMembers.Add(dotYouId);
+                }
+
+                this.SaveIcr(icr);
+            }
+
+            await _circleDefinitionService.Update(circleDef);
+
+            //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
 
         public async Task DeleteCircleDefinition(GuidId circleId)
@@ -641,39 +673,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return (permissionCtx, enabledCircles);
         }
 
-        private async Task ReconcileCircleGrant(CircleDefinition circleDef)
-        {
-            Guard.Argument(circleDef, nameof(circleDef)).NotNull();
-
-            var members = await GetCircleMembers(circleDef.Id);
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-
-            List<DotYouIdentity> invalidMembers = new List<DotYouIdentity>();
-            foreach (var dotYouId in members)
-            {
-                var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
-
-                var circleKey = circleDef.Id.ToBase64();
-                var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
-
-                if (icr.IsConnected() && hasCg)
-                {
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-                    icr.AccessGrant.CircleGrants[circleKey] = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
-                    keyStoreKey.Wipe();
-                }
-                else
-                {
-                    //It should not occur that a circle has a member
-                    //who is not connected but let's capture it
-                    invalidMembers.Add(dotYouId);
-                }
-
-                this.SaveIcr(icr);
-            }
-
-            //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
-        }
 
         private async Task<PagedResult<IdentityConnectionRegistration>> GetConnectionsInternal(PageOptions req, ConnectionStatus status)
         {
