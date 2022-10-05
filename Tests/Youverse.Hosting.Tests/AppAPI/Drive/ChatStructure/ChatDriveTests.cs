@@ -80,6 +80,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
 
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
+
+
             var frodoChatApp = chatApps[TestIdentities.Frodo.DotYouId];
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
             var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
@@ -96,46 +102,91 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
                 Members = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList()
             };
 
-            await frodoChatApp.GroupDefinitionService.CreateGroup(hobbitsChatGroup);
-            
-            //Note: in this example, the group does not exist even for frodo until he processes the command
-            // sync data for all members
-            foreach (var member in hobbitsChatGroup.Members)
-            {
-                chatApps[member].SynchronizeData();
-            }
+            await frodoChatApp.ConversationDefinitionService.CreateGroup(hobbitsChatGroup);
+
+            await SynchronizeData(chatApps);
+
+            System.Threading.Thread.Sleep(2000);
 
             // everyone should have the group
-
             foreach (var member in hobbitsChatGroup.Members)
             {
                 var groups = chatApps[member].MessageService.GetGroups();
                 var group = groups.SingleOrDefault(g => g.Id == hobbitsChatGroup.Id);
-                
+
                 Assert.IsNotNull(group);
                 Assert.IsTrue(group.Id == hobbitsChatGroup.Id, $"Id did not match for {member}");
-                Assert.IsTrue(group.Title == hobbitsChatGroup.Title,$"Title did not match for {member}");
-                Assert.IsTrue(group.AdminDotYouId == hobbitsChatGroup.AdminDotYouId,$"Admin did not match for {member}");
-                CollectionAssert.AreEquivalent(group.Members, hobbitsChatGroup.Members,$"member list did not match for {member}");
+                Assert.IsTrue(group.Title == hobbitsChatGroup.Title, $"Title did not match for {member}");
+                Assert.IsTrue(group.AdminDotYouId == hobbitsChatGroup.AdminDotYouId, $"Admin did not match for {member}");
+                CollectionAssert.AreEquivalent(group.Members, hobbitsChatGroup.Members, $"member list did not match for {member}");
             }
-            
+
             //
-            await frodoChatApp.MessageService.SendMessage(
-                groupId: hobbitsChatGroup.Id,
-                message: new ChatMessage() { Message = "south farthing time, anyone ;)?" });
+            var messageFromFrodoId = Guid.NewGuid();
+            await frodoChatApp.MessageService.SendMessage(new ChatMessage()
+            {
+                Id = messageFromFrodoId,
+                GroupId = hobbitsChatGroup.Id,
+                Message = "south farthing time, anyone ;)?"
+            });
+
+            System.Threading.Thread.Sleep(2000);
+
             
-            // var samMessages = await samwiseChatApp.MessageService.GetGroupMessages(groupId, "");
-            // var merryMessages = await merryChatApp.MessageService.GetGroupMessages(groupId, "");
+            await frodoChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😀");
+            //await merryChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😈");
 
+            System.Threading.Thread.Sleep(2000);
 
-            //TODO
-            // string frodoPrevCursorState = "";
-            // var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(frodoPrevCursorState);
-            // string samPrevCursorState = "";
-            // var (samwiseReceivedMessages, samwiseCursorState) = await samwiseChatApp.MessageService.GetMessages(prevCursorState);
+            await SynchronizeData(chatApps);
+            System.Threading.Thread.Sleep(2000);
+
+            //now everyone should have the message
+            foreach (var (identity, app) in chatApps)
+            {
+                await RenderMessages(app, hobbitsChatGroup.Id);
+            }
 
             //CollectionAssert.AreEquivalent(frodoSentMessages.ToList(), samwiseReceivedMessages.ToList());
             Assert.Pass();
+        }
+
+        private async Task RenderMessages(ChatApp app, Guid groupId)
+        {
+            Console.WriteLine($"\n\n{app.Identity} Messages");
+
+            var messages = await app.MessageService.GetMessages(groupId);
+            foreach (var msg in messages)
+            {
+                var receivedDate = UnixTimeStampToDateTime(msg.ReceivedTimestamp);
+                Console.WriteLine($"({receivedDate}) {msg.Message.Sender}:\t{msg.Message.Message}");
+
+                foreach (var msgReaction in msg.Reactions)
+                {
+                    Console.Write("\t");
+                    Console.WriteLine($"{msgReaction.Sender} -> {msgReaction.ReactionValue}");
+                }
+            }
+        }
+
+        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        {
+            // Unix timestamp is seconds past epoch
+            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            dateTime = dateTime.AddMilliseconds(unixTimeStamp).ToLocalTime();
+            return dateTime;
+        }
+
+        private Task SynchronizeData(Dictionary<string, ChatApp> chatApps)
+        {
+            //Note: in this example, the group does not exist even for frodo until he processes the command
+            // sync data for all members
+            foreach (var (key, app) in chatApps)
+            {
+                app.SynchronizeData();
+            }
+
+            return Task.CompletedTask;
         }
 
         public async Task<Dictionary<string, ChatApp>> InitializeApps()

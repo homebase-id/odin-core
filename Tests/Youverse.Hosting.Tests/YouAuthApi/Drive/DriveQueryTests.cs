@@ -304,8 +304,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 StorageOptions = new StorageOptions()
                 {
                     Drive = drive,
-                    OverwriteFileId = overwriteFileId,
-                    ExpiresTimestamp = null
+                    OverwriteFileId = overwriteFileId
                 },
                 TransitOptions = null
             };

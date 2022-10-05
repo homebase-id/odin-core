@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// Seconds in unix time UTC indicating when this file expires 
         /// </summary>
-        public UInt64? ExpiresTimestamp { get; set; }
+        //public UInt64? ExpiresTimestamp { get; set; }
 
         /// <summary>
         /// Specifies the operations you expect when updating an existing file.  This is only used when OverWriteFileId is not null

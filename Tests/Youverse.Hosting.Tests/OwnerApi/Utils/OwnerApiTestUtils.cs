@@ -600,8 +600,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 StorageOptions = new StorageOptions()
                 {
                     Drive = targetDrive,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
+                    OverwriteFileId = null
                 },
                 TransitOptions = null
             };

@@ -129,6 +129,7 @@ public class SqliteQueryManager : IDriveQueryManager
         // DriveQueryService.CreateSearchResult accordingly
         // !!!
 
+        //TODO: index metadata.AppData.ClientUniqueId
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(
@@ -144,6 +145,8 @@ public class SqliteQueryManager : IDriveQueryManager
         }
         else
         {
+            //TODO: index metadata.AppData.ClientUniqueId
+
             _indexDb.AddEntry(metadata.File.FileId,
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,

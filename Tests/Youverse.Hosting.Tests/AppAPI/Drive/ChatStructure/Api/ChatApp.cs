@@ -5,7 +5,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatData
 {
-    public Dictionary<Guid, ChatGroupMessage> GroupMessages { get; } = new();
     public List<ChatMessage> Messages { get; } = new List<ChatMessage>();
     public List<ChatGroup> Groups { get; } = new List<ChatGroup>();
 }
@@ -15,6 +14,9 @@ public class ChatApp
     private readonly ChatServerContext _chatServerContext;
     private readonly ChatData _chatData;
     private readonly ChatSynchronizer _synchronizer;
+    private readonly ConversationService _conversationService;
+    private readonly ConversationDefinitionService _conversationDefinitionService;
+
 
     private string _latestCursor = "";
     public ChatMessageService MessageService { get; }
@@ -22,17 +24,15 @@ public class ChatApp
     public ChatApp(TestSampleAppContext appContext, WebScaffold scaffold)
     {
         _chatServerContext = new ChatServerContext(appContext, scaffold);
-        GroupDefinitionService = new ChatGroupDefinitionService(_chatServerContext);
-
-        _synchronizer = new ChatSynchronizer(_chatServerContext, GroupDefinitionService);
-        MessageService = new ChatMessageService(_chatServerContext,GroupDefinitionService);
-
+        _conversationDefinitionService = new ConversationDefinitionService(_chatServerContext);
+        _conversationService = new ConversationService(_chatServerContext);
+        _synchronizer = new ChatSynchronizer(_chatServerContext, _conversationDefinitionService, _conversationService);
+        MessageService = new ChatMessageService(_chatServerContext, _conversationDefinitionService, _conversationService);
     }
 
-    public ChatGroupDefinitionService GroupDefinitionService { get; }
 
     public string Identity => _chatServerContext.Sender;
-
+    public ConversationDefinitionService ConversationDefinitionService => _conversationDefinitionService;
 
     /// <summary>
     /// Retrieves incoming messages and commands

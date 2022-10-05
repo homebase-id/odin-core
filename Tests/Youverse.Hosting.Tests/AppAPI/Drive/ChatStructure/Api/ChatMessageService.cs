@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
@@ -12,101 +11,47 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatMessageService
 {
-    private readonly ChatServerContext _ctx;
-    private readonly ChatGroupDefinitionService _groupDefinitionService;
+    private readonly ChatServerContext _serverContext;
+    private readonly ChatCommandSender _commandSender;
+    private readonly ConversationDefinitionService _groupDefinitionService;
+    private readonly ConversationService _conversationService;
 
-    public ChatMessageService(ChatServerContext ctx, ChatGroupDefinitionService groupDefinitionService)
+    public ChatMessageService(ChatServerContext serverContext, ConversationDefinitionService groupDefinitionService, ConversationService conversationService)
     {
-        _ctx = ctx;
+        _serverContext = serverContext;
         _groupDefinitionService = groupDefinitionService;
+        _conversationService = conversationService;
+        _commandSender = new ChatCommandSender(serverContext);
     }
 
-    // public async Task SendChatMessage(TestIdentity sender, TestIdentity recipient, string message)
-    // {
-    //     var groupId = ByteArrayUtil.EquiByteArrayXor(sender.DotYouId.ToGuidIdentifier().ToByteArray(), recipient.DotYouId.ToGuidIdentifier().ToByteArray());
-    //     await SendGroupMessage(
-    //         new Guid(groupId),
-    //         message: new ChatMessage() { Message = message },
-    //         recipients: new List<string>() { recipient.DotYouId });
-    // }
-
-    public async Task SendMessage(Guid groupId, ChatMessage message)
+    public async Task SendMessage(ChatMessage message)
     {
-        //TODO: save a copy on the sender's server too.
-        var m = new ChatGroupMessage()
+        var group = await _groupDefinitionService.GetGroup(message.GroupId);
+        var recipients = group.Members.Where(r => r != this._serverContext.Sender).ToList();
+
+        var fileMetadata = new UploadFileMetadata()
         {
-            GroupId = groupId,
-            ChatMessage = message
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(message),
+                FileType = ChatMessage.FileType,
+                GroupId = group.Id,
+                ClientUniqueId = message.Id
+            },
+            AccessControlList = AccessControlList.NewOwnerOnly
         };
-        
-        // var group = await _groupDefinitionService.GetGroup(groupId);
-        
-        // var recipients = recipients.Where(r => r != this._ctx.Sender).ToList();
-        //
-        // var fileMetadata = new UploadFileMetadata()
-        // {
-        //     ContentType = "application/json",
-        //     PayloadIsEncrypted = false,
-        //     AppData = new()
-        //     {
-        //         ContentIsComplete = false,
-        //         JsonContent = DotYouSystemSerializer.Serialize(message),
-        //         FileType = ChatGroupMessage.FileType,
-        //         GroupId = groupId
-        //     },
-        //     AccessControlList = new AccessControlList()
-        //     {
-        //         RequiredSecurityGroup = SecurityGroupType.Owner
-        //     }
-        // };
-        //
-        // var instructionSet = new UploadInstructionSet()
-        // {
-        //     TransferIv = ByteArrayUtil.GetRndByteArray(16),
-        //     StorageOptions = new StorageOptions()
-        //     {
-        //         Drive = ChatApiConfig.Drive,
-        //         OverwriteFileId = null,
-        //         ExpiresTimestamp = null
-        //     },
-        //     TransitOptions = new TransitOptions()
-        //     {
-        //         Recipients = recipients
-        //     }
-        // };
-        //
-        // await _ctx.SendFile(fileMetadata, instructionSet);
+
+        var instructionSet = UploadInstructionSet.NewWithRecipients(ChatApiConfig.Drive, recipients);
+        await _serverContext.SendFile(fileMetadata, instructionSet);
     }
 
-    public async Task<(IEnumerable<ChatMessage> messages, string CursorState)> GetMessages(string cursorState)
+    public async Task<IEnumerable<RenderableChatMessage>> GetMessages(Guid groupId)
     {
-        var queryParams = new FileQueryParams()
-        {
-            FileType = new List<int>() { ChatMessage.FileType }
-        };
-
-        var (messages, cursor) = await _ctx.QueryBatch<ChatMessage>(queryParams, cursorState);
-
-        return (messages, cursor);
-    }
-
-    public async Task<(IEnumerable<ChatGroupMessage> messages, string CursorState)> GetGroupMessages(Guid groupId, string cursorState)
-    {
-        var queryParams = new FileQueryParams()
-        {
-            FileType = new List<int>() { ChatMessage.FileType },
-            GroupId = new List<Guid>() { groupId }
-        };
-
-        var batch = await _ctx.QueryBatch(queryParams, cursorState);
-
-        var messages = batch.SearchResults.Select(item => new ChatGroupMessage()
-        {
-            GroupId = item.FileMetadata.AppData.GroupId,
-            ChatMessage = DotYouSystemSerializer.Deserialize<ChatMessage>(item.FileMetadata.AppData.JsonContent)
-        });
-
-        return (messages, batch.CursorState);
+        var msgs = this._conversationService.GetMessages(groupId);
+        return msgs;
     }
 
 
@@ -115,8 +60,23 @@ public class ChatMessageService
         //query my server for all chat group file types
         var prevCursorState = "";
         var query = new FileQueryParams() { FileType = new List<int>() { ChatGroup.GroupDefinitionFileType } };
-        var (groups, cursorState) = this._ctx.QueryBatch<ChatGroup>(query, prevCursorState).GetAwaiter().GetResult();
+        var (groups, cursorState) = this._serverContext.QueryBatch<ChatGroup>(query, prevCursorState).GetAwaiter().GetResult();
 
         return groups;
+    }
+
+    public async Task React(Guid groupId, Guid messageId, string reactionCode)
+    {
+        var group = await _groupDefinitionService.GetGroup(groupId);
+        var recipients = group.Members.Where(r => r != this._serverContext.Sender).ToList();
+
+        await _commandSender.SendCommand(new SendReactionCommand()
+        {
+            MessageId = messageId,
+            GroupId = groupId,
+            ReactionCode = reactionCode,
+            Code = CommandCode.SendReaction,
+            Recipients = recipients
+        });
     }
 }

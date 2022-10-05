@@ -66,8 +66,7 @@ namespace Youverse.Hosting.Tests.DriveApi.App
                 StorageOptions = new StorageOptions()
                 {
                     Drive = testContext.TargetDrive,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
+                    OverwriteFileId = null
                 },
 
                 TransitOptions = new TransitOptions()

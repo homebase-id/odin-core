@@ -6,6 +6,11 @@ namespace Youverse.Core.Services.Drive.Storage
     public interface IAppFileMetaData
     {
         /// <summary>
+        /// A uniqueId assigned by the client by which this file can be accessed
+        /// </summary>
+        Guid ClientUniqueId { get; set; }
+        
+        /// <summary>
         /// Tags for describing the file.  this is indexed and can be used to find files by one or more tags
         /// </summary>
         List<Guid> Tags { get; set; }

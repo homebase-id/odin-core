@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using Grpc.Net.Client;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -14,15 +15,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 /// <summary>
 /// Manages chat groups and their definitions
 /// </summary>
-public class ChatGroupDefinitionService
+public class ConversationDefinitionService
 {
     private readonly ChatServerContext _serverContext;
     private readonly ChatCommandSender _commandSender;
+    private readonly Dictionary<Guid, ChatGroup> _groupCache;
+    private object _chatGroupCacheLock = new();
 
-    public ChatGroupDefinitionService(ChatServerContext serverContext)
+    public ConversationDefinitionService(ChatServerContext serverContext)
     {
         _serverContext = serverContext;
         _commandSender = new ChatCommandSender(serverContext);
+        _groupCache = new Dictionary<Guid, ChatGroup>();
     }
 
     /// <summary>
@@ -59,6 +63,7 @@ public class ChatGroupDefinitionService
     public async Task JoinGroup(ChatGroup group)
     {
         await this.CreateGroupOnServer(group);
+        UpdateCache(group);
     }
 
     public async Task<IEnumerable<ChatGroup>> GetGroups()
@@ -105,9 +110,22 @@ public class ChatGroupDefinitionService
         };
 
         await _serverContext.UploadFile(metadata, instructionSet);
+        UpdateCache(group);
     }
 
     //
+
+    private void UpdateCache(ChatGroup group)
+    {
+        if (_groupCache.ContainsKey(group.Id))
+        {
+            _groupCache[group.Id] = group;
+        }
+        else
+        {
+            _groupCache.Add(group.Id, group);
+        }
+    }
 
     private async Task CreateGroupOnServer(ChatGroup group)
     {
@@ -131,15 +149,14 @@ public class ChatGroupDefinitionService
             StorageOptions = new StorageOptions()
             {
                 Drive = ChatApiConfig.Drive,
-                OverwriteFileId = null,
-                ExpiresTimestamp = null
+                OverwriteFileId = null
             }
         };
 
         await _serverContext.UploadFile(metadata, instructionSet);
     }
 
-    private async Task<(Guid, ChatGroup)> GetGroupFromServer(Guid groupId)
+    private async Task<(Guid fileId, ChatGroup group)> GetGroupFromServer(Guid groupId)
     {
         var qp = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatGroup.GroupDefinitionFileType);
         var (dictionary, cursorState) = await _serverContext.QueryBatchDictionary<ChatGroup>(qp, "");
@@ -158,8 +175,20 @@ public class ChatGroupDefinitionService
         throw new NotImplementedException();
     }
 
-    public async Task GetGroup(Guid groupId)
+    public async Task<ChatGroup> GetGroup(Guid groupId)
     {
-        throw new NotImplementedException();
+        if (_groupCache.TryGetValue(groupId, out var group))
+        {
+            return group;
+        }
+
+        var (fileId, serverGroup) = await this.GetGroupFromServer(groupId);
+        if (fileId != Guid.Empty)
+        {
+            _groupCache.TryAdd(serverGroup.Id, serverGroup);
+            return serverGroup;
+        }
+
+        return null;
     }
 }

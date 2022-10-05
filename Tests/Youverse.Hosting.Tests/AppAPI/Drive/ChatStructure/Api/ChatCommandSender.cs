@@ -19,7 +19,7 @@ public class ChatCommandSender
     {
         _serverContext = serverContext;
     }
-    
+
     // 
 
     public async Task SendCommand(CommandBase cmd)
@@ -33,33 +33,16 @@ public class ChatCommandSender
                 ContentIsComplete = true,
                 JsonContent = DotYouSystemSerializer.Serialize(cmd, cmd.GetType()),
                 FileType = CommandBase.FileType,
-                DataType = (int)cmd.Code
+                DataType = (int)cmd.Code,
+                GroupId = cmd.GroupId
             },
-            AccessControlList = new AccessControlList()
-            {
-                RequiredSecurityGroup = SecurityGroupType.Owner
-            }
+            AccessControlList = AccessControlList.NewOwnerOnly
         };
 
-        var instructionSet = new UploadInstructionSet()
-        {
-            TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            StorageOptions = new StorageOptions()
-            {
-                Drive = ChatApiConfig.Drive,
-                OverwriteFileId = null,
-                ExpiresTimestamp = null
-            },
-            TransitOptions = new TransitOptions()
-            {
-                Recipients = cmd.Recipients.Where(r => r != _serverContext.Sender).ToList()
-            }
-        };
-
+        var instructionSet = UploadInstructionSet.NewWithRecipients(ChatApiConfig.Drive, cmd.Recipients.Where(r => r != _serverContext.Sender));
         var result = await _serverContext.SendFile(fileMetadata, instructionSet);
-        
+
         //TODO: consider how to handle when not all recipients received the transfer
         //examine: result.RecipientStatus[]
     }
-    
 }

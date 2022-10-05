@@ -77,8 +77,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 StorageOptions = new StorageOptions()
                 {
                     Drive = targetDrive,
-                    OverwriteFileId = null,
-                    ExpiresTimestamp = null
+                    OverwriteFileId = null
                 },
                 TransitOptions = null
             };
