@@ -12,23 +12,25 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatMessageService
 {
-    private readonly ChatContext _ctx;
+    private readonly ChatServerContext _ctx;
+    private readonly ChatGroupDefinitionService _groupDefinitionService;
 
-    public ChatMessageService(ChatContext ctx)
+    public ChatMessageService(ChatServerContext ctx, ChatGroupDefinitionService groupDefinitionService)
     {
         _ctx = ctx;
+        _groupDefinitionService = groupDefinitionService;
     }
 
-    public async Task SendChatMessage(TestIdentity sender, TestIdentity recipient, string message)
-    {
-        var groupId = ByteArrayUtil.EquiByteArrayXor(sender.DotYouId.ToGuidIdentifier().ToByteArray(), recipient.DotYouId.ToGuidIdentifier().ToByteArray());
-        await SendGroupMessage(
-            new Guid(groupId),
-            message: new ChatMessage() { Message = message },
-            recipients: new List<string>() { recipient.DotYouId });
-    }
+    // public async Task SendChatMessage(TestIdentity sender, TestIdentity recipient, string message)
+    // {
+    //     var groupId = ByteArrayUtil.EquiByteArrayXor(sender.DotYouId.ToGuidIdentifier().ToByteArray(), recipient.DotYouId.ToGuidIdentifier().ToByteArray());
+    //     await SendGroupMessage(
+    //         new Guid(groupId),
+    //         message: new ChatMessage() { Message = message },
+    //         recipients: new List<string>() { recipient.DotYouId });
+    // }
 
-    public async Task SendGroupMessage(Guid groupId, ChatMessage message, List<string> recipients)
+    public async Task SendMessage(Guid groupId, ChatMessage message)
     {
         //TODO: save a copy on the sender's server too.
         var m = new ChatGroupMessage()
@@ -36,6 +38,10 @@ public class ChatMessageService
             GroupId = groupId,
             ChatMessage = message
         };
+        
+        var group = await _groupDefinitionService.GetGroup(groupId);
+        
+        var recipients = recipients.Where(r => r != this._ctx.Sender).ToList();
 
         var fileMetadata = new UploadFileMetadata()
         {
@@ -65,7 +71,7 @@ public class ChatMessageService
             },
             TransitOptions = new TransitOptions()
             {
-                Recipients = recipients.Where(r => r != this._ctx.Sender).ToList()
+                Recipients = recipients
             }
         };
 
@@ -108,7 +114,7 @@ public class ChatMessageService
     {
         //query my server for all chat group file types
         var prevCursorState = "";
-        var query = new FileQueryParams() { FileType = new List<int>() { ChatGroup.GroupFileType } };
+        var query = new FileQueryParams() { FileType = new List<int>() { ChatGroup.GroupDefinitionFileType } };
         var (groups, cursorState) = this._ctx.QueryBatch<ChatGroup>(query, prevCursorState).GetAwaiter().GetResult();
 
         return groups;

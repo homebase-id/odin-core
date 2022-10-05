@@ -64,6 +64,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
         {
             //Scenarios: 
             //create group
+            // potential issues: when i am added to a group and I'm not connected to everyone in the group
+            // 
+            // send message to group
             //leave group
             //remove someone from group
 
@@ -71,7 +74,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             //send delivered notification
             //send read notification
             //send reply
-
 
             var chatApps = await this.InitializeApps();
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
@@ -85,35 +87,50 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
 
             //TODO: create a connection between other parties; what happens when other parties are not connected but put into the same group?
 
-            var hobbitsGroupMembers = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList();
-            var groupId = frodoChatApp.CommandService.CreateGroup("le hobbits", hobbitsGroupMembers);
+            // Frodo sends a command to create a group
+            var hobbitsChatGroup = new ChatGroup()
+            {
+                Id = Guid.NewGuid(),
+                AdminDotYouId = frodoChatApp.Identity,
+                Title = "le hobbits",
+                Members = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList()
+            };
 
-            //see if the group exists on all member servers
-
-            samwiseChatApp.SynchronizeData();
-            merryChatApp.SynchronizeData();
-            pippinChat.SynchronizeData();
-
-            //everyone should have the group
-            var samsGroups = samwiseChatApp.MessageService.GetGroups();
-            var merrysGroups = merryChatApp.MessageService.GetGroups();
-
-            //sam should have the group and merry should match
-            Assert.IsNotNull(samsGroups.SingleOrDefault(g => g.Id == groupId));
-            //CollectionAssert.AreEquivalent(samsGroups, merrysGroups);
-
-            await frodoChatApp.MessageService.SendGroupMessage(
-                groupId: groupId,
-                message: new ChatMessage() { Message = "south farthing time, anyone ;)?" },
-                recipients: hobbitsGroupMembers);
+            await frodoChatApp.GroupDefinitionService.CreateGroup(hobbitsChatGroup);
             
-            var samMessages = await samwiseChatApp.MessageService.GetGroupMessages(groupId, "");
-            var merryMessages = await merryChatApp.MessageService.GetGroupMessages(groupId, "");
+            //Note: in this example, the group does not exist even for frodo until he processes the command
+            // sync data for all members
+            foreach (var member in hobbitsChatGroup.Members)
+            {
+                chatApps[member].SynchronizeData();
+            }
 
+            // everyone should have the group
+
+            foreach (var member in hobbitsChatGroup.Members)
+            {
+                var groups = chatApps[member].MessageService.GetGroups();
+                var group = groups.SingleOrDefault(g => g.Id == hobbitsChatGroup.Id);
+                
+                Assert.IsNotNull(group);
+                Assert.IsTrue(group.Id == hobbitsChatGroup.Id, $"Id did not match for {member}");
+                Assert.IsTrue(group.Title == hobbitsChatGroup.Title,$"Title did not match for {member}");
+                Assert.IsTrue(group.AdminDotYouId == hobbitsChatGroup.AdminDotYouId,$"Admin did not match for {member}");
+                CollectionAssert.AreEquivalent(group.Members, hobbitsChatGroup.Members,$"member list did not match for {member}");
+            }
             
+            //
+            await frodoChatApp.MessageService.SendMessage(
+                groupId: hobbitsChatGroup.Id,
+                message: new ChatMessage() { Message = "south farthing time, anyone ;)?" });
+            
+            // var samMessages = await samwiseChatApp.MessageService.GetGroupMessages(groupId, "");
+            // var merryMessages = await merryChatApp.MessageService.GetGroupMessages(groupId, "");
+
+
             //TODO
-            string frodoPrevCursorState = "";
-            var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(frodoPrevCursorState);
+            // string frodoPrevCursorState = "";
+            // var (frodoSentMessages, frodoCursorState) = await frodoChatApp.MessageService.GetMessages(frodoPrevCursorState);
             // string samPrevCursorState = "";
             // var (samwiseReceivedMessages, samwiseCursorState) = await samwiseChatApp.MessageService.GetMessages(prevCursorState);
 

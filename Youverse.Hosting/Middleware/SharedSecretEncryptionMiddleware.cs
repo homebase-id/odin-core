@@ -120,7 +120,7 @@ namespace Youverse.Hosting.Middleware
                 }
 
                 var key = this.GetSharedSecret(context);
-                var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
+                    var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
                 var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
 
                 //update the body with the decrypted json file so it can be read down stream as expected

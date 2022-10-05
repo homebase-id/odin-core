@@ -20,11 +20,11 @@ using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
-public class ChatContext
+public class ChatServerContext
 {
     private TestSampleAppContext _appContext;
 
-    public ChatContext(TestSampleAppContext appContext, WebScaffold scaffold)
+    public ChatServerContext(TestSampleAppContext appContext, WebScaffold scaffold)
     {
         Scaffold = scaffold;
         _appContext = appContext;
@@ -61,6 +61,43 @@ public class ChatContext
             //Note: intentionally left out decryption
             var items = batch.SearchResults.Select(item =>
                 DotYouSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+
+            return (items, batch.CursorState);
+        }
+    }
+
+    /// <summary>
+    /// Returns the results as a dictionary with the server FileId as key and T as the value
+    /// </summary>
+    /// <returns></returns>
+    public async Task<(IDictionary<Guid, T> dictiionary, string cursorState)> QueryBatchDictionary<T>(FileQueryParams queryParams, string cursorState)
+    {
+        await this.ProcessIncomingTransfers();
+
+        queryParams.TargetDrive = _appContext.TargetDrive;
+
+        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext.Identity, _appContext.ClientAuthenticationToken))
+        {
+            var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
+            var request = new QueryBatchRequest()
+            {
+                QueryParams = queryParams,
+                ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                {
+                    CursorState = cursorState,
+                    MaxRecords = 100,
+                    IncludeMetadataHeader = true
+                }
+            };
+
+            var response = await svc.QueryBatch(request);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            var batch = response.Content!;
+
+            //Note: intentionally left out decryption for this prototype
+            var items = batch.SearchResults.ToDictionary(
+                item => item.FileId,
+                item => DotYouSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
 
             return (items, batch.CursorState);
         }
@@ -109,8 +146,9 @@ public class ChatContext
         await Scaffold.OwnerApi.ProcessOutbox(_appContext.Identity, batchSize);
     }
 
-    public async Task SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
+    public async Task<UploadResult> SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
     {
+        UploadResult transferResult = null;
         using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var keyHeader = KeyHeader.NewRandom16();
@@ -139,7 +177,7 @@ public class ChatContext
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
-            var transferResult = response.Content;
+            transferResult = response.Content;
 
             Assert.That(transferResult.File, Is.Not.Null);
             Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
@@ -157,9 +195,23 @@ public class ChatContext
             }
 
             keyHeader.AesKey.Wipe();
+            
         }
 
+        
         await this.ProcessOutbox(instructionSet?.TransitOptions?.Recipients?.Count ?? 1);
+
+        return transferResult;
+    }
+
+    public async Task UploadFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
+    {
+        if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
+        {
+            throw new Exception("You're trying to send a file, use the SendFile method or clear the recipients");
+        }
+
+        await this.SendFile(fileMetadata, instructionSet);
     }
 
     public void DeleteFile(ExternalFileIdentifier fileId)

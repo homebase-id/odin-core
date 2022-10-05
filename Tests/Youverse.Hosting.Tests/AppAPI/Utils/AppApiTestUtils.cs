@@ -197,7 +197,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         {
             using (var client = this.CreateAppApiHttpClient(testAppContext.Identity, testAppContext.ClientAuthenticationToken))
             {
-                var svc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
                 var deleteFileResponse = await svc.DeleteFile(fileId);
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
                 Assert.IsTrue(deleteFileResponse.Content);
