@@ -39,43 +39,43 @@ public class ChatMessageService
             ChatMessage = message
         };
         
-        var group = await _groupDefinitionService.GetGroup(groupId);
+        // var group = await _groupDefinitionService.GetGroup(groupId);
         
-        var recipients = recipients.Where(r => r != this._ctx.Sender).ToList();
-
-        var fileMetadata = new UploadFileMetadata()
-        {
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
-            AppData = new()
-            {
-                ContentIsComplete = false,
-                JsonContent = DotYouSystemSerializer.Serialize(message),
-                FileType = ChatGroupMessage.FileType,
-                GroupId = groupId
-            },
-            AccessControlList = new AccessControlList()
-            {
-                RequiredSecurityGroup = SecurityGroupType.Owner
-            }
-        };
-
-        var instructionSet = new UploadInstructionSet()
-        {
-            TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            StorageOptions = new StorageOptions()
-            {
-                Drive = ChatApiConfig.Drive,
-                OverwriteFileId = null,
-                ExpiresTimestamp = null
-            },
-            TransitOptions = new TransitOptions()
-            {
-                Recipients = recipients
-            }
-        };
-
-        await _ctx.SendFile(fileMetadata, instructionSet);
+        // var recipients = recipients.Where(r => r != this._ctx.Sender).ToList();
+        //
+        // var fileMetadata = new UploadFileMetadata()
+        // {
+        //     ContentType = "application/json",
+        //     PayloadIsEncrypted = false,
+        //     AppData = new()
+        //     {
+        //         ContentIsComplete = false,
+        //         JsonContent = DotYouSystemSerializer.Serialize(message),
+        //         FileType = ChatGroupMessage.FileType,
+        //         GroupId = groupId
+        //     },
+        //     AccessControlList = new AccessControlList()
+        //     {
+        //         RequiredSecurityGroup = SecurityGroupType.Owner
+        //     }
+        // };
+        //
+        // var instructionSet = new UploadInstructionSet()
+        // {
+        //     TransferIv = ByteArrayUtil.GetRndByteArray(16),
+        //     StorageOptions = new StorageOptions()
+        //     {
+        //         Drive = ChatApiConfig.Drive,
+        //         OverwriteFileId = null,
+        //         ExpiresTimestamp = null
+        //     },
+        //     TransitOptions = new TransitOptions()
+        //     {
+        //         Recipients = recipients
+        //     }
+        // };
+        //
+        // await _ctx.SendFile(fileMetadata, instructionSet);
     }
 
     public async Task<(IEnumerable<ChatMessage> messages, string CursorState)> GetMessages(string cursorState)
