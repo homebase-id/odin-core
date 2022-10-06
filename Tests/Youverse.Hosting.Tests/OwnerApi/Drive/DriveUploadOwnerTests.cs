@@ -38,6 +38,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
             _scaffold.RunAfterAnyTests();
         }
 
+        [Test]
+        public async Task CanGetAndSetGlobalUniqueIdentifier()
+        {
+            Assert.Inconclusive("prototype WIP");
+        }
+
         [Test(Description = "Test upload as owner")]
         public async Task UploadOnly()
         {
@@ -191,7 +197,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid()},
+                            Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         },
@@ -209,7 +215,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-                
+
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError);
             }
@@ -264,7 +270,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid()},
+                            Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { content = "some content" }),
 

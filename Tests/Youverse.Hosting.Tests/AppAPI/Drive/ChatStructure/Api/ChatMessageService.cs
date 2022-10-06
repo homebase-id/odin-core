@@ -39,12 +39,12 @@ public class ChatMessageService
                 JsonContent = DotYouSystemSerializer.Serialize(message),
                 FileType = ChatMessage.FileType,
                 GroupId = group.Id,
-                ClientUniqueId = message.Id
+                //ClientUniqueId = message.Id
             },
             AccessControlList = AccessControlList.NewOwnerOnly
         };
 
-        var instructionSet = UploadInstructionSet.NewWithRecipients(ChatApiConfig.Drive, recipients);
+        var instructionSet = UploadInstructionSet.WithRecipients(ChatApiConfig.Drive, recipients);
         await _serverContext.SendFile(fileMetadata, instructionSet);
     }
 

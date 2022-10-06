@@ -132,9 +132,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
 
             System.Threading.Thread.Sleep(2000);
 
+            //issue: frodo does not have the conversation
             
-            await frodoChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😀");
-            //await merryChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😈");
+            // await frodoChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😀");
+            await merryChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😈");
 
             System.Threading.Thread.Sleep(2000);
 

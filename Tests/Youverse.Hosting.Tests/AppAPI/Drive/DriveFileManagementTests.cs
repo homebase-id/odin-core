@@ -7,14 +7,13 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
-    public class DriveUploadAppTests
+    public class DriveFileManagementTests
     {
         private WebScaffold _scaffold;
 
@@ -159,67 +158,45 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test(Description = "")]
-        public async Task CannotUploadEncryptedFileForAnonymousGroups()
+        public async Task CanDeleteFile()
         {
-            var identity = TestIdentities.Frodo;
+            //upload to identity
+            // has payload, jsoncontent, and thumbnails
 
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            //delete file
+            
+            //validate query modified returns file
+            
+            // validate query batch returns file
+            
+            // get file
+            // validate metadata is updated correctly
+            //  fileId stays
+            //  Global Unique Id stays
+            //  ACL stays
+            //  everything else is empty or null
+            // Remove payload and thumbnails
+            // previous thumbnail files are gone
+            // payload is gone
+            // 
+            
+            Assert.Inconclusive("WIP");
+        }
+        
+        [Test(Description = "")]
+        public async Task CanHardDeleteFile()
+        {
+            //upload to identity
+            // has payload, jsoncontent, and thumbnails
 
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var keyHeader = KeyHeader.NewRandom16();
+            //delete file
 
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = testContext.TargetDrive
-                }
-            };
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
-            var instructionStream = new MemoryStream(bytes);
-
-            var sba = testContext.SharedSecret.ToSensitiveByteArray();
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sba),
-                FileMetadata = new()
-                {
-                    ContentType = "application/json",
-                    PayloadIsEncrypted = true,
-                    AppData = new()
-                    {
-                        Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = true,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-                    },
-                    AccessControlList = new AccessControlList()
-                    {
-                        RequiredSecurityGroup = SecurityGroupType.Anonymous
-                    }
-                }
-            };
-
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
-
-            var payloadDataRaw = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
-
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, testContext.ClientAuthenticationToken))
-            {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-
-                Assert.False(response.IsSuccessStatusCode);
-            }
-
-            keyHeader.AesKey.Wipe();
-            key.Wipe();
+            // validate: no results from query modified
+            // validate no results from query batch
+            
+            //validate get file returns 404
+            
+            Assert.Inconclusive("WIP");
         }
     }
 }

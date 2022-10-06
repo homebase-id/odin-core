@@ -38,7 +38,7 @@ public class ChatSynchronizer
 
         //TODO: is QueryBatch returning the expected order, i.e. most recent first?
 
-        var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created);
+        var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
         
         //route the commands
         foreach (var clientFileHeader in orderedResults)
@@ -64,6 +64,8 @@ public class ChatSynchronizer
 
     private async Task HandleChatMessage(ClientFileHeader clientFileHeader)
     {
+        string currentUser = _chatServerContext.Sender;
+        
         var appData = clientFileHeader.FileMetadata.AppData;
 
         var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);

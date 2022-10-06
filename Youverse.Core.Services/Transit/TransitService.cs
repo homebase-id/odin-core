@@ -170,6 +170,7 @@ namespace Youverse.Core.Services.Transit
             KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
             var metadata = new FileMetadata(package.InternalFile)
             {
+                GlobalUniqueId = uploadDescriptor.FileMetadata.GlobalUniqueId,
                 ContentType = uploadDescriptor.FileMetadata.ContentType,
 
                 //TODO: need an automapper *sigh
@@ -181,7 +182,7 @@ namespace Youverse.Core.Services.Transit
                     DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                     UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                     GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
-                    ClientUniqueId = uploadDescriptor.FileMetadata.AppData.ClientUniqueId,
+                    // ClientUniqueId = uploadDescriptor.FileMetadata.AppData.ClientUniqueId,
 
                     JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                     ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
@@ -392,6 +393,7 @@ namespace Youverse.Core.Services.Transit
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
+                    GlobalUniqueId = metadata.GlobalUniqueId,
                     SenderDotYouId = string.Empty,
                     OriginalRecipientList = null,
                 };

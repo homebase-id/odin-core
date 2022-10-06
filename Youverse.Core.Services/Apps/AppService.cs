@@ -77,15 +77,18 @@ namespace Youverse.Core.Services.Apps
 
         private ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
         {
-            var clientFile = new ClientFileMetadata();
-            clientFile.Created = fileMetadata.Created;
-            clientFile.Updated = fileMetadata.Updated;
-            clientFile.AppData = fileMetadata.AppData;
-            clientFile.ContentType = fileMetadata.ContentType;
-            clientFile.PayloadSize = fileMetadata.PayloadSize;
-            clientFile.OriginalRecipientList = fileMetadata.OriginalRecipientList;
-            clientFile.PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted;
-            clientFile.SenderDotYouId = fileMetadata.SenderDotYouId;
+            var clientFile = new ClientFileMetadata
+            {
+                Created = fileMetadata.Created,
+                Updated = fileMetadata.Updated,
+                AppData = fileMetadata.AppData,
+                ContentType = fileMetadata.ContentType,
+                GlobalUniqueId = fileMetadata.GlobalUniqueId,
+                PayloadSize = fileMetadata.PayloadSize,
+                OriginalRecipientList = fileMetadata.OriginalRecipientList,
+                PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
+                SenderDotYouId = fileMetadata.SenderDotYouId
+            };
             return clientFile;
         }
     }

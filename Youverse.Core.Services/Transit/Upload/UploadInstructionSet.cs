@@ -20,12 +20,12 @@ namespace Youverse.Core.Services.Transit.Upload
         public TransitOptions TransitOptions { get; set; }
 
 
-        public static UploadInstructionSet NewWithRecipients(TargetDrive drive, IEnumerable<string> recipients)
+        public static UploadInstructionSet WithRecipients(TargetDrive drive, IEnumerable<string> recipients)
         {
-            return NewWithRecipients(drive, recipients.ToArray());
+            return WithRecipients(drive, recipients.ToArray());
         }
 
-        public static UploadInstructionSet NewWithRecipients(TargetDrive drive, params string[] recipients)
+        public static UploadInstructionSet WithRecipients(TargetDrive drive, params string[] recipients)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             Guard.Argument(recipients, nameof(recipients)).NotNull().NotEmpty();

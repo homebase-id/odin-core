@@ -28,6 +28,11 @@ namespace Youverse.Core.Services.Drive.Storage
         }
 
         public InternalDriveFileId File { get; set; }
+        
+        /// <summary>
+        /// A globally unique Id to cross reference this file across Identities 
+        /// </summary>
+        public Guid GlobalUniqueId { get; set; }
 
         public UInt64 Created { get; set; }
 

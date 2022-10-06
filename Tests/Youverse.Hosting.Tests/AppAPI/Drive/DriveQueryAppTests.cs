@@ -4,15 +4,12 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Tests.AppAPI.Drive;
 
-namespace Youverse.Hosting.Tests.DriveApi.App
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class DriveQueryAppTests
     {

@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
@@ -19,11 +17,9 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
-namespace Youverse.Hosting.Tests.DriveApi.App
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
     public class TransferFileTests
     {
@@ -43,6 +39,67 @@ namespace Youverse.Hosting.Tests.DriveApi.App
             _scaffold.RunAfterAnyTests();
         }
 
+        [Test]
+        public async Task CanTransferGlobalUniqueIdentifier_AndSeeFileChanges()
+        {
+            //on sender identity
+            //create file with global unique id
+            //transfer file
+            
+            //on recipient identity
+            //recipient should have same global unique id
+            //client file header should have global unique id
+            
+            Assert.Inconclusive("WIP");
+        }
+        
+        [Test]
+        public async Task CanDeleteFileOnRecipientServerUsingGlobalUniqueIdentifier()
+        {
+            //on sender identity
+            //create file with global unique id
+            //transfer file
+            
+            //on recipient identity
+            //validate: recipient should have same global unique id
+            //validate: client file header should have global unique id
+            
+            //on sender identity delete the file
+            //validate: file is deleted (shows in query modified)
+            
+            //on recipient identity
+            //validate: file is deleted (shows in query modified)
+            
+            
+            Assert.Inconclusive("WIP");
+        }
+        
+        [Test]
+        public async Task FailToHardDeleteFileOnRecipientServerUsingGlobalUniqueIdentifier()
+        {
+            //on sender identity
+            //create file with global unique id
+            //transfer file
+            
+            //on recipient identity
+            //validate: recipient should have same global unique id
+            //validate: client file header should have global unique id
+            
+            //on sender identity delete the file
+            //validate: file is deleted (shows in query modified)
+            
+            //on recipient identity
+            //validate: file is deleted (shows in query modified)
+
+            Assert.Inconclusive("WIP");
+        }
+        
+        [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
+        public async Task WillRejectChangesFromGlobalUniqueIdentifierWhenNotFromOriginalSender()
+        {
+            Assert.Inconclusive("WIP");
+        }
+        
         [Test(Description = "Test basic transfer; includes thumbnails")]
         public async Task CanSendTransferAndRecipientCanGetFilesByTag()
         {

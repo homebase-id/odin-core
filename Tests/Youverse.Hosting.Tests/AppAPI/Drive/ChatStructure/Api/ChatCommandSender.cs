@@ -39,7 +39,7 @@ public class ChatCommandSender
             AccessControlList = AccessControlList.NewOwnerOnly
         };
 
-        var instructionSet = UploadInstructionSet.NewWithRecipients(ChatApiConfig.Drive, cmd.Recipients.Where(r => r != _serverContext.Sender));
+        var instructionSet = UploadInstructionSet.WithRecipients(ChatApiConfig.Drive, cmd.Recipients.Where(r => r != _serverContext.Sender));
         var result = await _serverContext.SendFile(fileMetadata, instructionSet);
 
         //TODO: consider how to handle when not all recipients received the transfer

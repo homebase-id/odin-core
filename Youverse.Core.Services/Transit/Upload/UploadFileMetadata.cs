@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Services.Authorization.Acl;
+﻿using System;
+using Youverse.Core.Services.Authorization.Acl;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -9,6 +10,8 @@ namespace Youverse.Core.Services.Transit.Upload
             this.AppData = new();
             this.AccessControlList = new AccessControlList() {RequiredSecurityGroup = SecurityGroupType.Owner};
         }
+
+        public Guid GlobalUniqueId { get; set; }
 
         public string ContentType { get; set; }
         

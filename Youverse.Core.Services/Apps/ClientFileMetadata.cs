@@ -10,7 +10,9 @@ public class ClientFileMetadata
     {
         this.AppData = new AppFileMetaData();
     }
-        
+    
+    public Guid GlobalUniqueId { get; set; }
+
     public UInt64 Created { get; set; }
 
     public UInt64 Updated { get; set; }
