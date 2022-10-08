@@ -59,7 +59,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var cmdService = RestService.For<IAppCommandSenderHttpClient>(client);
                 var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
                 {
-                    TransferIv = transferIv,
                     Command = command
                 });
 

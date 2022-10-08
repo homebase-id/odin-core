@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Drive
@@ -79,7 +81,7 @@ namespace Youverse.Core.Services.Drive
             get => _inner.AllowAnonymousReads;
             set { }
         }
-        
+
         public override bool OwnerOnly
         {
             get => _inner.OwnerOnly;
@@ -103,6 +105,15 @@ namespace Youverse.Core.Services.Drive
             Directory.CreateDirectory(this.GetStoragePath(StorageDisposition.Temporary));
             Directory.CreateDirectory(this.GetIndexPath());
         }
+
+        public void AssertValidStorageKey(SensitiveByteArray storageKey)
+        {
+            var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, ref storageKey, this.EncryptedIdIv);
+            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.Id.ToByteArray()))
+            {
+                throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
+            }
+        }
     }
 
 
@@ -118,7 +129,7 @@ namespace Youverse.Core.Services.Drive
         public virtual string Metadata { get; set; }
 
         public virtual bool OwnerOnly { get; set; }
-        
+
         /// <summary>
         /// Specifies a public identifier for accessing this drive.  This stops us from sharing the Id outside of this system.
         /// </summary>

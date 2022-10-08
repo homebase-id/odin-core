@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         public Task SetDriveReadMode(Guid driveId, bool allowAnonymous);
-        
+
         Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
 
         Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false);
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Drive
         InternalDriveFileId CreateInternalFileId(Guid driveId);
 
         Task WriteFileHeader(InternalDriveFileId file, ServerFileHeader header);
-        
+
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
         /// </summary>
@@ -97,9 +97,9 @@ namespace Youverse.Core.Services.Drive
         /// <param name="file"></param>
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
         Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
-        
+
         Task<Stream> GetPayloadStream(InternalDriveFileId file);
-        
+
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
@@ -119,11 +119,17 @@ namespace Youverse.Core.Services.Drive
         Task DeleteLongTermFile(InternalDriveFileId file);
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
-     
+
         Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
-        
+
         Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream);
-       
+
         string GetThumbnailFileExtension(int width, int height);
+
+        /// <summary>
+        /// Creates a new server file header with an encrypted key header for the specified file
+        /// TODO: I'm not certain this is the right place for this method
+        /// </summary>
+        Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata);
     }
 }

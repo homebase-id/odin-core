@@ -349,20 +349,23 @@ namespace Youverse.Core.Services.Drive
             return extenstion;
         }
 
-        private async Task<EncryptedKeyHeader> EncryptKeyHeader(InternalDriveFileId file, KeyHeader keyHeader)
+        public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
-
-            var manager = GetLongTermStorageManager(file.DriveId);
-            var drive = manager.Drive;
-            var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-
-            //this.AssertKeyMatch(storageKey)
-            var decryptedDriveId = AesCbc.Decrypt(drive.EncryptedIdValue, ref storageKey, drive.EncryptedIdIv);
-            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, drive.Id.ToByteArray()))
+            var sv = new ServerFileHeader()
             {
-                throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
-            }
+                EncryptedKeyHeader = await this.EncryptKeyHeader(file.DriveId, keyHeader),
+                FileMetadata = fileMetadata,
+                ServerMetadata = serverMetadata
+            };
+
+            return sv;
+        }
+
+        private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader)
+        {
+            var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(driveId);
+
+            (await this.GetDrive(driveId)).AssertValidStorageKey(storageKey);
 
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
@@ -443,7 +446,7 @@ namespace Youverse.Core.Services.Drive
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(file, keyHeader),
+                EncryptedKeyHeader = await this.EncryptKeyHeader(file.DriveId, keyHeader),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };

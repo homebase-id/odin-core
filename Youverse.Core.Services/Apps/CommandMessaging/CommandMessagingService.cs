@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Serialization;
+using SQLitePCL;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Apps.CommandMessaging;
@@ -28,26 +29,34 @@ public class CommandMessagingService
         _driveService = driveService;
     }
 
-    public async Task<CommandMessageResult> SendCommandMessage(CommandMessage command, byte[] transferIv)
+    public async Task<CommandMessageResult> SendCommandMessage(CommandMessage command)
     {
         Guard.Argument(command, nameof(command)).NotNull().Require(m => m.IsValid());
 
         var driveId = (await _driveService.GetDriveIdByAlias(command.Drive, true)).GetValueOrDefault();
         var internalFile = _driveService.CreateInternalFileId(driveId);
 
-        await _driveService.WriteFileHeader(internalFile, new ServerFileHeader()
+        var keyHeader = KeyHeader.NewRandom16();
+        var fileMetadata = new FileMetadata(internalFile)
         {
-            EncryptedKeyHeader = await this.EncryptKeyHeader(file, keyHeader),
-            FileMetadata = new FileMetadata(internalFile)
+            ContentType = "application/json",
+            GlobalTransitId = null,
+            Created = DateTimeExtensions.UnixTimeMilliseconds(),
+            AppData = new AppFileMetaData()
             {
-            },
-            ServerMetadata = new ServerMetadata()
-            {
-                AccessControlList = AccessControlList.NewOwnerOnly
+                
+                
             }
-        });
+        };
+        var serverMetadata = new ServerMetadata()
+        {
+            AccessControlList = AccessControlList.NewOwnerOnly
+        };
 
-        var uploadResult = await _transitService.SendFile(internalFile, new TransitOptions()
+        var serverFileHeader = await _driveService.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
+        await _driveService.WriteFileHeader(internalFile, serverFileHeader);
+
+        var transferResult = await _transitService.SendFile(internalFile, new TransitOptions()
         {
             IsTransient = true,
             Recipients = command.Recipients,
@@ -56,7 +65,7 @@ public class CommandMessagingService
 
         return new CommandMessageResult()
         {
-            RecipientStatus = uploadResult.RecipientStatus
+            RecipientStatus = transferResult
         };
     }
 

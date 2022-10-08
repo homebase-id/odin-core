@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Apps
 
             int priority = 1000;
 
-            //TODO: this a strange place to calculate priority yet it was the best place w/o having to send back the acl outisde of this method
+            //TODO: this a strange place to calculate priority yet it was the best place w/o having to send back the acl outside of this method
             switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:

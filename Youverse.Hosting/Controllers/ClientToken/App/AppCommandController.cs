@@ -30,15 +30,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         [HttpGet("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
-            var results = await _commandMessagingService.SendCommandMessage(request.Command, request.TransferIv);
+            var results = await _commandMessagingService.SendCommandMessage(request.Command);
             return results;
         }
     }
 
     public class SendCommandRequest
     {
-        public byte[] TransferIv { get; set; }
-
         public CommandMessage Command { get; set; } 
     }
     
