@@ -97,7 +97,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
-            cb.RegisterType<MultipartPackageStorageWriter>().As<IMultipartPackageStorageWriter>().SingleInstance();
 
 
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
@@ -106,6 +105,8 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
 
+            cb.RegisterType<DriveUploadService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();

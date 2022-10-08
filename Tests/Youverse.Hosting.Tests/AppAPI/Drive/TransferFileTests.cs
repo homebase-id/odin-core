@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task CanTransferGlobalUniqueIdentifier_AndSeeFileChanges()
+        public async Task CanTransferGlobalTransitId_AndSeeFileChanges()
         {
             //on sender identity
             //create file with global unique id
@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
         
         [Test]
-        public async Task CanDeleteFileOnRecipientServerUsingGlobalUniqueIdentifier()
+        public async Task CanDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
             //on sender identity
             //create file with global unique id
@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
         
         [Test]
-        public async Task FailToHardDeleteFileOnRecipientServerUsingGlobalUniqueIdentifier()
+        public async Task FailToHardDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
             //on sender identity
             //create file with global unique id
@@ -95,7 +95,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
         
         [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
-        public async Task WillRejectChangesFromGlobalUniqueIdentifierWhenNotFromOriginalSender()
+        public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
         {
             Assert.Inconclusive("WIP");
         }

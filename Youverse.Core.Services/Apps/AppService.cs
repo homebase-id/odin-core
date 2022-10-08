@@ -83,7 +83,7 @@ namespace Youverse.Core.Services.Apps
                 Updated = fileMetadata.Updated,
                 AppData = fileMetadata.AppData,
                 ContentType = fileMetadata.ContentType,
-                GlobalUniqueId = fileMetadata.GlobalUniqueId,
+                GlobalTransitId = fileMetadata.GlobalTransitId,
                 PayloadSize = fileMetadata.PayloadSize,
                 OriginalRecipientList = fileMetadata.OriginalRecipientList,
                 PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,

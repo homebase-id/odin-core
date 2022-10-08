@@ -1,17 +1,15 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Swashbuckle.AspNetCore.Annotations;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -20,15 +18,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [AuthorizeValidExchangeGrant]
     public class DriveStorageWriteController : ControllerBase
     {
-        private readonly ITransitService _transitService;
-        private readonly IMultipartPackageStorageWriter _packageStorageWriter;
+        private readonly DriveUploadService _driveUploadService;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
 
-        public DriveStorageWriteController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public DriveStorageWriteController( DriveUploadService driveUploadService, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
-            _packageStorageWriter = packageStorageWriter;
-            _transitService = transitService;
+            _driveUploadService = driveUploadService;
             _contextAccessor = contextAccessor;
             _driveService = driveService;
         }
@@ -69,19 +65,19 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
+            var packageId = await _driveUploadService.CreatePackage(section!.Body);
 
             //
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await _packageStorageWriter.AddMetadata(packageId, section!.Body);
+            await _driveUploadService.AddMetadata(packageId, section!.Body);
 
             //
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
-            await _packageStorageWriter.AddPayload(packageId, section!.Body);
+            await _driveUploadService.AddPayload(packageId, section!.Body);
 
             //
 
@@ -90,14 +86,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             while (null != section)
             {
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await _packageStorageWriter.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                await _driveUploadService.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
 
             //
 
-            var package = await _packageStorageWriter.GetPackage(packageId);
-            var status = await _transitService.AcceptUpload(package);
+            var status = await _driveUploadService.FinalizeUpload(packageId);
             return status;
         }
 
@@ -155,4 +150,5 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return cd.Name?.Trim('"');
         }
     }
+    
 }

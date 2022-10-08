@@ -11,8 +11,6 @@ namespace Youverse.Core.Services.Transit.Upload
             this.AccessControlList = new AccessControlList() {RequiredSecurityGroup = SecurityGroupType.Owner};
         }
 
-        public Guid GlobalUniqueId { get; set; }
-
         public string ContentType { get; set; }
         
         /// <summary>

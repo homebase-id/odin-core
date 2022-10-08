@@ -11,7 +11,7 @@ public class ClientFileMetadata
         this.AppData = new AppFileMetaData();
     }
     
-    public Guid GlobalUniqueId { get; set; }
+    public Guid? GlobalTransitId { get; set; }
 
     public UInt64 Created { get; set; }
 

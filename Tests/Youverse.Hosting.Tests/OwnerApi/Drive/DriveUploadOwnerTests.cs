@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        public async Task CanGetAndSetGlobalUniqueIdentifier()
+        public async Task CanGetAndSetGlobalTransitId()
         {
             Assert.Inconclusive("prototype WIP");
         }

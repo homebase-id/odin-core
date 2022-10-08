@@ -26,13 +26,13 @@ namespace Youverse.Core.Services.Transit.Upload
         // public UpdateOperation UpdateFlags { get; set; } = UpdateOperation.None;
     }
 
-    [Flags]
-    public enum UpdateOperation
-    {
-        None = 0,
-        UpdateMetadata = 1,
-        UpdatePayload = 2,
-        UpdateThumbnails = 4,
-        UpdateAll = UpdateMetadata | UpdatePayload | UpdateThumbnails
-    }
+    // [Flags]
+    // public enum UpdateOperation
+    // {
+    //     None = 0,
+    //     UpdateMetadata = 1,
+    //     UpdatePayload = 2,
+    //     UpdateThumbnails = 4,
+    //     UpdateAll = UpdateMetadata | UpdatePayload | UpdateThumbnails
+    // }
 }

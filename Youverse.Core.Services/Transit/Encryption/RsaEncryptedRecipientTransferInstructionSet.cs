@@ -15,6 +15,6 @@ namespace Youverse.Core.Services.Transit.Encryption
         
         public byte[] EncryptedClientAuthToken { get; set; }
 
-        public TargetDrive Drive { get; set; }
+        public TargetDrive TargetDrive { get; set; }
     }
 }

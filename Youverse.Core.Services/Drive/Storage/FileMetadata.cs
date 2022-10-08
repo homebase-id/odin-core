@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// A globally unique Id to cross reference this file across Identities 
         /// </summary>
-        public Guid GlobalUniqueId { get; set; }
+        public Guid? GlobalTransitId { get; set; }
 
         public UInt64 Created { get; set; }
 

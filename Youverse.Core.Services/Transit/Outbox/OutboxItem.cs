@@ -30,5 +30,10 @@ namespace Youverse.Core.Services.Transit.Outbox
         public UInt64 AddedTimestamp { get; set; }
 
         public byte[] Marker { get; set; }
+        
+        /// <summary>
+        /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients
+        /// </summary>
+        public bool IsTransientFile { get; set; }
     }
 }

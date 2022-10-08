@@ -92,14 +92,6 @@ namespace Youverse.Core.Services.Transit
             var keyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes, 16, 16);
             decryptedAesKeyHeaderBytes.WriteZeros();
 
-            // var keyHeader = KeyHeader.FromCombinedBytes(transferInstructionSet.EncryptedAesKeyHeader, 16, 16);
-
-            // var decryptedClientAuthTokenBytes = pk.Decrypt(ref appKey, transferInstructionSet.EncryptedClientAuthToken).ToSensitiveByteArray();
-            // var clientAuthToken = ClientAuthToken.Parse(decryptedClientAuthTokenBytes.GetKey().StringFromUTF8Bytes());
-            // decryptedClientAuthTokenBytes.Wipe();
-
-            // transferInstructionSet.DriveAlias
-
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
             var metadataStream = await _driveService.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();

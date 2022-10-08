@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             Guid id = Guid.NewGuid();
 
-            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.Drive, true))!.Value;
+            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.TargetDrive, true))!.Value;
 
             //notice here: we always create a new file Id when receiving a new file.
             //we might need to add a feature that lets multiple identities collaborate on

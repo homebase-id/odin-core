@@ -19,7 +19,6 @@ namespace Youverse.Core.Services.Transit.Upload
 
         public TransitOptions TransitOptions { get; set; }
 
-
         public static UploadInstructionSet WithRecipients(TargetDrive drive, IEnumerable<string> recipients)
         {
             return WithRecipients(drive, recipients.ToArray());

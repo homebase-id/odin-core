@@ -15,13 +15,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveUploadController : ControllerBase
     {
-        private readonly ITransitService _transitService;
-        private readonly IMultipartPackageStorageWriter _packageStorageWriter;
-
-        public OwnerDriveUploadController(IMultipartPackageStorageWriter packageStorageWriter, ITransitService transitService)
+        private readonly DriveUploadService _driveUploadService;
+        public OwnerDriveUploadController(DriveUploadService driveUploadService)
         {
-            _packageStorageWriter = packageStorageWriter;
-            _transitService = transitService;
+            _driveUploadService = driveUploadService;
         }
 
         /// <summary>
@@ -46,17 +43,17 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
             //TODO: return the package from create package method
-            var packageId = await _packageStorageWriter.CreatePackage(section!.Body);
+            var packageId = await _driveUploadService.CreatePackage(section!.Body);
             
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await _packageStorageWriter.AddMetadata(packageId, section!.Body);
+            await _driveUploadService.AddMetadata(packageId, section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
-            await _packageStorageWriter.AddPayload(packageId, section!.Body);
+            await _driveUploadService.AddPayload(packageId, section!.Body);
 
             //
 
@@ -64,12 +61,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             while (null != section)
             {
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await _packageStorageWriter.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                await _driveUploadService.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
-            
-            var package = await _packageStorageWriter.GetPackage(packageId);
-            var status = await _transitService.AcceptUpload(package);
+
+            var status = await _driveUploadService.FinalizeUpload(packageId);
             return status;
         }
 
