@@ -1,21 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.ClientToken.App;
-using Youverse.Hosting.Tests.AppAPI.CommandSender;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive
+namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 {
     public class CommandSenderTests
     {
@@ -38,21 +31,37 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test(Description = "Test Upload only; no expire, no drive; no transfer")]
         public async Task CanSendAndReceiveCommand()
         {
-            var identity = TestIdentities.Frodo;
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            Guid appId = Guid.NewGuid();
+            var drive = TargetDrive.NewTargetDrive();
+
+            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true, drive, driveAllowAnonymousReads: false);
+            var merryAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Merry, canReadConnections: true, drive, driveAllowAnonymousReads: false);
+            var pippinAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Pippin, canReadConnections: true, drive, driveAllowAnonymousReads: false);
+            var samAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true, drive, driveAllowAnonymousReads: false);
+
+            var senderTestContext = frodoAppContext;
+            
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
+
 
             var command = new CommandMessage()
             {
-                Drive = testContext.TargetDrive,
+                Drive = frodoAppContext.TargetDrive,
                 JsonMessage = DotYouSystemSerializer.Serialize(new { reaction = ":)" }),
                 GlobalTransitIdList = new List<Guid>() { Guid.NewGuid() },
                 Recipients = new List<string>() { TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId }
             };
 
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderTestContext.Identity, senderTestContext.ClientAuthenticationToken))
             {
-                var cmdService = RestService.For<IAppCommandSenderHttpClient>(client);
+                var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, senderTestContext.SharedSecret);
                 var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
                 {
                     Command = command
@@ -71,8 +80,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 //
             }
-
-            key.Wipe();
         }
     }
 }

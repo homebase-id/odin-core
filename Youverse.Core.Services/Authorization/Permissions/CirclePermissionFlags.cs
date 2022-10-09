@@ -6,7 +6,6 @@ namespace Youverse.Core.Services.Authorization.Permissions
 {
     public static class PermissionKeys
     {
-        //TODO: change to integer
         public static readonly int ReadConnections = 10;
 
         public static readonly int ReadConnectionRequests = 30;

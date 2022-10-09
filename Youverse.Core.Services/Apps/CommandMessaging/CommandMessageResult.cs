@@ -27,7 +27,7 @@ public class CommandMessage
             return false;
         }
 
-        if (this.Recipients?.Any() ?? false)
+        if (!this.Recipients?.Any() ?? false)
         {
             return false;
         }

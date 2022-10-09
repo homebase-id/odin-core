@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         /// Sends a command message to 
         /// </summary>
         /// <returns></returns>
-        [HttpGet("send")]
+        [HttpPost("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
             var results = await _commandMessagingService.SendCommandMessage(request.Command);

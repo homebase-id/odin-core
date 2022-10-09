@@ -232,7 +232,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //HACK: DOING THIS WHILE DESIGNING XTOKEN - REMOVE THIS
             if (!overrideHack)
             {
-                _contextAccessor.GetCurrent().AssertCanManageConnections();
+                _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
             return await GetIdentityConnectionRegistrationInternal(dotYouId);

@@ -7,6 +7,7 @@ using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authentication.YouAuth;
@@ -106,6 +107,7 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
 
             cb.RegisterType<DriveUploadService>().AsSelf().SingleInstance();
+            cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
             
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 

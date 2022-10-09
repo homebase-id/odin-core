@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -154,7 +155,7 @@ namespace Youverse.Core.Services.Drive.Storage
             var dest = GetThumbnailPath(fileId, width, height);
             File.Move(sourceThumbnail, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
-            
+
             return Task.CompletedTask;
         }
 
@@ -162,6 +163,11 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             //TODO: make more efficient by reading metadata or something else?
             var path = GetFilenameAndPath(id, FilePart.Payload);
+            if (!System.IO.File.Exists(path))
+            {
+                return Task.FromResult((long)0);
+            }
+
             return Task.FromResult(new FileInfo(path).Length);
         }
 
