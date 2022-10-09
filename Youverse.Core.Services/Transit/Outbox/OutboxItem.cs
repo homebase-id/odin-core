@@ -14,11 +14,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             this.Attempts = new List<TransferAttempt>();
             this.File = new InternalDriveFileId();
         }
-        
+
         public DotYouIdentity Recipient { get; set; }
-        
+
         public InternalDriveFileId File { get; set; }
-        
+
         /// <summary>
         /// Specifies how this item should be prioritized by the Outbox Sending
         /// Process.  The lower the number, the higher the priority
@@ -30,10 +30,11 @@ namespace Youverse.Core.Services.Transit.Outbox
         public UInt64 AddedTimestamp { get; set; }
 
         public byte[] Marker { get; set; }
-        
+
         /// <summary>
         /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients
         /// </summary>
+        [Obsolete("still deciding how to handle transient files")]
         public bool IsTransientFile { get; set; }
     }
 }

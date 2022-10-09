@@ -49,13 +49,13 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
             tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
-        return Task.FromResult((cursor, results.Select(r => new Guid(r))));
+        return Task.FromResult((cursor, results.Select(r => r.FileId)));
     }
 
 
@@ -76,13 +76,13 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.Select(g=>g.ToByteArray()).ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g.ToByteArray()).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
             tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
-        return Task.FromResult((cursor, results.Select(r => new Guid(r))));
+        return Task.FromResult((cursor, results.Select(r => r.FileId)));
     }
 
 
@@ -113,6 +113,17 @@ public class SqliteQueryManager : IDriveQueryManager
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
+        
+        if (header.ServerMetadata.DoNotIndex)
+        {
+            if (exists) // clean up if the flag was changed after it was indexed
+            {
+                _indexDb.TblMainIndex.DeleteRow(metadata.File.FileId);
+            }
+            
+            return Task.CompletedTask;
+        }
+        
         var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
         var acl = new List<byte[]>();
 
@@ -123,11 +134,6 @@ public class SqliteQueryManager : IDriveQueryManager
         acl.AddRange(ids.ToList());
 
         var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
-
-        // !!!
-        //NOTE: when you update payload is encrypted, be sure to update
-        // DriveQueryService.CreateSearchResult accordingly
-        // !!!
 
         //TODO: index metadata.AppData.ClientUniqueId
         if (exists)
@@ -147,7 +153,9 @@ public class SqliteQueryManager : IDriveQueryManager
         {
             //TODO: index metadata.AppData.ClientUniqueId
 
-            _indexDb.AddEntry(metadata.File.FileId,
+            _indexDb.AddEntry(
+                fileId: metadata.File.FileId,
+                globalCrossReferenceId: metadata.GlobalTransitId.GetValueOrDefault(),
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,

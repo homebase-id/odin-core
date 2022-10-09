@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit
                 .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
 
-            var drive = await  _driveService.GetDrive(internalFile.DriveId, failIfInvalid:true);
+            var drive = await _driveService.GetDrive(internalFile.DriveId, failIfInvalid: true);
 
             var recipients = options.Recipients;
 
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Transit
             var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
-            
+
             foreach (var r in recipients)
             {
                 var recipient = (DotYouIdentity)r;

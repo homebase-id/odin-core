@@ -14,6 +14,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     public class OutboxItemState
     {
         public string Recipient { get; set; }
+        
         public List<TransferAttempt> Attempts { get; }
     }
 
@@ -107,8 +108,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
                 return new OutboxItem()
                 {
-                    IsTransientFile = r
-                    Recipient = (DotYouIdentity)state.Recipient,
+                    Recipient = (DotYouIdentity)state!.Recipient,
                     Priority = (int)r.priority,
                     AddedTimestamp = r.timeStamp,
                     File = new InternalDriveFileId()
