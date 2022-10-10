@@ -3,10 +3,14 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Refit;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.ClientToken.App;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
+using Youverse.Hosting.Tests.AppAPI.Transit;
 
 namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 {
@@ -50,13 +54,16 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
 
+            var recipients = new List<string>() { TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId };
+
+            //TODO: send a file, get the global transit id, then send the command
 
             var command = new CommandMessage()
             {
                 Drive = frodoAppContext.TargetDrive,
                 JsonMessage = DotYouSystemSerializer.Serialize(new { reaction = ":)" }),
                 GlobalTransitIdList = new List<Guid>() { Guid.NewGuid() },
-                Recipients = new List<string>() { TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId }
+                Recipients =recipients
             };
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderTestContext.Identity, senderTestContext.ClientAuthenticationToken))
@@ -78,14 +85,19 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 Assert.That(commandResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(commandResult.RecipientStatus.Count == 2, "Too many recipient results returned");
 
-                //
+                await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: 4);
             }
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(samAppContext.Identity, samAppContext.ClientAuthenticationToken))
             {
+                var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
+                var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = drive });
+                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, samAppContext.SharedSecret);
                 var getUnprocessedCommandsResponse = await cmdService.GetUnprocessedCommands(new GetUnproccessedCommandsRequest()
                 {
+                    TargetDrive = drive,
                     Cursor = "" // ??
                 });
 

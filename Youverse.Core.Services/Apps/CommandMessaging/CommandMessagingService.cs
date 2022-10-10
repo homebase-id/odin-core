@@ -112,7 +112,7 @@ public class CommandMessagingService
         var receivedCommands = new List<ReceivedCommand>();
         var getCommandFileOptions = new QueryBatchResultOptions()
         {
-            Cursor = new QueryBatchCursor(cursor),
+            Cursor = cursor == string.Empty ? null : new QueryBatchCursor(cursor),
             ExcludePreviewThumbnail = true,
             IncludeJsonContent = true,
             MaxRecords = int.MaxValue

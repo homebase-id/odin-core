@@ -77,8 +77,13 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             string path = GetFilenameAndPath(fileId, filePart);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return Task.FromResult((Stream)fileStream);
+            if(File.Exists(path))
+            {
+                var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return Task.FromResult((Stream)fileStream);
+            }
+
+            return Task.FromResult(Stream.Null);
         }
 
         public Task<Stream> GetThumbnail(Guid fileId, int width, int height)
