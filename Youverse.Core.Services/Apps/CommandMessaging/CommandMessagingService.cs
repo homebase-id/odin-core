@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using SQLitePCL;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Apps.CommandMessaging;
 
@@ -25,13 +29,15 @@ public class CommandMessagingService
 {
     private readonly ITransitService _transitService;
     private readonly IDriveService _driveService;
+    private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
 
-    public CommandMessagingService(ITransitService transitService, IDriveService driveService, TenantContext tenantContext)
+    public CommandMessagingService(ITransitService transitService, IDriveService driveService, TenantContext tenantContext, IDriveQueryService driveQueryService)
     {
         _transitService = transitService;
         _driveService = driveService;
         _tenantContext = tenantContext;
+        _driveQueryService = driveQueryService;
     }
 
     public async Task<CommandMessageResult> SendCommandMessage(CommandMessage command)
@@ -46,7 +52,7 @@ public class CommandMessagingService
             ClientJsonMessage = command.JsonMessage,
             GlobalTransitIdList = command.GlobalTransitIdList
         };
-        
+
         var keyHeader = KeyHeader.NewRandom16();
         var fileMetadata = new FileMetadata(internalFile)
         {
@@ -71,7 +77,7 @@ public class CommandMessagingService
                 AdditionalThumbnails = default,
             }
         };
-        
+
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = AccessControlList.NewOwnerOnly,
@@ -80,7 +86,7 @@ public class CommandMessagingService
 
         var serverFileHeader = await _driveService.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
         await _driveService.WriteFileHeader(internalFile, serverFileHeader);
-  
+
         var transferResult = await _transitService.SendFile(internalFile, new TransitOptions()
         {
             IsTransient = true,
@@ -98,32 +104,89 @@ public class CommandMessagingService
     /// Gets a list of commands ready to be processed along with their associated files
     /// </summary>
     /// <returns></returns>
-    public async Task<IEnumerable<object>> GetUnprocessedCommands()
+    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor)
     {
-        return null;
-    }
+        var targetDrive = (await _driveService.GetDrive(driveId, true)).TargetDriveInfo;
+        var queryParams = FileQueryParams.FromFileType(targetDrive, ReservedFileTypes.CommandMessage);
 
-    public async Task MarkCommandsProcessed(IEnumerable<Guid> commandIds)
-    {
-    }
-
-    private void AssertValidInstructionSet(UploadInstructionSet instructionSet)
-    {
-        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
-
-        if (null == instructionSet?.TransferIv || ByteArrayUtil.EquiByteArrayCompare(instructionSet.TransferIv, Guid.Empty.ToByteArray()))
+        var receivedCommands = new List<ReceivedCommand>();
+        var getCommandFileOptions = new QueryBatchResultOptions()
         {
-            throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
+            Cursor = new QueryBatchCursor(cursor),
+            ExcludePreviewThumbnail = true,
+            IncludeJsonContent = true,
+            MaxRecords = int.MaxValue
+        };
+
+        var batch = await _driveQueryService.GetBatch(driveId, queryParams, getCommandFileOptions);
+        foreach (var commandFileHeader in batch.SearchResults)
+        {
+            var ctm = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
+
+            var fqp = new FileQueryParams()
+            {
+                TargetDrive = targetDrive,
+                GlobalTransitId = ctm!.GlobalTransitIdList
+            };
+
+            var options = new QueryBatchResultOptions()
+            {
+                Cursor = null, //?
+                ExcludePreviewThumbnail = true,
+                IncludeJsonContent = true,
+                MaxRecords = int.MaxValue //??
+            };
+
+            var globalTransitFileBatch = await _driveQueryService.GetBatch(driveId, fqp, options);
+            receivedCommands.Add(new ReceivedCommand()
+            {
+                Id = commandFileHeader.FileId,
+                Drive = targetDrive,
+                ClientJsonMessage = ctm.ClientJsonMessage,
+                MatchingFiles = globalTransitFileBatch.SearchResults,
+                GlobalTransitIdList = ctm!.GlobalTransitIdList
+            });
         }
 
-        if (instructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
+        return new ReceivedCommandResultSet()
         {
-            throw new UploadException("Cannot transfer to yourself; what's the point?");
+            ReceivedCommands = receivedCommands
+        };
+    }
+
+    public async Task MarkCommandsProcessed(IEnumerable<CommandId> commandIdList)
+    {
+        //commandId is the fileId of the command file
+
+        var list = new List<InternalDriveFileId>();
+        foreach (var commandId in commandIdList)
+        {
+            list.Add(new InternalDriveFileId()
+            {
+                FileId = commandId.Id,
+                DriveId = (await _driveService.GetDriveIdByAlias(commandId.TargetDrive)).GetValueOrDefault()
+            });
         }
 
-        if (!instructionSet.StorageOptions?.Drive?.IsValid() ?? false)
+        if (list.Any(f => f.DriveId == Guid.Empty))
         {
-            throw new UploadException("Target drive is invalid");
+            throw new YouverseException("One or more TargetDrives are invalid in the provided commandIdList.  No Commands were marked processed");
+        }
+
+        foreach (var internalDriveFileId in list)
+        {
+            await _driveService.DeleteLongTermFile(internalDriveFileId);
         }
     }
+}
+
+public class CommandId
+{
+    public Guid Id { get; set; }
+    public TargetDrive TargetDrive { get; set; }
+}
+
+public class ReceivedCommandResultSet
+{
+    public IEnumerable<ReceivedCommand> ReceivedCommands { get; set; }
 }

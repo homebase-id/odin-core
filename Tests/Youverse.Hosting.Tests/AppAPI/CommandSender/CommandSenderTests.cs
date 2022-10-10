@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             var samAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true, drive, driveAllowAnonymousReads: false);
 
             var senderTestContext = frodoAppContext;
-            
+
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
             await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
@@ -80,6 +80,25 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
                 //
             }
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(samAppContext.Identity, samAppContext.ClientAuthenticationToken))
+            {
+                var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, samAppContext.SharedSecret);
+                var getUnprocessedCommandsResponse = await cmdService.GetUnprocessedCommands(new GetUnproccessedCommandsRequest()
+                {
+                    Cursor = "" // ??
+                });
+
+                Assert.That(getUnprocessedCommandsResponse.IsSuccessStatusCode, Is.True);
+                Assert.That(getUnprocessedCommandsResponse.Content, Is.Not.Null);
+                var resultSet = getUnprocessedCommandsResponse.Content;
+
+                // resultSet.ReceivedCommands
+
+                //
+            }
+
+            Assert.Inconclusive("Test if the command was received; processed, and deleted");
         }
     }
 }

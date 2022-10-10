@@ -73,6 +73,7 @@ public class SqliteQueryManager : IDriveQueryManager
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             requiredSecurityGroup: securityRange,
+            globalCrossReferenceIdAnyOf: qp.GlobalTransitId?.ToList(),
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
@@ -113,17 +114,17 @@ public class SqliteQueryManager : IDriveQueryManager
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
         var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
-        
+
         if (header.ServerMetadata.DoNotIndex)
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
                 _indexDb.TblMainIndex.DeleteRow(metadata.File.FileId);
             }
-            
+
             return Task.CompletedTask;
         }
-        
+
         var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
         var acl = new List<byte[]>();
 

@@ -3,8 +3,11 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Configuration.CommandLine;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps.CommandMessaging;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Tenant;
 
 namespace Youverse.Hosting.Controllers.ClientToken.App
@@ -16,15 +19,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
     {
         private readonly string _currentTenant;
         private readonly CommandMessagingService _commandMessagingService;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public AppCommandController(ITenantProvider tenantProvider, CommandMessagingService commandMessagingService)
+        public AppCommandController(ITenantProvider tenantProvider, CommandMessagingService commandMessagingService, DotYouContextAccessor contextAccessor)
         {
             _commandMessagingService = commandMessagingService;
+            _contextAccessor = contextAccessor;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
         }
-        
+
         /// <summary>
-        /// Sends a command message to 
+        /// Sends a command message to a set of recipients
         /// </summary>
         /// <returns></returns>
         [HttpPost("send")]
@@ -33,11 +38,25 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
             var results = await _commandMessagingService.SendCommandMessage(request.Command);
             return results;
         }
-    }
 
-    public class SendCommandRequest
-    {
-        public CommandMessage Command { get; set; } 
+        /// <summary>
+        /// Gets commands and their associated files which need to be processed
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [HttpPost("unprocessed")]
+        public async Task<ReceivedCommandResultSet> GetUnprocessedCommands([FromBody] GetUnproccessedCommandsRequest request)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var result = await _commandMessagingService.GetUnprocessedCommands(driveId, request.Cursor);
+            return result;
+        }
+
+        [HttpPost("markcompleted")]
+        public async Task<bool> MarkCommandsCompleted([FromBody] MarkCommandsCompleteRequest request)
+        {
+            await _commandMessagingService.MarkCommandsProcessed(request.CommandIdList);
+            return true;
+        }
     }
-    
 }

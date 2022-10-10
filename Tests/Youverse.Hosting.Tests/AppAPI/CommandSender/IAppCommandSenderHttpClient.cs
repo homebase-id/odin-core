@@ -21,5 +21,11 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
         [Post(RootEndpoint + "/send")]
         Task<ApiResponse<CommandMessageResult>> SendCommand([Body] SendCommandRequest request);
+
+        [Post(RootEndpoint + "/unprocessed")]
+        Task<ApiResponse<ReceivedCommandResultSet>> GetUnprocessedCommands([Body]GetUnproccessedCommandsRequest request);
+
+        [Post(RootEndpoint + "/markcompleted")]
+        Task<ApiResponse<bool>> MarkCommandsComplete([Body] MarkCommandsCompleteRequest request);
     }
 }
