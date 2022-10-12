@@ -24,17 +24,7 @@ namespace Youverse.Hosting.Tests
         /// Indicates if the process incoming transfers should be called after sending a transfer
         /// </summary>
         public bool ProcessTransitBox { get; set; }
-
-        /// <summary>
-        /// The category id to use on the uploaded app data
-        /// </summary>
-        public Guid AppDataCategoryId { get; set; }
-
-        // <summary>
-        /// The Json content to use on the uploaded app data
-        /// </summary>
-        public string AppDataJsonContent { get; set; }
-
+        
         /// <summary>
         /// The data to be uploaded as the payload
         /// </summary>

@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
             var grant = new ExchangeGrant()
             {
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                Created = UnixTimeUtcMilliseconds.New().milliseconds,
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
                 IsRevoked = false,
                 KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
@@ -206,7 +206,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             {
                 Id = GuidId.NewId(),
                 AccessRegistrationClientType = clientType,
-                Created = DateTimeExtensions.UnixTimeMilliseconds(),
+                Created = UnixTimeUtcMilliseconds.New().milliseconds,
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
                 AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref sharedSecret),
                 IsRevoked = false,

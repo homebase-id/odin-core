@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
@@ -32,6 +33,8 @@ public class DriveUploadService
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _transitService = transitService;
+
+        _packages = new Dictionary<Guid, UploadPackage>();
     }
 
     /// <summary>
@@ -56,26 +59,19 @@ public class DriveUploadService
 
         return await ProcessUploadOfNewFile(package);
     }
-    
+
     public async Task<Guid> CreatePackage(Stream data)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
-        if (null == instructionSet?.TransferIv || ByteArrayUtil.EquiByteArrayCompare(instructionSet.TransferIv, Guid.Empty.ToByteArray()))
-        {
-            throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
-        }
+        Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+        instructionSet?.AssertIsValid();
 
-        if (instructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
+        if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
         {
             throw new UploadException("Cannot transfer to yourself; what's the point?");
-        }
-
-        if (!instructionSet.StorageOptions?.Drive?.IsValid() ?? false)
-        {
-            throw new UploadException("Target drive is invalid");
         }
 
         InternalDriveFileId file;
@@ -221,7 +217,7 @@ public class DriveUploadService
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
         var metadata = new FileMetadata(package.InternalFile)
         {
-            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseCrossReference ?? false) ? Guid.NewGuid() : null,
+            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             //TODO: need an automapper *sigh

@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public InternalDriveFileId TempFile { get; set; }
 
-        public UInt64 AddedTimestamp { get; set; }
+        public UnixTimeUtcSeconds AddedTimestamp { get; set; }
 
         public DotYouIdentity Sender { get; set; }
 

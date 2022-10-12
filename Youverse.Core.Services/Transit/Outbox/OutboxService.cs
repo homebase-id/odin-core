@@ -83,6 +83,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         public async Task MarkFailure(byte[] marker, TransferFailureReason reason)
         {
+            _systemStorage.Outbox.PopCommitList(marker, listFileId: new List<byte[]>());
             //TODO: there is no way to keep information on why an item failed
             _systemStorage.Outbox.PopCancel(marker);
 
@@ -110,7 +111,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 {
                     Recipient = (DotYouIdentity)state!.Recipient,
                     Priority = (int)r.priority,
-                    AddedTimestamp = r.timeStamp,
+                    AddedTimestamp = r.timeStamp.seconds,
                     File = new InternalDriveFileId()
                     {
                         DriveId = new Guid(r.boxId),

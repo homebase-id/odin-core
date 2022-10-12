@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         public OutboxItem()
         {
-            this.AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds();
+            this.AddedTimestamp = UnixTimeUtcSeconds.New().seconds;
             this.Attempts = new List<TransferAttempt>();
             this.File = new InternalDriveFileId();
         }

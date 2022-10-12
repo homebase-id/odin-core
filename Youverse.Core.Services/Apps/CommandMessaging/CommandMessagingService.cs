@@ -58,23 +58,13 @@ public class CommandMessagingService
         {
             ContentType = "application/json",
             GlobalTransitId = null,
-            Created = DateTimeExtensions.UnixTimeMilliseconds(),
-            Updated = default,
-            SenderDotYouId = default,
-            PayloadSize = default,
+            Created = UnixTimeUtcMilliseconds.New().milliseconds,
             OriginalRecipientList = null,
             PayloadIsEncrypted = true,
             AppData = new AppFileMetaData()
             {
-                Tags = default,
                 FileType = ReservedFileTypes.CommandMessage,
-                DataType = default,
-                GroupId = default,
-                UserDate = default,
-                ContentIsComplete = default,
                 JsonContent = DotYouSystemSerializer.Serialize(msg),
-                PreviewThumbnail = default,
-                AdditionalThumbnails = default,
             }
         };
 
@@ -91,7 +81,7 @@ public class CommandMessagingService
         {
             IsTransient = true,
             Recipients = command.Recipients,
-            UseCrossReference = false
+            UseGlobalTransitId = false
         });
 
         return new CommandMessageResult()
@@ -100,6 +90,20 @@ public class CommandMessagingService
         };
     }
 
+    // public async Task<OutgoingCommandStatusResultSet> GetOutgoingCommandStatus(Guid driveId, string cursor)
+    // {
+    //     // files are not indexed
+    //     // but i need a way to get the status of the command and if it has been delivered
+    //     // i also need a way to determine when to delete the file
+    //     // so we have to look at the outbox
+
+    //     Outbox Key is
+    //          fileId
+    //          driveId
+    //          recipient
+    
+    // }
+
     /// <summary>
     /// Gets a list of commands ready to be processed along with their associated files
     /// </summary>
@@ -107,7 +111,7 @@ public class CommandMessagingService
     public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor)
     {
         var targetDrive = (await _driveService.GetDrive(driveId, true)).TargetDriveInfo;
-        var queryParams = FileQueryParams.FromFileType(targetDrive, ReservedFileTypes.CommandMessage);
+        var getCommandFilesQueryParams = FileQueryParams.FromFileType(targetDrive, ReservedFileTypes.CommandMessage);
 
         var receivedCommands = new List<ReceivedCommand>();
         var getCommandFileOptions = new QueryBatchResultOptions()
@@ -118,7 +122,7 @@ public class CommandMessagingService
             MaxRecords = int.MaxValue
         };
 
-        var batch = await _driveQueryService.GetBatch(driveId, queryParams, getCommandFileOptions);
+        var batch = await _driveQueryService.GetBatch(driveId, getCommandFilesQueryParams, getCommandFileOptions);
         foreach (var commandFileHeader in batch.SearchResults)
         {
             var ctm = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
@@ -136,6 +140,14 @@ public class CommandMessagingService
                 IncludeJsonContent = true,
                 MaxRecords = int.MaxValue //??
             };
+            
+            //TODO: consider - what happens if this method is called but the associated file has not yet been received? 
+            //do i need to put a marker on the command that it requires an associated file?  if i
+
+            if (ctm.GlobalTransitIdList.Any())
+            {
+                //this command has associated files, don't return it until all files have arrived?
+            }
 
             var globalTransitFileBatch = await _driveQueryService.GetBatch(driveId, fqp, options);
             receivedCommands.Add(new ReceivedCommand()
@@ -178,15 +190,4 @@ public class CommandMessagingService
             await _driveService.DeleteLongTermFile(internalDriveFileId);
         }
     }
-}
-
-public class CommandId
-{
-    public Guid Id { get; set; }
-    public TargetDrive TargetDrive { get; set; }
-}
-
-public class ReceivedCommandResultSet
-{
-    public IEnumerable<ReceivedCommand> ReceivedCommands { get; set; }
 }

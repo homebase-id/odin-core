@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// Specifies if a CrossReferenceId should be added to the file when sending to other Identities
         /// </summary>
-        public bool UseCrossReference { get; set; }
+        public bool UseGlobalTransitId { get; set; }
         
         /// <summary>
         /// List of identities that should receive this file 

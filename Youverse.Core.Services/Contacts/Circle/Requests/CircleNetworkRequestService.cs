@@ -22,10 +22,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     public class CircleNetworkRequestService : ICircleNetworkRequestService
     {
-        private readonly string _pendingPrefix = "pnd";
         private readonly GuidId _pendingRequestsDataType = GuidId.FromString("pnd_requests");
 
-        private readonly string _sentPrefix = "snt";
         private readonly GuidId _sentRequestsDataType = GuidId.FromString("sent_requests");
 
         private readonly DotYouContextAccessor _contextAccessor;
@@ -198,7 +196,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            var result = _pendingRequestValueStorage.Get<ConnectionRequest>(sender.ToGuidIdentifier(), _pendingPrefix);
+            var result = _pendingRequestValueStorage.Get<ConnectionRequest>(sender.ToGuidIdentifier());
             return result;
         }
 
@@ -217,7 +215,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeleteSentRequestInternal(DotYouIdentity recipient)
         {
-            _sentRequestValueStorage.Delete(recipient.ToGuidIdentifier(), _sentPrefix);
+            _sentRequestValueStorage.Delete(recipient.ToGuidIdentifier());
             return Task.CompletedTask;
         }
 
@@ -333,13 +331,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private Task DeletePendingRequestInternal(DotYouIdentity sender)
         {
-            _pendingRequestValueStorage.Delete(sender.ToGuidIdentifier(), _pendingPrefix);
+            _pendingRequestValueStorage.Delete(sender.ToGuidIdentifier());
             return Task.CompletedTask;
         }
 
         private async Task<ConnectionRequest> GetSentRequestInternal(DotYouIdentity recipient)
         {
-            var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToGuidIdentifier(), _sentPrefix);
+            var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToGuidIdentifier());
             return result;
         }
 

@@ -55,7 +55,7 @@ public class SqliteQueryManager : IDriveQueryManager
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
             tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
-        return Task.FromResult((cursor, results.Select(r => r.FileId)));
+        return Task.FromResult((cursor, results.AsEnumerable()));
     }
 
 
@@ -73,17 +73,17 @@ public class SqliteQueryManager : IDriveQueryManager
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             requiredSecurityGroup: securityRange,
-            globalCrossReferenceIdAnyOf: qp.GlobalTransitId?.ToList(),
+            globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.Select(g => g.ToByteArray()).ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
             tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
-        return Task.FromResult((cursor, results.Select(r => r.FileId)));
+        return Task.FromResult((cursor, results.Select(r => r)));
     }
 
 
@@ -144,7 +144,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId.ToByteArray(),
+                metadata.AppData.GroupId,
                 metadata.AppData.UserDate,
                 securityGroup,
                 acl,
@@ -156,11 +156,11 @@ public class SqliteQueryManager : IDriveQueryManager
 
             _indexDb.AddEntry(
                 fileId: metadata.File.FileId,
-                globalCrossReferenceId: metadata.GlobalTransitId.GetValueOrDefault(),
+                globalTransitId: metadata.GlobalTransitId.GetValueOrDefault(),
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
-                metadata.AppData.GroupId.ToByteArray(),
+                metadata.AppData.GroupId,
                 metadata.AppData.UserDate.GetValueOrDefault(),
                 securityGroup,
                 acl,

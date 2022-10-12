@@ -120,7 +120,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                 {
                     publicKey = tpkResponse.Content.PublicKey,
                     crc32c = tpkResponse.Content.Crc32,
-                    expiration = tpkResponse.Content.Expiration
+                    expiration = new UnixTimeUtcSeconds(tpkResponse.Content.Expiration)
                 };
 
                 _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);

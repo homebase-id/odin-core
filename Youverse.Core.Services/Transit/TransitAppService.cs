@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
@@ -27,11 +28,12 @@ namespace Youverse.Core.Services.Transit
         private readonly ISystemStorage _systemStorage;
         private readonly ITransitBoxService _transitBoxService;
         private readonly IPublicKeyService _publicKeyService;
+        private readonly TenantContext _tenantContext;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
         public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService,
-            ITransitBoxService transitBoxService, IPublicKeyService publicKeyService)
+            ITransitBoxService transitBoxService, IPublicKeyService publicKeyService, TenantContext tenantContext)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -39,10 +41,12 @@ namespace Youverse.Core.Services.Transit
             _appRegistrationService = appRegistrationService;
             _transitBoxService = transitBoxService;
             _publicKeyService = publicKeyService;
+            _tenantContext = tenantContext;
         }
 
         public async Task ProcessIncomingTransfers(TargetDrive targetDrive)
         {
+            
             var drive = await _driveService.GetDriveIdByAlias(targetDrive, true);
 
             var items = await GetAcceptedItems(drive.GetValueOrDefault());

@@ -32,38 +32,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Guid CreateFileId()
         {
-            var datetime = DateTimeOffset.UtcNow;
-
-            var random = new Random();
-            var rnd = new byte[7];
-            random.NextBytes(rnd);
-
-            //byte[] offset = BitConverter.GetBytes(datetime.Offset.TotalMinutes);
-            var year = BitConverter.GetBytes((short)datetime.Year);
-            var bytes = new byte[16]
-            {
-                (byte)datetime.Day,
-                (byte)datetime.Month,
-                year[0],
-                year[1],
-                (byte)datetime.Minute,
-                (byte)datetime.Hour,
-                (byte)datetime.Second,
-                (byte)datetime.Millisecond,
-                255, //variant: unknown
-                rnd[0],
-                rnd[1],
-                rnd[2],
-                rnd[3],
-                rnd[4],
-                rnd[5],
-                rnd[6]
-            };
-
-            // set the version to be compliant with rfc; not sure it matters
-            bytes[7] &= 0x0f;
-            bytes[7] |= 0x04 << 4;
-
+            var bytes = SequentialGuid.CreateGuid();
             return new Guid(bytes);
         }
 

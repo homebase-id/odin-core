@@ -211,10 +211,10 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
                 Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
-                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.FileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.FileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.FileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.FileMetadata.ContentType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadContext.UploadFileMetadata.AppData.FileType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.UploadFileMetadata.AppData.DataType);
+                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.UploadFileMetadata.AppData.UserDate);
+                Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.UploadFileMetadata.ContentType);
                 Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
 
                 //must be ordered correctly

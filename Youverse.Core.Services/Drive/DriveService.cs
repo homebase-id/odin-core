@@ -242,12 +242,12 @@ namespace Youverse.Core.Services.Drive
             if (this.FileExists(file))
             {
                 var existingHeader = await this.GetServerFileHeader(file);
-                metadata.Updated = DateTimeExtensions.UnixTimeMilliseconds();
+                metadata.Updated = UnixTimeUtcMilliseconds.New().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
             }
             else
             {
-                metadata.Created = DateTimeExtensions.UnixTimeMilliseconds();
+                metadata.Created = UnixTimeUtcMilliseconds.New().milliseconds;
             }
 
             var json = DotYouSystemSerializer.Serialize(header);

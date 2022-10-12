@@ -650,7 +650,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
-                    FileMetadata = fileMetadata,
+                    UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
                     UploadedFile = transferResult.File
                 };
@@ -756,7 +756,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
-                    FileMetadata = fileMetadata,
+                    UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
                     UploadedFile = transferResult.File
                 };

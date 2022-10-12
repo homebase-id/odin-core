@@ -5,8 +5,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {
-        private const string _regPrefix = "yrg";
-        private const string _clientPrefix = "yac";
         private readonly ISystemStorage _systemStorage;
 
         public YouAuthRegistrationStorage(ISystemStorage systemStorage)
@@ -18,34 +16,34 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public YouAuthRegistration? LoadFromSubject(string subject)
         {
-            return _systemStorage.SingleKeyValueStorage.Get<YouAuthRegistration>(GuidId.FromString(subject), _regPrefix);
+            return _systemStorage.SingleKeyValueStorage.Get<YouAuthRegistration>(GuidId.FromString(subject));
         }
 
         //
 
         public void Save(YouAuthRegistration registration)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(registration.Subject), registration, _regPrefix);
+            _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(registration.Subject), registration);
         }
 
         //
 
         public void Delete(YouAuthRegistration registration)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(registration.Subject), _regPrefix);
+            _systemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(registration.Subject));
             
             //TODO: delete clients as well
         }
 
         public YouAuthClient? GetYouAuthClient(Guid id)
         {
-            var client = _systemStorage.SingleKeyValueStorage.Get<YouAuthClient>(id, _clientPrefix);
+            var client = _systemStorage.SingleKeyValueStorage.Get<YouAuthClient>(id);
             return client;
         }
 
         public void SaveClient(YouAuthClient client)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(client.Id, client, _clientPrefix);
+            _systemStorage.SingleKeyValueStorage.Upsert(client.Id, client);
         }
     }
 }

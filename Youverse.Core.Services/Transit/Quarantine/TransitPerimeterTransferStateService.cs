@@ -14,8 +14,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
-        private const string _context = "tss";
-
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
 
@@ -48,7 +46,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)
         {
-            var item = _systemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id, _context);
+            var item = _systemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id);
 
             if (null == item)
             {
@@ -88,13 +86,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public Task RemoveStateItem(Guid transferStateItemId)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(transferStateItemId, _context);
+            _systemStorage.SingleKeyValueStorage.Delete(transferStateItemId);
             return Task.CompletedTask;
         }
 
         private void Save(IncomingTransferStateItem stateItem)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem, _context);
+            _systemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem);
         }
     }
 }

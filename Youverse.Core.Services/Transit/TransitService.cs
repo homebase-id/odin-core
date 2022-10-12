@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Transit
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
-                AddedTimestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                AddedTimestamp = UnixTimeUtcSeconds.New(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Transit
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            var now = DateTimeExtensions.UnixTimeMilliseconds();
+            var now = UnixTimeUtcMilliseconds.New().milliseconds;
             var item = new TransitKeyEncryptionQueueItem()
             {
                 Id = GuidId.NewId(),
@@ -224,6 +224,9 @@ namespace Youverse.Core.Services.Transit
                 // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
                 await this.SendBatchNow(batch);
+                
+                //was the batch successful?
+                
             }
         }
 
@@ -244,7 +247,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         File = file,
                         Recipient = recipient,
-                        Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                        Timestamp = UnixTimeUtcMilliseconds.New().milliseconds,
                         Success = false,
                         FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
                         OutboxItem = outboxItem
@@ -339,7 +342,7 @@ namespace Youverse.Core.Services.Transit
                 Recipient = recipient,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = DateTimeExtensions.UnixTimeMilliseconds(),
+                Timestamp = UnixTimeUtcMilliseconds.New().milliseconds,
                 OutboxItem = outboxItem
             };
         }

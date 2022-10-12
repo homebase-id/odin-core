@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 throw new MissingDataException($"Invalid circle {newCircleDefinition.Id}");
             }
 
-            existingCircle.LastUpdated = DateTimeExtensions.UnixTimeMilliseconds();
+            existingCircle.LastUpdated = UnixTimeUtcMilliseconds.New().milliseconds;
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
@@ -184,7 +184,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 throw new YouverseException("Circle with Id already exists");
             }
 
-            var now = DateTimeExtensions.UnixTimeMilliseconds();
+            var now = UnixTimeUtcMilliseconds.New().milliseconds;
             var circle = new CircleDefinition()
             {
                 Id = request.Id,

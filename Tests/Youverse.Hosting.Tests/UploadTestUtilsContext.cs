@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests
         /// <summary>
         /// The file meta data that was uploaded. 
         /// </summary>
-        public UploadFileMetadata FileMetadata { get; set; }
+        public UploadFileMetadata UploadFileMetadata { get; set; }
 
         /// <summary>
         /// The payload data that was uploaded

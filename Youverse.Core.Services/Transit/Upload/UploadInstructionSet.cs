@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dawn;
 using Youverse.Core.Services.Drive;
@@ -18,6 +19,20 @@ namespace Youverse.Core.Services.Transit.Upload
         public StorageOptions StorageOptions { get; set; }
 
         public TransitOptions TransitOptions { get; set; }
+        
+        public void AssertIsValid()
+        {
+            if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
+            {
+                throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
+            }
+
+            if (!StorageOptions?.Drive?.IsValid() ?? false)
+            {
+                throw new UploadException("Target drive is invalid");
+            }
+        }
+
 
         public static UploadInstructionSet WithRecipients(TargetDrive drive, IEnumerable<string> recipients)
         {
@@ -43,5 +58,6 @@ namespace Youverse.Core.Services.Transit.Upload
                 }
             };
         }
+
     }
 }
