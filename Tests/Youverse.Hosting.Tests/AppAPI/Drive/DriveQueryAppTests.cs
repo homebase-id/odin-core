@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
-            var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
@@ -122,7 +122,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
-            var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, uploadContext.TestAppContext.ClientAuthenticationToken))
             {
@@ -200,7 +200,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DisconnectIdentitiesAfterTransfer = true,
             };
 
-            var uploadContext = await _scaffold.AppApi.Upload(identity, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata, options);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, uploadContext.TestAppContext.ClientAuthenticationToken))
             {

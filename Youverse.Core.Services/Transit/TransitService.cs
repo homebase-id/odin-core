@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Transit
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtcSeconds.New(),
+                AddedTimestamp = UnixTimeUtcSeconds.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Transit
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            var now = UnixTimeUtcMilliseconds.New().milliseconds;
+            var now = UnixTimeUtcMilliseconds.Now().milliseconds;
             var item = new TransitKeyEncryptionQueueItem()
             {
                 Id = GuidId.NewId(),
@@ -198,12 +198,18 @@ namespace Youverse.Core.Services.Transit
 
             await Task.WhenAll(tasks);
 
-            //build results
+            List<InternalDriveFileId> filesForDeletion = new List<InternalDriveFileId>();
             tasks.ForEach(task =>
             {
                 var sendResult = task.Result;
+                var outboxItem = sendResult.OutboxItem;
                 if (sendResult.Success)
                 {
+                    if (outboxItem.IsTransientFile)
+                    {
+                        filesForDeletion.Add(outboxItem.File);
+                    }
+
                     _outboxService.MarkComplete(sendResult.OutboxItem.Marker);
                 }
                 else
@@ -211,6 +217,12 @@ namespace Youverse.Core.Services.Transit
                     _outboxService.MarkFailure(sendResult.OutboxItem.Marker, sendResult.FailureReason.GetValueOrDefault());
                 }
             });
+
+            foreach (var fileId in filesForDeletion)
+            {
+                //TODO: add logging?
+                await _driveService.HardDeleteLongTermFile(fileId);
+            }
         }
 
         public async Task ProcessOutbox(int batchSize)
@@ -220,13 +232,12 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var drive in page.Results)
             {
-                var batch = await _outboxService.GetNext(drive.Id, batchSize);
+                var batch = await _outboxService.GetBatchForProcessing(drive.Id, batchSize);
                 // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
                 await this.SendBatchNow(batch);
-                
+
                 //was the batch successful?
-                
             }
         }
 
@@ -247,7 +258,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         File = file,
                         Recipient = recipient,
-                        Timestamp = UnixTimeUtcMilliseconds.New().milliseconds,
+                        Timestamp = UnixTimeUtcMilliseconds.Now().milliseconds,
                         Success = false,
                         FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
                         OutboxItem = outboxItem
@@ -342,7 +353,7 @@ namespace Youverse.Core.Services.Transit
                 Recipient = recipient,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = UnixTimeUtcMilliseconds.New().milliseconds,
+                Timestamp = UnixTimeUtcMilliseconds.Now().milliseconds,
                 OutboxItem = outboxItem
             };
         }

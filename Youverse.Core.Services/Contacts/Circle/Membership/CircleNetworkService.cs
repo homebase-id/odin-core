@@ -498,7 +498,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var circle = _circleDefinitionService.GetCircle(circleId);
             circle.Disabled = true;
-            circle.LastUpdated = UnixTimeUtcMilliseconds.New().milliseconds;
+            circle.LastUpdated = UnixTimeUtcMilliseconds.Now().milliseconds;
             _circleDefinitionService.Update(circle);
             return Task.CompletedTask;
         }
@@ -507,7 +507,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             var circle = _circleDefinitionService.GetCircle(circleId);
             circle.Disabled = false;
-            circle.LastUpdated = UnixTimeUtcMilliseconds.New().milliseconds;
+            circle.LastUpdated = UnixTimeUtcMilliseconds.Now().milliseconds;
             _circleDefinitionService.Update(circle);
             return Task.CompletedTask;
         }

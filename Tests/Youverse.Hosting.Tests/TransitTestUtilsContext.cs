@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Hosting.Tests
 {
@@ -12,5 +13,7 @@ namespace Youverse.Hosting.Tests
         public Dictionary<DotYouIdentity, TestSampleAppContext> RecipientContexts { get; set; }
         
         public Guid? GlobalTransitId { get; set; }
+        
+        public List<ImageDataHeader> Thumbnails { get; set; }
     }
 }

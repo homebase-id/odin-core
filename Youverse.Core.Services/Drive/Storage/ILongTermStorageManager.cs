@@ -55,10 +55,17 @@ namespace Youverse.Core.Services.Drive.Storage
         bool FileExists(Guid fileId);
         
         /// <summary>
-        /// Deletes all parts matching <param name="fileId"></param>
+        /// Removes all traces of a file and deletes its record from the index
         /// </summary>
         /// <returns></returns>
-        Task Delete(Guid fileId);
+        Task HardDelete(Guid fileId);
+
+        /// <summary>
+        /// Removes the contents of the meta file while permanently deletes the payload and thumbnails.  Retains some fields of the metafile and updates the index accordingly
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <returns></returns>
+        Task SoftDelete(Guid fileId);
 
         /// <summary>
         /// Moves the specified <param name="sourcePath"></param> to long term storage.

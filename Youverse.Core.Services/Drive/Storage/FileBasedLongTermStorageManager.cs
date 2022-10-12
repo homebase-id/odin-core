@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -15,6 +14,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private readonly StorageDrive _drive;
         private const int WriteChunkSize = 1024;
+        private const string ThumbnailSuffixFormatSpecifier = "-{0}x{1}";
 
         public FileBasedLongTermStorageManager(StorageDrive drive, ILogger<ILongTermStorageManager> logger)
         {
@@ -32,8 +32,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public Guid CreateFileId()
         {
-            var bytes = SequentialGuid.CreateGuid();
-            return new Guid(bytes);
+            return SequentialGuid.CreateGuid();
         }
 
         public Task WritePartStream(Guid fileId, FilePart part, Stream stream)
@@ -46,7 +45,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             string path = GetFilenameAndPath(fileId, filePart);
-            if(File.Exists(path))
+            if (File.Exists(path))
             {
                 var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 return Task.FromResult((Stream)fileStream);
@@ -67,7 +66,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private string GetThumbnailFileName(Guid fileId, int width, int height)
         {
-            string suffix = $"-{width}x{height}";
+            var suffix = string.Format(ThumbnailSuffixFormatSpecifier, width, height);
             string fileName = this.GetFilename(fileId, suffix, FilePart.Thumb);
             return fileName;
         }
@@ -98,24 +97,27 @@ namespace Youverse.Core.Services.Drive.Storage
             return File.Exists(metadata) && File.Exists(payload);
         }
 
-        public Task Delete(Guid fileId)
+        public Task HardDelete(Guid fileId)
         {
+            DeleteThumbnails(fileId);
+            DeletePayload(fileId);
+
             string metadata = GetFilenameAndPath(fileId, FilePart.Header);
             if (File.Exists(metadata))
             {
                 File.Delete(metadata);
             }
 
-            string payload = GetFilenameAndPath(fileId, FilePart.Payload);
-
-            if (File.Exists(payload))
-            {
-                File.Delete(payload);
-            }
-
             return Task.CompletedTask;
         }
 
+        public Task SoftDelete(Guid fileId)
+        {
+            DeleteThumbnails(fileId);
+            DeletePayload(fileId);
+            return Task.CompletedTask;
+        }
+        
         public Task MoveToLongTerm(Guid fileId, string sourcePath, FilePart part)
         {
             var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
@@ -295,5 +297,28 @@ namespace Youverse.Core.Services.Drive.Storage
                 output.Close();
             }
         }
+        
+        private void DeletePayload(Guid fileId)
+        {
+            string payload = GetFilenameAndPath(fileId, FilePart.Payload);
+            if (File.Exists(payload))
+            {
+                File.Delete(payload);
+            }
+        }
+
+        private void DeleteThumbnails(Guid fileId)
+        {
+            var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
+            var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
+            string dir = GetFilePath(fileId, false);
+
+            var thumbnails = Directory.GetFiles(dir, seekPath);
+            foreach (var thumbnail in thumbnails)
+            {
+                File.Delete(thumbnail);
+            }
+        }
+
     }
 }

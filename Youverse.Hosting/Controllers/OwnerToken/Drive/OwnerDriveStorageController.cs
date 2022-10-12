@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
                 FileId = request.FileId
             };
-            await _driveService.DeleteLongTermFile(file);
+            await _driveService.SoftDeleteLongTermFile(file);
             
             return true;
         }

@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     {
         public OutboxItem()
         {
-            this.AddedTimestamp = UnixTimeUtcSeconds.New().seconds;
+            this.AddedTimestamp = UnixTimeUtcSeconds.Now().seconds;
             this.Attempts = new List<TransferAttempt>();
             this.File = new InternalDriveFileId();
         }
@@ -34,7 +34,6 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <summary>
         /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients
         /// </summary>
-        [Obsolete("still deciding how to handle transient files")]
         public bool IsTransientFile { get; set; }
     }
 }

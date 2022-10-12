@@ -58,7 +58,7 @@ public class CommandMessagingService
         {
             ContentType = "application/json",
             GlobalTransitId = null,
-            Created = UnixTimeUtcMilliseconds.New().milliseconds,
+            Created = UnixTimeUtcMilliseconds.Now().milliseconds,
             OriginalRecipientList = null,
             PayloadIsEncrypted = true,
             AppData = new AppFileMetaData()
@@ -187,7 +187,7 @@ public class CommandMessagingService
 
         foreach (var internalDriveFileId in list)
         {
-            await _driveService.DeleteLongTermFile(internalDriveFileId);
+            await _driveService.SoftDeleteLongTermFile(internalDriveFileId);
         }
     }
 }

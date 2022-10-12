@@ -14,8 +14,10 @@ namespace Youverse.Core.Services.Transit.Outbox
     public class OutboxItemState
     {
         public string Recipient { get; set; }
-        
+
         public List<TransferAttempt> Attempts { get; }
+
+        public bool IsTransientFile { get; set; }
     }
 
     /// <summary>
@@ -48,8 +50,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             var state = DotYouSystemSerializer.Serialize(new OutboxItemState()
             {
                 Recipient = item.Recipient,
+                IsTransientFile = item.IsTransientFile,
                 Attempts = { }
-                
             }).ToUtf8ByteArray();
 
             _systemStorage.Outbox.InsertRow(
@@ -99,7 +101,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             // });
         }
 
-        public async Task<List<OutboxItem>> GetNext(Guid driveId, int batchSize)
+        public async Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
             var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), batchSize, out var marker);
@@ -110,6 +112,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 return new OutboxItem()
                 {
                     Recipient = (DotYouIdentity)state!.Recipient,
+                    IsTransientFile = state!.IsTransientFile,
                     Priority = (int)r.priority,
                     AddedTimestamp = r.timeStamp.seconds,
                     File = new InternalDriveFileId()

@@ -1,15 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -158,45 +165,134 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test(Description = "")]
-        public async Task CanDeleteFile()
+        public async Task CanSoftDeleteFile()
         {
-            //upload to identity
-            // has payload, jsoncontent, and thumbnails
+            int SomeFileType = 194392901;
 
-            //delete file
-            
-            //validate query modified returns file
-            
-            // validate query batch returns file
-            
-            // get file
-            // validate metadata is updated correctly
-            //  fileId stays
-            //  Global Unique Id stays
-            //  ACL stays
-            //  everything else is empty or null
-            // Remove payload and thumbnails
-            // previous thumbnail files are gone
-            // payload is gone
-            // 
-            
-            Assert.Inconclusive("WIP");
+            var fileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = true,
+                AppData = new()
+                {
+                    FileType = SomeFileType,
+                    JsonContent = "{some:'file content'}",
+                },
+                AccessControlList = AccessControlList.NewOwnerOnly
+            };
+
+            var options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "this will be deleted",
+                IncludeThumbnail = true
+            };
+
+            AppTransitTestUtilsContext ctx = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(TestIdentities.Frodo, fileMetadata, options);
+
+            Assert.IsNotNull(ctx.Thumbnails.SingleOrDefault());
+            var appContext = ctx.TestAppContext;
+            var fileToDelete = ctx.UploadedFile;
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            {
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
+                
+                //validate the file is in the index
+                var fileIsInIndexResponse = await svc.QueryBatch(new QueryBatchRequest()
+                {
+                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        MaxRecords = 10
+                    }
+                });
+
+                Assert.IsTrue(fileIsInIndexResponse?.Content?.SearchResults?.SingleOrDefault()?.FileMetadata?.AppData?.FileType == SomeFileType);
+                
+                // delete the file
+                var deleteFileResponse = await svc.DeleteFile(fileToDelete);
+                Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+                Assert.IsTrue(deleteFileResponse.Content);
+
+                //
+                // Should still be in index
+                //
+                
+                var qbResponse = await svc.QueryBatch(new QueryBatchRequest()
+                {
+                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive),
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        MaxRecords = 10
+                    }
+                });
+
+                Assert.IsTrue(qbResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(qbResponse.Content);
+                var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
+                AssertFileHeaderIsMarkedDeleted(qbDeleteFileEntry);
+
+                // crucial - it should return in query modified so apps can sync locally
+                var queryModifiedResponse = await svc.QueryModified(new QueryModifiedRequest()
+                {
+                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
+                    ResultOptions = new QueryModifiedResultOptions()
+                    {
+                        MaxRecords = 10
+                    }
+                });
+
+                Assert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(queryModifiedResponse.Content);
+                var queryModifiedDeletedEntry = qbResponse.Content.SearchResults.SingleOrDefault();
+                Assert.IsNotNull(queryModifiedDeletedEntry);
+                AssertFileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
+
+                // get file directly
+                var getFileHeaderResponse = await svc.GetFileHeader(fileToDelete);
+                Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(getFileHeaderResponse.Content);
+                var deletedFileHeader = getFileHeaderResponse.Content;
+                AssertFileHeaderIsMarkedDeleted(deletedFileHeader);
+
+                //there should not be a thumbnail
+                var thumb = ctx.Thumbnails.Single();
+                var getThumbnailResponse = await svc.GetThumbnail(new GetThumbnailRequest()
+                {
+                    File = fileToDelete,
+                    Height = thumb.PixelHeight,
+                    Width = thumb.PixelWidth
+                });
+                Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+
+                //there should not be a payload
+                var getPayloadResponse = await svc.GetPayload(fileToDelete);
+                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+            }
         }
-        
+
+        private void AssertFileHeaderIsMarkedDeleted(ClientFileHeader fileHeader)
+        {
+            Assert.IsTrue(fileHeader.FileId != Guid.Empty);
+            Assert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
+            Assert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Owner);
+            Assert.IsNull(fileHeader.FileMetadata.GlobalTransitId); //TODO: we just uploaded a file in this case
+            Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
+            Assert.IsTrue(fileHeader.FileMetadata.Created == default);
+            Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData == default);
+            Assert.IsTrue(fileHeader.FileMetadata.ContentType == default);
+            Assert.IsTrue(fileHeader.FileMetadata.SenderDotYouId == default);
+            Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == default);
+            Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);
+
+
+        }
+
         [Test(Description = "")]
+        [Ignore("There is no api exposed for hard-delete.  ")]
         public async Task CanHardDeleteFile()
         {
-            //upload to identity
-            // has payload, jsoncontent, and thumbnails
-
-            //delete file
-
-            // validate: no results from query modified
-            // validate no results from query batch
-            
-            //validate get file returns 404
-            
-            Assert.Inconclusive("WIP");
         }
     }
 }

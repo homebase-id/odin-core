@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -61,7 +63,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
 
-        public async Task<AppTransitTestUtilsContext> Upload(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -100,6 +102,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
+
             using (var client = this.CreateAppApiHttpClient(senderAppContext.Identity, senderAppContext.ClientAuthenticationToken))
             {
                 var keyHeader = KeyHeader.NewRandom16();
@@ -123,10 +126,28 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+
+                var thumbnails = new List<StreamPart>();
+                var thumbnailsAdded = new List<ImageDataHeader>();
+                if (options.IncludeThumbnail)
+                {
+                    var thumbnail1 = new ImageDataHeader()
+                    {
+                        PixelHeight = 300,
+                        PixelWidth = 300,
+                        ContentType = "image/jpeg"
+                    };
+
+                    var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
+                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    thumbnailsAdded.Add(thumbnail1);
+                }
+
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    thumbnails.ToArray());
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -181,7 +202,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     PayloadData = payloadData,
                     TestAppContext = senderAppContext,
                     UploadedFile = transferResult.File,
-                    GlobalTransitId = transferResult.GlobalTransitId
+                    GlobalTransitId = transferResult.GlobalTransitId,
+                    Thumbnails = thumbnailsAdded
                 };
             }
         }

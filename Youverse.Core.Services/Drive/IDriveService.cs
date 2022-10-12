@@ -116,7 +116,13 @@ namespace Youverse.Core.Services.Drive
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>
         /// <returns></returns>
-        Task DeleteLongTermFile(InternalDriveFileId file);
+        Task HardDeleteLongTermFile(InternalDriveFileId file);
+        
+        /// <summary>
+        /// Deletes all parts matching <param name="file"></param>
+        /// </summary>
+        /// <returns></returns>
+        Task SoftDeleteLongTermFile(InternalDriveFileId file);
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 

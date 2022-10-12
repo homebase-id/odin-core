@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public Task Add(TransferBoxItem item)
         {
-            item.AddedTimestamp = UnixTimeUtcSeconds.New();
+            item.AddedTimestamp = UnixTimeUtcSeconds.Now();
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
             _systemStorage.Inbox.InsertRow(item.TempFile.DriveId.ToByteArray(), item.TempFile.FileId.ToByteArray(), 1, state);

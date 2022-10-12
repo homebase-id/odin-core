@@ -242,12 +242,12 @@ namespace Youverse.Core.Services.Drive
             if (this.FileExists(file))
             {
                 var existingHeader = await this.GetServerFileHeader(file);
-                metadata.Updated = UnixTimeUtcMilliseconds.New().milliseconds;
+                metadata.Updated = UnixTimeUtcMilliseconds.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
             }
             else
             {
-                metadata.Created = UnixTimeUtcMilliseconds.New().milliseconds;
+                metadata.Created = UnixTimeUtcMilliseconds.Now().milliseconds;
             }
 
             var json = DotYouSystemSerializer.Serialize(header);
@@ -406,11 +406,33 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
-        public Task DeleteLongTermFile(InternalDriveFileId file)
+        public async Task SoftDeleteLongTermFile(InternalDriveFileId file)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            
+            var existingHeader = await this.GetServerFileHeader(file);
+            
+            var deletedServerFileHeader = new ServerFileHeader()
+            {
+                EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
+                FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
+                {
+                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId
+                },
+                ServerMetadata = existingHeader.ServerMetadata
+            };
+
+            await this.WriteFileHeader(file, deletedServerFileHeader);
+            
+            await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+
+        }
+
+        public Task HardDeleteLongTermFile(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
 
-            var result = GetLongTermStorageManager(file.DriveId).Delete(file.FileId);
+            var result = GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
 
             var notification = new DriveFileDeletedNotification()
             {

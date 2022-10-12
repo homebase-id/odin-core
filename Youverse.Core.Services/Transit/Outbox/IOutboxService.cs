@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         Task MarkFailure(byte[] marker, TransferFailureReason reason);
 
-        Task<List<OutboxItem>> GetNext(Guid driveId, int batchSize);
+        Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize);
 
         /// <summary>
         /// Removes the outbox item for the given recipient and file
