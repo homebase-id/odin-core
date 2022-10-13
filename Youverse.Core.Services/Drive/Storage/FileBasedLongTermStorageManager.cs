@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Refit;
 using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Services.Drive.Storage
@@ -59,9 +61,13 @@ namespace Youverse.Core.Services.Drive.Storage
             string fileName = GetThumbnailFileName(fileId, width, height);
             string dir = GetFilePath(fileId, false);
             string path = Path.Combine(dir, fileName);
+            if (File.Exists(path))
+            {
+                var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return Task.FromResult((Stream)fileStream);
+            }
 
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return Task.FromResult((Stream)fileStream);
+            return Task.FromResult(Stream.Null);
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height)
@@ -117,7 +123,7 @@ namespace Youverse.Core.Services.Drive.Storage
             DeletePayload(fileId);
             return Task.CompletedTask;
         }
-        
+
         public Task MoveToLongTerm(Guid fileId, string sourcePath, FilePart part)
         {
             var dest = GetFilenameAndPath(fileId, part, ensureDirectoryExists: true);
@@ -297,7 +303,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 output.Close();
             }
         }
-        
+
         private void DeletePayload(Guid fileId)
         {
             string payload = GetFilenameAndPath(fileId, FilePart.Payload);
@@ -319,6 +325,5 @@ namespace Youverse.Core.Services.Drive.Storage
                 File.Delete(thumbnail);
             }
         }
-
     }
 }

@@ -227,7 +227,7 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public async Task WriteFileHeader(InternalDriveFileId file, ServerFileHeader header)
+        public async Task UpdateFileHeader(InternalDriveFileId file, ServerFileHeader header)
         {
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
@@ -250,11 +250,7 @@ namespace Youverse.Core.Services.Drive
                 metadata.Created = UnixTimeUtcMilliseconds.Now().milliseconds;
             }
 
-            var json = DotYouSystemSerializer.Serialize(header);
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            var result = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, FilePart.Header, stream);
-
-            OnLongTermFileChanged(file, header);
+            await WriteFileHeaderInternal(header);
         }
 
         public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
@@ -409,23 +405,22 @@ namespace Youverse.Core.Services.Drive
         public async Task SoftDeleteLongTermFile(InternalDriveFileId file)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
-            
+
             var existingHeader = await this.GetServerFileHeader(file);
-            
+
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
+                    Updated = UnixTimeUtcMilliseconds.Now().milliseconds,
                     GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId
                 },
                 ServerMetadata = existingHeader.ServerMetadata
             };
 
-            await this.WriteFileHeader(file, deletedServerFileHeader);
-            
+            await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
-
         }
 
         public Task HardDeleteLongTermFile(InternalDriveFileId file)
@@ -474,7 +469,7 @@ namespace Youverse.Core.Services.Drive
             };
 
             //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
-            await this.WriteFileHeader(file, serverHeader);
+            await this.UpdateFileHeader(file, serverHeader);
         }
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
@@ -574,6 +569,14 @@ namespace Youverse.Core.Services.Drive
             var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
             manager = new FileBasedTempStorageManager(drive, logger);
             return _tempStorageManagers.TryAdd(drive.Id, manager);
+        }
+
+        private async Task WriteFileHeaderInternal(ServerFileHeader header)
+        {
+            var json = DotYouSystemSerializer.Serialize(header);
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
+            OnLongTermFileChanged(header.FileMetadata.File, header);
         }
     }
 }

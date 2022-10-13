@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         InternalDriveFileId CreateInternalFileId(Guid driveId);
 
-        Task WriteFileHeader(InternalDriveFileId file, ServerFileHeader header);
+        Task UpdateFileHeader(InternalDriveFileId file, ServerFileHeader header);
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 

@@ -99,8 +99,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                // Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
+                // Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
 
                 //
 
@@ -280,11 +280,22 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
             Assert.IsTrue(fileHeader.FileMetadata.Created == default);
             Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData == default);
-            Assert.IsTrue(fileHeader.FileMetadata.ContentType == default);
-            Assert.IsTrue(fileHeader.FileMetadata.SenderDotYouId == default);
-            Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == default);
+            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.ContentType));
+            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderDotYouId));
+            Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == null);
             Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);
+            
+            Assert.IsNotNull(fileHeader.FileMetadata.AppData);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.ContentIsComplete == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.AdditionalThumbnails == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);
+            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.JsonContent));
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
+            Assert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);
+
 
 
         }

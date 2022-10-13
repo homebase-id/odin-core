@@ -75,7 +75,7 @@ public class CommandMessagingService
         };
 
         var serverFileHeader = await _driveService.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
-        await _driveService.WriteFileHeader(internalFile, serverFileHeader);
+        await _driveService.UpdateFileHeader(internalFile, serverFileHeader);
 
         var transferResult = await _transitService.SendFile(internalFile, new TransitOptions()
         {

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.IO;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
@@ -64,7 +65,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             };
 
             var payload = await _driveService.GetPayloadStream(file);
-
+            if (payload == Stream.Null)
+            {
+                return NotFound();
+            }
             return new FileStreamResult(payload, "application/octet-stream");
         }
         
@@ -82,7 +86,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             };
 
             var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
-            
+            if (payload == Stream.Null)
+            {
+                return NotFound();
+            }
             return new FileStreamResult(payload, "application/octet-stream");
         }
     }

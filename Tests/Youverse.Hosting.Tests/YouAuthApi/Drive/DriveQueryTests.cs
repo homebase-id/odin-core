@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         }
 
         [Test]
-        [Ignore("invalid test until we support file updates")]
+        // [Ignore("invalid test until we support file updates")]
         public async Task ShouldNotReturnSecuredFile_QueryModified()
         {
             var identity = TestIdentities.Samwise;

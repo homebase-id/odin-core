@@ -103,8 +103,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                Assert.That(uploadResult.RecipientStatus, Is.Null);
 
                 ////
                 var targetDrive = uploadResult.File.TargetDrive;
@@ -308,8 +307,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                Assert.That(uploadResult.RecipientStatus, Is.Null);
                 var uploadedFile = uploadResult.File;
 
 

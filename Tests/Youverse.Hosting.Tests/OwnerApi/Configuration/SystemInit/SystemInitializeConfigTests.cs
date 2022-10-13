@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                         {
                             PermissionedDrive = new PermissionedDrive()
                             {
-                                Drive = contactDrive,
+                                Drive = standardProfileDrive,
                                 Permission = DrivePermission.Read
                             }
                         }
