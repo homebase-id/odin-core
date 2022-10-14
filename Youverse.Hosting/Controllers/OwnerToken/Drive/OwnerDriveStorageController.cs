@@ -29,15 +29,22 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
-        public async Task<ClientFileHeader> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
                 FileId = request.FileId
             };
+            
             var result = await _appService.GetClientEncryptedFileHeader(file);
-            return result;
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
         }
 
         /// <summary>
@@ -58,10 +65,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             {
                 return NotFound();
             }
+
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
-        
+
         /// <summary>
         /// Retrieves an encrypted thumbnail.  The available thumbnails are defined on the AppFileMeta.
         ///
@@ -77,17 +85,17 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive),
                 FileId = request.File.FileId
             };
-            
+
             var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
-            
+
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
-            
+
             return new FileStreamResult(payload, "application/octet-stream");
         }
-        
+
         /// <summary>
         /// Deletes a file
         /// </summary>
@@ -101,7 +109,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.FileId
             };
             await _driveService.SoftDeleteLongTermFile(file);
-            
+
             return true;
         }
     }

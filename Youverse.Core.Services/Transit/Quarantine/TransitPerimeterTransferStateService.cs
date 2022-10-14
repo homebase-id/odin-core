@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
@@ -16,18 +17,20 @@ namespace Youverse.Core.Services.Transit.Quarantine
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IDriveService _driveService;
+        private readonly DotYouContextAccessor _contextAccessor;
 
-        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService)
+        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
         {
             _systemStorage = systemStorage;
             _driveService = driveService;
+            _contextAccessor = contextAccessor;
         }
 
         public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guid id = Guid.NewGuid();
 
-            var driveId = (await _driveService.GetDriveIdByAlias(transferInstructionSet.TargetDrive, true))!.Value;
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
 
             //notice here: we always create a new file Id when receiving a new file.
             //we might need to add a feature that lets multiple identities collaborate on

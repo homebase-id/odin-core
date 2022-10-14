@@ -181,6 +181,11 @@ namespace Youverse.Core.Services.Drive.Storage
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
             var stream = await this.GetFilePartStream(fileId, FilePart.Header);
+            if (stream == Stream.Null)
+            {
+                return null;
+            }
+            
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
             var header = DotYouSystemSerializer.Deserialize<ServerFileHeader>(json);

@@ -1,14 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using System.Xml;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Base;
@@ -29,11 +25,12 @@ namespace Youverse.Core.Services.Transit
         private readonly ITransitBoxService _transitBoxService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly TenantContext _tenantContext;
+        private readonly IDriveQueryService _driveQueryService;
 
         private readonly IAppRegistrationService _appRegistrationService;
 
         public TransitAppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IAppRegistrationService appRegistrationService,
-            ITransitBoxService transitBoxService, IPublicKeyService publicKeyService, TenantContext tenantContext)
+            ITransitBoxService transitBoxService, IPublicKeyService publicKeyService, TenantContext tenantContext, IDriveQueryService driveQueryService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
@@ -42,11 +39,11 @@ namespace Youverse.Core.Services.Transit
             _transitBoxService = transitBoxService;
             _publicKeyService = publicKeyService;
             _tenantContext = tenantContext;
+            _driveQueryService = driveQueryService;
         }
 
         public async Task ProcessIncomingTransfers(TargetDrive targetDrive)
         {
-            
             var drive = await _driveService.GetDriveIdByAlias(targetDrive, true);
 
             var items = await GetAcceptedItems(drive.GetValueOrDefault());
@@ -102,6 +99,25 @@ namespace Youverse.Core.Services.Transit
             metadataStream.Close();
 
             var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+
+            if (metadata.GlobalTransitId.HasValue)
+            {
+                //see if a file with this global transit id already exists
+
+                ClientFileHeader existingFile = await _driveQueryService.GetFileByGlobalTransitId(metadata.File.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                if (null != existingFile)
+                {
+                    //sender must match the sender on the file of this GlobalTransitId
+                    if (item.Sender != existingFile.FileMetadata.SenderDotYouId)
+                    {
+                        throw new YouverseSecurityException($"Sender does not match {metadata.GlobalTransitId.GetValueOrDefault()}");
+                    }
+                    
+                    //update the existing file
+                    //TODO:
+                }
+            }
+            
             metadata!.SenderDotYouId = item.Sender;
 
             var serverMetadata = new ServerMetadata()

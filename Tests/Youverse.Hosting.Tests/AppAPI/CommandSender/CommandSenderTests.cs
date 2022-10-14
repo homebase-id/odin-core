@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 Assert.That(commandResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(commandResult.RecipientStatus.Count == 3);
 
-                await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count+100);
+                await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
             await AssertCommandReceived(samAppContext, command, originalFileSendResult);
@@ -145,8 +145,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             //
             // validate frodo no longer as the file associated w/ the command
             // 
-
-
+            
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);

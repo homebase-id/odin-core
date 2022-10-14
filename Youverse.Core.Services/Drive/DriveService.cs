@@ -372,6 +372,12 @@ namespace Youverse.Core.Services.Drive
             this.AssertCanReadDrive(file.DriveId);
 
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
+
+            if (null == header)
+            {
+                return null;
+            }
+
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
 
             var size = await GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
@@ -413,6 +419,7 @@ namespace Youverse.Core.Services.Drive
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
+                    FileState = FileState.Deleted,
                     Updated = UnixTimeUtcMilliseconds.Now().milliseconds,
                     GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId
                 },

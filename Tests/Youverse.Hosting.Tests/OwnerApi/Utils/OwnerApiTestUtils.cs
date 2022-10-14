@@ -544,7 +544,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 {
                     throw new Exception("cannot have an owner only drive that allows anonymous reads");
                 }
-                
+
                 var response = await svc.CreateDrive(new CreateDriveRequest()
                 {
                     TargetDrive = targetDrive,
@@ -715,6 +715,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
+                int outboxBatchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients != null)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
@@ -724,11 +725,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
                         Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
                     }
+
+                    outboxBatchSize = transferResult.RecipientStatus.Count;
                 }
 
                 if (options is { ProcessOutbox: true })
                 {
-                    var resp = await transitSvc.ProcessOutbox(options.OutboxProcessingBatchSize);
+                    var resp = await transitSvc.ProcessOutbox(outboxBatchSize);
                     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 }
 

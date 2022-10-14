@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.Drive
@@ -22,5 +23,7 @@ namespace Youverse.Core.Services.Drive
         Task RebuildBackupIndex(Guid driveId);
 
         Task RebuildAllIndices();
+
+        Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId);
     }
 }

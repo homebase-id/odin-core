@@ -29,4 +29,6 @@ public class QueryBatchResultOptionsRequest
             IncludeJsonContent = this.IncludeMetadataHeader
         };
     }
+
+    public static QueryBatchResultOptionsRequest Default => new QueryBatchResultOptionsRequest() { MaxRecords = 10 };
 }

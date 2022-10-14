@@ -11,13 +11,17 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.ClientToken;
+using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
@@ -83,10 +87,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 TransitOptions = null
             };
 
-            return (AppTransitTestUtilsContext)await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (AppTransitTestUtilsContext)await CreateAppAndTransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<AppTransitTestUtilsContext> TransferFile(TestSampleAppContext senderAppContext, Dictionary<DotYouIdentity, TestSampleAppContext> recipientContexts,
+        public async Task<AppTransitTestUtilsContext> TransferFile(TestSampleAppContext senderAppContext,
+            Dictionary<DotYouIdentity, TestSampleAppContext> recipientContexts,
             UploadInstructionSet instructionSet,
             UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
@@ -112,21 +117,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = senderAppContext.SharedSecret.ToSensitiveByteArray();
-
-                fileMetadata.PayloadIsEncrypted = true;
-                var descriptor = new UploadFileDescriptor()
-                {
-                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
-                    FileMetadata = fileMetadata
-                };
-
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
-
-                payloadData = options?.PayloadData ?? payloadData;
-                var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
-
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-
+                
                 var thumbnails = new List<StreamPart>();
                 var thumbnailsAdded = new List<ImageDataHeader>();
                 if (options.IncludeThumbnail)
@@ -141,7 +132,24 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
                     thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
+                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
+                
+                fileMetadata.PayloadIsEncrypted = true;
+
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+                    FileMetadata = fileMetadata
+                };
+
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+
+                payloadData = options?.PayloadData ?? payloadData;
+                var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                
 
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
@@ -203,12 +211,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     TestAppContext = senderAppContext,
                     UploadedFile = transferResult.File,
                     GlobalTransitId = transferResult.GlobalTransitId,
-                    Thumbnails = thumbnailsAdded
                 };
             }
         }
 
-        public async Task<AppTransitTestUtilsContext> TransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        public async Task<AppTransitTestUtilsContext> CreateAppAndTransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+            TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -232,90 +240,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
 
             return await TransferFile(testAppContext, recipientContexts, instructionSet, fileMetadata, options);
-
-            //
-            // var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
-            //
-            // using (var client = this.CreateAppApiHttpClient(sender.DotYouId, testAppContext.ClientAuthenticationToken))
-            // {
-            //     var keyHeader = KeyHeader.NewRandom16();
-            //     var transferIv = instructionSet.TransferIv;
-            //
-            //     var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
-            //     var instructionStream = new MemoryStream(bytes);
-            //
-            //     var sharedSecret = testAppContext.SharedSecret.ToSensitiveByteArray();
-            //
-            //     fileMetadata.PayloadIsEncrypted = true;
-            //     var descriptor = new UploadFileDescriptor()
-            //     {
-            //         EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
-            //         FileMetadata = fileMetadata
-            //     };
-            //
-            //     var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
-            //
-            //     payloadData = options?.PayloadData ?? payloadData;
-            //     var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
-            //
-            //     var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-            //     var response = await transitSvc.Upload(
-            //         new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-            //         new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-            //         new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-            //
-            //     Assert.That(response.IsSuccessStatusCode, Is.True);
-            //     Assert.That(response.Content, Is.Not.Null);
-            //     var transferResult = response.Content;
-            //
-            //     Assert.That(transferResult.File, Is.Not.Null);
-            //     Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            //     Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
-            //
-            //     if (instructionSet.TransitOptions?.Recipients != null)
-            //     {
-            //         Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
-            //
-            //         foreach (var recipient in instructionSet.TransitOptions?.Recipients)
-            //         {
-            //             Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-            //             Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
-            //         }
-            //     }
-            //
-            //     if (options is { ProcessOutbox: true })
-            //     {
-            //         await _ownerApi.ProcessOutbox(sender.DotYouId);
-            //     }
-            //
-            //     if (options is { ProcessTransitBox: true })
-            //     {
-            //         //wait for process outbox to run
-            //         Task.Delay(2000).Wait();
-            //
-            //         foreach (var rCtx in recipientContexts)
-            //         {
-            //             using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
-            //             {
-            //                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-            //                 var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = rCtx.Value.TargetDrive });
-            //                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-            //             }
-            //         }
-            //     }
-            //
-            //     keyHeader.AesKey.Wipe();
-            //
-            //     return new AppTransitTestUtilsContext()
-            //     {
-            //         InstructionSet = instructionSet,
-            //         FileMetadata = fileMetadata,
-            //         RecipientContexts = recipientContexts,
-            //         PayloadData = payloadData,
-            //         TestAppContext = testAppContext,
-            //         UploadedFile = transferResult.File
-            //     };
-            // }
         }
 
         public async Task DeleteFile(TestSampleAppContext testAppContext, ExternalFileIdentifier fileId)
@@ -326,6 +250,58 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var deleteFileResponse = await svc.DeleteFile(fileId);
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
                 Assert.IsTrue(deleteFileResponse.Content);
+            }
+        }
+
+        public async Task<ApiResponse<ClientFileHeader>> GetFileHeader(TestSampleAppContext appContext, ExternalFileIdentifier file)
+        {
+            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            {
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
+                var fileResponse = await driveSvc.GetFileHeader(file);
+                return fileResponse;
+            }
+        }
+
+        public async Task<ApiResponse<HttpContent>> GetFilePayload(TestSampleAppContext appContext, ExternalFileIdentifier file)
+        {
+            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            {
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
+                var payloadResponse = await driveSvc.GetPayload(file);
+                return payloadResponse;
+            }
+        }
+
+        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestSampleAppContext appContext, ExternalFileIdentifier file, int width, int height)
+        {
+            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            {
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
+
+                var thumbnailResponse = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                {
+                    File = file,
+                    Height = height,
+                    Width = width
+                });
+
+                return thumbnailResponse;
+            }
+        }
+
+        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestSampleAppContext appContext, FileQueryParams queryParams, QueryBatchResultOptionsRequest options)
+        {
+            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            {
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
+
+                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                {
+                    QueryParams = queryParams,
+                    ResultOptionsRequest = options
+                });
+                return queryBatchResponse;
             }
         }
     }

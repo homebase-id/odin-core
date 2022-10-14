@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Tests
         public string PayloadData { get; set; }
 
         public bool EncryptPayload { get; set; } = true;
-        public int OutboxProcessingBatchSize { get; set; } = 1;
+
         public bool IncludeThumbnail { get; set; }
     }
 }

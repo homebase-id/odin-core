@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
+    public enum FileState
+    {
+        Active = 1,
+        Deleted = 2,
+        // Archived = 3
+    }
+    
     /// <summary>
     /// Metadata about the file being stored.  This data is managed by the system. See AppFileMetaData for
     /// data owned by the app
@@ -32,6 +39,8 @@ namespace Youverse.Core.Services.Drive.Storage
         /// A globally unique Id to cross reference this file across Identities 
         /// </summary>
         public Guid? GlobalTransitId { get; set; }
+        
+        public FileState FileState { get; set; }
 
         public UInt64 Created { get; set; }
 

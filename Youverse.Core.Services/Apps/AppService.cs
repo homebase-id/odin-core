@@ -22,6 +22,11 @@ namespace Youverse.Core.Services.Apps
         {
             var header = await _driveService.GetServerFileHeader(file);
 
+            if (header == null)
+            {
+                return null;
+            }
+
             EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
             if (header.FileMetadata.PayloadIsEncrypted)
             {
@@ -54,31 +59,49 @@ namespace Youverse.Core.Services.Apps
                     break;
             }
 
-            if (_contextAccessor.GetCurrent().Caller.IsOwner)
-            {
-                return new ClientFileHeader()
-                {
-                    FileId = header.FileMetadata.File.FileId,
-                    SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-                    FileMetadata = RedactFileMetadata(header.FileMetadata),
-                    ServerMetadata = header.ServerMetadata,
-                    Priority = priority
-                };
-            }
-
-            return new ClientFileHeader()
+            var clientFileHeader = new ClientFileHeader()
             {
                 FileId = header.FileMetadata.File.FileId,
+                FileState = header.FileMetadata.FileState,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
                 FileMetadata = RedactFileMetadata(header.FileMetadata),
                 Priority = priority
             };
+
+            //add additional info
+            if (_contextAccessor.GetCurrent().Caller.IsOwner)
+            {
+                clientFileHeader.ServerMetadata = header.ServerMetadata;
+            }
+            
+            return clientFileHeader;
+            //
+            // if (_contextAccessor.GetCurrent().Caller.IsOwner)
+            // {
+            //     return new ClientFileHeader()
+            //     {
+            //         FileId = header.FileMetadata.File.FileId,
+            //         SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+            //         FileMetadata = RedactFileMetadata(header.FileMetadata),
+            //         ServerMetadata = header.ServerMetadata,
+            //         Priority = priority
+            //     };
+            // }
+            //
+            // return new ClientFileHeader()
+            // {
+            //     FileId = header.FileMetadata.File.FileId,
+            //     SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+            //     FileMetadata = RedactFileMetadata(header.FileMetadata),
+            //     Priority = priority
+            // };
         }
 
         private ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
         {
             var clientFile = new ClientFileMetadata
             {
+                
                 Created = fileMetadata.Created,
                 Updated = fileMetadata.Updated,
                 AppData = fileMetadata.AppData,

@@ -8,6 +8,8 @@ namespace Youverse.Core.Services.Apps
     {
         public Guid FileId { get; set; }
         
+        public FileState FileState { get; set; }
+        
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
 
         public ClientFileMetadata FileMetadata { get; set; }

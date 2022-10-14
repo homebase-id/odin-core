@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -40,66 +41,248 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
+        public async Task TransientFileIsDeletedAfterSending()
+        {
+            int someFiletype = 3892;
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            instructionSet.TransitOptions.IsTransient = true;
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AppData = new UploadAppFileMetaData()
+                {
+                    FileType = someFiletype,
+                    JsonContent = "this is some content",
+                }
+            };
+
+            var options = new TransitTestUtilsOptions()
+            {
+                ProcessOutbox = true,
+                ProcessTransitBox = true,
+                DisconnectIdentitiesAfterTransfer = true,
+                EncryptPayload = false,
+                IncludeThumbnail = true
+            };
+
+            var ctx = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
+
+            var sentFile = ctx.UploadedFile;
+            var recipientAppContext = ctx.RecipientContexts.FirstOrDefault().Value;
+
+            // 
+            // On recipient identity - see that file was transferred
+            // 
+            var getFileByTypeResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive, someFiletype),
+                QueryBatchResultOptionsRequest.Default);
+
+            Assert.IsTrue(getFileByTypeResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getFileByTypeResponse.Content);
+            var recipientFileRecord = getFileByTypeResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(recipientFileRecord);
+
+            var recipientFile = new ExternalFileIdentifier()
+            {
+                FileId = recipientFileRecord.FileId,
+                TargetDrive = recipientAppContext.TargetDrive
+            };
+
+            var sentThumbnail = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
+            Assert.IsNotNull(sentThumbnail);
+            var thumbnailResponse = await _scaffold.AppApi.GetThumbnail(recipientAppContext, recipientFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
+            Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(thumbnailResponse.Content);
+
+            var payloadResponse = await _scaffold.AppApi.GetFilePayload(recipientAppContext, recipientFile);
+            Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(payloadResponse.Content);
+
+
+            //
+            // On sender identity - see that file is not indexed and not available by direct access
+            //
+
+            var getSenderFileResponse = await _scaffold.AppApi.GetFileHeader(ctx.TestAppContext, sentFile);
+            Assert.IsTrue(getSenderFileResponse.StatusCode == HttpStatusCode.NotFound, "Sender should no longer have the file since we used IsTransient");
+
+            var getSenderThumbnailResponse = await _scaffold.AppApi.GetThumbnail(ctx.TestAppContext, ctx.UploadedFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
+            Assert.IsTrue(getSenderThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+
+            var getSenderPayloadResponse = await _scaffold.AppApi.GetFilePayload(ctx.TestAppContext, ctx.UploadedFile);
+            Assert.IsTrue(getSenderPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+        }
+
+        [Test]
         public async Task CanTransferGlobalTransitId_AndSeeFileChanges()
         {
-            //on sender identity
-            //create file with global unique id
-            //transfer file
+            int someFiletype = 39205;
+
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            instructionSet.TransitOptions.UseGlobalTransitId = true;
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AppData = new UploadAppFileMetaData()
+                {
+                    FileType = someFiletype,
+                    JsonContent = "this is some content",
+                }
+            };
+
+            var options = new TransitTestUtilsOptions()
+            {
+                ProcessOutbox = true,
+                ProcessTransitBox = true,
+                DisconnectIdentitiesAfterTransfer = false,
+                EncryptPayload = false,
+                IncludeThumbnail = true
+            };
+
+            //
+            // Send the first file
+            //
+            var sendFileResult = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
+            var senderAppContext = sendFileResult.TestAppContext;
+
+            Assert.IsNotNull(sendFileResult.GlobalTransitId);
+            Assert.IsFalse(sendFileResult.GlobalTransitId.GetValueOrDefault() == Guid.Empty);
+
+            var firstFileSent = sendFileResult.UploadedFile;
+            var recipientAppContext = sendFileResult.RecipientContexts.FirstOrDefault().Value;
+
+            // 
+            // On recipient identity - see that file was transferred
+            // 
+            var filesByGlobalTransitId = new FileQueryParams()
+            {
+                TargetDrive = recipientAppContext.TargetDrive,
+                GlobalTransitId = new List<Guid>() { sendFileResult.GlobalTransitId.GetValueOrDefault() }
+            };
+
+            var getFirstFileByGlobalTransitIdResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
+
+            Assert.IsTrue(getFirstFileByGlobalTransitIdResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getFirstFileByGlobalTransitIdResponse.Content);
+            var recipientFileRecord = getFirstFileByGlobalTransitIdResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(recipientFileRecord);
+            Assert.IsTrue(recipientFileRecord.FileMetadata.GlobalTransitId == sendFileResult.GlobalTransitId);
+            Assert.IsTrue(recipientFileRecord.FileMetadata.AppData.FileType == sendFileResult.UploadFileMetadata.AppData.FileType);
+            Assert.IsNotNull(recipientFileRecord);
+
+            var recipientFile = new ExternalFileIdentifier()
+            {
+                FileId = recipientFileRecord.FileId,
+                TargetDrive = recipientAppContext.TargetDrive
+            };
+
+            // Sender should send an updated file with same GlobalTransitId
+            instructionSet.TransitOptions.UseGlobalTransitId = false; //not required because we're updating a file
+            instructionSet.StorageOptions.OverwriteFileId = firstFileSent.FileId;
+            fileMetadata.AppData.DataType = 1001;
+            fileMetadata.AppData.FileType = 3333;
+            options.PayloadData = "new payload data";
+            var updatedSendFileResult = await _scaffold.AppApi.TransferFile(senderAppContext, sendFileResult.RecipientContexts, instructionSet, fileMetadata, options);
+
+            var findUpdatedRecipientFileResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
+            Assert.IsNotNull(findUpdatedRecipientFileResponse.Content);
+            var updatedRecipientFile = findUpdatedRecipientFileResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(updatedRecipientFile);
+            Assert.IsTrue(updatedRecipientFile.FileMetadata.AppData.DataType == fileMetadata.AppData.DataType);
+            Assert.IsTrue(updatedRecipientFile.FileMetadata.AppData.FileType == fileMetadata.AppData.FileType);
             
-            //on recipient identity
-            //recipient should have same global unique id
-            //client file header should have global unique id
+            // Get the updated file from recipient and see if it changed
+            var sentThumbnail = updatedSendFileResult.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
+            Assert.IsNotNull(sentThumbnail);
+            var thumbnailResponse = await _scaffold.AppApi.GetThumbnail(recipientAppContext, recipientFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
+            Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(thumbnailResponse.Content);
+
+            var payloadResponse = await _scaffold.AppApi.GetFilePayload(recipientAppContext, recipientFile);
+            Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(payloadResponse.Content);
+            //TODO decrypt paylaod and test that contents are updated
             
-            Assert.Inconclusive("WIP");
+            await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
-        
+
+
+        [Test]
+        public async Task FailToSendTransientFile_WithGlobalTransitId()
+        {
+            int someFiletype = 3892;
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            instructionSet.TransitOptions.IsTransient = true;
+            instructionSet.TransitOptions.UseGlobalTransitId = true;
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AppData = new UploadAppFileMetaData()
+                {
+                    FileType = someFiletype,
+                    JsonContent = "this is some content",
+                }
+            };
+
+            var options = new TransitTestUtilsOptions()
+            {
+                ProcessOutbox = true,
+                ProcessTransitBox = true,
+                DisconnectIdentitiesAfterTransfer = true,
+                EncryptPayload = false,
+                IncludeThumbnail = true
+            };
+
+            Assert.Inconclusive("send a file with both IsTransient and UseGlobalTransitId enabled.  it should fail");
+            // var ctx = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
+        }
+
         [Test]
         public async Task CanDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
             //on sender identity
             //create file with global unique id
             //transfer file
-            
+
             //on recipient identity
             //validate: recipient should have same global unique id
             //validate: client file header should have global unique id
-            
+
             //on sender identity delete the file
             //validate: file is deleted (shows in query modified)
-            
+
             //on recipient identity
             //validate: file is deleted (shows in query modified)
-            
-            
+
+
             Assert.Inconclusive("WIP");
         }
-        
+
         [Test]
         public async Task FailToHardDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
             //on sender identity
             //create file with global unique id
             //transfer file
-            
+
             //on recipient identity
             //validate: recipient should have same global unique id
             //validate: client file header should have global unique id
-            
+
             //on sender identity delete the file
             //validate: file is deleted (shows in query modified)
-            
+
             //on recipient identity
             //validate: file is deleted (shows in query modified)
 
             Assert.Inconclusive("WIP");
         }
-        
+
         [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
         public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
         {
             Assert.Inconclusive("WIP");
         }
-        
+
         [Test(Description = "Test basic transfer; includes thumbnails")]
         public async Task CanSendTransferAndRecipientCanGetFilesByTag()
         {

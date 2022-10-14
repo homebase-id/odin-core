@@ -189,7 +189,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             AppTransitTestUtilsContext ctx = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(TestIdentities.Frodo, fileMetadata, options);
 
-            Assert.IsNotNull(ctx.Thumbnails.SingleOrDefault());
+            Assert.IsNotNull(ctx.UploadFileMetadata.AppData.AdditionalThumbnails.SingleOrDefault());
             var appContext = ctx.TestAppContext;
             var fileToDelete = ctx.UploadedFile;
 
@@ -230,7 +230,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(qbResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(qbResponse.Content);
                 var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-                AssertFileHeaderIsMarkedDeleted(qbDeleteFileEntry);
+                DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
 
                 // crucial - it should return in query modified so apps can sync locally
                 var queryModifiedResponse = await svc.QueryModified(new QueryModifiedRequest()
@@ -246,17 +246,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(queryModifiedResponse.Content);
                 var queryModifiedDeletedEntry = qbResponse.Content.SearchResults.SingleOrDefault();
                 Assert.IsNotNull(queryModifiedDeletedEntry);
-                AssertFileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
+                DotYouTestAssertions.FileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
 
                 // get file directly
                 var getFileHeaderResponse = await svc.GetFileHeader(fileToDelete);
                 Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
-                AssertFileHeaderIsMarkedDeleted(deletedFileHeader);
+                DotYouTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
 
                 //there should not be a thumbnail
-                var thumb = ctx.Thumbnails.Single();
+                var thumb = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
                 var getThumbnailResponse = await svc.GetThumbnail(new GetThumbnailRequest()
                 {
                     File = fileToDelete,
@@ -270,35 +270,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }
-
-        private void AssertFileHeaderIsMarkedDeleted(ClientFileHeader fileHeader)
-        {
-            Assert.IsTrue(fileHeader.FileId != Guid.Empty);
-            Assert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
-            Assert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Owner);
-            Assert.IsNull(fileHeader.FileMetadata.GlobalTransitId); //TODO: we just uploaded a file in this case
-            Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
-            Assert.IsTrue(fileHeader.FileMetadata.Created == default);
-            Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
-            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.ContentType));
-            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderDotYouId));
-            Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == null);
-            Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);
-            
-            Assert.IsNotNull(fileHeader.FileMetadata.AppData);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.ContentIsComplete == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.AdditionalThumbnails == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);
-            Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.JsonContent));
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);
-
-
-
-        }
+        
 
         [Test(Description = "")]
         [Ignore("There is no api exposed for hard-delete.  ")]
