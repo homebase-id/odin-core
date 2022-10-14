@@ -99,11 +99,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/client")]
         public async Task<AppClientRegistrationResponse> RegisterClient([FromBody] AppClientRegistrationRequest request)
         {
-            var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
+            var b64 = System.Web.HttpUtility.UrlDecode(request.ClientPublicKey64);
+            var clientPublicKey = Convert.FromBase64String(b64);
             var reg = await _appRegistrationService.RegisterClient(request.AppId, clientPublicKey, request.ClientFriendlyName);
             return reg;
         }
-        
+
         /// <summary>
         /// Temp method to register chat app during development
         /// </summary>
