@@ -27,7 +27,7 @@ jobs:
           path: dotyoucore-lib
           
       - name: Checkout dotyoucore
-      - uses: actions/checkout@v3
+        uses: actions/checkout@v3
         with:
           path: dotyoucore
       
