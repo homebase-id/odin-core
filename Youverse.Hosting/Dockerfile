@@ -14,8 +14,6 @@ COPY ["dotyoucore/Youverse.Core.Services.Background/Youverse.Core.Services.Backg
 RUN dotnet restore "dotyoucore/Youverse.Hosting/Youverse.Hosting.csproj"
 COPY . .
 
-#RUN echo $(ls -al)
-#WORKDIR ""/Youverse.Hosting"
 RUN dotnet build "dotyoucore/Youverse.Hosting/Youverse.Hosting.csproj" -c Release -o /app/build
 
 FROM build AS publish
@@ -25,13 +23,3 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Youverse.Hosting.dll"]
-
-# drw-r--r-- 1 root root 1157 Oct 16 16:39 Dockerfile
-# drwxr-xr-x 2 root root 4096 Oct 15 22:55 Youverse.Core 
-# drwxr-xr-x 2 root root 4096 Oct 15 22:55 Youverse.Core.Cryptography 
-# drwxr-xr-x 1 root root 4096 Oct 16 16:34 Youverse.Core.Services 
-# drwxr-xr-x 1 root root 4096 Oct 16 16:34 Youverse.Core.Services.Background 
-# drwxr-xr-x 2 root root 4096 Oct 15 22:55 Youverse.Core.Storage 
-# drwxr-xr-x 1 root root 4096 Oct 16 16:34 Youverse.Hosting 
-# drwxr-xr-x 11 root root 4096 Oct 16 16:41 dotyoucore 
-# drwxr-xr-x 13 root root 4096 Oct 16 16:41 dotyoucore-lib
