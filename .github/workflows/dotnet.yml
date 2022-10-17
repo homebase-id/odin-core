@@ -20,7 +20,7 @@ jobs:
       - name: Checkout dotyoucore-lib
         uses: actions/checkout@v3
         with:
-          repository: youfoundation/dotyoucore-lib
+          repository: 'youfoundation/dotyoucore-lib'
           ref: 'main'
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           path: dotyoucore-lib
