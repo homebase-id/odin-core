@@ -32,13 +32,13 @@ jobs:
           path: dotyoucore
       
       - name: Restore dependencies
-        working-directory: ./dotyoucore
+#        working-directory: ./dotyoucore
         run: dotnet restore
       
       - name: Build
-        working-directory: ./dotyoucore
+#        working-directory: ./dotyoucore
         run: dotnet build --no-restore
       
       - name: Test
-        working-directory: ./dotyoucore
+#        working-directory: ./dotyoucore
         run: dotnet test --no-build --verbosity normal
