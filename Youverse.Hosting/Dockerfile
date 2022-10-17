@@ -18,6 +18,7 @@ RUN dotnet build "dotyoucore/Youverse.Hosting/Youverse.Hosting.csproj" -c Releas
 
 FROM build AS publish
 RUN dotnet publish "dotyoucore/Youverse.Hosting/Youverse.Hosting.csproj" -c Release -o /app/publish
+#RUN dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist Youverse.Hosting/Youverse.Hosting.csproj
 
 FROM base AS final
 WORKDIR /app
