@@ -33,12 +33,12 @@ jobs:
       
       - name: Restore dependencies
 #        working-directory: ./dotyoucore
-        run: dotnet restore
+        run: dotnet restore dotyoucore/DotYouCore.sln
       
       - name: Build
 #        working-directory: ./dotyoucore
-        run: dotnet build --no-restore
+        run: dotnet build --no-restore dotyoucore/DotYouCore.sln
       
       - name: Test
 #        working-directory: ./dotyoucore
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test --no-build --verbosity normal dotyoucore/DotYouCore.sln
