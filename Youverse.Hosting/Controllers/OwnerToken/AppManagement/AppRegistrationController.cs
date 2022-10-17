@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
+using System.Web;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
@@ -100,8 +101,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/client")]
         public async Task<AppClientRegistrationResponse> RegisterClient([FromBody] AppClientRegistrationRequest request)
         {
-            var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
-            var clientPublicKey = Convert.FromBase64String(b64);
+            // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
+            // var clientPublicKey = Convert.FromBase64String(b64);
+            var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
             var reg = await _appRegistrationService.RegisterClient(request.AppId, clientPublicKey, request.ClientFriendlyName);
             return reg;
         }

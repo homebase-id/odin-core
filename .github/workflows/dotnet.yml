@@ -10,17 +10,34 @@ jobs:
   build:
 
     runs-on: windows-latest
-
+        
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 6.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      - name: Checkout dotyoucore-lib
+        uses: actions/checkout@v3
+        with:
+          repository: 'youfoundation/dotyoucore-lib'
+          ref: 'main'
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          path: dotyoucore-lib
+
+      - name: Checkout dotyoucore
+        uses: actions/checkout@v3
+        with:
+          path: dotyoucore
+
+      - name: Restore dependencies
+        #        working-directory: ./dotyoucore
+        run: dotnet restore dotyoucore/DotYouCore.sln
+
+      - name: Build
+        #        working-directory: ./dotyoucore
+        run: dotnet build --no-restore dotyoucore/DotYouCore.sln
+
+      - name: Test
+        #        working-directory: ./dotyoucore
+        run: dotnet test --no-build --verbosity normal dotyoucore/DotYouCore.sln
