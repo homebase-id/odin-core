@@ -7,6 +7,7 @@ using Youverse.Core.Services.Base;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 
@@ -93,7 +94,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return item.IsCompleteAndValid();
         }
 
-        public async Task<HostTransferResponse> FinalizeTransfer(Guid transferStateItemId)
+        public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -101,23 +102,47 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 //TODO: how do i know which filter quarantined it??
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() { Code = TransitResponseCode.QuarantinedPayload };
+                return new HostTransitResponse() { Code = TransitResponseCode.QuarantinedPayload };
             }
 
             if (item.HasAcquiredRejectedPart())
             {
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() { Code = TransitResponseCode.Rejected };
+                return new HostTransitResponse() { Code = TransitResponseCode.Rejected };
             }
 
             if (item.IsCompleteAndValid())
             {
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransferResponse() { Code = TransitResponseCode.Accepted };
+                return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
             }
 
             throw new HostToHostTransferException("Unhandled error");
+        }
+
+        public async Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
+
+            try
+            {
+                await _transitService.AcceptDeleteLinkedFileRequest(driveId, globalTransitId);
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.Accepted,
+                    Message = ""
+                };
+            }
+            catch
+            {
+                //TODO: add logging here?
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.Rejected,
+                    Message = "Server Error"
+                };
+            }
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

@@ -12,13 +12,17 @@ namespace Youverse.Hosting.Tests;
 /// </summary>
 public static class DotYouTestAssertions
 {
-    public static void FileHeaderIsMarkedDeleted(ClientFileHeader fileHeader)
+    public static void FileHeaderIsMarkedDeleted(ClientFileHeader fileHeader, bool shouldHaveGlobalTransitId = false)
     {
+        if(shouldHaveGlobalTransitId)
+        {
+            Assert.IsNotNull(fileHeader.FileMetadata.GlobalTransitId);
+        }
+        
         Assert.IsTrue(fileHeader.FileState == FileState.Deleted);
         Assert.IsTrue(fileHeader.FileId != Guid.Empty);
         Assert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
         Assert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Owner);
-        Assert.IsNull(fileHeader.FileMetadata.GlobalTransitId); //TODO: we just uploaded a file in this case
         Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
         Assert.IsTrue(fileHeader.FileMetadata.Created == default);
         Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);

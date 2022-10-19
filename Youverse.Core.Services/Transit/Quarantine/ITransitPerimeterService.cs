@@ -3,6 +3,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -35,6 +36,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
-        Task<HostTransferResponse> FinalizeTransfer(Guid transferStateItemId);
+        Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId);
+
+        /// <summary>
+        /// Deletes a file that was linked with a GlobalTransitId
+        /// </summary>
+        Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId);
     }
 }

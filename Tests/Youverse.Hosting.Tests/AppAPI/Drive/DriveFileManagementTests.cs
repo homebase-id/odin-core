@@ -16,6 +16,7 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
@@ -196,7 +197,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
-                
+
                 //validate the file is in the index
                 var fileIsInIndexResponse = await svc.QueryBatch(new QueryBatchRequest()
                 {
@@ -208,16 +209,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 });
 
                 Assert.IsTrue(fileIsInIndexResponse?.Content?.SearchResults?.SingleOrDefault()?.FileMetadata?.AppData?.FileType == SomeFileType);
-                
+
                 // delete the file
-                var deleteFileResponse = await svc.DeleteFile(fileToDelete);
+                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest() { File = fileToDelete });
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
                 Assert.IsTrue(deleteFileResponse.Content);
 
                 //
                 // Should still be in index
                 //
-                
                 var qbResponse = await svc.QueryBatch(new QueryBatchRequest()
                 {
                     QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive),
@@ -270,7 +270,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }
-        
+
 
         [Test(Description = "")]
         [Ignore("There is no api exposed for hard-delete.  ")]

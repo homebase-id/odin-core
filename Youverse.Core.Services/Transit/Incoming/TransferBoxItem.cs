@@ -18,7 +18,13 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// </summary>
         public uint PublicKeyCrc { get; set; }
 
-        public InternalDriveFileId TempFile { get; set; }
+        public TransferType Type { get; set; }
+        
+        public Guid GlobalTransitId { get; set; }
+        
+        public Guid FileId { get; set; }
+
+        public Guid DriveId { get; set; }
 
         public UnixTimeUtcSeconds AddedTimestamp { get; set; }
 
@@ -31,5 +37,6 @@ namespace Youverse.Core.Services.Transit.Incoming
         public int Priority { get; set; }
 
         public byte[] Marker { get; set; }
+
     }
 }

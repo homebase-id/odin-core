@@ -52,7 +52,8 @@ namespace Youverse.Core.Services.Drive
         /// <returns></returns>
         InternalDriveFileId CreateInternalFileId(Guid driveId);
 
-        Task UpdateFileHeader(InternalDriveFileId file, ServerFileHeader header);
+
+        Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header);
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider. 
@@ -76,7 +77,13 @@ namespace Youverse.Core.Services.Drive
         /// Stores the metadata and associated payload (from the temp storage) in long term storage 
         /// </summary>
         /// <returns></returns>
-        Task CommitTempFileToLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
+        Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
+
+        /// <summary>
+        /// Overwrites the <param name="targetFile"/> with the <param name="tempFile"/>
+        /// </summary>
+        /// <returns></returns>
+        Task OverwriteLongTermWithTempFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
 
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension
@@ -117,7 +124,7 @@ namespace Youverse.Core.Services.Drive
         /// </summary>
         /// <returns></returns>
         Task HardDeleteLongTermFile(InternalDriveFileId file);
-        
+
         /// <summary>
         /// Deletes all parts matching <param name="file"></param>
         /// </summary>

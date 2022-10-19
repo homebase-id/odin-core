@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
@@ -13,7 +15,7 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <returns></returns>
         Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options);
-        
+
         /// <summary>
         /// Accepts an incoming file as complete and valid.
         /// </summary>
@@ -31,5 +33,15 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="batchSize"></param>
         Task ProcessOutbox(int batchSize);
+
+        /// <summary>
+        /// Notifies the recipients the file with the <param name="globalTransitId"/> must be deleted
+        /// </summary>
+        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, IEnumerable<string> recipients);
+
+        /// <summary>
+        /// Deletes the requested file.
+        /// </summary>
+        Task AcceptDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId);
     }
 }

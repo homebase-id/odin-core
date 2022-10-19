@@ -1,7 +1,6 @@
+using System;
 using System.Threading.Tasks;
 using Refit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -12,10 +11,13 @@ namespace Youverse.Core.Services.Transit
     {
         [Multipart]
         [Post("/api/perimeter/transit/host/stream")]
-        Task<ApiResponse<HostTransferResponse>> SendHostToHost(
+        Task<ApiResponse<HostTransitResponse>> SendHostToHost(
             StreamPart header,
             StreamPart metaData,
             StreamPart payload,
             params StreamPart[] thumbnail);
+
+        [Post("/api/perimeter/transit/host/deletelinkedfile")]
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile(Guid globalTransitId);
     }
 }

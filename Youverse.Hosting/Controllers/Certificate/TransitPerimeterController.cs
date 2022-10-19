@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
 
         [HttpPost("stream")]
-        public async Task<HostTransferResponse> AcceptHostToHostTransfer()
+        public async Task<HostTransitResponse> AcceptHostToHostTransfer()
         {
             //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
 
@@ -81,6 +81,12 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
 
             return result;
+        }
+
+        [HttpPost("deletelinkedfile")]
+        public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
+        {
+            return await _perimeterService.DeleteLinkedFile(transitRequest.TargetDrive, transitRequest.GlobalTransitId);
         }
 
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)

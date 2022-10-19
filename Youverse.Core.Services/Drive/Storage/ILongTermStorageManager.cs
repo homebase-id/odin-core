@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// The drive managed by this instance
         /// </summary>
         StorageDrive Drive { get; }
-        
+
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Drive.Storage
         Task WritePartStream(Guid fileId, FilePart part, Stream stream);
 
         Task<long> GetPayloadFileSize(Guid fileId);
-        
+
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <param name="height"></param>
         /// <returns></returns>
         Task<Stream> GetThumbnail(Guid fileId, int width, int height);
-        
+
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
         /// </summary>
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// Checks if the file exists.  Returns true if all parts exist, otherwise false
         /// </summary>
         bool FileExists(Guid fileId);
-        
+
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
@@ -71,7 +71,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// Moves the specified <param name="sourcePath"></param> to long term storage.
         /// </summary>
         /// <returns></returns>
-        Task MoveToLongTerm(Guid fileId, string sourcePath, FilePart part);
+        Task MoveToLongTerm(Guid targetFileId, string sourcePath, FilePart part);
 
         /// <summary>
         /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
@@ -81,9 +81,14 @@ namespace Youverse.Core.Services.Drive.Storage
         Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions);
 
         Task<ServerFileHeader> GetServerFileHeader(Guid fileId);
-        
+
         Task WriteThumbnail(Guid fileId, int width, int height, Stream stream);
 
-        Task MoveThumbnailToLongTerm(Guid fileId, string sourceThumbnail, int width, int height);
+        Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, int width, int height);
+
+        /// <summary>
+        /// Removes all thumbnails on disk which are not in the provided list.
+        /// </summary>
+        Task ReconcileThumbnailsOnDisk(Guid fileId, List<ImageDataHeader> thumbnailsToKeep);
     }
 }

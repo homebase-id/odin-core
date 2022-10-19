@@ -20,6 +20,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
@@ -333,8 +334,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
             bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
-            //TODO: we might need to let the callers pass this in at some point for testing
-
             if (null == targetDrive)
             {
                 targetDrive = new TargetDrive()
@@ -343,8 +342,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     Type = Guid.NewGuid()
                 };
             }
-
-            //note; this is intentionally not global
 
             this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
 
@@ -471,7 +468,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
         }
 
-        public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient)
+        public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient, CreateConnectionOptions createConnectionOptions = null)
         {
             if (!TestIdentities.All.TryGetValue(sender, out var senderIdentity))
             {
@@ -483,6 +480,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 throw new NotImplementedException("need to add your recipient to the list of identities");
             }
 
+            var co = createConnectionOptions ?? new CreateConnectionOptions();
             //have frodo send it
             using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
@@ -494,7 +492,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     Id = id,
                     Recipient = recipient,
                     Message = "Please add me",
-                    ContactData = senderIdentity.ContactData
+                    ContactData = senderIdentity.ContactData,
+                    CircleIds = co.CircleIdsGrantedToRecipient
                 };
 
                 var response = await svc.SendConnectionRequest(requestHeader);
@@ -511,7 +510,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var header = new AcceptRequestHeader()
                 {
                     Sender = sender,
-                    CircleIds = new List<GuidId>(),
+                    CircleIds = co.CircleIdsGrantedToSender,
                     ContactData = recipientIdentity.ContactData
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
@@ -748,7 +747,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
 
-                            var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = targetDrive });
+                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
@@ -765,5 +764,58 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
         }
+
+        public async Task<CircleDefinition> CreateCircleWithDrive(DotYouIdentity identity, string circleName, IEnumerable<int> permissionKeys, PermissionedDrive drive)
+        {
+            using (var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
+
+                var dgr1 = new DriveGrantRequest()
+                {
+                    PermissionedDrive = drive
+                };
+
+                var request = new CreateCircleRequest()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = circleName,
+                    Description = $"Description for {circleName}",
+                    DriveGrants = new List<DriveGrantRequest>() { dgr1 },
+                    Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
+                };
+
+                var createCircleResponse = await svc.CreateCircleDefinition(request);
+                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+
+                var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+
+                var definitionList = getCircleDefinitionsResponse.Content;
+                Assert.IsNotNull(definitionList);
+
+                var circle = definitionList.Single(c => c.Id == request.Id);
+
+                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr1));
+
+                foreach (var k in permissionKeys)
+                {
+                    Assert.IsTrue(circle.Permissions.HasKey(k));
+                }
+
+                Assert.AreEqual(request.Name, circle.Name);
+                Assert.AreEqual(request.Description, circle.Description);
+                Assert.IsTrue(request.Permissions == circle.Permissions);
+
+                return circle;
+            }
+        }
+    }
+
+    public class CreateConnectionOptions
+    {
+        public List<GuidId> CircleIdsGrantedToRecipient { get; set; } = new();
+
+        public List<GuidId> CircleIdsGrantedToSender { get; set; } = new();
     }
 }

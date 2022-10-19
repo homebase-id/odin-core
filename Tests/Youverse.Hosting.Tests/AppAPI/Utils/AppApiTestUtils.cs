@@ -23,6 +23,7 @@ using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
@@ -107,7 +108,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-
             using (var client = this.CreateAppApiHttpClient(senderAppContext.Identity, senderAppContext.ClientAuthenticationToken))
             {
                 var keyHeader = KeyHeader.NewRandom16();
@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = senderAppContext.SharedSecret.ToSensitiveByteArray();
-                
+
                 var thumbnails = new List<StreamPart>();
                 var thumbnailsAdded = new List<ImageDataHeader>();
                 if (options.IncludeThumbnail)
@@ -134,7 +134,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     thumbnailsAdded.Add(thumbnail1);
                     fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
-                
+
                 fileMetadata.PayloadIsEncrypted = true;
 
                 var descriptor = new UploadFileDescriptor()
@@ -149,7 +149,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                
+
 
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
@@ -194,7 +194,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                         using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = rCtx.Value.TargetDrive });
+                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = rCtx.Value.TargetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
@@ -225,8 +225,19 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
+            var targetDrive = instructionSet.StorageOptions.Drive;
+
             Guid appId = Guid.NewGuid();
             var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
+
+            var senderCircleDef =
+                await _ownerApi.CreateCircleWithDrive(sender.DotYouId, $"Sender ({sender.DotYouId}) Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.ReadWrite
+                    });
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
@@ -236,7 +247,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var ctx = await _ownerApi.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
                 recipientContexts.Add(recipient.DotYouId, ctx);
 
-                await _ownerApi.CreateConnection(sender.DotYouId, recipient.DotYouId);
+                var recipientCircleDef =
+                    await _ownerApi.CreateCircleWithDrive(recipient.DotYouId, $"Circle on {recipient} identity",
+                        permissionKeys: new List<int>() { },
+                        drive: new PermissionedDrive()
+                        {
+                            Drive = targetDrive,
+                            Permission = DrivePermission.ReadWrite
+                        });
+
+                await _ownerApi.CreateConnection(sender.DotYouId, recipient.DotYouId, new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id },
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id }
+                });
             }
 
             return await TransferFile(testAppContext, recipientContexts, instructionSet, fileMetadata, options);
@@ -247,7 +271,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             using (var client = this.CreateAppApiHttpClient(testAppContext.Identity, testAppContext.ClientAuthenticationToken))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
-                var deleteFileResponse = await svc.DeleteFile(fileId);
+                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest() { File = fileId });
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
                 Assert.IsTrue(deleteFileResponse.Content);
             }

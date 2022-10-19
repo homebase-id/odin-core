@@ -7,6 +7,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -37,6 +38,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request);
 
         [Post(RootEndpoint + "/files/delete")]
-        Task<ApiResponse<bool>> DeleteFile([Body] ExternalFileIdentifier file);
+        Task<ApiResponse<bool>> DeleteFile([Body] DeleteFileRequest file);
     }
 }

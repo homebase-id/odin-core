@@ -18,9 +18,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Transit
         }
 
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessTransfers([FromBody] ProcessTransfersRequest request)
+        public async Task<IActionResult> ProcessTransfers([FromBody] ProcessInstructionRequest request)
         {
-            await _transitAppService.ProcessIncomingTransfers(request.TargetDrive);
+            await _transitAppService.ProcessIncomingInstructions(request.TargetDrive);
             return new JsonResult(true);
         }
     }

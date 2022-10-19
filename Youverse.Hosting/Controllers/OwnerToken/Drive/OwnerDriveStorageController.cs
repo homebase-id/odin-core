@@ -1,10 +1,16 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Certificate;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
@@ -16,12 +22,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly ITransitService _transitService;
 
-        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
+        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService, ITransitService transitService)
         {
             _contextAccessor = contextAccessor;
             _driveService = driveService;
             _appService = appService;
+            _transitService = transitService;
         }
 
         /// <summary>
@@ -36,7 +44,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
                 FileId = request.FileId
             };
-            
+
             var result = await _appService.GetClientEncryptedFileHeader(file);
 
             if (result == null)
@@ -101,16 +109,63 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public async Task<bool> DeleteFile([FromBody] ExternalFileIdentifier request)
+        public async Task<DeleteLinkedFileResponse> DeleteFile([FromBody] DeleteFileRequest request)
         {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
+
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
+                DriveId = driveId,
+                FileId = request.File.FileId
             };
-            await _driveService.SoftDeleteLongTermFile(file);
 
-            return true;
+            var result = new DeleteLinkedFileResponse()
+            {
+                RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+                LocalFileDeleted = false
+            };
+            
+            if (request.DeleteLinkedFiles)
+            {
+                var header = await _driveService.GetServerFileHeader(file);
+                if (header == null)
+                {
+                    result.FileNotLinked = true;
+                    result.RecipientStatus = null;
+                    result.LocalFileDeleted = false;
+                    return result;
+                }
+
+                if (header.FileMetadata.GlobalTransitId.HasValue && (request.Recipients?.Any() ?? false))
+                {
+                    //send the deleted file
+                    var map = await _transitService.SendDeleteLinkedFileRequest(driveId, header.FileMetadata.GlobalTransitId.GetValueOrDefault(), request.Recipients);
+
+                    foreach (var (key, value) in map)
+                    {
+                        switch (value)
+                        {
+                            case TransitResponseCode.Accepted:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestAccepted);
+                                break;
+                            
+                            case TransitResponseCode.Rejected:
+                            case TransitResponseCode.QuarantinedPayload:
+                            case TransitResponseCode.QuarantinedSenderNotConnected:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestRejected);
+                                break;
+                            
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    }
+                }
+            }
+
+            await _driveService.SoftDeleteLongTermFile(file);
+            result.LocalFileDeleted = true;
+
+            return result;
         }
     }
 }

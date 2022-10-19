@@ -37,18 +37,18 @@ namespace Youverse.Core.Services.Transit.Incoming
             item.AddedTimestamp = UnixTimeUtcSeconds.Now();
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            _systemStorage.Inbox.InsertRow(item.TempFile.DriveId.ToByteArray(), item.TempFile.FileId.ToByteArray(), 1, state);
+            _systemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
 
-            _mediator.Publish(new NewInboxItemNotification()
-            {
-                InboxItemId = item.Id,
-                Sender = item.Sender,
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = _driveService.GetDrive(item.TempFile.DriveId).Result.TargetDriveInfo,
-                    FileId = item.TempFile.FileId
-                }
-            });
+            // _mediator.Publish(new NewInboxItemNotification()
+            // {
+            //     InboxItemId = item.Id,
+            //     Sender = item.Sender,
+            //     TempFile = new ExternalFileIdentifier()
+            //     {
+            //         TargetDrive = _driveService.GetDrive(item.DriveId).Result.TargetDriveInfo,
+            //         FileId = item.FileId
+            //     }
+            // });
 
             return Task.CompletedTask;
         }
@@ -72,12 +72,12 @@ namespace Youverse.Core.Services.Transit.Incoming
                     Sender = (DotYouIdentity)item.Sender,
                     Priority = (int)r.priority,
                     AddedTimestamp = r.timeStamp,
-                    TempFile = new InternalDriveFileId()
-                    {
-                        DriveId = new Guid(r.boxId),
-                        FileId = new Guid(r.fileId)
-                    },
-                    Marker = marker
+                    DriveId = new Guid(r.boxId),
+                    FileId = new Guid(r.fileId),
+                    GlobalTransitId = item.GlobalTransitId,
+                    Marker = marker,
+                    Id = item.Id,
+                    PublicKeyCrc = item.PublicKeyCrc
                 };
             }).ToList();
 

@@ -227,7 +227,7 @@ namespace Youverse.Core.Services.Drive
             return df;
         }
 
-        public async Task UpdateFileHeader(InternalDriveFileId file, ServerFileHeader header)
+        public async Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header)
         {
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
@@ -244,6 +244,7 @@ namespace Youverse.Core.Services.Drive
                 var existingHeader = await this.GetServerFileHeader(file);
                 metadata.Updated = UnixTimeUtcMilliseconds.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
+                metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             }
             else
             {
@@ -287,9 +288,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            //TODO: need a permission specifically for writing to the t4mep drive
-            //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
-
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
@@ -446,37 +445,73 @@ namespace Youverse.Core.Services.Drive
             return result;
         }
 
-        public async Task CommitTempFileToLongTerm(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
+        public async Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
 
             //TODO: this method is so hacky 🤢
-            metadata.File = file;
+            metadata.File = targetFile;
 
-            var storageManager = GetLongTermStorageManager(file.DriveId);
-            var tempStorageManager = GetTempStorageManager(file.DriveId);
+            var storageManager = GetLongTermStorageManager(targetFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
 
-            string sourceFile = await tempStorageManager.GetPath(file.FileId, payloadExtension);
-            await storageManager.MoveToLongTerm(file.FileId, sourceFile, FilePart.Payload);
+            string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
+            await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
 
             if (metadata.AppData.AdditionalThumbnails != null)
+            {
                 foreach (var thumb in metadata.AppData.AdditionalThumbnails)
                 {
                     var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
-                    var sourceThumbnail = await tempStorageManager.GetPath(file.FileId, extension);
-                    await storageManager.MoveThumbnailToLongTerm(file.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                    var sourceThumbnail = await tempStorageManager.GetPath(targetFile.FileId, extension);
+                    await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
                 }
+            }
 
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(file.DriveId, keyHeader),
+                EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, keyHeader),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };
 
             //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
-            await this.UpdateFileHeader(file, serverHeader);
+            await this.UpdateActiveFileHeader(targetFile, serverHeader);
+        }
+
+        public async Task OverwriteLongTermWithTempFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+            string payloadExtension)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
+
+            metadata.File = targetFile;
+
+            var storageManager = GetLongTermStorageManager(targetFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
+
+            string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
+            await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+
+            var thumbs = metadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
+            foreach (var thumb in thumbs)
+            {
+                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
+                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+            }
+
+            //TODO: calculate payload checksum, put on file metadata
+            var serverHeader = new ServerFileHeader()
+            {
+                EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
+                FileMetadata = metadata,
+                ServerMetadata = serverMetadata
+            };
+
+            //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
+            await this.UpdateActiveFileHeader(targetFile, serverHeader);
         }
 
         private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)

@@ -163,7 +163,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext.Identity, recipientAppContext.ClientAuthenticationToken))
             {
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = drive });
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = drive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, recipientAppContext.SharedSecret);

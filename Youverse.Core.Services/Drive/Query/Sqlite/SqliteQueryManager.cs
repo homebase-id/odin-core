@@ -35,7 +35,6 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
-        qp.AssertIsValid();
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
@@ -62,7 +61,6 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
-        qp.AssertIsValid();
 
         var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
 

@@ -6,8 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -16,9 +14,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -74,9 +70,11 @@ namespace Youverse.Core.Services.Transit
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtcSeconds.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                TempFile = file,
                 PublicKeyCrc = publicKeyCrc,
-                Priority = 0 //TODO
+
+                Type = TransferType.FileTransfer,
+                DriveId = file.DriveId,
+                FileId = file.FileId
             };
 
             //Note: the inbox service will send the notification
@@ -144,7 +142,6 @@ namespace Youverse.Core.Services.Transit
         }
 
         // 
-
 
         private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
             ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive)
@@ -241,6 +238,54 @@ namespace Youverse.Core.Services.Transit
             }
         }
 
+        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, IEnumerable<string> recipients)
+        {
+            Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
+            foreach (var recipient in recipients)
+            {
+                var r = (DotYouIdentity)recipient;
+                var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(r).GetAwaiter().GetResult();
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
+
+                //TODO: change to accept a request object that has targetDrive and global transit id
+                var httpResponse = await client.DeleteLinkedFile(globalTransitId);
+
+                if (httpResponse.IsSuccessStatusCode)
+                {
+                    var transitResponse = httpResponse.Content;
+                    result.Add(recipient, transitResponse!.Code);
+                }
+                else
+                {
+                    result.Add(recipient, TransitResponseCode.Rejected);
+                }
+            }
+
+            return result;
+        }
+
+        public async Task AcceptDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId)
+        {
+            _logger.LogInformation($"TransitService.AcceptDeleteLinkedFileRequest {globalTransitId} on target drive [{driveId}]");
+
+            uint publicKeyCrc = 0; //TODO: we need to encrypt the delete linked file request using the public key or the shared secret
+
+            var item = new TransferBoxItem()
+            {
+                Id = Guid.NewGuid(),
+                Type = TransferType.DeleteLinkedFile,
+                AddedTimestamp = UnixTimeUtcSeconds.Now(),
+                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
+                PublicKeyCrc = publicKeyCrc,
+
+                DriveId = driveId,
+                GlobalTransitId = globalTransitId
+            };
+
+            //Note: the inbox service will send the notification
+            await _transitBoxService.Add(item);
+        }
+
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
             DotYouIdentity recipient = outboxItem.Recipient;
@@ -289,7 +334,6 @@ namespace Youverse.Core.Services.Transit
                     OriginalRecipientList = null,
                 };
 
-
                 var json = DotYouSystemSerializer.Serialize(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
@@ -302,8 +346,6 @@ namespace Youverse.Core.Services.Transit
                     var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
-
-                //TODO: add additional error checking for files existing and successfully being opened, etc.
 
                 var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
                 var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
@@ -369,5 +411,11 @@ namespace Youverse.Core.Services.Transit
             var key = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(recipient.ToGuidIdentifier().ToByteArray(), file.DriveId.ToByteArray(), file.FileId.ToByteArray()));
             return new GuidId(key);
         }
+    }
+
+    public enum TransferType
+    {
+        DeleteLinkedFile,
+        FileTransfer
     }
 }

@@ -10,6 +10,8 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
@@ -19,6 +21,7 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
@@ -185,11 +188,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var findUpdatedRecipientFileResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
             Assert.IsNotNull(findUpdatedRecipientFileResponse.Content);
+            Assert.IsTrue(findUpdatedRecipientFileResponse.Content.SearchResults.Count() == 1, $"Must be only one file with {sendFileResult.GlobalTransitId.GetValueOrDefault()}");
+
             var updatedRecipientFile = findUpdatedRecipientFileResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(updatedRecipientFile);
             Assert.IsTrue(updatedRecipientFile.FileMetadata.AppData.DataType == fileMetadata.AppData.DataType);
             Assert.IsTrue(updatedRecipientFile.FileMetadata.AppData.FileType == fileMetadata.AppData.FileType);
-            
+
             // Get the updated file from recipient and see if it changed
             var sentThumbnail = updatedSendFileResult.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
             Assert.IsNotNull(sentThumbnail);
@@ -201,12 +206,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
             Assert.IsNotNull(payloadResponse.Content);
             //TODO decrypt paylaod and test that contents are updated
-            
+
             await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
 
-        [Test]
+        [Test(Description = "Setting both TransitOptions.IsTransient = true and TransitOptions.UseGlobalTransitId = true should fail")]
         public async Task FailToSendTransientFile_WithGlobalTransitId()
         {
             int someFiletype = 3892;
@@ -239,48 +244,98 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
-            //on sender identity
-            //create file with global unique id
-            //transfer file
-
             //on recipient identity
             //validate: recipient should have same global unique id
             //validate: client file header should have global unique id
 
-            //on sender identity delete the file
-            //validate: file is deleted (shows in query modified)
+            int someFiletype = 89994;
 
-            //on recipient identity
-            //validate: file is deleted (shows in query modified)
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            instructionSet.TransitOptions.UseGlobalTransitId = true;
 
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AppData = new UploadAppFileMetaData()
+                {
+                    FileType = someFiletype,
+                    JsonContent = "this is some content",
+                }
+            };
 
-            Assert.Inconclusive("WIP");
+            var options = new TransitTestUtilsOptions()
+            {
+                ProcessOutbox = true,
+                ProcessTransitBox = true,
+                DisconnectIdentitiesAfterTransfer = false,
+                EncryptPayload = false,
+                IncludeThumbnail = true
+            };
+
+            // Send the first file
+            var sendFileResult = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
+            var senderAppContext = sendFileResult.TestAppContext;
+
+            Assert.IsNotNull(sendFileResult.GlobalTransitId);
+            Assert.IsFalse(sendFileResult.GlobalTransitId.GetValueOrDefault() == Guid.Empty);
+
+            var firstFileSent = sendFileResult.UploadedFile;
+            var recipientAppContext = sendFileResult.RecipientContexts.FirstOrDefault().Value;
+
+            // 
+            // On recipient identity - see that file was transferred
+            // 
+            var filesByGlobalTransitId = new FileQueryParams()
+            {
+                TargetDrive = recipientAppContext.TargetDrive,
+                GlobalTransitId = new List<Guid>() { sendFileResult.GlobalTransitId.GetValueOrDefault() }
+            };
+
+            var getFirstFileByGlobalTransitIdResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
+
+            Assert.IsTrue(getFirstFileByGlobalTransitIdResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(getFirstFileByGlobalTransitIdResponse.Content);
+            var recipientFileRecord = getFirstFileByGlobalTransitIdResponse.Content.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(recipientFileRecord);
+            Assert.IsTrue(recipientFileRecord.FileMetadata.GlobalTransitId == sendFileResult.GlobalTransitId);
+            Assert.IsTrue(recipientFileRecord.FileMetadata.AppData.FileType == sendFileResult.UploadFileMetadata.AppData.FileType);
+            Assert.IsNotNull(recipientFileRecord);
+
+            var recipientFile = new ExternalFileIdentifier()
+            {
+                FileId = recipientFileRecord.FileId,
+                TargetDrive = recipientAppContext.TargetDrive
+            };
+
+            // Sender should now delete the file
+            await _scaffold.AppApi.DeleteFile(senderAppContext, firstFileSent);
+
+            // Validate: file is deleted on sender's identity
+
+            //
+            // Should still be in index and marked as deleted
+            //
+            var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParams.FromFileType(senderAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
+            Assert.IsTrue(qbResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(qbResponse.Content);
+            var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
+            DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+
+            // Validate: file is deleted on recipient's identity
+
+            var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
+            Assert.IsTrue(recipientQbResponse.IsSuccessStatusCode);
+            Assert.IsNotNull(recipientQbResponse.Content);
+            var recipientQbDeleteFileEntry = recipientQbResponse.Content.SearchResults.SingleOrDefault();
+            DotYouTestAssertions.FileHeaderIsMarkedDeleted(recipientQbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+
+            await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
-        [Test]
-        public async Task FailToHardDeleteFileOnRecipientServerUsingGlobalTransitId()
-        {
-            //on sender identity
-            //create file with global unique id
-            //transfer file
-
-            //on recipient identity
-            //validate: recipient should have same global unique id
-            //validate: client file header should have global unique id
-
-            //on sender identity delete the file
-            //validate: file is deleted (shows in query modified)
-
-            //on recipient identity
-            //validate: file is deleted (shows in query modified)
-
-            Assert.Inconclusive("WIP");
-        }
 
         [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
         public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
         {
-            Assert.Inconclusive("WIP");
+            Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
         }
 
         [Test(Description = "Test basic transfer; includes thumbnails")]
@@ -290,12 +345,36 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var recipient = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, TargetDrive.NewTargetDrive(), driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, testContext.TargetDrive);
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId);
+            var senderCircleDef =
+                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.ReadWrite
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.ReadWrite
+                    });
+
+            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -340,7 +419,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    //todo: maybe rename to payload content type
                     ContentType = "application/json",
                     AppData = new()
                     {
@@ -397,10 +475,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = recipientContext.TargetDrive });
+                // client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
@@ -413,7 +490,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         TargetDrive = recipientContext.TargetDrive,
                         TagsMatchAll = new List<Guid>() { fileTag }
                     },
-                    ResultOptionsRequest = new Youverse.Hosting.Controllers.QueryBatchResultOptionsRequest()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 1,
                         IncludeMetadataHeader = true
@@ -510,7 +587,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
                 Assert.IsNotNull(thumbnailResponse1.Content);
 
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
+                var thumbnailResponse1CipherBytes = await thumbnailResponse1!.Content!.ReadAsByteArrayAsync();
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, thumbnailResponse1CipherBytes));
 
                 //validate thumbnail 2
                 Assert.IsTrue(descriptorList[1].ContentType == clientFileHeaderList[1].ContentType);
@@ -526,7 +604,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);
                 Assert.IsNotNull(thumbnailResponse2.Content);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
+                var thumbnailResponse2CipherBytes = await thumbnailResponse2.Content!.ReadAsByteArrayAsync();
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, thumbnailResponse2CipherBytes));
 
                 decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();

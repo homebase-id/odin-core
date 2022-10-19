@@ -36,7 +36,7 @@ public class ChatServerContext
 
     public async Task<(IEnumerable<T> items, string cursorState)> QueryBatch<T>(FileQueryParams queryParams, string cursorState)
     {
-        await this.ProcessIncomingTransfers();
+        await this.ProcessIncomingInstructions();
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
@@ -72,7 +72,7 @@ public class ChatServerContext
     /// <returns></returns>
     public async Task<(IDictionary<Guid, T> dictiionary, string cursorState)> QueryBatchDictionary<T>(FileQueryParams queryParams, string cursorState)
     {
-        await this.ProcessIncomingTransfers();
+        await this.ProcessIncomingInstructions();
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
@@ -105,7 +105,7 @@ public class ChatServerContext
 
     public async Task<QueryBatchResponse> QueryBatch(FileQueryParams queryParams, string cursorState)
     {
-        await this.ProcessIncomingTransfers();
+        await this.ProcessIncomingInstructions();
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
@@ -130,13 +130,13 @@ public class ChatServerContext
         }
     }
 
-    public async Task ProcessIncomingTransfers(int delaySeconds = 0)
+    public async Task ProcessIncomingInstructions(int delaySeconds = 0)
     {
         Task.Delay(delaySeconds).Wait();
         using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-            var resp = await transitAppSvc.ProcessIncomingTransfers(new ProcessTransfersRequest() { TargetDrive = _appContext.TargetDrive });
+            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = _appContext.TargetDrive });
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }

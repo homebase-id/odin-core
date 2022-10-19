@@ -231,7 +231,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
             var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
-
+            
             // create 2 circles on sam's identity and give frodo access 
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>());
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
@@ -806,7 +806,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
-                
+
                 //
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new DotYouIdRequest() { DotYouId = frodo.Identity }, omitContactData: false);
@@ -845,7 +845,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
-                
+
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new DotYouIdRequest() { DotYouId = sam.Identity }, omitContactData: false);
