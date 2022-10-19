@@ -40,4 +40,4 @@ jobs:
 
       - name: Test
         #        working-directory: ./dotyoucore
-        run: dotnet test --no-build --verbosity normal dotyoucore/DotYouCore.sln
+        run: sudo dotnet test --no-build --verbosity normal dotyoucore/DotYouCore.sln
