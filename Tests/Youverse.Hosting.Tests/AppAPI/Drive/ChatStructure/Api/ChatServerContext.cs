@@ -22,9 +22,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
 
 public class ChatServerContext
 {
-    private TestSampleAppContext _appContext;
+    private TestAppContext _appContext;
 
-    public ChatServerContext(TestSampleAppContext appContext, WebScaffold scaffold)
+    public ChatServerContext(TestAppContext appContext, WebScaffold scaffold)
     {
         Scaffold = scaffold;
         _appContext = appContext;
@@ -136,7 +136,7 @@ public class ChatServerContext
         using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = _appContext.TargetDrive });
+            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = _appContext.TargetDrive });
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }

@@ -21,7 +21,7 @@ public class ChatApp
     private string _latestCursor = "";
     public ChatMessageService MessageService { get; }
 
-    public ChatApp(TestSampleAppContext appContext, WebScaffold scaffold)
+    public ChatApp(TestAppContext appContext, WebScaffold scaffold)
     {
         _chatServerContext = new ChatServerContext(appContext, scaffold);
         _conversationDefinitionService = new ConversationDefinitionService(_chatServerContext);

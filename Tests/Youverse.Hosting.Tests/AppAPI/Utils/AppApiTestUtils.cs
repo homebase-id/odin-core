@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return client;
         }
 
-        public HttpClient CreateAppApiHttpClient(TestSampleAppContext appTestContext)
+        public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext)
         {
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
         }
@@ -91,8 +91,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return (AppTransitTestUtilsContext)await CreateAppAndTransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<AppTransitTestUtilsContext> TransferFile(TestSampleAppContext senderAppContext,
-            Dictionary<DotYouIdentity, TestSampleAppContext> recipientContexts,
+        public async Task<AppTransitTestUtilsContext> TransferFile(TestAppContext senderAppContext,
+            Dictionary<DotYouIdentity, TestAppContext> recipientContexts,
             UploadInstructionSet instructionSet,
             UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
@@ -149,8 +149,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-
-
+                
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
@@ -194,7 +193,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                         using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = rCtx.Value.TargetDrive });
+                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.Value.TargetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
@@ -240,7 +239,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     });
 
             //Setup the app on all recipient DIs
-            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>();
+            var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = TestIdentities.All[r];
@@ -266,18 +265,47 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             return await TransferFile(testAppContext, recipientContexts, instructionSet, fileMetadata, options);
         }
 
-        public async Task DeleteFile(TestSampleAppContext testAppContext, ExternalFileIdentifier fileId)
+        public async Task DeleteFile(TestAppContext testAppContext, ExternalFileIdentifier fileId, List<TestAppContext> recipients = null)
         {
+            var recipients2 = recipients ?? new List<TestAppContext>();
             using (var client = this.CreateAppApiHttpClient(testAppContext.Identity, testAppContext.ClientAuthenticationToken))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
-                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest() { File = fileId });
+                var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
+                {
+                    File = fileId,
+                    DeleteLinkedFiles = recipients2.Any(),
+                    Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
+                });
+
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-                Assert.IsTrue(deleteFileResponse.Content);
+                var deleteStatus = deleteFileResponse.Content;
+                Assert.IsNotNull(deleteStatus);
+                Assert.IsFalse(deleteStatus.LocalFileNotFound);
+                Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
+
+                foreach (var (key, value) in deleteStatus.RecipientStatus)
+                {
+                    Assert.IsTrue(value == DeleteLinkedFileStatus.RequestAccepted, $"Delete request failed for {key}");
+                }
+            }
+
+            //process the instructions on the recipients servers
+            if (recipients2.Any())
+            {
+                foreach (var rCtx in recipients2)
+                {
+                    using (var rClient = this.CreateAppApiHttpClient(rCtx.Identity, rCtx.ClientAuthenticationToken))
+                    {
+                        var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
+                        var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.TargetDrive });
+                        Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                    }
+                }
             }
         }
 
-        public async Task<ApiResponse<ClientFileHeader>> GetFileHeader(TestSampleAppContext appContext, ExternalFileIdentifier file)
+        public async Task<ApiResponse<ClientFileHeader>> GetFileHeader(TestAppContext appContext, ExternalFileIdentifier file)
         {
             using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
             {
@@ -287,7 +315,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<HttpContent>> GetFilePayload(TestSampleAppContext appContext, ExternalFileIdentifier file)
+        public async Task<ApiResponse<HttpContent>> GetFilePayload(TestAppContext appContext, ExternalFileIdentifier file)
         {
             using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
             {
@@ -297,7 +325,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestSampleAppContext appContext, ExternalFileIdentifier file, int width, int height)
+        public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height)
         {
             using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
             {
@@ -314,7 +342,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestSampleAppContext appContext, FileQueryParams queryParams, QueryBatchResultOptionsRequest options)
+        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParams queryParams, QueryBatchResultOptionsRequest options)
         {
             using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
             {

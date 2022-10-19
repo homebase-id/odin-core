@@ -6,7 +6,7 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Hosting.Tests
 {
-    public class TestSampleAppContext
+    public class TestAppContext
     {
         public DotYouIdentity Identity { get; set; }
         

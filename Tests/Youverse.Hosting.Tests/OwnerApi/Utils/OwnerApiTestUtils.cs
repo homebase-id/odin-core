@@ -320,7 +320,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
-        public async Task<TestSampleAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
+        public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
         {
             Guid appId = Guid.NewGuid();
             TargetDrive targetDrive = new TargetDrive()
@@ -331,7 +331,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
         }
 
-        public async Task<TestSampleAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
+        public async Task<TestAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
             bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
             if (null == targetDrive)
@@ -346,7 +346,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
-            return new TestSampleAppContext()
+            return new TestAppContext()
             {
                 Identity = identity.DotYouId,
                 ContactData = identity.ContactData,
@@ -747,7 +747,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
 
-                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = targetDrive });
+                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = targetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }

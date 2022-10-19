@@ -31,6 +31,14 @@ namespace Youverse.Core.Services.Transit.Upload
             {
                 throw new UploadException("Target drive is invalid");
             }
+
+            if (TransitOptions != null)
+            {
+                if (TransitOptions.IsTransient && TransitOptions.UseGlobalTransitId)
+                {
+                    throw new UploadException("Cannot use GlobalTransitId on a transient file.");
+                }
+            }
         }
 
 

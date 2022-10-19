@@ -57,7 +57,7 @@ public class ConfigurationTestUtilities
         Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
     }
 
-    public async Task<(TestSampleAppContext, TestSampleAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam()
+    public async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam()
     {
         Guid appId = Guid.NewGuid();
         var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
@@ -99,7 +99,7 @@ public class ConfigurationTestUtilities
         return (sender, recipient, requestHeader);
     }
 
-    public async Task AcceptConnectionRequest(TestSampleAppContext sender, TestSampleAppContext recipient)
+    public async Task AcceptConnectionRequest(TestAppContext sender, TestAppContext recipient)
     {
         using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
         {
@@ -118,7 +118,7 @@ public class ConfigurationTestUtilities
         }
     }
 
-    public async Task DeleteConnectionRequestsFromFrodoToSam(TestSampleAppContext frodo, TestSampleAppContext sam)
+    public async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
     {
         using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
         {
@@ -143,7 +143,7 @@ public class ConfigurationTestUtilities
         }
     }
 
-    public async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)
+    public async Task DisconnectIdentities(TestAppContext frodo, TestAppContext sam)
     {
         using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
         {

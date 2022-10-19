@@ -1,8 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Apps
@@ -11,11 +15,13 @@ namespace Youverse.Core.Services.Apps
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
+        private readonly ITransitService _transitService;
 
-        public AppService(IDriveService driveService, DotYouContextAccessor contextAccessor)
+        public AppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ITransitService transitService)
         {
             _driveService = driveService;
             _contextAccessor = contextAccessor;
+            _transitService = transitService;
         }
 
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
@@ -73,35 +79,64 @@ namespace Youverse.Core.Services.Apps
             {
                 clientFileHeader.ServerMetadata = header.ServerMetadata;
             }
-            
+
             return clientFileHeader;
-            //
-            // if (_contextAccessor.GetCurrent().Caller.IsOwner)
-            // {
-            //     return new ClientFileHeader()
-            //     {
-            //         FileId = header.FileMetadata.File.FileId,
-            //         SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-            //         FileMetadata = RedactFileMetadata(header.FileMetadata),
-            //         ServerMetadata = header.ServerMetadata,
-            //         Priority = priority
-            //     };
-            // }
-            //
-            // return new ClientFileHeader()
-            // {
-            //     FileId = header.FileMetadata.File.FileId,
-            //     SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-            //     FileMetadata = RedactFileMetadata(header.FileMetadata),
-            //     Priority = priority
-            // };
+        }
+
+        public async Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients)
+        {
+            var result = new DeleteLinkedFileResult()
+            {
+                RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+                LocalFileDeleted = false
+            };
+
+            var header = await _driveService.GetServerFileHeader(file);
+            if (header == null)
+            {
+                result.LocalFileNotFound = true;
+                return result;
+            }
+
+            var recipients = requestRecipients ?? new List<string>();
+            if (recipients.Any())
+            {
+                if (header.FileMetadata.GlobalTransitId.HasValue)
+                {
+                    //send the deleted file
+                    var map = await _transitService.SendDeleteLinkedFileRequest(file.DriveId, header.FileMetadata.GlobalTransitId.GetValueOrDefault(), recipients);
+
+                    foreach (var (key, value) in map)
+                    {
+                        switch (value)
+                        {
+                            case TransitResponseCode.Accepted:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestAccepted);
+                                break;
+
+                            case TransitResponseCode.Rejected:
+                            case TransitResponseCode.QuarantinedPayload:
+                            case TransitResponseCode.QuarantinedSenderNotConnected:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestRejected);
+                                break;
+
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    }
+                }
+            }
+
+            await _driveService.SoftDeleteLongTermFile(file);
+            result.LocalFileDeleted = true;
+
+            return result;
         }
 
         private ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
         {
             var clientFile = new ClientFileMetadata
             {
-                
                 Created = fileMetadata.Created,
                 Updated = fileMetadata.Updated,
                 AppData = fileMetadata.AppData,

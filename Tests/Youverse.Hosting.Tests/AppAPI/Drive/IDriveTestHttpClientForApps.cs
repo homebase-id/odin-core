@@ -38,6 +38,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request);
 
         [Post(RootEndpoint + "/files/delete")]
-        Task<ApiResponse<bool>> DeleteFile([Body] DeleteFileRequest file);
+        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
     }
 }

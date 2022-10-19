@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
 
-        private async Task<(TestSampleAppContext, TestSampleAppContext)> CreateConnectionRequestFrodoToSam()
+        private async Task<(TestAppContext, TestAppContext)> CreateConnectionRequestFrodoToSam()
         {
             Guid appId = Guid.NewGuid();
             var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             return (sender, recipient);
         }
         
-        private async Task DeleteConnectionRequestsFromFrodoToSam(TestSampleAppContext frodo, TestSampleAppContext sam)
+        private async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {

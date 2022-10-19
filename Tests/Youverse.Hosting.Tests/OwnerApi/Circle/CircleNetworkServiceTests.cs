@@ -908,7 +908,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
         }
 
-        private async Task<(TestSampleAppContext, TestSampleAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
+        private async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
             CircleDefinition circleDefinition2 = null)
         {
             Guid appId = Guid.NewGuid();
@@ -962,7 +962,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             return (sender, recipient, requestHeader);
         }
 
-        private async Task AcceptConnectionRequest(TestSampleAppContext sender, TestSampleAppContext recipient)
+        private async Task AcceptConnectionRequest(TestAppContext sender, TestAppContext recipient)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
             {
@@ -981,7 +981,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task DeleteConnectionRequestsFromFrodoToSam(TestSampleAppContext frodo, TestSampleAppContext sam)
+        private async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
             {
@@ -1006,7 +1006,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task DisconnectIdentities(TestSampleAppContext frodo, TestSampleAppContext sam)
+        private async Task DisconnectIdentities(TestAppContext frodo, TestAppContext sam)
         {
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
             {

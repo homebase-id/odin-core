@@ -33,12 +33,11 @@ namespace Youverse.Core.Services.Transit
             _driveQueryService = driveQueryService;
         }
 
-        public async Task ProcessIncomingInstructions(TargetDrive targetDrive)
+        public async Task ProcessIncomingTransitInstructions(TargetDrive targetDrive)
         {
             var drive = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await GetAcceptedItems(drive);
 
-            //TODO: perform these in parallel
             foreach (var item in items)
             {
                 try
@@ -50,6 +49,10 @@ namespace Youverse.Core.Services.Transit
                     else if (item.Type == TransferType.DeleteLinkedFile)
                     {
                         await DeleteFile(item);
+                    }
+                    else if (item.Type == TransferType.None)
+                    {
+                        throw new YouverseException("Transfer type not specified");
                     }
                     else
                     {

@@ -200,7 +200,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
             }
         }
 
-        public async Task CreateAnonymousUnEncryptedFile(TestSampleAppContext testContext, int fileType, int dataType, string jsonContent, List<Guid> tags, byte[] payloadContent,
+        public async Task CreateAnonymousUnEncryptedFile(TestAppContext testContext, int fileType, int dataType, string jsonContent, List<Guid> tags, byte[] payloadContent,
             ImageDataContent previewThumbnail,
             List<ImageDataContent> additionalThumbs)
         {

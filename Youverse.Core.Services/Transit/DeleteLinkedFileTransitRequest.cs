@@ -1,7 +1,7 @@
 using System;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Hosting.Controllers.Certificate;
+namespace Youverse.Core.Services.Transit;
 
 public class DeleteLinkedFileTransitRequest
 {

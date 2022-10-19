@@ -20,17 +20,3 @@ public class DeleteFileRequest
     /// </summary>
     public List<string> Recipients { get; set; }
 }
-
-public enum DeleteLinkedFileStatus
-{
-    RequestAccepted,
-    RequestRejected
-}
-
-public class DeleteLinkedFileResponse
-{
-    public Dictionary<string, DeleteLinkedFileStatus> RecipientStatus { get; set; }
-
-    public bool FileNotLinked { get; set; }
-    public bool LocalFileDeleted { get; set; }
-}

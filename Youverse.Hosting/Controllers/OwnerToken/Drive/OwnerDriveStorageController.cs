@@ -9,8 +9,6 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Certificate;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
@@ -109,7 +107,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public async Task<DeleteLinkedFileResponse> DeleteFile([FromBody] DeleteFileRequest request)
+        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
 
@@ -119,53 +117,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            var result = new DeleteLinkedFileResponse()
+            var result = await _appService.DeleteFile(file, request.Recipients);
+            if (result.LocalFileNotFound)
             {
-                RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
-                LocalFileDeleted = false
-            };
-            
-            if (request.DeleteLinkedFiles)
-            {
-                var header = await _driveService.GetServerFileHeader(file);
-                if (header == null)
-                {
-                    result.FileNotLinked = true;
-                    result.RecipientStatus = null;
-                    result.LocalFileDeleted = false;
-                    return result;
-                }
-
-                if (header.FileMetadata.GlobalTransitId.HasValue && (request.Recipients?.Any() ?? false))
-                {
-                    //send the deleted file
-                    var map = await _transitService.SendDeleteLinkedFileRequest(driveId, header.FileMetadata.GlobalTransitId.GetValueOrDefault(), request.Recipients);
-
-                    foreach (var (key, value) in map)
-                    {
-                        switch (value)
-                        {
-                            case TransitResponseCode.Accepted:
-                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestAccepted);
-                                break;
-                            
-                            case TransitResponseCode.Rejected:
-                            case TransitResponseCode.QuarantinedPayload:
-                            case TransitResponseCode.QuarantinedSenderNotConnected:
-                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestRejected);
-                                break;
-                            
-                            default:
-                                throw new ArgumentOutOfRangeException();
-                        }
-                    }
-                }
+                return NotFound();
             }
 
-            await _driveService.SoftDeleteLongTermFile(file);
-            result.LocalFileDeleted = true;
-
-            return result;
+            return new JsonResult(result);
         }
     }
 }

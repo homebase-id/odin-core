@@ -67,18 +67,26 @@ namespace Youverse.Core.Services.Transit.Incoming
             var items = records.Select(r =>
             {
                 var item = DotYouSystemSerializer.Deserialize<TransferBoxItem>(r.value.ToStringFromUtf8Bytes());
-                return new TransferBoxItem()
-                {
-                    Sender = (DotYouIdentity)item.Sender,
-                    Priority = (int)r.priority,
-                    AddedTimestamp = r.timeStamp,
-                    DriveId = new Guid(r.boxId),
-                    FileId = new Guid(r.fileId),
-                    GlobalTransitId = item.GlobalTransitId,
-                    Marker = marker,
-                    Id = item.Id,
-                    PublicKeyCrc = item.PublicKeyCrc
-                };
+
+                item.Priority = (int)r.priority;
+                item.AddedTimestamp = r.timeStamp;
+                item.DriveId = new Guid(r.boxId);
+                item.FileId = new Guid(r.fileId);
+                
+                return item;
+                
+                // return new TransferBoxItem()
+                // {
+                //     Sender = (DotYouIdentity)item.Sender,
+                //     Priority = (int)r.priority,
+                //     AddedTimestamp = r.timeStamp,
+                //     DriveId = new Guid(r.boxId),
+                //     FileId = new Guid(r.fileId),
+                //     GlobalTransitId = item.GlobalTransitId,
+                //     Marker = marker,
+                //     Id = item.Id,
+                //     PublicKeyCrc = item.PublicKeyCrc
+                // };
             }).ToList();
 
             return items;

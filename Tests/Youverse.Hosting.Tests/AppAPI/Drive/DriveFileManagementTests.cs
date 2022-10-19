@@ -213,7 +213,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 // delete the file
                 var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest() { File = fileToDelete });
                 Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-                Assert.IsTrue(deleteFileResponse.Content);
+                Assert.IsNotNull(deleteFileResponse.Content);
+                Assert.IsTrue(deleteFileResponse.Content.LocalFileDeleted);
 
                 //
                 // Should still be in index

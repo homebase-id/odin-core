@@ -1,15 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Apps.CommandMessaging;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -20,13 +22,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     {
         private readonly DriveUploadService _driveUploadService;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveService _driveService;
+        private readonly IAppService _appService;
 
-        public DriveStorageWriteController( DriveUploadService driveUploadService, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public DriveStorageWriteController(DriveUploadService driveUploadService, DotYouContextAccessor contextAccessor, IDriveService driveService, ITransitService transitService,
+            IAppService appService)
         {
             _driveUploadService = driveUploadService;
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _appService = appService;
         }
 
         /// <summary>
@@ -35,15 +38,23 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/delete")]
-        public async Task<bool> DeleteFile([FromBody] ExternalFileIdentifier request)
+        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
+
             var file = new InternalDriveFileId()
             {
-                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
+                DriveId = driveId,
+                FileId = request.File.FileId
             };
-            await _driveService.SoftDeleteLongTermFile(file);
-            return true;
+
+            var result = await _appService.DeleteFile(file, request.Recipients);
+            if (result.LocalFileNotFound)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
         }
 
         /// <summary>
@@ -150,5 +161,4 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return cd.Name?.Trim('"');
         }
     }
-    
 }

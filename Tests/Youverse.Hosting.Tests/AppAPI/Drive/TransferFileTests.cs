@@ -21,6 +21,7 @@ using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
@@ -210,37 +211,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
-
-        [Test(Description = "Setting both TransitOptions.IsTransient = true and TransitOptions.UseGlobalTransitId = true should fail")]
-        public async Task FailToSendTransientFile_WithGlobalTransitId()
-        {
-            int someFiletype = 3892;
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
-            instructionSet.TransitOptions.IsTransient = true;
-            instructionSet.TransitOptions.UseGlobalTransitId = true;
-
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AppData = new UploadAppFileMetaData()
-                {
-                    FileType = someFiletype,
-                    JsonContent = "this is some content",
-                }
-            };
-
-            var options = new TransitTestUtilsOptions()
-            {
-                ProcessOutbox = true,
-                ProcessTransitBox = true,
-                DisconnectIdentitiesAfterTransfer = true,
-                EncryptPayload = false,
-                IncludeThumbnail = true
-            };
-
-            Assert.Inconclusive("send a file with both IsTransient and UseGlobalTransitId enabled.  it should fail");
-            // var ctx = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
-        }
-
         [Test]
         public async Task CanDeleteFileOnRecipientServerUsingGlobalTransitId()
         {
@@ -300,19 +270,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(recipientFileRecord.FileMetadata.AppData.FileType == sendFileResult.UploadFileMetadata.AppData.FileType);
             Assert.IsNotNull(recipientFileRecord);
 
-            var recipientFile = new ExternalFileIdentifier()
-            {
-                FileId = recipientFileRecord.FileId,
-                TargetDrive = recipientAppContext.TargetDrive
-            };
-
             // Sender should now delete the file
-            await _scaffold.AppApi.DeleteFile(senderAppContext, firstFileSent);
-
-            // Validate: file is deleted on sender's identity
+            await _scaffold.AppApi.DeleteFile(senderAppContext, firstFileSent, new List<TestAppContext>() { recipientAppContext });
 
             //
-            // Should still be in index and marked as deleted
+            // sender server: Should still be in index and marked as deleted
             //
             var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParams.FromFileType(senderAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
@@ -320,7 +282,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
             DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
 
-            // Validate: file is deleted on recipient's identity
+            // recipient server: Should still be in index and marked as deleted
 
             var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
             Assert.IsTrue(recipientQbResponse.IsSuccessStatusCode);
@@ -332,11 +294,22 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
 
-        [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
-        public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
+        [Test(Description = "Setting both TransitOptions.IsTransient = true and TransitOptions.UseGlobalTransitId = true should fail")]
+        public async Task FailToSendTransientFile_WithGlobalTransitId()
         {
-            Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            instructionSet.TransitOptions.IsTransient = true;
+            instructionSet.TransitOptions.UseGlobalTransitId = true;
+
+            Assert.Throws<UploadException>(() => { instructionSet.AssertIsValid(); });
         }
+
+
+        // [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
+        // public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
+        // {
+        //     Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
+        // }
 
         [Test(Description = "Test basic transfer; includes thumbnails")]
         public async Task CanSendTransferAndRecipientCanGetFilesByTag()
@@ -476,7 +449,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 // client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);

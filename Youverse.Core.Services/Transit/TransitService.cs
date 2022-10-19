@@ -241,6 +241,8 @@ namespace Youverse.Core.Services.Transit
         public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
+
+            var targetDrive = (await _driveService.GetDrive(driveId, true)).TargetDriveInfo;
             foreach (var recipient in recipients)
             {
                 var r = (DotYouIdentity)recipient;
@@ -248,7 +250,11 @@ namespace Youverse.Core.Services.Transit
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
-                var httpResponse = await client.DeleteLinkedFile(globalTransitId);
+                var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
+                {
+                    TargetDrive = targetDrive,
+                    GlobalTransitId = globalTransitId
+                });
 
                 if (httpResponse.IsSuccessStatusCode)
                 {
@@ -415,6 +421,7 @@ namespace Youverse.Core.Services.Transit
 
     public enum TransferType
     {
+        None,
         DeleteLinkedFile,
         FileTransfer
     }

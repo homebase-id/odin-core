@@ -18,6 +18,6 @@ namespace Youverse.Core.Services.Transit
             params StreamPart[] thumbnail);
 
         [Post("/api/perimeter/transit/host/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile(Guid globalTransitId);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile(DeleteLinkedFileTransitRequest request);
     }
 }

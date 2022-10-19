@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         /// <param name="targetDrive"></param>
         /// <returns></returns>
-        Task ProcessIncomingInstructions(TargetDrive targetDrive);
+        Task ProcessIncomingTransitInstructions(TargetDrive targetDrive);
         
         /// <summary>
         /// Gets a list of the items received by the transit which were quarantined.

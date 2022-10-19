@@ -10,12 +10,15 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.ClientToken.App;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 {
@@ -41,36 +44,71 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
         public async Task CanSendAndReceiveCommand()
         {
             Guid appId = Guid.NewGuid();
-            var drive = TargetDrive.NewTargetDrive();
+            var targetDrive = TargetDrive.NewTargetDrive();
             int SomeFileType = 1948;
 
-            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true, drive, driveAllowAnonymousReads: false);
-            var merryAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Merry, canReadConnections: true, drive, driveAllowAnonymousReads: false);
-            var pippinAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Pippin, canReadConnections: true, drive, driveAllowAnonymousReads: false);
-            var samAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true, drive, driveAllowAnonymousReads: false);
+            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
+            var merryAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Merry, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
+            var pippinAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Pippin, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
+            var samAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
 
             var senderTestContext = frodoAppContext;
 
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
-
-            var recipientContexts = new Dictionary<DotYouIdentity, TestSampleAppContext>()
+            //Setup the app on all recipient DIs
+            var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>()
             {
                 { TestIdentities.Samwise.DotYouId, samAppContext },
                 { TestIdentities.Merry.DotYouId, merryAppContext },
                 { TestIdentities.Pippin.DotYouId, pippinAppContext }
             };
 
+            var frodoCircleDef = await CreateCircleForCommandTest(senderTestContext.Identity, targetDrive);
+            var merryCircleDef = await CreateCircleForCommandTest(merryAppContext.Identity, targetDrive);
+            var pippinCircleDef = await CreateCircleForCommandTest(pippinAppContext.Identity, targetDrive);
+            var samCircleDef = await CreateCircleForCommandTest(samAppContext.Identity, targetDrive);
+            
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { samCircleDef.Id }
+            });
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
+            });
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
+            });
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
+            });
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
+            });
+
+            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+            {
+                CircleIdsGrantedToRecipient = new List<GuidId>() { pippinCircleDef.Id },
+                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
+            });
+            
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = ByteArrayUtil.GetRndByteArray(16),
                 StorageOptions = new()
                 {
-                    Drive = drive
+                    Drive = targetDrive
                 },
                 TransitOptions = new()
                 {
@@ -145,7 +183,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             //
             // validate frodo no longer as the file associated w/ the command
             // 
-            
+
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
@@ -156,14 +194,25 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
         }
 
-        private async Task AssertCommandReceived(TestSampleAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult)
+        private async Task<CircleDefinition> CreateCircleForCommandTest(DotYouIdentity identity, TargetDrive targetDrive)
+        {
+            return await _scaffold.OwnerApi.CreateCircleWithDrive(identity, $"Sender ({identity}) Circle",
+                permissionKeys: new List<int>() { },
+                drive: new PermissionedDrive()
+                {
+                    Drive = targetDrive,
+                    Permission = DrivePermission.ReadWrite
+                });
+        }
+
+        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult)
         {
             var drive = command.Drive;
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext.Identity, recipientAppContext.ClientAuthenticationToken))
             {
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessInstructionRequest() { TargetDrive = drive });
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = drive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, recipientAppContext.SharedSecret);
