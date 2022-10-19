@@ -22,6 +22,7 @@ namespace Youverse.Hosting.Tests
         private IHost _webserver;
         private readonly OwnerApiTestUtils _ownerApi;
         private AppApiTestUtils _appApi;
+        private ScenarioBootstrapper _scenarios;
         private DevelopmentIdentityContextRegistry _registry;
 
         public WebScaffold(string folder)
@@ -58,11 +59,7 @@ namespace Youverse.Hosting.Tests
             }
 
             _appApi = new AppApiTestUtils(_ownerApi);
-        }
-
-        public void SetAppApi(AppApiTestUtils appApi)
-        {
-            _appApi = appApi;
+            _scenarios = new ScenarioBootstrapper(_ownerApi, _appApi);
         }
 
         [OneTimeTearDown]
@@ -79,6 +76,8 @@ namespace Youverse.Hosting.Tests
         public OwnerApiTestUtils OwnerApi => this._ownerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
+
+        public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");
 
         /// <summary>
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.

@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Entity.Infrastructure.Design;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 {
     public class ChatDriveTests
     {
@@ -76,22 +73,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             //send reply
 
             var chatApps = await this.InitializeApps();
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
-
-
+            
             var frodoChatApp = chatApps[TestIdentities.Frodo.DotYouId];
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
             var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
             var pippinChat = chatApps[TestIdentities.Pippin.DotYouId];
-
-            //TODO: create a connection between other parties; what happens when other parties are not connected but put into the same group?
 
             // Frodo sends a command to create a group
             var hobbitsChatGroup = new ChatGroup()
@@ -133,7 +119,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
             System.Threading.Thread.Sleep(2000);
 
             //issue: frodo does not have the conversation
-            
+
             // await frodoChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😀");
             await merryChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😈");
 
@@ -193,12 +179,21 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure
         public async Task<Dictionary<string, ChatApp>> InitializeApps()
         {
             var apps = new Dictionary<string, ChatApp>(StringComparer.InvariantCultureIgnoreCase);
-            foreach (var (dotYouId, identity) in TestIdentities.All)
+            
+            var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(ChatApiConfig.Drive);
+
+            foreach (var testAppContext in scenarioCtx.AppContexts)
             {
-                var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(ChatApiConfig.AppId, identity, canReadConnections: true, ChatApiConfig.Drive, driveAllowAnonymousReads: false);
-                var chatApp = new ChatApp(testAppContext, _scaffold);
-                apps.Add(dotYouId, chatApp);
+                var chatApp = new ChatApp(testAppContext.Value, _scaffold);
+                apps.Add(testAppContext.Key, chatApp);
             }
+            
+            // foreach (var (dotYouId, identity) in TestIdentities.All)
+            // {
+            // var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(ChatApiConfig.AppId, identity, canReadConnections: true, ChatApiConfig.Drive, driveAllowAnonymousReads: false);
+            // var chatApp = new ChatApp(testAppContext, _scaffold);
+            // apps.Add(dotYouId, chatApp);
+            // }
 
             return apps;
         }

@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure;
 
 public class ChatMessage
 {

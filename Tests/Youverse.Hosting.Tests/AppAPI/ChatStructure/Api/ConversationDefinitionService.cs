@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Grpc.Net.Client;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 /// <summary>
 /// Manages chat groups and their definitions

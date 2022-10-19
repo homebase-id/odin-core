@@ -1,11 +1,10 @@
 using System;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public static class ChatApiConfig
 {
-    public static readonly Guid AppId = Guid.Parse("99888555-4444-0000-4444-000000004444");
 
     public static readonly TargetDrive Drive = new()
     {

@@ -7,7 +7,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public class ChatMessageService
 {

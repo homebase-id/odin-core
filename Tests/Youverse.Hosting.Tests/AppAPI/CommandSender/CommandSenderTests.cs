@@ -43,65 +43,20 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
         [Test(Description = "Test sending and receiving a command message")]
         public async Task CanSendAndReceiveCommand()
         {
-            Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
             int SomeFileType = 1948;
 
-            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
-            var merryAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Merry, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
-            var pippinAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Pippin, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
-            var samAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
+            var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
 
-            var senderTestContext = frodoAppContext;
+            var senderTestContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
 
             //Setup the app on all recipient DIs
             var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>()
             {
-                { TestIdentities.Samwise.DotYouId, samAppContext },
-                { TestIdentities.Merry.DotYouId, merryAppContext },
-                { TestIdentities.Pippin.DotYouId, pippinAppContext }
+                { TestIdentities.Samwise.DotYouId, scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId] },
+                { TestIdentities.Merry.DotYouId, scenarioCtx.AppContexts[TestIdentities.Merry.DotYouId] },
+                { TestIdentities.Pippin.DotYouId, scenarioCtx.AppContexts[TestIdentities.Pippin.DotYouId] }
             };
-
-            var frodoCircleDef = await CreateCircleForCommandTest(senderTestContext.Identity, targetDrive);
-            var merryCircleDef = await CreateCircleForCommandTest(merryAppContext.Identity, targetDrive);
-            var pippinCircleDef = await CreateCircleForCommandTest(pippinAppContext.Identity, targetDrive);
-            var samCircleDef = await CreateCircleForCommandTest(samAppContext.Identity, targetDrive);
-            
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { samCircleDef.Id }
-            });
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
-            });
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
-            });
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
-            });
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
-            });
-
-            await _scaffold.OwnerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
-            {
-                CircleIdsGrantedToRecipient = new List<GuidId>() { pippinCircleDef.Id },
-                CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
-            });
             
             var instructionSet = new UploadInstructionSet()
             {
@@ -143,7 +98,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
             var command = new CommandMessage()
             {
-                Drive = frodoAppContext.TargetDrive,
+                Drive = targetDrive,
                 JsonMessage = DotYouSystemSerializer.Serialize(new { reaction = ":)" }),
                 GlobalTransitIdList = new List<Guid>() { originalFileSendResult.GlobalTransitId.GetValueOrDefault() },
                 Recipients = instructionSet.TransitOptions.Recipients // same as we sent the file
@@ -176,9 +131,9 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
-            await AssertCommandReceived(samAppContext, command, originalFileSendResult);
-            await AssertCommandReceived(merryAppContext, command, originalFileSendResult);
-            await AssertCommandReceived(pippinAppContext, command, originalFileSendResult);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.DotYouId], command, originalFileSendResult);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Merry.DotYouId], command, originalFileSendResult);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Pippin.DotYouId], command, originalFileSendResult);
 
             //
             // validate frodo no longer as the file associated w/ the command

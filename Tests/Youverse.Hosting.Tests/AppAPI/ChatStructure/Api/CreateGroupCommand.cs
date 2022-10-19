@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public class CreateGroupCommand : CommandBase
 {

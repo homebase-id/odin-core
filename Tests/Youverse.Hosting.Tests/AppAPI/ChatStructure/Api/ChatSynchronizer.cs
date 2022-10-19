@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Serialization;
@@ -7,7 +6,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.ChatStructure.Api;
+namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 /// <summary>
 /// Retrieves latest chat messages and commands; distributes accordingly
