@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     /// The response from sending a transfer to another DI host
     /// </summary>
-    public class HostTransferResponse
+    public class HostTransferTransitResponse
     {
         /// <summary>
         /// Specifies if the transfer was successfully received
