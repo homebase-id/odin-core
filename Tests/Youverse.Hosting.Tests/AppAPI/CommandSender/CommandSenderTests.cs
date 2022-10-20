@@ -10,15 +10,13 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.ClientToken.App;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+
 
 namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 {
@@ -57,7 +55,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 { TestIdentities.Merry.DotYouId, scenarioCtx.AppContexts[TestIdentities.Merry.DotYouId] },
                 { TestIdentities.Pippin.DotYouId, scenarioCtx.AppContexts[TestIdentities.Pippin.DotYouId] }
             };
-            
+
             var instructionSet = new UploadInstructionSet()
             {
                 TransferIv = ByteArrayUtil.GetRndByteArray(16),
@@ -98,7 +96,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
             var command = new CommandMessage()
             {
-                Drive = targetDrive,
+                Code = 100,
                 JsonMessage = DotYouSystemSerializer.Serialize(new { reaction = ":)" }),
                 GlobalTransitIdList = new List<Guid>() { originalFileSendResult.GlobalTransitId.GetValueOrDefault() },
                 Recipients = instructionSet.TransitOptions.Recipients // same as we sent the file
@@ -112,13 +110,13 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, senderTestContext.SharedSecret);
                 var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
                 {
+                    TargetDrive = targetDrive,
                     Command = command
                 });
 
                 Assert.That(sendCommandResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(sendCommandResponse.Content, Is.Not.Null);
                 var commandResult = sendCommandResponse.Content;
-
 
                 //TODO: add checks that the command was sent
                 // Assert.That(commandResult.File, Is.Not.Null);
@@ -131,9 +129,9 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
-            await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.DotYouId], command, originalFileSendResult);
-            await AssertCommandReceived(recipientContexts[TestIdentities.Merry.DotYouId], command, originalFileSendResult);
-            await AssertCommandReceived(recipientContexts[TestIdentities.Pippin.DotYouId], command, originalFileSendResult);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Merry.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Pippin.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
 
             //
             // validate frodo no longer as the file associated w/ the command
@@ -149,20 +147,9 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
         }
 
-        private async Task<CircleDefinition> CreateCircleForCommandTest(DotYouIdentity identity, TargetDrive targetDrive)
+        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, DotYouIdentity sender)
         {
-            return await _scaffold.OwnerApi.CreateCircleWithDrive(identity, $"Sender ({identity}) Circle",
-                permissionKeys: new List<int>() { },
-                drive: new PermissionedDrive()
-                {
-                    Drive = targetDrive,
-                    Permission = DrivePermission.ReadWrite
-                });
-        }
-
-        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult)
-        {
-            var drive = command.Drive;
+            var drive = originalFileSendResult.UploadedFile.TargetDrive;
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext.Identity, recipientAppContext.ClientAuthenticationToken))
             {
@@ -183,20 +170,14 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
                 var receivedCommand = resultSet.ReceivedCommands.SingleOrDefault();
                 Assert.IsNotNull(receivedCommand, "There should be a single command");
-                Assert.IsTrue(receivedCommand.Drive == command.Drive);
                 Assert.IsFalse(receivedCommand.Id == Guid.Empty);
                 Assert.IsTrue(receivedCommand.ClientJsonMessage == command.JsonMessage, "received json message should match the sent message");
-
+                Assert.IsTrue(receivedCommand.ClientCode == command.Code);
+                Assert.IsTrue(((DotYouIdentity)receivedCommand.Sender) == sender);
                 var gtid = receivedCommand.GlobalTransitIdList.SingleOrDefault();
                 Assert.IsNotNull(gtid, "There should be only 1 GlobalTransitId returned");
                 Assert.IsTrue(gtid == originalFileSendResult.GlobalTransitId);
-                var matchedFile = receivedCommand.MatchingFiles.SingleOrDefault();
-                Assert.IsNotNull(matchedFile, "there should be only one matched file");
-                Assert.IsTrue(matchedFile.FileId != originalFileSendResult.UploadedFile.FileId, "matched file should NOT have same Id as the one we uploaded since it was sent to a new identity");
-                Assert.IsTrue(matchedFile.FileMetadata.GlobalTransitId == originalFileSendResult.GlobalTransitId, "The matched file should have the same global transit id as the file orignally sent");
-                Assert.IsTrue(matchedFile.FileMetadata.AppData.JsonContent == originalFileSendResult.UploadFileMetadata.AppData.JsonContent,
-                    "matched file should have same JsonContent as the on we uploaded");
-                Assert.IsTrue(matchedFile.FileMetadata.AppData.FileType == originalFileSendResult.UploadFileMetadata.AppData.FileType);
+
 
                 //cmdService.MarkCommandsComplete()
                 //

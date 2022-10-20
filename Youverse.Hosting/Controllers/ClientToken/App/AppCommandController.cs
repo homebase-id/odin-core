@@ -35,7 +35,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         [HttpPost("send")]
         public async Task<CommandMessageResult> SendCommand([FromBody] SendCommandRequest request)
         {
-            var results = await _commandMessagingService.SendCommandMessage(request.Command);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+            var results = await _commandMessagingService.SendCommandMessage(driveId, request.Command);
             return results;
         }
 
@@ -55,7 +56,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         [HttpPost("markcompleted")]
         public async Task<bool> MarkCommandsCompleted([FromBody] MarkCommandsCompleteRequest request)
         {
-            await _commandMessagingService.MarkCommandsProcessed(request.CommandIdList);
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
+
+            await _commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList);
             return true;
         }
     }

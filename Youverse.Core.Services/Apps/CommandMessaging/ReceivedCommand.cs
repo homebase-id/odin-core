@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Apps.CommandMessaging;
 
@@ -10,9 +9,18 @@ namespace Youverse.Core.Services.Apps.CommandMessaging;
 public class ReceivedCommand
 {
     public Guid Id { get; set; }
-    public TargetDrive Drive { get; set; }
+    
     public IEnumerable<Guid> GlobalTransitIdList { get; set; }
     
+    /// <summary>
+    /// An arbitrary code to be used by the client
+    /// </summary>
+    public int ClientCode { get; set; }
+    
+    /// <summary>
+    /// An arbitrary json string ot be used by the client
+    /// </summary>
     public string ClientJsonMessage { get; set; }
-    public IEnumerable<ClientFileHeader> MatchingFiles { get; set; }
+    
+    public string Sender { get; set; }
 }

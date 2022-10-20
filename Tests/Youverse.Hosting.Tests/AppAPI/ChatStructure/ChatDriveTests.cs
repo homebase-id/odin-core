@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic;
 using NUnit.Framework;
 using Youverse.Core;
+using Youverse.Core.Identity;
 using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
@@ -42,111 +44,92 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
         [Test]
         public async Task SendMessage()
         {
-            // var context = new ChatApp(_scaffold, TestIdentities.All);
-            // await context.Initialize();
-            //
-            // var api = new ChatMessageApi(context);
-            // await api.SendChatMessage(sender: TestIdentities.Frodo, recipient: TestIdentities.Samwise, "Let's roll kato");
-            //
-            // //TODO
-            // string prevCursorState = "";
-            // var (frodoSentMessages, frodoCursorState) = await api.GetMessages(TestIdentities.Frodo, prevCursorState);
-            // var (samwiseReceivedMessages, samwiseCursorState) = await api.GetMessages(TestIdentities.Samwise, prevCursorState);
-            //
-            // //CollectionAssert.AreEquivalent(frodoSentMessages.ToList(), samwiseReceivedMessages.ToList());
-        }
-
-        [Test]
-        public async Task CreateGroupAndSendMessage()
-        {
-            //Scenarios: 
-            //create group
-            // potential issues: when i am added to a group and I'm not connected to everyone in the group
-            // 
-            // send message to group
-            //leave group
-            //remove someone from group
-
-            //send reaction
-            //send delivered notification
-            //send read notification
-            //send reply
-
             var chatApps = await this.InitializeApps();
-            
-            var frodoChatApp = chatApps[TestIdentities.Frodo.DotYouId];
+
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
             var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
-            var pippinChat = chatApps[TestIdentities.Pippin.DotYouId];
 
-            // Frodo sends a command to create a group
-            var hobbitsChatGroup = new ChatGroup()
-            {
-                Id = Guid.NewGuid(),
-                AdminDotYouId = frodoChatApp.Identity,
-                Title = "le hobbits",
-                Members = TestIdentities.All.Values.Select(k => k.DotYouId.ToString()).OrderBy(x => x).ToList()
-            };
-
-            await frodoChatApp.ConversationDefinitionService.CreateGroup(hobbitsChatGroup);
-
-            await SynchronizeData(chatApps);
-
-            System.Threading.Thread.Sleep(2000);
-
-            // everyone should have the group
-            foreach (var member in hobbitsChatGroup.Members)
-            {
-                var groups = chatApps[member].MessageService.GetGroups();
-                var group = groups.SingleOrDefault(g => g.Id == hobbitsChatGroup.Id);
-
-                Assert.IsNotNull(group);
-                Assert.IsTrue(group.Id == hobbitsChatGroup.Id, $"Id did not match for {member}");
-                Assert.IsTrue(group.Title == hobbitsChatGroup.Title, $"Title did not match for {member}");
-                Assert.IsTrue(group.AdminDotYouId == hobbitsChatGroup.AdminDotYouId, $"Admin did not match for {member}");
-                CollectionAssert.AreEquivalent(group.Members, hobbitsChatGroup.Members, $"member list did not match for {member}");
-            }
+            var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((DotYouIdentity)merryChatApp.Identity);
 
             //
-            var messageFromFrodoId = Guid.NewGuid();
-            await frodoChatApp.MessageService.SendMessage(new ChatMessage()
+            // Validate sam has conversation file
+            //
+            var samConvo = await samwiseChatApp.ConversationDefinitionService.GetConversation(samAndMerryConversation.Id);
+            Assert.IsNotNull(samConvo);
+            Assert.IsTrue(samConvo.RecipientDotYouId == merryChatApp.Identity);
+
+            //
+            // Sam sends a message
+            //
+            await samwiseChatApp.MessageService.SendMessage(new ChatMessage()
             {
-                Id = messageFromFrodoId,
-                GroupId = hobbitsChatGroup.Id,
-                Message = "south farthing time, anyone ;)?"
+                Id = Guid.NewGuid(),
+                ConversationId = samAndMerryConversation.Id,
+                Text = "Prancing pony time, lezzgo!",
             });
 
-            System.Threading.Thread.Sleep(2000);
+            samwiseChatApp.SynchronizeData();
 
-            //issue: frodo does not have the conversation
+            // Validate sam has sent message
+            var samMessages = await samwiseChatApp.MessageService.GetMessages(samConvo.Id);
+            Assert.IsTrue(samMessages.Count() == 1);
 
-            // await frodoChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😀");
-            await merryChatApp.MessageService.React(hobbitsChatGroup.Id, messageFromFrodoId, "😈");
+            ////////////
+            ////////////
+            ////////////
 
-            System.Threading.Thread.Sleep(2000);
+            //
+            // Merry's app syncs data
+            merryChatApp.SynchronizeData();
 
-            await SynchronizeData(chatApps);
-            System.Threading.Thread.Sleep(2000);
+            //
+            // Validate merry has the conversation file
+            //
+            var merrysConvo = await merryChatApp.ConversationDefinitionService.GetConversation(samAndMerryConversation.Id);
+            Assert.IsNotNull(merrysConvo);
+            Assert.IsTrue(merrysConvo.RecipientDotYouId == samwiseChatApp.Identity);
 
-            //now everyone should have the message
-            foreach (var (identity, app) in chatApps)
+            //
+            // Valid date merry has received message
+            //
+            var merryMessages1 = await merryChatApp.MessageService.GetMessages(samAndMerryConversation.Id);
+            Assert.IsNotNull(merryMessages1.SingleOrDefault(msg => msg.Message.Text == "Prancing pony time, lezzgo!"));
+
+            //
+            // Merry sends reply to sam
+            //
+            await merryChatApp.MessageService.SendMessage(new ChatMessage()
             {
-                await RenderMessages(app, hobbitsChatGroup.Id);
-            }
+                Id = Guid.NewGuid(),
+                Text = "Only if they have South Farthing to go with",
+                ConversationId = samAndMerryConversation.Id
+            });
 
-            //CollectionAssert.AreEquivalent(frodoSentMessages.ToList(), samwiseReceivedMessages.ToList());
-            Assert.Pass();
+            merryChatApp.SynchronizeData();
+            samwiseChatApp.SynchronizeData();
+
+            var samMessages2 = await samwiseChatApp.MessageService.GetMessages(samConvo.Id);
+            Assert.IsTrue(samMessages2.Count() == 2);
+
+            //Validate sam received a reply
+            var msgFromMerry = samMessages2.SingleOrDefault(x => x.Message.Text == "Only if they have South Farthing to go with");
+            Assert.IsNotNull(msgFromMerry);
+            Assert.IsTrue(msgFromMerry.Message.Sender == merryChatApp.Identity);
+
+            // Assert.IsTrue(msgFromMerry.Reactions.Count() == 1);
+            await RenderMessages(samwiseChatApp, samAndMerryConversation.Id);
         }
 
-        private async Task RenderMessages(ChatApp app, Guid groupId)
+        private async Task RenderMessages(ChatApp app, Guid convoId)
         {
             Console.WriteLine($"\n\n{app.Identity} Messages");
 
-            var messages = await app.MessageService.GetMessages(groupId);
+            var messages = await app.MessageService.GetMessages(convoId);
             foreach (var msg in messages)
             {
                 var receivedDate = UnixTimeStampToDateTime(msg.ReceivedTimestamp);
-                Console.WriteLine($"({receivedDate}) {msg.Message.Sender}:\t{msg.Message.Message}");
+                var senderText = string.IsNullOrEmpty(msg.Message.Sender) ? app.Identity : msg.Message.Sender;
+                Console.WriteLine($"({receivedDate}) {senderText} says \t\t{msg.Message.Text}");
 
                 foreach (var msgReaction in msg.Reactions)
                 {
@@ -179,7 +162,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
         public async Task<Dictionary<string, ChatApp>> InitializeApps()
         {
             var apps = new Dictionary<string, ChatApp>(StringComparer.InvariantCultureIgnoreCase);
-            
+
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(ChatApiConfig.Drive);
 
             foreach (var testAppContext in scenarioCtx.AppContexts)
@@ -187,7 +170,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
                 var chatApp = new ChatApp(testAppContext.Value, _scaffold);
                 apps.Add(testAppContext.Key, chatApp);
             }
-            
+
             // foreach (var (dotYouId, identity) in TestIdentities.All)
             // {
             // var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(ChatApiConfig.AppId, identity, canReadConnections: true, ChatApiConfig.Drive, driveAllowAnonymousReads: false);

@@ -7,14 +7,17 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.ClientToken.App;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
+using Youverse.Hosting.Tests.AppAPI.CommandSender;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 
@@ -195,10 +198,9 @@ public class ChatServerContext
             }
 
             keyHeader.AesKey.Wipe();
-            
         }
 
-        
+
         await this.ProcessOutbox(instructionSet?.TransitOptions?.Recipients?.Count ?? 1);
 
         return transferResult;
@@ -217,5 +219,79 @@ public class ChatServerContext
     public void DeleteFile(ExternalFileIdentifier fileId)
     {
         this.Scaffold.AppApi.DeleteFile(_appContext, fileId).GetAwaiter().GetResult();
+    }
+
+    public async Task<CommandMessageResult> SendCommand(CommandBase cmd)
+    {
+        var cmdMessage = new CommandMessage()
+        {
+            Recipients = cmd.Recipients,
+            Code = (int)cmd.Code,
+            JsonMessage = DotYouSystemSerializer.Serialize(cmd, cmd.GetType()),
+            GlobalTransitIdList = null
+        };
+
+        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
+        {
+            var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
+            var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
+            {
+                TargetDrive = ChatApiConfig.Drive,
+                Command = cmdMessage
+            });
+
+            Assert.That(sendCommandResponse.IsSuccessStatusCode, Is.True);
+            Assert.That(sendCommandResponse.Content, Is.Not.Null);
+            var commandResult = sendCommandResponse.Content;
+
+            Assert.That(commandResult.RecipientStatus, Is.Not.Null);
+            Assert.IsTrue(commandResult.RecipientStatus.Count == cmd.Recipients.Count());
+
+            await Scaffold.OwnerApi.ProcessOutbox(_appContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
+
+            return commandResult;
+        }
+    }
+
+    public async Task<ReceivedCommandResultSet> GetUnprocessedCommands()
+    {
+        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
+        {
+            var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
+
+            var getUnprocessedCommandsResponse = await cmdService.GetUnprocessedCommands(new GetUnproccessedCommandsRequest()
+            {
+                TargetDrive = ChatApiConfig.Drive,
+                Cursor = "" // ??
+            });
+            Assert.IsTrue(getUnprocessedCommandsResponse.IsSuccessStatusCode);
+            var cmds = getUnprocessedCommandsResponse.Content;
+            Assert.IsNotNull(cmds);
+
+            return cmds;
+        }
+    }
+
+    /// <summary>
+    /// Tells the identity these commands are completed and should be removed so no other app processes them
+    /// </summary>
+    /// <param name="cmdIdList"></param>
+    /// <exception cref="NotImplementedException"></exception>
+    public async Task MarkCommandsCompleted(IEnumerable<Guid> cmdIdList)
+    {
+        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext.Identity, _appContext.ClientAuthenticationToken))
+        {
+            var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
+
+            var getUnprocessedCommandsResponse = await cmdService.MarkCommandsComplete(new MarkCommandsCompleteRequest()
+            {
+                TargetDrive = ChatApiConfig.Drive,
+                CommandIdList = cmdIdList.ToList()
+            });
+
+            Assert.IsTrue(getUnprocessedCommandsResponse.IsSuccessStatusCode);
+            var cmds = getUnprocessedCommandsResponse.Content;
+            Assert.IsNotNull(cmds);
+        }
     }
 }

@@ -38,6 +38,6 @@ public class ChatApp
     /// </summary>
     public void SynchronizeData()
     {
-        _synchronizer.SynchronizeData();
+        _synchronizer.SynchronizeData().GetAwaiter().GetResult();
     }
 }

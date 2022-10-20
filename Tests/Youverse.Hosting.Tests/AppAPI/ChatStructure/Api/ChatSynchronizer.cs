@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
@@ -28,104 +30,124 @@ public class ChatSynchronizer
     /// <summary>
     /// Retrieves latest data from the chat drive and processes sequentially; which is critical
     /// </summary>
-    public void SynchronizeData()
+    public async Task SynchronizeData()
+    {
+        await this._chatServerContext.ProcessIncomingInstructions();
+
+        await this.ProcessLatestCommands();
+
+        await this.ProcessIncomingChatMessages();
+    }
+
+
+    /// <summary>
+    /// Get chat messages from the server add them to the various conversations
+    /// </summary>
+    private async Task ProcessIncomingChatMessages()
     {
         //Get all chat files
-        var queryParams = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatMessage.FileType, CommandBase.FileType);
+        var queryParams = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatMessage.FileType);
         var qbr = _chatServerContext.QueryBatch(queryParams, _latestCursor).GetAwaiter().GetResult();
         _latestCursor = qbr.CursorState;
 
-        //TODO: is QueryBatch returning the expected order, i.e. most recent first?
-
+        //HACK: order oldest to newest until Michael adds core support for this
         var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
-        
-        //route the commands
+
         foreach (var clientFileHeader in orderedResults)
         {
-            //route the incoming file
+            string currentUser = _chatServerContext.Sender;
+
             var appData = clientFileHeader.FileMetadata.AppData;
 
-            //if command - process the command; and wait
-            if (appData.FileType == CommandBase.FileType)
-            {
-                this.HandleCommandFile(clientFileHeader).GetAwaiter().GetResult();
-                return;
-            }
+            var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
+            msg!.Sender = clientFileHeader.FileMetadata.SenderDotYouId;
 
-            //if chat message, put into list
-            if (appData.FileType == ChatMessage.FileType)
-            {
-                this.HandleChatMessage(clientFileHeader).GetAwaiter().GetResult();
-                return;
-            }
+            _conversationService.AddMessage(
+                convoId: appData.GroupId,
+                messageId: msg.Id,
+                received: clientFileHeader.FileMetadata.Created,
+                message: msg);
         }
     }
 
-    private async Task HandleChatMessage(ClientFileHeader clientFileHeader)
+    /// <summary>
+    /// Get the latest unprocessed commands handle accordingly; including
+    /// updating associated files by global transit id
+    /// </summary>
+    private async Task ProcessLatestCommands()
     {
-        string currentUser = _chatServerContext.Sender;
+        var receivedCommandResultSet = await _chatServerContext.GetUnprocessedCommands();
+
+        Dictionary<Guid, bool> commandCompletionStatus = new Dictionary<Guid, bool>();
+        foreach (var receivedCommand in receivedCommandResultSet.ReceivedCommands)
+        {
+            var success = false;
+
+            switch ((CommandCode)receivedCommand.ClientCode)
+            {
+                case CommandCode.JoinConversation:
+                    var scc = DotYouSystemSerializer.Deserialize<JoinConversationCommand>(receivedCommand.ClientJsonMessage);
+                    await _conversationDefinitionService.JoinConversation(scc.ConversationId, receivedCommand.Sender);
+                    success = true;
+                    break;
+
+                case CommandCode.SendReaction:
+                    await HandleChatReactionCommand(DotYouSystemSerializer.Deserialize<SendReactionCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
+                    success = true;
+                    break;
+            }
+
+            commandCompletionStatus.Add(receivedCommand.Id, success);
+        }
+
+        var successCommands = commandCompletionStatus.Where(kvp => kvp.Value == true).Select(kvp => kvp.Key);
+        await _chatServerContext.MarkCommandsCompleted(successCommands);
         
-        var appData = clientFileHeader.FileMetadata.AppData;
-
-        var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
-        msg!.Sender = clientFileHeader.FileMetadata.SenderDotYouId;
-
-        _conversationService.AddMessage(
-            groupId: appData.GroupId,
-            messageId: msg.Id,
-            received: clientFileHeader.FileMetadata.Created,
-            message: msg);
+        //TODO: what to do w/ these?
+        // var failedCommands =  commandCompletionStatus.Where(kvp => kvp.Value == false).Select(kvp => kvp.Key);
     }
 
-    private async Task HandleChatReactionCommand(ClientFileHeader clientFileHeader)
+
+    private async Task HandleChatReactionCommand(SendReactionCommand command, string sender)
     {
-        var cmd = DotYouSystemSerializer.Deserialize<SendReactionCommand>(clientFileHeader.FileMetadata.AppData.JsonContent);
-        var appData = clientFileHeader.FileMetadata.AppData;
-        _conversationService.AddReaction(appData.GroupId, cmd!.MessageId, new Reaction()
+        _conversationService.AddReaction(command.ConversationId, command.MessageId, new Reaction()
         {
-            Sender = clientFileHeader.FileMetadata.SenderDotYouId,
-            ReactionValue = cmd!.ReactionCode
+            Sender = sender,
+            ReactionValue = command.ReactionCode
         });
     }
 
-    private async Task HandleCommandFile(ClientFileHeader clientFileHeader)
+
+    private async Task GetFilesForCommands(ReceivedCommandResultSet resultSet)
     {
-        //before running this command, check if it has been processed
-        var code = (CommandCode)clientFileHeader.FileMetadata.AppData.DataType;
-
-        var success = false;
-        switch (code)
-        {
-            case CommandCode.CreateGroup:
-                var cmd = DotYouSystemSerializer.Deserialize<CreateGroupCommand>(clientFileHeader.FileMetadata.AppData.JsonContent);
-                await _conversationDefinitionService.JoinGroup(cmd!.ChatGroup);
-                success = true;
-                break;
-
-            case CommandCode.RemoveFromGroup:
-                // success = ProcessRemoveFromGroup(clientFileHeader);
-                // _groupDefinitionService.RemoveMember(cmd.GroupId);
-                break;
-
-            case CommandCode.SendReaction:
-                await HandleChatReactionCommand(clientFileHeader);
-                success = true;
-                break;
-
-            default:
-                throw new NotImplementedException("Unhandled command code");
-        }
-
-        if (success)
-        {
-            // delete the file so no other clients touch the file
-            ExternalFileIdentifier fileId = new ExternalFileIdentifier()
-            {
-                TargetDrive = ChatApiConfig.Drive,
-                FileId = clientFileHeader.FileId
-            };
-
-            _chatServerContext.DeleteFile(fileId);
-        }
+        throw new NotImplementedException("just saving a bit of code for short term");
+        // foreach (var command in resultSet.ReceivedCommands)
+        // {
+        //     var fqp = new FileQueryParams()
+        //     {
+        //         TargetDrive = resultSet.TargetDrive,
+        //         GlobalTransitId = command!.GlobalTransitIdList
+        //     };
+        //
+        //     var options = new QueryBatchResultOptions()
+        //     {
+        //         Cursor = null, //?
+        //         ExcludePreviewThumbnail = true,
+        //         IncludeJsonContent = true,
+        //         MaxRecords = int.MaxValue //??
+        //     };
+        //
+        //     var globalTransitFileBatch = await _driveQueryService.GetBatch(driveId, fqp, options);
+        //     
+        //     
+        //     var matchedFile = receivedCommand.MatchingFiles.SingleOrDefault();
+        //     Assert.IsNotNull(matchedFile, "there should be only one matched file");
+        //     Assert.IsTrue(matchedFile.FileId != originalFileSendResult.UploadedFile.FileId, "matched file should NOT have same Id as the one we uploaded since it was sent to a new identity");
+        //     Assert.IsTrue(matchedFile.FileMetadata.GlobalTransitId == originalFileSendResult.GlobalTransitId, "The matched file should have the same global transit id as the file orignally sent");
+        //     Assert.IsTrue(matchedFile.FileMetadata.AppData.JsonContent == originalFileSendResult.UploadFileMetadata.AppData.JsonContent,
+        //         "matched file should have same JsonContent as the on we uploaded");
+        //     Assert.IsTrue(matchedFile.FileMetadata.AppData.FileType == originalFileSendResult.UploadFileMetadata.AppData.FileType);
+        //
+        // }
     }
 }

@@ -31,20 +31,21 @@ public class CommandMessagingService
     private readonly IDriveService _driveService;
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
+    private readonly DotYouContextAccessor _contextAccessor;
 
-    public CommandMessagingService(ITransitService transitService, IDriveService driveService, TenantContext tenantContext, IDriveQueryService driveQueryService)
+    public CommandMessagingService(ITransitService transitService, IDriveService driveService, TenantContext tenantContext, IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor)
     {
         _transitService = transitService;
         _driveService = driveService;
         _tenantContext = tenantContext;
         _driveQueryService = driveQueryService;
+        _contextAccessor = contextAccessor;
     }
 
-    public async Task<CommandMessageResult> SendCommandMessage(CommandMessage command)
+    public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
         Guard.Argument(command, nameof(command)).NotNull().Require(m => m.IsValid());
 
-        var driveId = (await _driveService.GetDriveIdByAlias(command.Drive, true)).GetValueOrDefault();
         var internalFile = _driveService.CreateInternalFileId(driveId);
 
         var msg = new CommandTransferMessage()
@@ -65,6 +66,7 @@ public class CommandMessagingService
             {
                 FileType = ReservedFileTypes.CommandMessage,
                 JsonContent = DotYouSystemSerializer.Serialize(msg),
+                DataType = command.Code
             }
         };
 
@@ -101,7 +103,6 @@ public class CommandMessagingService
     //          fileId
     //          driveId
     //          recipient
-    
     // }
 
     /// <summary>
@@ -123,71 +124,47 @@ public class CommandMessagingService
         };
 
         var batch = await _driveQueryService.GetBatch(driveId, getCommandFilesQueryParams, getCommandFileOptions);
-        foreach (var commandFileHeader in batch.SearchResults)
+
+        //HACK: order these oldest to newest (ascending by time) until Michael updates query engine to do this for us while supporting paging
+        var orderedBatch = batch.SearchResults.OrderBy(file => file.FileId);
+
+        foreach (var commandFileHeader in orderedBatch)
         {
-            var ctm = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
+            var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
 
-            var fqp = new FileQueryParams()
-            {
-                TargetDrive = targetDrive,
-                GlobalTransitId = ctm!.GlobalTransitIdList
-            };
-
-            var options = new QueryBatchResultOptions()
-            {
-                Cursor = null, //?
-                ExcludePreviewThumbnail = true,
-                IncludeJsonContent = true,
-                MaxRecords = int.MaxValue //??
-            };
-            
-            //TODO: consider - what happens if this method is called but the associated file has not yet been received? 
-            //do i need to put a marker on the command that it requires an associated file?  if i
-
-            if (ctm.GlobalTransitIdList.Any())
-            {
-                //this command has associated files, don't return it until all files have arrived?
-            }
-
-            var globalTransitFileBatch = await _driveQueryService.GetBatch(driveId, fqp, options);
             receivedCommands.Add(new ReceivedCommand()
             {
-                Id = commandFileHeader.FileId,
-                Drive = targetDrive,
-                ClientJsonMessage = ctm.ClientJsonMessage,
-                MatchingFiles = globalTransitFileBatch.SearchResults,
-                GlobalTransitIdList = ctm!.GlobalTransitIdList
+                Id = commandFileHeader.FileId, //TODO: should this be the ID?
+                Sender = commandFileHeader.FileMetadata.SenderDotYouId,
+                ClientCode = commandFileHeader.FileMetadata.AppData.DataType,
+                ClientJsonMessage = command.ClientJsonMessage,
+                GlobalTransitIdList = command!.GlobalTransitIdList
             });
         }
 
         return new ReceivedCommandResultSet()
         {
+            TargetDrive = targetDrive,
             ReceivedCommands = receivedCommands
         };
     }
 
-    public async Task MarkCommandsProcessed(IEnumerable<CommandId> commandIdList)
+    public async Task MarkCommandsProcessed(Guid driveId, IEnumerable<Guid> commandIdList)
     {
-        //commandId is the fileId of the command file
-
         var list = new List<InternalDriveFileId>();
+
         foreach (var commandId in commandIdList)
         {
             list.Add(new InternalDriveFileId()
             {
-                FileId = commandId.Id,
-                DriveId = (await _driveService.GetDriveIdByAlias(commandId.TargetDrive)).GetValueOrDefault()
+                FileId = commandId,
+                DriveId = driveId
             });
-        }
-
-        if (list.Any(f => f.DriveId == Guid.Empty))
-        {
-            throw new YouverseException("One or more TargetDrives are invalid in the provided commandIdList.  No Commands were marked processed");
         }
 
         foreach (var internalDriveFileId in list)
         {
-            await _driveService.SoftDeleteLongTermFile(internalDriveFileId);
+            await _driveService.HardDeleteLongTermFile(internalDriveFileId);
         }
     }
 }

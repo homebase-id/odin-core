@@ -33,7 +33,7 @@ public class ConversationService
         _conversations = new Dictionary<Guid, Dictionary<Guid, RenderableChatMessage>>();
     }
 
-    public void AddMessage(Guid groupId, Guid messageId, UInt64 received, ChatMessage message)
+    public void AddMessage(Guid convoId, Guid messageId, UInt64 received, ChatMessage message)
     {
         var messageToAdd = new RenderableChatMessage()
         {
@@ -41,25 +41,25 @@ public class ConversationService
             ReceivedTimestamp = received
         };
 
-        if (!_conversations.ContainsKey(groupId))
+        if (!_conversations.ContainsKey(convoId))
         {
-            _conversations.Add(groupId, new Dictionary<Guid, RenderableChatMessage>());
+            _conversations.Add(convoId, new Dictionary<Guid, RenderableChatMessage>());
         }
 
-        if (_conversations[groupId].ContainsKey(messageId))
+        if (_conversations[convoId].ContainsKey(messageId))
         {
             throw new Exception("message already exists");
         }
 
-        _conversations[groupId].Add(messageId, messageToAdd);
+        _conversations[convoId].Add(messageId, messageToAdd);
     }
 
     /// <summary>
     /// Updates the specific message
     /// </summary>
-    public void AddReaction(Guid groupId, Guid messageId, Reaction reaction)
+    public void AddReaction(Guid convoId, Guid messageId, Reaction reaction)
     {
-        if (_conversations.TryGetValue(groupId, out var group))
+        if (_conversations.TryGetValue(convoId, out var group))
         {
             if (group.TryGetValue(messageId, out var message))
             {
@@ -67,18 +67,18 @@ public class ConversationService
             }
             else
             {
-                throw new Exception($"No message with id {messageId} in group {groupId}");
+                throw new Exception($"No message with id {messageId} in group {convoId}");
             }
         }
         else
         {
-            throw new Exception($"No group with Id {groupId}");
+            throw new Exception($"No group with Id {convoId}");
         }
     }
 
-    public List<RenderableChatMessage> GetMessages(Guid groupId)
+    public List<RenderableChatMessage> GetMessages(Guid convoId)
     {
-        if (!_conversations.TryGetValue(groupId, out var chatMessages))
+        if (!_conversations.TryGetValue(convoId, out var chatMessages))
         {
             return null;
         }

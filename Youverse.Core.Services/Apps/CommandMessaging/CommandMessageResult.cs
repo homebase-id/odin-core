@@ -9,8 +9,6 @@ namespace Youverse.Core.Services.Apps.CommandMessaging;
 
 public class CommandMessage
 {
-    public TargetDrive Drive { get; set; }
-
     public List<string> Recipients { get; set; }
 
     /// <summary>
@@ -18,6 +16,14 @@ public class CommandMessage
     /// </summary>
     public List<Guid> GlobalTransitIdList { get; set; }
 
+    /// <summary>
+    /// Arbitrary code set by the caller indicating the command.
+    /// </summary>
+    public int Code { get; set; }
+    
+    /// <summary>
+    /// Arbitrary json  string set by the caller to convey any info needed.
+    /// </summary>
     public string JsonMessage { get; set; }
 
     public bool IsValid()
@@ -28,11 +34,6 @@ public class CommandMessage
         }
 
         if (!this.Recipients?.Any() ?? false)
-        {
-            return false;
-        }
-
-        if (!this.Drive.IsValid())
         {
             return false;
         }
