@@ -49,6 +49,12 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
             var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
 
+            const string firstMessageFromSam = "Prancing pony time, lezzgo! 🍺🍺🍺";
+            const string firstReplyFromMerry = "Only if they have South Farthing to go with 😶‍🤫";
+            const string firstReplyFromSam = "totes mcgoats 🐐";
+            const string merryReaction = "💨";
+
+            // Conversation started by sam
             var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((DotYouIdentity)merryChatApp.Identity);
 
             //
@@ -61,17 +67,16 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             //
             // Sam sends a message
             //
-            await samwiseChatApp.MessageService.SendMessage(new ChatMessage()
-            {
-                Id = Guid.NewGuid(),
-                ConversationId = samAndMerryConversation.Id,
-                Text = "Prancing pony time, lezzgo!",
-            });
+            await samwiseChatApp.MessageFileService.SendMessage(
+                id: Guid.NewGuid(),
+                conversationId: samAndMerryConversation.Id,
+                messageText: firstMessageFromSam
+            );
 
             samwiseChatApp.SynchronizeData();
 
             // Validate sam has sent message
-            var samMessages = await samwiseChatApp.MessageService.GetMessages(samConvo.Id);
+            var samMessages = await samwiseChatApp.MessageFileService.GetMessages(samConvo.Id);
             Assert.IsTrue(samMessages.Count() == 1);
 
             ////////////
@@ -92,58 +97,94 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             //
             // Valid date merry has received message
             //
-            var merryMessages1 = await merryChatApp.MessageService.GetMessages(samAndMerryConversation.Id);
-            Assert.IsNotNull(merryMessages1.SingleOrDefault(msg => msg.Message.Text == "Prancing pony time, lezzgo!"));
+            var merryMessages1 = await merryChatApp.MessageFileService.GetMessages(samAndMerryConversation.Id);
+            var msgFromSam = merryMessages1.SingleOrDefault(msg => msg.Text == firstMessageFromSam);
+            Assert.IsNotNull(msgFromSam);
+            await merryChatApp.MessageFileService.NotifyMessageWasRead(msgFromSam.ConversationId, msgFromSam.Id);
 
             //
             // Merry sends reply to sam
             //
-            await merryChatApp.MessageService.SendMessage(new ChatMessage()
-            {
-                Id = Guid.NewGuid(),
-                Text = "Only if they have South Farthing to go with",
-                ConversationId = samAndMerryConversation.Id
-            });
+            await merryChatApp.MessageFileService.SendMessage(
+                id: Guid.NewGuid(),
+                messageText: firstReplyFromMerry,
+                conversationId: samAndMerryConversation.Id
+            );
 
             merryChatApp.SynchronizeData();
             samwiseChatApp.SynchronizeData();
 
-            var samMessages2 = await samwiseChatApp.MessageService.GetMessages(samConvo.Id);
+            var samMessages2 = await samwiseChatApp.MessageFileService.GetMessages(samConvo.Id);
             Assert.IsTrue(samMessages2.Count() == 2);
+            var latestMessageFromMerry = samMessages2.LastOrDefault();
+            Assert.IsNotNull(latestMessageFromMerry);
+            Assert.IsTrue(latestMessageFromMerry.Text == firstReplyFromMerry);
+            await samwiseChatApp.MessageFileService.NotifyMessageWasRead(latestMessageFromMerry.ConversationId, latestMessageFromMerry.Id);
+
 
             //Validate sam received a reply
-            var msgFromMerry = samMessages2.SingleOrDefault(x => x.Message.Text == "Only if they have South Farthing to go with");
-            Assert.IsNotNull(msgFromMerry);
-            Assert.IsTrue(msgFromMerry.Message.Sender == merryChatApp.Identity);
+            var replyFromMerry = samMessages2.SingleOrDefault(x => x.Text == firstReplyFromMerry);
+            Assert.IsNotNull(replyFromMerry);
+            Assert.IsTrue(replyFromMerry.Sender == merryChatApp.Identity);
+
+            // sam replies
+            await samwiseChatApp.MessageFileService.SendMessage(
+                id: Guid.NewGuid(),
+                messageText: firstReplyFromSam,
+                conversationId: samAndMerryConversation.Id
+            );
+
+            samwiseChatApp.SynchronizeData();
+            merryChatApp.SynchronizeData();
+
+            var merryMessages2 = await merryChatApp.MessageFileService.GetMessages(samAndMerryConversation.Id);
+            var firstReceivedReplyFromSam = merryMessages2.SingleOrDefault(msg => msg.Text == firstReplyFromSam);
+            Assert.IsNotNull(firstReceivedReplyFromSam);
+
+            await merryChatApp.MessageFileService.NotifyMessageWasRead(firstReceivedReplyFromSam.ConversationId, firstReceivedReplyFromSam.Id);
+            samwiseChatApp.SynchronizeData();
+            merryChatApp.SynchronizeData();
+            // System.Threading.Thread.Sleep(10000);
+            await merryChatApp.MessageFileService.ReactToMessage(firstReceivedReplyFromSam.ConversationId, firstReceivedReplyFromSam.Id, merryReaction);
+
+            samwiseChatApp.SynchronizeData();
+            merryChatApp.SynchronizeData();
 
             // Assert.IsTrue(msgFromMerry.Reactions.Count() == 1);
             await RenderMessages(samwiseChatApp, samAndMerryConversation.Id);
+            Console.WriteLine("\n===========\n");
+            await RenderMessages(merryChatApp, samAndMerryConversation.Id);
         }
 
         private async Task RenderMessages(ChatApp app, Guid convoId)
         {
-            Console.WriteLine($"\n\n{app.Identity} Messages");
+            Console.WriteLine($"\n\n{app.Identity} Messages\n===================================");
 
-            var messages = await app.MessageService.GetMessages(convoId);
+            var messages = await app.MessageFileService.GetMessages(convoId);
             foreach (var msg in messages)
             {
                 var receivedDate = UnixTimeStampToDateTime(msg.ReceivedTimestamp);
-                var senderText = string.IsNullOrEmpty(msg.Message.Sender) ? app.Identity : msg.Message.Sender;
-                Console.WriteLine($"({receivedDate}) {senderText} says \t\t{msg.Message.Text}");
+                Console.WriteLine($"({receivedDate}) {msg.Sender} ⇶ \t{msg.Text}");
+
+                foreach (var receipt in msg.ReadReceipts)
+                {
+                    Console.Write("\t");
+                    Console.WriteLine($"{receipt.Sender} ˿ Read message at {UnixTimeStampToDateTime(receipt.Timestamp.milliseconds)}");
+                }
 
                 foreach (var msgReaction in msg.Reactions)
                 {
                     Console.Write("\t");
-                    Console.WriteLine($"{msgReaction.Sender} -> {msgReaction.ReactionValue}");
+                    Console.WriteLine($"{msgReaction.Sender} ˿ React with {msgReaction.ReactionValue}");
                 }
             }
         }
 
-        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        public static DateTime UnixTimeStampToDateTime(double unixTimeStampMs)
         {
             // Unix timestamp is seconds past epoch
             DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            dateTime = dateTime.AddMilliseconds(unixTimeStamp).ToLocalTime();
+            dateTime = dateTime.AddMilliseconds(unixTimeStampMs).ToLocalTime();
             return dateTime;
         }
 

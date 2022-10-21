@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                     FileType = SomeFileType,
                     JsonContent = "{some:'file content'}",
                 },
-                AccessControlList = AccessControlList.NewOwnerOnly
+                AccessControlList = AccessControlList.OwnerOnly
             };
 
             var options = new TransitTestUtilsOptions()

@@ -11,6 +11,11 @@ namespace Youverse.Core.Services.Transit.Upload
     /// </summary>
     public class UploadInstructionSet
     {
+        public UploadInstructionSet()
+        {
+            TransitOptions = new TransitOptions();
+            StorageOptions = new StorageOptions();
+        }
         /// <summary>
         /// The transfer initialization vector used to encrypt the KeyHeader 
         /// </summary>
@@ -19,7 +24,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public StorageOptions StorageOptions { get; set; }
 
         public TransitOptions TransitOptions { get; set; }
-        
+
         public void AssertIsValid()
         {
             if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
@@ -67,5 +72,19 @@ namespace Youverse.Core.Services.Transit.Upload
             };
         }
 
+        public static UploadInstructionSet New(TargetDrive drive)
+        {
+            Guard.Argument(drive, nameof(drive)).NotNull();
+
+            return new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = drive,
+                    OverwriteFileId = null
+                }
+            };
+        }
     }
 }

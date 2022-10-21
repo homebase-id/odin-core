@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Cryptography;
@@ -173,7 +174,7 @@ public class DriveUploadService
 
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
-        if (recipients != null)
+        if (recipients?.Any() ?? false)
         {
             recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions);
         }

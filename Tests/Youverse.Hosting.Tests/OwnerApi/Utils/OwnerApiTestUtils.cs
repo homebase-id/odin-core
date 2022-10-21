@@ -715,7 +715,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
                 int outboxBatchSize = 1;
-                if (instructionSet.TransitOptions?.Recipients != null)
+                if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
 

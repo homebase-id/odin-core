@@ -72,7 +72,7 @@ public class CommandMessagingService
 
         var serverMetadata = new ServerMetadata()
         {
-            AccessControlList = AccessControlList.NewOwnerOnly,
+            AccessControlList = AccessControlList.OwnerOnly,
             DoNotIndex = true
         };
 

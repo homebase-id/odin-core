@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Youverse.Core;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
@@ -7,10 +9,31 @@ public class ChatMessage
     public const int FileType = 1010;
 
     public Guid Id { get; set; }
-    
+
     public string Sender { get; set; }
 
     public Guid ConversationId { get; set; }
-    
+
     public string Text { get; set; }
+    
+    public List<Reaction> Reactions { get; set; }
+    
+    public List<ReadReceipt> ReadReceipts { get; set; }
+
+    public UInt64 ReceivedTimestamp { get; set; }
+}
+
+public class Reaction
+{
+    public string Sender { get; set; }
+    public string ReactionValue { get; set; }
+    
+    public UnixTimeUtcMilliseconds Timestamp { get; set; }
+
+}
+
+public class ReadReceipt
+{
+    public string Sender { get; set; }
+    public UnixTimeUtcMilliseconds Timestamp { get; set; }
 }

@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 {
     public class AccessControlList
     {
-        public static AccessControlList NewOwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
+        public static AccessControlList OwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
         
         public SecurityGroupType RequiredSecurityGroup { get; set; }
 

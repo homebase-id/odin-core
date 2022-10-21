@@ -165,7 +165,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 Assert.That(transferResult.File.TargetDrive.IsValid(), Is.True);
 
                 int batchSize = 1;
-                if (instructionSet.TransitOptions?.Recipients != null)
+                if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
 

@@ -4,11 +4,6 @@ using System.Linq;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
-public class Reaction
-{
-    public string Sender { get; set; }
-    public string ReactionValue { get; set; }
-}
 
 public class RenderableChatMessage
 {
@@ -72,7 +67,7 @@ public class ConversationService
         }
         else
         {
-            throw new Exception($"No group with Id {convoId}");
+            throw new Exception($"No conversation with Id {convoId}");
         }
     }
 

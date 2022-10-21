@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Youverse.Core;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive.Query;
 
@@ -19,12 +18,15 @@ public class ChatSynchronizer
     private readonly ChatServerContext _chatServerContext;
     private readonly ConversationDefinitionService _conversationDefinitionService;
     private readonly ConversationService _conversationService;
+    private readonly ChatMessageFileService _chatMessageFileService;
 
-    public ChatSynchronizer(ChatServerContext chatServerContext, ConversationDefinitionService conversationDefinitionService, ConversationService conversationService)
+    public ChatSynchronizer(ChatServerContext chatServerContext, ConversationDefinitionService conversationDefinitionService, ConversationService conversationService,
+        ChatMessageFileService chatMessageFileService)
     {
         _chatServerContext = chatServerContext;
         _conversationDefinitionService = conversationDefinitionService;
         _conversationService = conversationService;
+        _chatMessageFileService = chatMessageFileService;
     }
 
     /// <summary>
@@ -36,9 +38,8 @@ public class ChatSynchronizer
 
         await this.ProcessLatestCommands();
 
-        await this.ProcessIncomingChatMessages();
+        // await this.ProcessIncomingChatMessages();
     }
-
 
     /// <summary>
     /// Get chat messages from the server add them to the various conversations
@@ -46,28 +47,28 @@ public class ChatSynchronizer
     private async Task ProcessIncomingChatMessages()
     {
         //Get all chat files
-        var queryParams = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatMessage.FileType);
-        var qbr = _chatServerContext.QueryBatch(queryParams, _latestCursor).GetAwaiter().GetResult();
-        _latestCursor = qbr.CursorState;
-
-        //HACK: order oldest to newest until Michael adds core support for this
-        var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
-
-        foreach (var clientFileHeader in orderedResults)
-        {
-            string currentUser = _chatServerContext.Sender;
-
-            var appData = clientFileHeader.FileMetadata.AppData;
-
-            var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
-            msg!.Sender = clientFileHeader.FileMetadata.SenderDotYouId;
-
-            _conversationService.AddMessage(
-                convoId: appData.GroupId,
-                messageId: msg.Id,
-                received: clientFileHeader.FileMetadata.Created,
-                message: msg);
-        }
+        // var queryParams = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatMessage.FileType);
+        // var qbr = _chatServerContext.QueryBatch(queryParams, _latestCursor).GetAwaiter().GetResult();
+        // _latestCursor = qbr.CursorState;
+        //
+        // //HACK: order oldest to newest until Michael adds core support for this
+        // var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
+        //
+        // foreach (var clientFileHeader in orderedResults)
+        // {
+        //     string currentUser = _chatServerContext.Sender;
+        //
+        //     var appData = clientFileHeader.FileMetadata.AppData;
+        //
+        //     var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
+        //     msg!.Sender = clientFileHeader.FileMetadata.SenderDotYouId;
+        //
+        //     _conversationService.AddMessage(
+        //         convoId: appData.GroupId,
+        //         messageId: msg.Id,
+        //         received: clientFileHeader.FileMetadata.Created,
+        //         message: msg);
+        // }
     }
 
     /// <summary>
@@ -95,6 +96,11 @@ public class ChatSynchronizer
                     await HandleChatReactionCommand(DotYouSystemSerializer.Deserialize<SendReactionCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
                     success = true;
                     break;
+
+                case CommandCode.SendReadReceipt:
+                    await HandleReadReceiptCommand(DotYouSystemSerializer.Deserialize<SendReadReceiptCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
+                    success = true;
+                    break;
             }
 
             commandCompletionStatus.Add(receivedCommand.Id, success);
@@ -102,21 +108,46 @@ public class ChatSynchronizer
 
         var successCommands = commandCompletionStatus.Where(kvp => kvp.Value == true).Select(kvp => kvp.Key);
         await _chatServerContext.MarkCommandsCompleted(successCommands);
-        
+
         //TODO: what to do w/ these?
         // var failedCommands =  commandCompletionStatus.Where(kvp => kvp.Value == false).Select(kvp => kvp.Key);
     }
 
+    private async Task HandleReadReceiptCommand(SendReadReceiptCommand command, string sender)
+    {
+        var message = await _chatMessageFileService.GetChatMessageFile(command.ConversationId, command.MessageId);
+        
+        message.ReadReceipts.Add(new ReadReceipt()
+        {
+            Sender = sender,
+            Timestamp = command.Timestamp
+        });
+
+        await _chatMessageFileService.UpdateMessage(message);
+        
+    }
 
     private async Task HandleChatReactionCommand(SendReactionCommand command, string sender)
     {
-        _conversationService.AddReaction(command.ConversationId, command.MessageId, new Reaction()
+        var message = await _chatMessageFileService.GetChatMessageFile(command.ConversationId, command.MessageId);
+        message.Reactions.Add(new Reaction()
         {
             Sender = sender,
-            ReactionValue = command.ReactionCode
+            ReactionValue = command.ReactionCode,
+            Timestamp = UnixTimeUtcMilliseconds.Now() //TODO: should this come from the sender?
         });
-    }
 
+        await _chatMessageFileService.UpdateMessage(message);
+        
+        //
+        
+        // _conversationService.AddReaction(command.ConversationId, command.MessageId, new Reaction()
+        // {
+        //     Sender = sender,
+        //     ReactionValue = command.ReactionCode
+        // });
+
+    }
 
     private async Task GetFilesForCommands(ReceivedCommandResultSet resultSet)
     {

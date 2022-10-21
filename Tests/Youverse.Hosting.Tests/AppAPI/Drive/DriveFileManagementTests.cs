@@ -179,7 +179,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileType = SomeFileType,
                     JsonContent = "{some:'file content'}",
                 },
-                AccessControlList = AccessControlList.NewOwnerOnly
+                AccessControlList = AccessControlList.OwnerOnly
             };
 
             var options = new TransitTestUtilsOptions()

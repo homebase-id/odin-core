@@ -15,22 +15,21 @@ public class ChatApp
     private readonly ChatSynchronizer _synchronizer;
     private readonly ConversationService _conversationService;
     private readonly ConversationDefinitionService _conversationDefinitionService;
-
-
     private string _latestCursor = "";
-    public ChatMessageService MessageService { get; }
+
+    public ChatMessageFileService MessageFileService { get; }
 
     public ChatApp(TestAppContext appContext, WebScaffold scaffold)
     {
         _chatServerContext = new ChatServerContext(appContext, scaffold);
         _conversationDefinitionService = new ConversationDefinitionService(_chatServerContext);
         _conversationService = new ConversationService(_chatServerContext);
-        _synchronizer = new ChatSynchronizer(_chatServerContext, _conversationDefinitionService, _conversationService);
-        MessageService = new ChatMessageService(_chatServerContext, _conversationDefinitionService, _conversationService);
+        MessageFileService = new ChatMessageFileService(_chatServerContext, _conversationDefinitionService, _conversationService);
+        _synchronizer = new ChatSynchronizer(_chatServerContext, _conversationDefinitionService, _conversationService, MessageFileService);
     }
 
-
     public string Identity => _chatServerContext.Sender;
+
     public ConversationDefinitionService ConversationDefinitionService => _conversationDefinitionService;
 
     /// <summary>

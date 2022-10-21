@@ -46,7 +46,6 @@ public class ConversationDefinitionService
         //send a command to the recipient
         var cmd = new JoinConversationCommand()
         {
-            Code = CommandCode.JoinConversation,
             ConversationId = convo.Id,
             Recipients = new List<string>() { recipient }
         };
@@ -109,7 +108,7 @@ public class ConversationDefinitionService
         // Create the group locally
         var metadata = new UploadFileMetadata()
         {
-            AccessControlList = AccessControlList.NewOwnerOnly,
+            AccessControlList = AccessControlList.OwnerOnly,
             AppData = new UploadAppFileMetaData()
             {
                 ClientUniqueId = convo.Id,
