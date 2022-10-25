@@ -37,5 +37,5 @@ public class SendReadReceiptCommand : CommandBase
     
     public Guid MessageId { get; set; }
 
-    public UnixTimeUtcMilliseconds Timestamp { get; set; }
+    public UnixTimeUtc Timestamp { get; set; }
 }

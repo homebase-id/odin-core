@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public Guid DriveId { get; set; }
 
-        public UnixTimeUtcSeconds AddedTimestamp { get; set; }
+        public UnixTimeUtc AddedTimestamp { get; set; }
 
         public DotYouIdentity Sender { get; set; }
 

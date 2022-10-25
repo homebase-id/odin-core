@@ -59,7 +59,7 @@ public class CommandMessagingService
         {
             ContentType = "application/json",
             GlobalTransitId = null,
-            Created = UnixTimeUtcMilliseconds.Now().milliseconds,
+            Created = UnixTimeUtc.Now().milliseconds,
             OriginalRecipientList = null,
             PayloadIsEncrypted = true,
             AppData = new AppFileMetaData()

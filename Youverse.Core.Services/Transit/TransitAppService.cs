@@ -136,9 +136,14 @@ namespace Youverse.Core.Services.Transit
                 },
             };
 
+            //validate there is not already a file with this id
+            if (metadata.AppData.ClientUniqueId.HasValue)
+            {
+                throw new NotImplementedException("need to handle when i receive a file with a clientuniqueId that I already have.");
+            }
+
             if (metadata.GlobalTransitId.HasValue) //TODO: should we lock on the id of the global transit id?
             {
-
                 //see if a file with this global transit id already exists
                 ClientFileHeader existingFile = await GetFileByGlobalTransitId(item.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 

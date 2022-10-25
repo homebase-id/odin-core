@@ -74,7 +74,7 @@ public class TenantConfigService
 
         _configStorage.Upsert(FirstRunInfo.Key, new FirstRunInfo()
         {
-            FirstRunDate = UnixTimeUtcMilliseconds.Now().milliseconds
+            FirstRunDate = UnixTimeUtc.Now().milliseconds
         });
     }
 

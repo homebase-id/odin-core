@@ -418,5 +418,31 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 ownerSharedSecret.Wipe();
             }
         }
+
+        //tests
+        [Test(Description = "")]
+        public async Task FailToUpdateNonExistentFile()
+        {
+            Assert.Inconclusive("TODO");
+        }
+
+        [Test(Description = "")]
+        public async Task CanUploadClientUniqueIdAndGetOneFile()
+        {
+            Assert.Inconclusive("TODO");
+            //(use query modified and querybatch)   
+        }
+
+        [Test(Description = "")]
+        public async Task FailToUploadTwoFilesWithSameClientUniqueId()
+        {
+            Assert.Inconclusive("TODO");
+        }
+
+        [Test(Description = "")]
+        public async Task FailToChangeClientUniqueIdToExistingClientUniqueId()
+        {
+            Assert.Inconclusive("TODO");
+        }
     }
 }

@@ -25,5 +25,8 @@ namespace Youverse.Core.Services.Drive
         Task RebuildAllIndices();
 
         Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId);
+        
+        Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId);
+
     }
 }

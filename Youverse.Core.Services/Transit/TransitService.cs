@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.Transit
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtcSeconds.Now(),
+                AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 PublicKeyCrc = publicKeyCrc,
 
@@ -170,7 +170,7 @@ namespace Youverse.Core.Services.Transit
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
         {
-            var now = UnixTimeUtcMilliseconds.Now().milliseconds;
+            var now = UnixTimeUtc.Now().milliseconds;
             var item = new TransitKeyEncryptionQueueItem()
             {
                 Id = GuidId.NewId(),
@@ -280,7 +280,7 @@ namespace Youverse.Core.Services.Transit
             {
                 Id = Guid.NewGuid(),
                 Type = TransferType.DeleteLinkedFile,
-                AddedTimestamp = UnixTimeUtcSeconds.Now(),
+                AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 PublicKeyCrc = publicKeyCrc,
 
@@ -309,7 +309,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         File = file,
                         Recipient = recipient,
-                        Timestamp = UnixTimeUtcMilliseconds.Now().milliseconds,
+                        Timestamp = UnixTimeUtc.Now().milliseconds,
                         Success = false,
                         FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
                         OutboxItem = outboxItem
@@ -401,7 +401,7 @@ namespace Youverse.Core.Services.Transit
                 Recipient = recipient,
                 Success = success,
                 FailureReason = tfr,
-                Timestamp = UnixTimeUtcMilliseconds.Now().milliseconds,
+                Timestamp = UnixTimeUtc.Now().milliseconds,
                 OutboxItem = outboxItem
             };
         }

@@ -105,7 +105,7 @@ public class ChatMessageFileService
             MessageId = messageId,
             ConversationId = conversationId,
             Recipients = new List<string>() { conversation.RecipientDotYouId },
-            Timestamp = UnixTimeUtcMilliseconds.Now()
+            Timestamp = UnixTimeUtc.Now()
         });
     }
     public async Task<ChatMessage> GetChatMessageFile(Guid conversationId, Guid messageId)

@@ -28,12 +28,12 @@ public class Reaction
     public string Sender { get; set; }
     public string ReactionValue { get; set; }
     
-    public UnixTimeUtcMilliseconds Timestamp { get; set; }
+    public UnixTimeUtc Timestamp { get; set; }
 
 }
 
 public class ReadReceipt
 {
     public string Sender { get; set; }
-    public UnixTimeUtcMilliseconds Timestamp { get; set; }
+    public UnixTimeUtc Timestamp { get; set; }
 }

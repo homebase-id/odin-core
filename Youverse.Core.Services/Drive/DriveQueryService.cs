@@ -103,6 +103,25 @@ namespace Youverse.Core.Services.Drive
             throw new NoValidIndexException(driveId);
         }
 
+        public async Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
+        {
+            var qp = new FileQueryParams()
+            {
+                ClientUniqueIdAtLeastOne = new List<Guid>() { clientUniqueId }
+            };
+
+            var options = new QueryBatchResultOptions()
+            {
+                Cursor = null,
+                MaxRecords = 10,
+                ExcludePreviewThumbnail = true
+            };
+
+            var results = await this.GetBatch(driveId, qp, options);
+
+            return results.SearchResults.SingleOrDefault();
+        }
+        
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
             var qp = new FileQueryParams()

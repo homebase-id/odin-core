@@ -19,6 +19,7 @@ public class FileQueryParams
 
     public TimeRange UserDate { get; set; } = null;
 
+    public IEnumerable<Guid> ClientUniqueIdAtLeastOne { get; set; } = null;
     public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;
 
     public IEnumerable<Guid> TagsMatchAll { get; set; } = null;

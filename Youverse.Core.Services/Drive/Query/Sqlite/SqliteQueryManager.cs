@@ -48,11 +48,12 @@ public class SqliteQueryManager : IDriveQueryManager
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.Select(g => g.ToByteArray()).ToList(),
+            groupIdAnyOf: qp.GroupId?.ToList(),
+            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList(),
-            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.AsEnumerable()));
     }
@@ -77,7 +78,8 @@ public class SqliteQueryManager : IDriveQueryManager
             senderidAnyOf: qp.Sender?.ToList(),
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
-            aclAnyOf: aclList,
+            aclAnyOf: aclList?.Select(a=>a.ToByteArray())?.ToList(),
+            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
             tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
 
@@ -85,17 +87,17 @@ public class SqliteQueryManager : IDriveQueryManager
     }
 
 
-    private List<byte[]> GetAcl(CallerContext callerContext)
+    private List<Guid> GetAcl(CallerContext callerContext)
     {
-        var aclList = new List<byte[]>();
+        var aclList = new List<Guid>();
         if (callerContext.IsOwner == false)
         {
             if (!callerContext.IsAnonymous)
             {
-                aclList.Add(callerContext.DotYouId.ToGuidIdentifier().ToByteArray());
+                aclList.Add(callerContext.DotYouId.ToGuidIdentifier());
             }
 
-            aclList.AddRange(callerContext.Circles?.Select(c => c.Value.ToByteArray()) ?? Array.Empty<byte[]>());
+            aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<Guid>());
         }
 
         return aclList.Any() ? aclList : null;
@@ -138,15 +140,16 @@ public class SqliteQueryManager : IDriveQueryManager
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(
-                metadata.File.FileId,
-                metadata.AppData.FileType,
-                metadata.AppData.DataType,
-                sender,
-                metadata.AppData.GroupId,
-                metadata.AppData.UserDate,
-                securityGroup,
-                acl,
-                tags);
+                fileId: metadata.File.FileId,
+                fileType: metadata.AppData.FileType,
+                dataType: metadata.AppData.DataType,
+                senderId: sender,
+                groupId: metadata.AppData.GroupId,
+                uniqueId: metadata.AppData.ClientUniqueId,
+                userDate: metadata.AppData.UserDate,
+                requiredSecurityGroup: securityGroup,
+                accessControlList: acl,
+                tagIdList: tags);
         }
         else
         {
@@ -154,11 +157,12 @@ public class SqliteQueryManager : IDriveQueryManager
 
             _indexDb.AddEntry(
                 fileId: metadata.File.FileId,
-                globalTransitId: metadata.GlobalTransitId.GetValueOrDefault(),
+                globalTransitId: metadata.GlobalTransitId,
                 metadata.AppData.FileType,
                 metadata.AppData.DataType,
                 sender,
                 metadata.AppData.GroupId,
+                metadata.AppData.ClientUniqueId,
                 metadata.AppData.UserDate.GetValueOrDefault(),
                 securityGroup,
                 acl,

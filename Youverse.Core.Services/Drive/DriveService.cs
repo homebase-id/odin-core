@@ -242,13 +242,13 @@ namespace Youverse.Core.Services.Drive
             if (this.FileExists(file))
             {
                 var existingHeader = await this.GetServerFileHeader(file);
-                metadata.Updated = UnixTimeUtcMilliseconds.Now().milliseconds;
+                metadata.Updated = UnixTimeUtc.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             }
             else
             {
-                metadata.Created = UnixTimeUtcMilliseconds.Now().milliseconds;
+                metadata.Created = UnixTimeUtc.Now().milliseconds;
             }
 
             await WriteFileHeaderInternal(header);
@@ -419,7 +419,7 @@ namespace Youverse.Core.Services.Drive
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
                     FileState = FileState.Deleted,
-                    Updated = UnixTimeUtcMilliseconds.Now().milliseconds,
+                    Updated = UnixTimeUtc.Now().milliseconds,
                     GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId
                 },
                 ServerMetadata = existingHeader.ServerMetadata

@@ -134,7 +134,7 @@ public class ChatSynchronizer
         {
             Sender = sender,
             ReactionValue = command.ReactionCode,
-            Timestamp = UnixTimeUtcMilliseconds.Now() //TODO: should this come from the sender?
+            Timestamp = UnixTimeUtc.Now() //TODO: should this come from the sender?
         });
 
         await _chatMessageFileService.UpdateMessage(message);

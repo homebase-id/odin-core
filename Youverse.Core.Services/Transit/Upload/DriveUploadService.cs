@@ -8,6 +8,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -27,13 +28,15 @@ public class DriveUploadService
     private readonly ITransitService _transitService;
 
     private readonly Dictionary<Guid, UploadPackage> _packages;
+    private readonly IDriveQueryService _driveQueryService;
 
-    public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService)
+    public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
     {
         _driveService = driveService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _transitService = transitService;
+        _driveQueryService = driveQueryService;
 
         _packages = new Dictionary<Guid, UploadPackage>();
     }
@@ -58,7 +61,7 @@ public class DriveUploadService
         //     return await ProcessUploadOfExistingFile(package);
         // }
 
-        return await ProcessUploadOfNewFile(package);
+        return await ProcessUpload(package);
     }
 
     public async Task<Guid> CreatePackage(Stream data)
@@ -148,7 +151,7 @@ public class DriveUploadService
         return null;
     }
 
-    private async Task<UploadResult> ProcessUploadOfNewFile(UploadPackage package)
+    private async Task<UploadResult> ProcessUpload(UploadPackage package)
     {
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
         if (null == serverMetadata.AccessControlList)
@@ -168,6 +171,31 @@ public class DriveUploadService
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
             throw new UploadException("Drive is owner only so all files must have RequiredSecurityGroup of Owner");
+        }
+
+        if (package.IsUpdateOperation)
+        {
+            //validate the file exists by the ID
+            if (!_driveService.FileExists(package.InternalFile))
+            {
+                throw new UploadException("OverwriteFileId is specified but file does not exist");
+            }
+
+            if (metadata.AppData.ClientUniqueId.HasValue)
+            {
+                var incomingClientUniqueId = metadata.AppData.ClientUniqueId.Value;
+                var existingFileHeader = await _driveService.GetServerFileHeader(package.InternalFile);
+
+                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.ClientUniqueId;
+                if (isChangingUniqueId)
+                {
+                    var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                    if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
+                    {
+                        throw new UploadException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]");
+                    }
+                }
+            }
         }
 
         await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
@@ -224,13 +252,12 @@ public class DriveUploadService
             //TODO: need an automapper *sigh
             AppData = new AppFileMetaData()
             {
+                ClientUniqueId = uploadDescriptor.FileMetadata.AppData.ClientUniqueId,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
-
                 FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
-                // ClientUniqueId = uploadDescriptor.FileMetadata.AppData.ClientUniqueId,
 
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
