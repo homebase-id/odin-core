@@ -167,13 +167,13 @@ public class ChatMessageFileService
                 JsonContent = DotYouSystemSerializer.Serialize(message),
                 FileType = ChatMessage.FileType,
                 GroupId = message.ConversationId,
-                ClientUniqueId = message.Id,
+                Id = message.Id,
                 Tags = new List<Guid>() { message.Id } //HACK: Until michael adds search for ClientUniqueId
             },
             AccessControlList = AccessControlList.OwnerOnly
         };
 
-        var instructionSet = UploadInstructionSet.New(ChatApiConfig.Drive);
+        var instructionSet = UploadInstructionSet.WithTargetDrive(ChatApiConfig.Drive);
         instructionSet.TransitOptions.UseGlobalTransitId = existingFile != null;
         instructionSet.StorageOptions.OverwriteFileId = existingFile?.FileId;
         instructionSet.TransitOptions.Recipients = recipients?.ToList();

@@ -181,12 +181,12 @@ public class DriveUploadService
                 throw new UploadException("OverwriteFileId is specified but file does not exist");
             }
 
-            if (metadata.AppData.ClientUniqueId.HasValue)
+            if (metadata.AppData.Id.HasValue)
             {
-                var incomingClientUniqueId = metadata.AppData.ClientUniqueId.Value;
+                var incomingClientUniqueId = metadata.AppData.Id.Value;
                 var existingFileHeader = await _driveService.GetServerFileHeader(package.InternalFile);
 
-                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.ClientUniqueId;
+                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.Id;
                 if (isChangingUniqueId)
                 {
                     var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
@@ -194,6 +194,19 @@ public class DriveUploadService
                     {
                         throw new UploadException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]");
                     }
+                }
+            }
+        }
+        else
+        {
+            // Uploading a new file, ensure there's not another with this uniqueId
+            if (metadata.AppData.Id.HasValue)
+            {
+                var incomingClientUniqueId = metadata.AppData.Id.Value;
+                var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                if (null != existingFile)
+                {
+                    throw new UploadException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]");
                 }
             }
         }
@@ -252,7 +265,7 @@ public class DriveUploadService
             //TODO: need an automapper *sigh
             AppData = new AppFileMetaData()
             {
-                ClientUniqueId = uploadDescriptor.FileMetadata.AppData.ClientUniqueId,
+                Id = uploadDescriptor.FileMetadata.AppData.Id,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
                 FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,

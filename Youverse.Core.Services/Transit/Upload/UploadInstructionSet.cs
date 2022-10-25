@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Transit.Upload
             };
         }
 
-        public static UploadInstructionSet New(TargetDrive drive)
+        public static UploadInstructionSet WithTargetDrive(TargetDrive drive)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
 

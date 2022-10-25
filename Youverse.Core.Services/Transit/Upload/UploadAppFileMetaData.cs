@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Transit.Upload
 {
     public class UploadAppFileMetaData : IAppFileMetaData
     {
-        public Guid? ClientUniqueId { get; set; }
+        public Guid? Id { get; set; }
         public List<Guid> Tags { get; set; }
 
         public int FileType { get; set; }
