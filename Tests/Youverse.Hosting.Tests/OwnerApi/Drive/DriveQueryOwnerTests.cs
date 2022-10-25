@@ -138,29 +138,26 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     TargetDrive = uploadContext.UploadedFile.TargetDrive
                 };
 
-                var resultOptions = new QueryBatchResultOptionsRequest()
+                var resultOptions = new QueryModifiedResultOptions()
                 {
-                    CursorState = "",
+                    Cursor = 0,
                     MaxRecords = 10,
-                    IncludeMetadataHeader = true
                 };
 
-                var request = new QueryBatchRequest()
+                var request = new QueryModifiedRequest()
                 {
                     QueryParams = qp,
-                    ResultOptionsRequest = resultOptions
+                    ResultOptions = resultOptions
                 };
 
-                var response = await svc.GetBatch(request);
+                var response = await svc.GetModified(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
 
                 //TODO: what to test here?
                 Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.CursorState);
-                Assert.IsNotEmpty(batch.CursorState);
-
+                
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
