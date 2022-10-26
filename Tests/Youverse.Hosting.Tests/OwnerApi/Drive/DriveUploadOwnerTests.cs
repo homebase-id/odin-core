@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        [Ignore("This is tested in the app api", Until = "we determine if there are diff behaviors when transferring using the owner api")]
+        [Ignore("This is tested in the app api until we determine if there are diff behaviors when transferring using the owner api")]
         public async Task CanGetAndSetGlobalTransitId()
         {
             
@@ -518,7 +518,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Id = Guid.NewGuid(),
+                            UniqueId = Guid.NewGuid(),
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
@@ -550,7 +550,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 //
 
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-                var expectedClientUniqueId = descriptor.FileMetadata.AppData.Id.GetValueOrDefault();
+                var expectedClientUniqueId = descriptor.FileMetadata.AppData.UniqueId.GetValueOrDefault();
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadResult.File.TargetDrive,
@@ -575,7 +575,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var batch = getBatchResponse.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Id == expectedClientUniqueId));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.UniqueId == expectedClientUniqueId));
             }
         }
 
@@ -604,7 +604,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Id = uid1, // Here we try to reuse the uniqueId associated with first upload
+                            UniqueId = uid1, // Here we try to reuse the uniqueId associated with first upload
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
@@ -659,7 +659,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Id = uid2,
+                            UniqueId = uid2,
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
@@ -711,7 +711,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Id = uid1, //here we try to reuse the uniqueId associated with first upload
+                            UniqueId = uid1, //here we try to reuse the uniqueId associated with first upload
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
                         }
@@ -757,7 +757,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
-                            Id = uniqueId,
+                            UniqueId = uniqueId,
                             ContentIsComplete = true,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
                         }
@@ -812,7 +812,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var batch = getBatchResponse.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Id == uniqueId.GetValueOrDefault()));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.UniqueId == uniqueId.GetValueOrDefault()));
 
                 return (testContext, uploadResult);
             }

@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.Transit
             };
 
             //validate there is not already a file with this id
-            if (metadata.AppData.Id.HasValue)
+            if (metadata.AppData.UniqueId.HasValue)
             {
                 throw new NotImplementedException("need to handle when i receive a file with a clientuniqueId that I already have.");
             }

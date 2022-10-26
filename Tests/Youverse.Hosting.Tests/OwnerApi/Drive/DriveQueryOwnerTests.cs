@@ -129,6 +129,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
+
+            //
+            // make a change to the file we just uploaded
+            //
+
+            var instructionSet = UploadInstructionSet.WithTargetDrive(uploadContext.UploadedFile.TargetDrive);
+            instructionSet.StorageOptions.OverwriteFileId = uploadContext.UploadedFile.FileId;
+            
+            uploadFileMetadata.AppData.DataType = 10844;
+            var _ = await _scaffold.OwnerApi.UploadFile(identity.DotYouId, instructionSet, uploadFileMetadata, "a new payload", true);
+            
+            //
+            // query the data to see the changes
+            //
             using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
@@ -140,6 +154,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
                 var resultOptions = new QueryModifiedResultOptions()
                 {
+                    IncludeJsonContent = true,
                     Cursor = 0,
                     MaxRecords = 10,
                 };
@@ -147,7 +162,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 var request = new QueryModifiedRequest()
                 {
                     QueryParams = qp,
-                    ResultOptions = resultOptions
+                    ResultOptions = resultOptions,
                 };
 
                 var response = await svc.GetModified(request);
@@ -157,7 +172,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
                 //TODO: what to test here?
                 Assert.IsTrue(batch.SearchResults.Any());
-                
+
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 

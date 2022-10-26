@@ -111,7 +111,7 @@ public class ConversationDefinitionService
             AccessControlList = AccessControlList.OwnerOnly,
             AppData = new UploadAppFileMetaData()
             {
-                Id = convo.Id,
+                UniqueId = convo.Id,
                 ContentIsComplete = false,
                 JsonContent = DotYouSystemSerializer.Serialize(convo),
                 FileType = ChatConversation.ConversationDefinitionFileType,

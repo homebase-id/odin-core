@@ -181,12 +181,12 @@ public class DriveUploadService
                 throw new UploadException("OverwriteFileId is specified but file does not exist");
             }
 
-            if (metadata.AppData.Id.HasValue)
+            if (metadata.AppData.UniqueId.HasValue)
             {
-                var incomingClientUniqueId = metadata.AppData.Id.Value;
+                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFileHeader = await _driveService.GetServerFileHeader(package.InternalFile);
 
-                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.Id;
+                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
                     var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
@@ -200,9 +200,9 @@ public class DriveUploadService
         else
         {
             // Uploading a new file, ensure there's not another with this uniqueId
-            if (metadata.AppData.Id.HasValue)
+            if (metadata.AppData.UniqueId.HasValue)
             {
-                var incomingClientUniqueId = metadata.AppData.Id.Value;
+                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                 if (null != existingFile)
                 {
@@ -265,7 +265,7 @@ public class DriveUploadService
             //TODO: need an automapper *sigh
             AppData = new AppFileMetaData()
             {
-                Id = uploadDescriptor.FileMetadata.AppData.Id,
+                UniqueId = uploadDescriptor.FileMetadata.AppData.UniqueId,
                 Tags = uploadDescriptor.FileMetadata.AppData.Tags,
                 FileType = uploadDescriptor.FileMetadata.AppData.FileType,
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,

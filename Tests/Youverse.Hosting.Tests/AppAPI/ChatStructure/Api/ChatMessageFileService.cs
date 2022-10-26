@@ -167,7 +167,7 @@ public class ChatMessageFileService
                 JsonContent = DotYouSystemSerializer.Serialize(message),
                 FileType = ChatMessage.FileType,
                 GroupId = message.ConversationId,
-                Id = message.Id,
+                UniqueId = message.Id,
                 Tags = new List<Guid>() { message.Id } //HACK: Until michael adds search for ClientUniqueId
             },
             AccessControlList = AccessControlList.OwnerOnly

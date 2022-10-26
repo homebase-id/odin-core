@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
@@ -78,10 +79,10 @@ public class SqliteQueryManager : IDriveQueryManager
             senderidAnyOf: qp.Sender?.ToList(),
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,
-            aclAnyOf: aclList?.Select(a=>a.ToByteArray())?.ToList(),
+            aclAnyOf: aclList?.ToList(),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.Select(t => t.ToByteArray()).ToList() ?? null,
-            tagsAllOf: qp.TagsMatchAll?.Select(t => t.ToByteArray()).ToList());
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => r)));
     }
@@ -126,17 +127,16 @@ public class SqliteQueryManager : IDriveQueryManager
         }
 
         var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
-        var acl = new List<byte[]>();
+        var acl = new List<Guid>();
 
-        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles().Select(c => c.ToByteArray()));
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((DotYouIdentity)dotYouId).ToGuidIdentifier().ToByteArray()
+            ((DotYouIdentity)dotYouId).ToGuidIdentifier()
         );
         acl.AddRange(ids.ToList());
 
-        var tags = metadata.AppData.Tags?.Select(t => t.ToByteArray()).ToList();
+        var tags = metadata.AppData.Tags?.ToList();
 
-        //TODO: index metadata.AppData.ClientUniqueId
         if (exists)
         {
             _indexDb.UpdateEntryZapZap(
@@ -145,7 +145,7 @@ public class SqliteQueryManager : IDriveQueryManager
                 dataType: metadata.AppData.DataType,
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
-                uniqueId: metadata.AppData.Id,
+                uniqueId: metadata.AppData.UniqueId,
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -153,20 +153,18 @@ public class SqliteQueryManager : IDriveQueryManager
         }
         else
         {
-            //TODO: index metadata.AppData.ClientUniqueId
-
             _indexDb.AddEntry(
                 fileId: metadata.File.FileId,
                 globalTransitId: metadata.GlobalTransitId,
-                metadata.AppData.FileType,
-                metadata.AppData.DataType,
-                sender,
-                metadata.AppData.GroupId,
-                metadata.AppData.Id,
-                metadata.AppData.UserDate.GetValueOrDefault(),
-                securityGroup,
-                acl,
-                tags);
+                fileType: metadata.AppData.FileType,
+                dataType: metadata.AppData.DataType,
+                senderId: sender,
+                groupId: metadata.AppData.GroupId,
+                uniqueId: metadata.AppData.UniqueId,
+                userDate: metadata.AppData.UserDate.GetValueOrDefault(),
+                requiredSecurityGroup: securityGroup,
+                accessControlList: acl,
+                tagIdList: tags);
         }
 
         return Task.CompletedTask;
