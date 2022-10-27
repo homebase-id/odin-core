@@ -15,6 +15,11 @@ namespace Youverse.Core.Services.Authentication.Owner
         Task SetNewPassword(PasswordReply reply);
 
         /// <summary>
+        /// Returns true if the master password has set
+        /// </summary>
+        Task<bool> IsMasterPasswordSet();
+
+        /// <summary>
         /// Returns the stored salts for the tenant
         /// </summary>
         /// <returns></returns>

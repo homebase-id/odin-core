@@ -109,6 +109,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
             await _ss.SetNewPassword(reply);
             return new NoResultResponse(true);
         }
+        
+        [HttpPost("ispasswordset")]
+        public async Task<bool> IsMasterPasswordSet()
+        {
+            return await _ss.IsMasterPasswordSet();
+        }
 
         [HttpGet("getsalts")]
         public async Task<NonceData> GenerateSalts()

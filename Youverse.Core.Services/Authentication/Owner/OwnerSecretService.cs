@@ -44,12 +44,10 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task SetNewPassword(PasswordReply reply)
         {
-            var existingPwd = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
-            if (null != existingPwd)
+            if (await IsMasterPasswordSet())
             {
                 throw new YouverseSecurityException("Password already set");
             }
-
 
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
@@ -63,6 +61,12 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             //delete the temporary salts
             _systemStorage.SingleKeyValueStorage.Delete(originalNoncePackageKey);
+        }
+
+        public Task<bool> IsMasterPasswordSet()
+        {
+            var existingPwd = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
+            return Task.FromResult(existingPwd != null);
         }
 
         public async Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret)

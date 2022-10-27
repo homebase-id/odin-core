@@ -168,6 +168,17 @@ namespace Youverse.Core.Services.Transit
         /// </summary>
         private async Task StoreNormalFileLongTerm(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
+            /*
+             *
+             So there's a scenario we need to handle where a file is sent from frodo to sam that has a uniqueId.
+                I'm wondering what we should do when sam gets a file that has a uniqueId that already exists on his system.  Just noodling aloud here:
+                    If the Frodo's uniqueId matches sam's uniqueId:
+                    If sam's file has the same globaltransitId as the incoming file, overwrite sam's file
+                    if sam's file has a different globaltransitId, reject the transfer?
+                    If sam's file does not have a globaltransitId, reject the transfer?
+                    if frodo's file does not have a global transitId, reject the transfer?
+             */
+            
             //validate there is not already a file with this id
             if (metadata.AppData.UniqueId.HasValue)
             {
