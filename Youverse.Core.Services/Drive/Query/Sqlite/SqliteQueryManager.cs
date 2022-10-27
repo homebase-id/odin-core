@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Storage;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
@@ -197,4 +195,35 @@ public class SqliteQueryManager : IDriveQueryManager
         this.IndexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }
+
+    public Task AddCommandMessage(List<Guid> fileIds)
+    {
+        _indexDb.TblCmdMsgQueue.InsertRows(fileIds);
+        return Task.CompletedTask;
+    }
+
+    public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
+    {
+        Guard.Argument(count, nameof(count)).Require(c => c > 0);
+        var list = _indexDb.TblCmdMsgQueue.Get(count);
+        var result = list.Select(x => new UnprocessedCommandMessage()
+        {
+            Id = x.fileId,
+            Received = x.timestamp
+        }).ToList();
+
+        return Task.FromResult(result);
+    }
+
+    public Task MarkCommandsCompleted(List<Guid> fileIds)
+    {
+        _indexDb.TblCmdMsgQueue.DeleteRow(fileIds);
+        return Task.CompletedTask;
+    }
+}
+
+public class UnprocessedCommandMessage
+{
+    public Guid Id { get; set; }
+    public UnixTimeUtc Received { get; set; }
 }

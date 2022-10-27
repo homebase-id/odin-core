@@ -6,14 +6,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Storage.SQLite;
+using ReservedFileTypes = Youverse.Core.Services.Apps.CommandMessaging.ReservedFileTypes;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -121,7 +123,49 @@ namespace Youverse.Core.Services.Drive
 
             return results.SearchResults.SingleOrDefault();
         }
-        
+
+        public Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
+        {
+            TryGetOrLoadQueryManager(driveId, out var manager);
+            return manager.AddCommandMessage(fileIds);
+        }
+
+        public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count)
+        {
+            await TryGetOrLoadQueryManager(driveId, out var manager);
+            var unprocessedCommands = await manager.GetUnprocessedCommands(count);
+
+            var result = new List<ReceivedCommand>();
+
+            foreach (var cmd in unprocessedCommands)
+            {
+                var file = new InternalDriveFileId()
+                {
+                    DriveId = driveId,
+                    FileId = cmd.Id
+                };
+
+                var commandFileHeader = await _appService.GetClientEncryptedFileHeader(file);
+                var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
+
+                result.Add(new ReceivedCommand()
+                {
+                    Id = commandFileHeader.FileId, //TODO: should this be the ID?
+                    Sender = commandFileHeader.FileMetadata.SenderDotYouId,
+                    ClientCode = commandFileHeader.FileMetadata.AppData.DataType,
+                    ClientJsonMessage = command.ClientJsonMessage,
+                    GlobalTransitIdList = command!.GlobalTransitIdList
+                });
+            }
+
+            return result;
+        }
+
+        public Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
             var qp = new FileQueryParams()

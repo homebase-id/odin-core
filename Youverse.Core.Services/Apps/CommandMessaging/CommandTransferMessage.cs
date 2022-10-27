@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Youverse.Core.Services.Apps.CommandMessaging;
 
 /// <summary>
-/// Defines the data transfered from the command message service to the recipient's command message service
+/// Defines the data transferred from the command message service to the recipient's command message service
 /// </summary>
 public class CommandTransferMessage
 {

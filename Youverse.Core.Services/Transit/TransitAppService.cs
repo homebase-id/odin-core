@@ -42,15 +42,15 @@ namespace Youverse.Core.Services.Transit
             {
                 try
                 {
-                    if (item.Type == TransferType.FileTransfer)
+                    if (item.InstructionType == TransferInstructionType.SaveFile)
                     {
-                        await StoreLongTerm(item);
+                        await HandleFile(item);
                     }
-                    else if (item.Type == TransferType.DeleteLinkedFile)
+                    else if (item.InstructionType == TransferInstructionType.DeleteLinkedFile)
                     {
                         await DeleteFile(item);
                     }
-                    else if (item.Type == TransferType.None)
+                    else if (item.InstructionType == TransferInstructionType.None)
                     {
                         throw new YouverseException("Transfer type not specified");
                     }
@@ -68,30 +68,7 @@ namespace Youverse.Core.Services.Transit
             }
         }
 
-        public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
-        {
-            throw new NotImplementedException();
-        }
-
-        private async Task<List<TransferBoxItem>> GetAcceptedItems(Guid driveId)
-        {
-            var list = await _transitBoxService.GetPendingItems(driveId);
-            return list;
-        }
-
-        private async Task DeleteFile(TransferBoxItem item)
-        {
-            var clientFileHeader = await GetFileByGlobalTransitId(item.DriveId, item.GlobalTransitId);
-            var file = new InternalDriveFileId()
-            {
-                FileId = clientFileHeader.FileId,
-                DriveId = item.DriveId,
-            };
-
-            await _driveService.SoftDeleteLongTermFile(file);
-        }
-
-        private async Task StoreLongTerm(TransferBoxItem item)
+        private async Task HandleFile(TransferBoxItem item)
         {
             var tempFile = new InternalDriveFileId()
             {
@@ -133,9 +110,64 @@ namespace Youverse.Core.Services.Transit
                 AccessControlList = new AccessControlList()
                 {
                     RequiredSecurityGroup = SecurityGroupType.Owner
-                },
+                }
             };
 
+            metadata!.SenderDotYouId = item.Sender;
+
+            switch (transferInstructionSet.TransferFileType)
+            {
+                case TransferFileType.CommandMessage:
+                    await StoreCommandMessage(tempFile, decryptedKeyHeader, metadata, serverMetadata);
+                    break;
+
+                case TransferFileType.Normal:
+                    await StoreNormalFileLongTerm(tempFile, decryptedKeyHeader, metadata, serverMetadata);
+                    break;
+
+                default:
+                    throw new YouverseException("Invalid TransferFileType");
+            }
+        }
+
+        public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<List<TransferBoxItem>> GetAcceptedItems(Guid driveId)
+        {
+            var list = await _transitBoxService.GetPendingItems(driveId);
+            return list;
+        }
+
+        private async Task DeleteFile(TransferBoxItem item)
+        {
+            var clientFileHeader = await GetFileByGlobalTransitId(item.DriveId, item.GlobalTransitId);
+            var file = new InternalDriveFileId()
+            {
+                FileId = clientFileHeader.FileId,
+                DriveId = item.DriveId,
+            };
+
+            await _driveService.SoftDeleteLongTermFile(file);
+        }
+
+        /// <summary>
+        /// Stores an incoming command message and updates the queue
+        /// </summary>
+        private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        {
+            serverMetadata.DoNotIndex = true;
+            await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveQueryService.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
+        }
+
+        /// <summary>
+        /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set 
+        /// </summary>
+        private async Task StoreNormalFileLongTerm(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        {
             //validate there is not already a file with this id
             if (metadata.AppData.UniqueId.HasValue)
             {
@@ -145,7 +177,7 @@ namespace Youverse.Core.Services.Transit
             if (metadata.GlobalTransitId.HasValue) //TODO: should we lock on the id of the global transit id?
             {
                 //see if a file with this global transit id already exists
-                ClientFileHeader existingFile = await GetFileByGlobalTransitId(item.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                ClientFileHeader existingFile = await GetFileByGlobalTransitId(tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 
                 if (null != existingFile)
                 {
@@ -155,7 +187,7 @@ namespace Youverse.Core.Services.Transit
                     }
 
                     //sender must match the sender on the file of this GlobalTransitId
-                    if (item.Sender != existingFile.FileMetadata.SenderDotYouId)
+                    if (metadata.SenderDotYouId != existingFile.FileMetadata.SenderDotYouId)
                     {
                         throw new YouverseSecurityException($"Sender does not match original sender of GlobalTransitId:{metadata.GlobalTransitId.GetValueOrDefault()}");
                     }
@@ -163,17 +195,16 @@ namespace Youverse.Core.Services.Transit
                     var targetFile = new InternalDriveFileId()
                     {
                         FileId = existingFile.FileId,
-                        DriveId = item.DriveId
+                        DriveId = tempFile.DriveId
                     };
 
                     //note: we also update the key header because it might have been changed by the sender
-                    await _driveService.OverwriteLongTermWithTempFile(tempFile, targetFile, decryptedKeyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+                    await _driveService.OverwriteLongTermWithTempFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
                     return;
                 }
-            }
 
-            metadata!.SenderDotYouId = item.Sender;
-            await _driveService.CommitTempFileToLongTerm(tempFile, decryptedKeyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+                await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            }
         }
 
         private async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

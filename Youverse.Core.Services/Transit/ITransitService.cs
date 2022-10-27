@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Transit
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options);
+        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType);
 
         /// <summary>
         /// Accepts an incoming file as complete and valid.

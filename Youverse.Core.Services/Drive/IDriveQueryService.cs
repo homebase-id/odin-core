@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.Drive
@@ -28,5 +30,10 @@ namespace Youverse.Core.Services.Drive
         
         Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId);
 
+        Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds);
+        
+        Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count);
+        
+        Task MarkCommandsProcessed(Guid driveId, List<Guid> idList);
     }
 }

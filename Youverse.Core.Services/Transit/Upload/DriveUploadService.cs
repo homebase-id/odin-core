@@ -217,7 +217,7 @@ public class DriveUploadService
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions);
+            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal);
         }
 
         var uploadResult = new UploadResult()

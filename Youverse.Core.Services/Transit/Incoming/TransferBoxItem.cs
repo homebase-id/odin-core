@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         /// </summary>
         public uint PublicKeyCrc { get; set; }
 
-        public TransferType Type { get; set; }
+        public TransferInstructionType InstructionType { get; set; }
         
         public Guid GlobalTransitId { get; set; }
         

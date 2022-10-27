@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Storage;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Storage.SQLite;
 
@@ -81,5 +82,11 @@ namespace Youverse.Core.Services.Drive.Query
         Task PrepareSecondaryIndexForRebuild();
 
         Task LoadLatestIndex();
+
+        Task AddCommandMessage(List<Guid> fileIds);
+
+        Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count);
+
+        Task MarkCommandsCompleted(List<Guid> fileIds);
     }
 }

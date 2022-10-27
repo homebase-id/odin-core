@@ -33,12 +33,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
             // _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
 
             //notice here: we always create a new file Id when receiving a new file.
-            //we might need to add a feature that lets multiple identities collaborate on
-            //a the same file.  not sure who this will go.
             Guid id = Guid.NewGuid();
             var file = _driveService.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
-
+            
+            //write the instruction set to disk
             await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 

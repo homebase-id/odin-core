@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-
+            
             if (item.HasAcquiredQuarantinedPart())
             {
                 //TODO: how do i know which filter quarantined it??
@@ -113,6 +113,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (item.IsCompleteAndValid())
             {
+                
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = TransitResponseCode.Accepted };

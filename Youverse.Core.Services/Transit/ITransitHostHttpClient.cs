@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Apps.CommandMessaging;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -18,6 +19,6 @@ namespace Youverse.Core.Services.Transit
             params StreamPart[] thumbnail);
 
         [Post("/api/perimeter/transit/host/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile(DeleteLinkedFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body]DeleteLinkedFileTransitRequest request);
     }
 }

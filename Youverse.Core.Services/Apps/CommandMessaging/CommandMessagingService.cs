@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,12 +11,10 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Apps.CommandMessaging;
 
@@ -79,12 +78,15 @@ public class CommandMessagingService
         var serverFileHeader = await _driveService.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
         await _driveService.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
-        var transferResult = await _transitService.SendFile(internalFile, new TransitOptions()
-        {
-            IsTransient = true,
-            Recipients = command.Recipients,
-            UseGlobalTransitId = false
-        });
+        var transferResult = await _transitService.SendFile(
+            internalFile: internalFile,
+            options: new TransitOptions()
+            {
+                IsTransient = true,
+                Recipients = command.Recipients,
+                UseGlobalTransitId = false
+            },
+            transferFileType: TransferFileType.CommandMessage);
 
         return new CommandMessageResult()
         {
@@ -92,67 +94,25 @@ public class CommandMessagingService
         };
     }
 
-    // public async Task<OutgoingCommandStatusResultSet> GetOutgoingCommandStatus(Guid driveId, string cursor)
-    // {
-    //     // files are not indexed
-    //     // but i need a way to get the status of the command and if it has been delivered
-    //     // i also need a way to determine when to delete the file
-    //     // so we have to look at the outbox
-
-    //     Outbox Key is
-    //          fileId
-    //          driveId
-    //          recipient
-    // }
-
     /// <summary>
     /// Gets a list of commands ready to be processed along with their associated files
     /// </summary>
     /// <returns></returns>
     public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor)
     {
-        var targetDrive = (await _driveService.GetDrive(driveId, true)).TargetDriveInfo;
-        var getCommandFilesQueryParams = FileQueryParams.FromFileType(targetDrive, ReservedFileTypes.CommandMessage);
-
-        var receivedCommands = new List<ReceivedCommand>();
-        var getCommandFileOptions = new QueryBatchResultOptions()
-        {
-            Cursor = cursor == string.Empty ? null : new QueryBatchCursor(cursor),
-            ExcludePreviewThumbnail = true,
-            IncludeJsonContent = true,
-            MaxRecords = int.MaxValue
-        };
-
-        var batch = await _driveQueryService.GetBatch(driveId, getCommandFilesQueryParams, getCommandFileOptions);
-
-        //HACK: order these oldest to newest (ascending by time) until Michael updates query engine to do this for us while supporting paging
-        var orderedBatch = batch.SearchResults.OrderBy(file => file.FileId);
-
-        foreach (var commandFileHeader in orderedBatch)
-        {
-            var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
-
-            receivedCommands.Add(new ReceivedCommand()
-            {
-                Id = commandFileHeader.FileId, //TODO: should this be the ID?
-                Sender = commandFileHeader.FileMetadata.SenderDotYouId,
-                ClientCode = commandFileHeader.FileMetadata.AppData.DataType,
-                ClientJsonMessage = command.ClientJsonMessage,
-                GlobalTransitIdList = command!.GlobalTransitIdList
-            });
-        }
-
+        var commands = await _driveQueryService.GetUnprocessedCommands(driveId, count: 100);
         return new ReceivedCommandResultSet()
         {
-            TargetDrive = targetDrive,
-            ReceivedCommands = receivedCommands
+            ReceivedCommands = commands
         };
     }
 
-    public async Task MarkCommandsProcessed(Guid driveId, IEnumerable<Guid> commandIdList)
+    public async Task MarkCommandsProcessed(Guid driveId, List<Guid> commandIdList)
     {
+        Guard.Argument(commandIdList, nameof(commandIdList)).NotNull();
+        
         var list = new List<InternalDriveFileId>();
-
+        
         foreach (var commandId in commandIdList)
         {
             list.Add(new InternalDriveFileId()
@@ -166,5 +126,7 @@ public class CommandMessagingService
         {
             await _driveService.HardDeleteLongTermFile(internalDriveFileId);
         }
+
+        await _driveQueryService.MarkCommandsProcessed(driveId, commandIdList.ToList());
     }
 }

@@ -15,6 +15,7 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -72,7 +73,7 @@ namespace Youverse.Core.Services.Transit
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 PublicKeyCrc = publicKeyCrc,
 
-                Type = TransferType.FileTransfer,
+                InstructionType = TransferInstructionType.SaveFile,
                 DriveId = file.DriveId,
                 FileId = file.FileId
             };
@@ -81,7 +82,7 @@ namespace Youverse.Core.Services.Transit
             await _transitBoxService.Add(item);
         }
 
-        public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options)
+        public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType)
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
@@ -116,7 +117,7 @@ namespace Youverse.Core.Services.Transit
                     }
 
                     var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient).GetAwaiter().GetResult();
-                    this.StoreEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, internalFile, recipient, drive.TargetDriveInfo);
+                    this.StoreEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, internalFile, recipient, drive.TargetDriveInfo, transferFileType);
 
                     keyStatus.Add(recipient, TransferStatus.TransferKeyCreated);
                 }
@@ -128,7 +129,6 @@ namespace Youverse.Core.Services.Transit
             }
 
             //TODO: keyHeader.AesKey.Wipe();
-
 
             //a transfer per recipient is added to the outbox queue since there is a background process
             //that will pick up the items and attempt to send.
@@ -144,7 +144,7 @@ namespace Youverse.Core.Services.Transit
         // 
 
         private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
-            ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive)
+            ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -162,7 +162,7 @@ namespace Youverse.Core.Services.Transit
                 EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
                 EncryptedClientAuthToken = encryptedClientAccessToken,
                 TargetDrive = targetDrive,
-                //could read from package.instructionSet.StorageOptions.Ephemeral (or something)
+                TransferFileType = transferFileType
             };
 
             _systemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile), instructionSet);
@@ -279,11 +279,11 @@ namespace Youverse.Core.Services.Transit
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
-                Type = TransferType.DeleteLinkedFile,
                 AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
                 PublicKeyCrc = publicKeyCrc,
 
+                InstructionType = TransferInstructionType.DeleteLinkedFile,
                 DriveId = driveId,
                 GlobalTransitId = globalTransitId
             };
@@ -291,6 +291,11 @@ namespace Youverse.Core.Services.Transit
             //Note: the inbox service will send the notification
             await _transitBoxService.Add(item);
         }
+
+        public async Task AcceptCommandMessage(Guid driveId, CommandMessage message)
+        {
+        }
+
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
@@ -324,8 +329,7 @@ namespace Youverse.Core.Services.Transit
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
-                //therefore, if a new attribute is added, it must be considered 
-                //if it should be sent to the recipient
+                //therefore, if a new attribute is added, it must be considered if it should be sent to the recipient
                 var redactedMetadata = new FileMetadata()
                 {
                     //TODO: here I am removing the file and drive id from the stream but we need to resolve this by moving the file information to the server header
@@ -419,10 +423,13 @@ namespace Youverse.Core.Services.Transit
         }
     }
 
-    public enum TransferType
+    /// <summary>
+    /// Specifies the type of instruction incoming from another identity 
+    /// </summary>
+    public enum TransferInstructionType
     {
         None,
         DeleteLinkedFile,
-        FileTransfer
+        SaveFile
     }
 }

@@ -63,6 +63,7 @@ public class ChatMessageFileService
         var qbr = _serverContext.QueryBatch(queryParams, cursor).GetAwaiter().GetResult();
         cursor = qbr.CursorState;
 
+        throw new Exception("need to process newest to oldest - due to issues where we have 1000000 messages");
         //HACK: order oldest to newest until Michael adds core support for this
         var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
 

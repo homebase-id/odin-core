@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -58,7 +59,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.TargetDrive);
 
-            await _commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList);
+            await _commandMessagingService.MarkCommandsProcessed(driveId, request.CommandIdList.ToList());
             return true;
         }
     }
