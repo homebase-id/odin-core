@@ -112,7 +112,7 @@ public class ConversationDefinitionService
             AppData = new UploadAppFileMetaData()
             {
                 UniqueId = convo.Id,
-                ContentIsComplete = false,
+                ContentIsComplete = true,
                 JsonContent = DotYouSystemSerializer.Serialize(convo),
                 FileType = ChatConversation.ConversationDefinitionFileType,
                 DataType = 0,
