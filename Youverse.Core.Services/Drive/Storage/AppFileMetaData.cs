@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Drive.Storage
         
         public int DataType { get; set; }
         
-        public Guid GroupId { get; set; }
+        public Guid? GroupId { get; set; }
         
         public ulong? UserDate { get; set; }
 

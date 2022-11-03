@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
@@ -32,7 +33,7 @@ public class TenantConfigService
         _driveService = driveService;
         _tenantContext = tenantContext;
         _configStorage = storage.SingleKeyValueStorage;
-        
+
         //var tenantConfigSvc = scope.Resolve<TenantConfigService>();
         //ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
         _tenantContext.UpdateSystemConfig(this.GetTenantSystemConfig());
@@ -52,15 +53,16 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        //Note: the order here is important.  if the request includes any anonymous
+        //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-
         await _cns.CreateSystemCircle();
-
+        
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
 
-
+        
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);
@@ -84,7 +86,7 @@ public class TenantConfigService
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
-            throw new YouverseException("Invalid flag name");
+            throw new YouverseClientException("Invalid flag name");
         }
 
         var cfg = _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? new TenantSystemConfig();
@@ -105,7 +107,7 @@ public class TenantConfigService
                 break;
 
             default:
-                throw new YouverseException("Flag name is valid but not handled");
+                throw new YouverseClientException("Flag name is valid but not handled");
         }
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);

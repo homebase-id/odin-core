@@ -72,13 +72,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             if (notification.TargetSystemApi != SystemApi.CircleNetwork)
             {
-                throw new Exception("Invalid notification type");
+                throw new YouverseClientException("Invalid notification type");
             }
 
             //TODO: thse should go into a background queue for processing offline.
             // processing them here means they're going to be called using the senderDI's context
 
-            throw new Exception($"Unknown notification Id {notification.NotificationId}");
+            throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}");
         }
 
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken authToken)
@@ -372,7 +372,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             if (icr.AccessGrant.CircleGrants.TryGetValue(circleId.ToBase64(), out var _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
-                throw new YouverseException($"{dotYouId} is already member of circle");
+                throw new YouverseClientException($"{dotYouId} is already member of circle");
             }
 
             var circleDefinition = _circleDefinitionService.GetCircle(circleId);
@@ -418,7 +418,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 if (!icr.AccessGrant.CircleGrants.Remove(circleId.ToBase64()))
                 {
-                    throw new YouverseException($"Failed to remove {circle64} from {dotYouId}");
+                    throw new YouverseClientException($"Failed to remove {circle64} from {dotYouId}");
                 }
             }
 
@@ -488,7 +488,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             if (members.Any())
             {
-                throw new YouverseException("Cannot delete a circle with members");
+                throw new YouverseClientException("Cannot delete a circle with members");
             }
 
             await _circleDefinitionService.Delete(circleId);

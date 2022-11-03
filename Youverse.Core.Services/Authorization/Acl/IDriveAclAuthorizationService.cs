@@ -16,6 +16,5 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         Task<bool> CallerIsInList(List<string> dotYouIdList);
 
-        Task<bool> CallerIsInCircle(Guid? circleId);
     }
 }

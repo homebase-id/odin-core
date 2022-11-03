@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             if (string.IsNullOrWhiteSpace(dotYouId))
             {
-                throw new YouAuthException("Invalid subject");
+                throw new YouAuthClientException("Invalid subject");
             }
 
             if (_circleNetworkService.TryCreateIdentityConnectionClient(dotYouId, remoteIcrClientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())

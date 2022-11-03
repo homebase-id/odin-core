@@ -205,7 +205,8 @@ public class SqliteQueryManager : IDriveQueryManager
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
         Guard.Argument(count, nameof(count)).Require(c => c > 0);
-        var list = _indexDb.TblCmdMsgQueue.Get(count);
+        var list = _indexDb.TblCmdMsgQueue.Get(count) ?? new List<CommandMessage>();
+
         var result = list.Select(x => new UnprocessedCommandMessage()
         {
             Id = x.fileId,

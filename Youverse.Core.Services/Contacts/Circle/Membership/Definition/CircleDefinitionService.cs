@@ -38,12 +38,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                     Id = CircleConstants.SystemCircleId.Value,
                     Name = "System Circle",
                     Description = "All Connected Identities",
-                    DriveGrants = new DriveGrantRequest[] { },
+                    DriveGrants = CircleConstants.InitialSystemCircleDrives,
                     Permissions = new PermissionSet()
                     {
                         Keys = new List<int>() { }
                     }
-                }, skipValidation: true); //bypassing because this circle starts empty
+                }, skipValidation: true);
             }
         }
 
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == existingCircle)
             {
-                throw new MissingDataException($"Invalid circle {newCircleDefinition.Id}");
+                throw new YouverseClientException($"Invalid circle {newCircleDefinition.Id}");
             }
 
             existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == circle)
             {
-                throw new MissingDataException($"Invalid circle {id}");
+                throw new YouverseClientException($"Invalid circle {id}");
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
                 if (driveId == null)
                 {
-                    throw new YouverseException("Invalid drive specified on DriveGrantRequest");
+                    throw new YouverseClientException("Invalid drive specified on DriveGrantRequest");
                 }
 
                 var drive = _driveService.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
@@ -146,7 +146,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (!hasPermissions && !hasDrives)
             {
-                throw new YouverseException("A circle must grant at least one drive or one permission");
+                throw new YouverseClientException("A circle must grant at least one drive or one permission", YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
             }
 
             if (hasPermissions)
@@ -164,7 +164,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         {
             if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
             {
-                throw new YouverseException("Invalid Permission key specified");
+                throw new YouverseClientException("Invalid Permission key specified");
             }
         }
 
@@ -181,7 +181,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null != this.GetCircle(request.Id))
             {
-                throw new YouverseException("Circle with Id already exists");
+                throw new YouverseClientException("Circle with Id already exists");
             }
 
             var now = UnixTimeUtc.Now().milliseconds;

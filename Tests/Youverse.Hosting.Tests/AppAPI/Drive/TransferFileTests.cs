@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -301,7 +302,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             instructionSet.TransitOptions.IsTransient = true;
             instructionSet.TransitOptions.UseGlobalTransitId = true;
 
-            Assert.Throws<UploadException>(() => { instructionSet.AssertIsValid(); });
+            Assert.Throws<YouverseClientException>(() => { instructionSet.AssertIsValid(); });
         }
 
 

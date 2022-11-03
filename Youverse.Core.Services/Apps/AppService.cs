@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -121,7 +122,7 @@ namespace Youverse.Core.Services.Apps
                                 break;
 
                             default:
-                                throw new ArgumentOutOfRangeException();
+                                throw new YouverseSystemException($"Unknown TransitResponseCode {value}");
                         }
                     }
                 }

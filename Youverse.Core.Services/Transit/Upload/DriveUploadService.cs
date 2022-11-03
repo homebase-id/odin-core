@@ -52,7 +52,7 @@ public class DriveUploadService
 
         if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
         {
-            throw new UploadException("Cannot transfer a file to the sender; what's the point?");
+            throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?");
         }
 
         //TODO: this is pending.  for now, you upload a full set of streams (payload, thumbnail, etc.) to overwrite a file
@@ -75,7 +75,7 @@ public class DriveUploadService
 
         if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
         {
-            throw new UploadException("Cannot transfer to yourself; what's the point?");
+            throw new YouverseClientException("Cannot transfer to yourself; what's the point?");
         }
 
         InternalDriveFileId file;
@@ -111,7 +111,7 @@ public class DriveUploadService
     {
         if (!_packages.TryGetValue(packageId, out var pkg))
         {
-            throw new UploadException("Invalid package Id");
+            throw new YouverseSystemException("Invalid package Id");
         }
 
         await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
@@ -121,7 +121,7 @@ public class DriveUploadService
     {
         if (!_packages.TryGetValue(packageId, out var pkg))
         {
-            throw new UploadException("Invalid package Id");
+            throw new YouverseSystemException("Invalid package Id");
         }
 
         await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
@@ -131,7 +131,7 @@ public class DriveUploadService
     {
         if (!_packages.TryGetValue(packageId, out var pkg))
         {
-            throw new UploadException("Invalid package Id");
+            throw new YouverseSystemException("Invalid package Id");
         }
 
         //TODO: How to store the content type for later usage?  is it even needed?
@@ -164,13 +164,13 @@ public class DriveUploadService
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
-            throw new UploadException("Cannot upload an encrypted file that is accessible to anonymous visitors");
+            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors", YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
         var drive = await _driveService.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
-            throw new UploadException("Drive is owner only so all files must have RequiredSecurityGroup of Owner");
+            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner");
         }
 
         if (package.IsUpdateOperation)
@@ -178,7 +178,7 @@ public class DriveUploadService
             //validate the file exists by the ID
             if (!_driveService.FileExists(package.InternalFile))
             {
-                throw new UploadException("OverwriteFileId is specified but file does not exist");
+                throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFileStef);
             }
 
             if (metadata.AppData.UniqueId.HasValue)
@@ -192,7 +192,7 @@ public class DriveUploadService
                     var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
-                        throw new UploadException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]");
+                        throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
             }
@@ -206,7 +206,7 @@ public class DriveUploadService
                 var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                 if (null != existingFile)
                 {
-                    throw new UploadException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]");
+                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
         }
@@ -253,7 +253,7 @@ public class DriveUploadService
 
         if (null == transferEncryptedKeyHeader)
         {
-            throw new UploadException("Invalid transfer key header");
+            throw new YouverseClientException("Invalid transfer key header");
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();

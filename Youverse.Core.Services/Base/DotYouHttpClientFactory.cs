@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Security.Authentication;
 using Dawn;
 using Refit;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Registry;
@@ -53,7 +54,7 @@ namespace Youverse.Core.Services.Base
             var cert = _certificateResolver.GetSslCertificate();
             if (null == cert)
             {
-                throw new Exception($"No certificate configured for {_tenantContext.HostDotYouId}");
+                throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostDotYouId}");
             }
 
             handler.ClientCertificates.Add(cert);

@@ -39,6 +39,12 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             var samFirst = ByteArrayUtil.EquiByteArrayXor(samBytes, frodoBytes);
 
             Assert.IsTrue(frodoFirst.SequenceEqual(samFirst));
+            
+            //conversationId
+            // var flutterUuidValue = new Guid("2c1b2834-1e3c-47ce-8e77-885bb5a1da55");
+            // var g = new Guid(frodoFirst);
+            // Assert.IsTrue(g == flutterUuidValue);
+
         }
 
         [Test]

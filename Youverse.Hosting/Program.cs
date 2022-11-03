@@ -72,19 +72,19 @@ namespace Youverse.Hosting
             var loggingDirInfo = Directory.CreateDirectory(cfg.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
             }
 
             var dataRootDirInfo = Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
             }
 
             var tempDataRootDirInfo = Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
             if (!tempDataRootDirInfo.Exists)
             {
-                throw new YouverseException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
             }
 
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk

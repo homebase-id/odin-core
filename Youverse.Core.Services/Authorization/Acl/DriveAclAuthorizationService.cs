@@ -90,16 +90,11 @@ namespace Youverse.Core.Services.Authorization.Acl
             return Task.FromResult(inList);
         }
 
-        public Task<bool> CallerIsInCircle(Guid? circleId)
-        {
-            throw new NotImplementedException();
-        }
-
         private void ThrowWhenFalse(bool eval)
         {
             if (eval == false)
             {
-                throw new DriveSecurityException();
+                throw new YouverseSecurityException();
             }
         }
     }

@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             var pk = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
             if (null == pk)
             {
-                throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
+                throw new YouverseClientException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
             //TODO: do we want to keep the extra layer of having a client and
@@ -95,7 +95,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             if (null == pk)
             {
-                throw new InvalidDataException("Secrets configuration invalid.  Did you initialize a password?");
+                throw new YouverseClientException("Secrets configuration invalid.  Did you initialize a password?");
             }
 
             return new SaltsPackage()

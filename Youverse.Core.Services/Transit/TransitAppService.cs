@@ -52,11 +52,11 @@ namespace Youverse.Core.Services.Transit
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
-                        throw new YouverseException("Transfer type not specified");
+                        throw new YouverseClientException("Transfer type not specified");
                     }
                     else
                     {
-                        throw new YouverseException("Invalid transfer type");
+                        throw new YouverseClientException("Invalid transfer type");
                     }
 
                     await _transitBoxService.MarkComplete(item.DriveId, item.Marker);
@@ -100,7 +100,7 @@ namespace Youverse.Core.Services.Transit
 
             if (null == metadata)
             {
-                throw new YouverseException("Metadata could not be serialized");
+                throw new YouverseClientException("Metadata could not be serialized");
             }
 
             var serverMetadata = new ServerMetadata()
@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Transit
                     break;
 
                 default:
-                    throw new YouverseException("Invalid TransferFileType");
+                    throw new YouverseClientException("Invalid TransferFileType");
             }
         }
 
@@ -213,9 +213,12 @@ namespace Youverse.Core.Services.Transit
                     await _driveService.OverwriteLongTermWithTempFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
                     return;
                 }
-
-                await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+                //else there was no file by the global transit id
             }
+            
+            
+            await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+
         }
 
         private async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

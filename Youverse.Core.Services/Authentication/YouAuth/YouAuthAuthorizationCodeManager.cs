@@ -30,12 +30,12 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         {
             if (string.IsNullOrWhiteSpace(initiator))
             {
-                throw new YouAuthException("Invalid initiator");
+                throw new YouAuthClientException("Invalid initiator");
             }
 
             if (string.IsNullOrWhiteSpace(subject))
             {
-                throw new YouAuthException("Invalid subject");
+                throw new YouAuthClientException("Invalid subject");
             }
 
             var code = Guid.NewGuid().ToString(); // SEB:TODO use secure?

@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// An id that can be used by the client to group this file with others
         /// </summary>
-        public Guid GroupId { get; set; }
+        public Guid? GroupId { get; set; }
         
         /// <summary>
         /// A tiny thumbnail, blurry and small to be seen when previewing

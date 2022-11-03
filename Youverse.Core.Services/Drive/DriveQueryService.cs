@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Drive
                 };
             }
 
-            throw new NoValidIndexException(driveId);
+            throw new NoValidIndexClientException(driveId);
         }
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options)
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Drive
                 };
             }
 
-            throw new NoValidIndexException(driveId);
+            throw new NoValidIndexClientException(driveId);
         }
 
         public async Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
@@ -161,9 +161,10 @@ namespace Youverse.Core.Services.Drive
             return result;
         }
 
-        public Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
+        public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
         {
-            throw new NotImplementedException();
+            await TryGetOrLoadQueryManager(driveId, out var manager);
+            await manager.MarkCommandsCompleted(idList);
         }
 
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

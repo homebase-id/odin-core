@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
-                throw new Exception("Token is invalid");
+                throw new YouverseClientException("Token is invalid");
             }
 
             var mk = await _secretService.GetMasterKey(loginToken, clientSecret);
@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         //     var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
         //     if (!IsAuthTokenEntryValid(loginToken))
         //     {
-        //         throw new Exception("Token is invalid");
+        //         throw new YouverseClientException("Token is invalid");
         //     }
         //
         //     return await _secretService.GetMasterKey(loginToken, clientSecret);

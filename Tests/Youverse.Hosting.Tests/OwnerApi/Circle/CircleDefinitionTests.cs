@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Contacts.Circle;
@@ -197,7 +199,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
-                Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.InternalServerError, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                
+                
             }
         }
 
@@ -480,8 +487,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 circle.Permissions = null;
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-                Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.InternalServerError, $"Actual response {updateCircleResponse.StatusCode}");
-
+                
+                Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                
                 await svc.DeleteCircleDefinition(circle.Id);
             }
         }

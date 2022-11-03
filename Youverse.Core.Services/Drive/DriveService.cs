@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Drive
 
             if (request.OwnerOnly && request.AllowAnonymousReads)
             {
-                throw new YouverseException("A drive cannot be owner-only and allow anonymous reads");
+                throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads");
             }
 
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Drive
                 //driveAlias and type must be unique
                 if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
                 {
-                    throw new ConfigException("Drive alias and type must be unique");
+                    throw new YouverseClientException("Drive alias and type must be unique");
                 }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
@@ -155,7 +155,7 @@ namespace Youverse.Core.Services.Drive
             {
                 if (failIfInvalid)
                 {
-                    throw new InvalidDriveException(driveId);
+                    throw new InvalidDriveClientException(driveId);
                 }
 
                 return null;
@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Drive
             {
                 if (failIfInvalid)
                 {
-                    throw new InvalidDriveException(targetDrive.Alias);
+                    throw new InvalidDriveClientException(targetDrive.Alias);
                 }
 
                 return null;
@@ -245,10 +245,19 @@ namespace Youverse.Core.Services.Drive
                 metadata.Updated = UnixTimeUtc.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
+
+                if (metadata.FileState == FileState.Deleted)
+                {
+                    throw new YouverseClientException("Cannot update deleted file");
+                }
+
+                //TODO: determine if we need to see if it was previously deleted, then call this an error
+                metadata.FileState = FileState.Active;
             }
             else
             {
                 metadata.Created = UnixTimeUtc.Now().milliseconds;
+                metadata.FileState = FileState.Active;
             }
 
             await WriteFileHeaderInternal(header);
@@ -576,7 +585,7 @@ namespace Youverse.Core.Services.Drive
             var success = LoadLongTermStorage(sd, out manager);
             if (!success)
             {
-                throw new StorageException($"Could not load long term storage for drive {driveId}");
+                throw new YouverseClientException($"Could not load long term storage for drive {driveId}");
             }
 
             return manager;
@@ -593,7 +602,7 @@ namespace Youverse.Core.Services.Drive
             var success = LoadTempStorage(sd, out manager);
             if (!success)
             {
-                throw new StorageException($"Could not load temporary storage for drive {driveId}");
+                throw new YouverseClientException($"Could not load temporary storage for drive {driveId}");
             }
 
             return manager;

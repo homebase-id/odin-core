@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Acl
@@ -58,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.DotYouIdentityList?.Count() ?? 0) > 0)
                 {
-                    throw new StorageException("Cannot specify circle or identity list when required security group is anonymous or owner");
+                    throw new YouverseClientException("Cannot specify circle or identity list when required security group is anonymous or owner");
                 }
             }
 
@@ -66,7 +67,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0)
                 {
-                    throw new StorageException("Cannot specify circle list when required security group is authenticated");
+                    throw new YouverseClientException("Cannot specify circle list when required security group is authenticated");
                 }
             }
         }

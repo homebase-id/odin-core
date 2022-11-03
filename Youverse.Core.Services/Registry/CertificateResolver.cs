@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Util;
@@ -51,7 +52,7 @@ namespace Youverse.Core.Services.Registry
         {
             if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
             {
-                throw new Exception("Cannot find certificate or key file(s)");
+                throw new YouverseSystemException("Cannot find certificate or key file(s)");
             }
 
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))

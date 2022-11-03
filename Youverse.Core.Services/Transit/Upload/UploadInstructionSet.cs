@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Dawn;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Upload
@@ -29,19 +30,19 @@ namespace Youverse.Core.Services.Transit.Upload
         {
             if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
             {
-                throw new UploadException("Invalid or missing instruction set or transfer initialization vector");
+                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector");
             }
 
             if (!StorageOptions?.Drive?.IsValid() ?? false)
             {
-                throw new UploadException("Target drive is invalid");
+                throw new YouverseClientException("Target drive is invalid");
             }
 
             if (TransitOptions != null)
             {
                 if (TransitOptions.IsTransient && TransitOptions.UseGlobalTransitId)
                 {
-                    throw new UploadException("Cannot use GlobalTransitId on a transient file.");
+                    throw new YouverseClientException("Cannot use GlobalTransitId on a transient file.");
                 }
             }
         }

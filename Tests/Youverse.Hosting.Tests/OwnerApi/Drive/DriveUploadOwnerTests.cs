@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
@@ -45,7 +46,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         [Ignore("This is tested in the app api until we determine if there are diff behaviors when transferring using the owner api")]
         public async Task CanGetAndSetGlobalTransitId()
         {
-            
         }
 
         [Test(Description = "Test upload as owner")]
@@ -220,7 +220,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError);
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
             }
         }
 
@@ -477,7 +480,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError, "Status code should be internal server error");
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFileStef);
 
                 keyHeader.AesKey.Wipe();
             }
@@ -621,12 +627,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-                
+
                 //
                 // This should fail because we tried to reuse a uid1
                 //
                 Assert.That(response.IsSuccessStatusCode, Is.False);
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError);
+                Assert.That(response.IsSuccessStatusCode, Is.False);
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 
@@ -730,7 +740,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError);
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                    "Could not parse problem result");
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 

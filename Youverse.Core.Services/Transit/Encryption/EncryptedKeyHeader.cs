@@ -3,6 +3,7 @@ using System.IO;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
@@ -29,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Encryption
                 return kh;
             }
 
-            throw new InvalidDataException("Unsupported encryption version");
+            throw new YouverseSecurityException("Unsupported encryption version");
         }
 
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)

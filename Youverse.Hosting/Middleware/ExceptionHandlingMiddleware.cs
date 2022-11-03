@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -39,6 +40,10 @@ namespace Youverse.Hosting.Middleware
             try
             {
                 await _next(context);
+            }
+            catch (YouverseClientException eee)
+            {
+                await HandleApplicationAccessException(context, eee);
             }
             catch (DriveSecurityException dex)
             {
@@ -109,6 +114,31 @@ namespace Youverse.Hosting.Middleware
         }
 
         //
+        
+        private Task HandleApplicationAccessException(HttpContext context, YouverseClientException appException)
+        {
+            const int status = (int)HttpStatusCode.BadRequest;
+            const string title = "Bad Request";
+
+            _logger.LogError(appException, "{ErrorText}", appException.Message);
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Extensions =
+                {
+                    ["errorCode"] = appException.ErrorCode,
+                    ["correlationId"] = _correlationContext.Id
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
+        }
 
         private Task HandleDriveAccessException(HttpContext context, Exception exception)
         {

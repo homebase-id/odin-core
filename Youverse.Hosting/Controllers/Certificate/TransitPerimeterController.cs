@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive;
@@ -144,19 +145,19 @@ namespace Youverse.Hosting.Controllers.Certificate
         {
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new UploadException($"Thumbnails have name of {Enum.GetName(expectedPart)}");
+                throw new YouverseClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}");
             }
 
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new UploadException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new UploadException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
             }
         }
 

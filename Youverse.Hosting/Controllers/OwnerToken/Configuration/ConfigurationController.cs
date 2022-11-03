@@ -63,7 +63,7 @@ public class ConfigurationController : Controller
         //todo: map to all the various flags
         return false;
     }
-    
+
     /// <summary>
     /// Gets the system flags
     /// </summary>
@@ -84,7 +84,9 @@ public class ConfigurationController : Controller
         var d = new Dictionary<string, TargetDrive>()
         {
             { "contact", SystemDriveConstants.ContactDrive },
-            { "profile", SystemDriveConstants.ProfileDrive }
+            { "profile", SystemDriveConstants.ProfileDrive },
+            { "wallet", SystemDriveConstants.WalletDrive },
+            { "chat", SystemDriveConstants.ChatDrive }
         };
 
         return Task.FromResult(d);

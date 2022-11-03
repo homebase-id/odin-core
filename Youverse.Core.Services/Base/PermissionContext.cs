@@ -85,7 +85,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.Write))
             {
-                throw new DriveSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
 
@@ -96,7 +96,7 @@ namespace Youverse.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.Read))
             {
-                throw new DriveSecurityException($"Unauthorized to read to drive [{driveId}]");
+                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 
@@ -118,7 +118,7 @@ namespace Youverse.Core.Services.Base
                 }
             }
 
-            throw new DriveSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+            throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.Base
             }
 
             //TODO: this sort of security check feels like it should be in a service..
-            throw new DriveSecurityException($"No access permitted to drive {driveId}");
+            throw new YouverseSecurityException($"No access permitted to drive {driveId}");
         }
     }
 }

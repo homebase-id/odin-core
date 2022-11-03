@@ -94,19 +94,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.DotYouId)
             {
-                throw new YouverseException("I get it, connecting with yourself is critical..yet send a connection request to yourself");
+                throw new YouverseClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself");
             }
             
             var incomingRequest = await this.GetPendingRequest((DotYouIdentity)header.Recipient);
             if (null != incomingRequest)
             {
-                throw new YouverseException("You already have an incoming request from the recipient.");
+                throw new YouverseClientException("You already have an incoming request from the recipient.");
             }
 
             var existingRequest = await this.GetSentRequest((DotYouIdentity)header.Recipient);
             if (existingRequest != null)
             {
-                throw new YouverseException("You already sent a request to this recipient.");
+                throw new YouverseClientException("You already sent a request to this recipient.");
             }
             
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -142,7 +142,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 //round 2, fail all together
                 if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
                 {
-                    throw new Exception("Failed to establish connection request");
+                    throw new YouverseClientException("Failed to establish connection request");
                 }
             }
 

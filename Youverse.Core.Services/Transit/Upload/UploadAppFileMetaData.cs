@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Transit.Upload
         
         public ulong? UserDate { get; set; }
 
-        public Guid GroupId { get; set; }
+        public Guid? GroupId { get; set; }
         
         
 

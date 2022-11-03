@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Services.Drive.Storage
@@ -83,12 +84,12 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             if (fileId == Guid.Empty)
             {
-                throw new Exception("No file specified");
+                throw new YouverseClientException("No file specified");
             }
 
             if (!IsFileValid(fileId))
             {
-                throw new Exception("File does not contain all parts");
+                throw new YouverseClientException("File does not contain all parts");
             }
         }
 

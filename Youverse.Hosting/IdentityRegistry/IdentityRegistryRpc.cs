@@ -56,7 +56,7 @@ namespace Youverse.Hosting.IdentityRegistry
 
             if (id == Guid.Empty)
             {
-                throw new InvalidTenantException($"Not tenant with domain [{domainName}]");
+                throw new InvalidTenantClientException($"Not tenant with domain [{domainName}]");
             }
 
             return id;
