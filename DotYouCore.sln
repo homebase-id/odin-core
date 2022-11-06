@@ -28,6 +28,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage", "..
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage.Tests", "..\dotyoucore-lib\Tests\Youverse.Core.Storage.Tests\Youverse.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Provisioning", "Youverse.Provisioning\Youverse.Provisioning.csproj", "{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +72,10 @@ Global
 		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -193,7 +195,7 @@ namespace Youverse.Hosting
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-
+            
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
@@ -209,6 +211,13 @@ namespace Youverse.Hosting
             else
             {
                 logger.LogInformation("Mapping SPA paths on local disk");
+
+                // app.MapWhen(ctx => ctx.Request.Host.Host.StartsWith("provisioning.", StringComparison.InvariantCultureIgnoreCase), provisioningApp =>
+                // {
+                //     provisioningApp.
+                // });
+
+                
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     ownerApp =>
                     {
