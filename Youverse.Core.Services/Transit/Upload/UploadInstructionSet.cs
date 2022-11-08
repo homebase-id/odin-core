@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Upload
             StorageOptions = new StorageOptions();
         }
         /// <summary>
-        /// The transfer initialization vector used to encrypt the KeyHeader 
+        /// The transfer initialization vector used to encrypt the KeyHeader
         /// </summary>
         public byte[] TransferIv { get; set; }
 
@@ -30,19 +30,19 @@ namespace Youverse.Core.Services.Transit.Upload
         {
             if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
             {
-                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector");
+                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector", YouverseClientErrorCode.InvalidInstructionSet);
             }
 
             if (!StorageOptions?.Drive?.IsValid() ?? false)
             {
-                throw new YouverseClientException("Target drive is invalid");
+                throw new YouverseClientException("Target drive is invalid", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
             if (TransitOptions != null)
             {
                 if (TransitOptions.IsTransient && TransitOptions.UseGlobalTransitId)
                 {
-                    throw new YouverseClientException("Cannot use GlobalTransitId on a transient file.");
+                    throw new YouverseClientException("Cannot use GlobalTransitId on a transient file.", YouverseClientErrorCode.CannotUseGlobalTransitIdOnTransientFile);
                 }
             }
         }

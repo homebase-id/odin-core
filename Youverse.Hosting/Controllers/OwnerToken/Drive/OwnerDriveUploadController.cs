@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new YouverseClientException("Data is not multi-part content");
+                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             AssertIsPart(section, MultipartUploadParts.Instructions);
             //TODO: return the package from create package method
             var packageId = await _driveUploadService.CreatePackage(section!.Body);
-            
+
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
@@ -74,7 +74,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Part must be {Enum.GetName(expectedPart)}");
+                throw new YouverseClientException($"Part must be {Enum.GetName(expectedPart)}", YouverseClientErrorCode.MissingUploadData);
             }
         }
 
@@ -82,19 +82,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}");
+                throw new YouverseClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
             }
         }
 

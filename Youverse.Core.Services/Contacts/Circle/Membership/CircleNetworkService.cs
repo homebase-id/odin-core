@@ -72,13 +72,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             if (notification.TargetSystemApi != SystemApi.CircleNetwork)
             {
-                throw new YouverseClientException("Invalid notification type");
+                throw new YouverseClientException("Invalid notification type", YouverseClientErrorCode.InvalidNotificationType);
             }
 
             //TODO: thse should go into a background queue for processing offline.
             // processing them here means they're going to be called using the senderDI's context
 
-            throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}");
+            throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}", YouverseClientErrorCode.UnknownNotificationId);
         }
 
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken authToken)
@@ -111,14 +111,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 throw new YouverseSecurityException("Invalid token");
             }
-            
+
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             var icr = await this.GetIdentityConnectionRegistrationInternal(client.DotYouId);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
-            // Only return the permissions if the identity is connected.  
+            // Only return the permissions if the identity is connected.
             if (isAuthenticated && isConnected)
             {
                 var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant.CircleGrants, client.AccessRegistration, authToken);
@@ -268,7 +268,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task<bool> IsConnected(DotYouIdentity dotYouId)
         {
-            //allow the caller to see if s/he is connected, otherwise 
+            //allow the caller to see if s/he is connected, otherwise
             if (_contextAccessor.GetCurrent().Caller.DotYouId != dotYouId)
             {
                 //TODO: this needs to be changed to - can view connections
@@ -372,7 +372,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             if (icr.AccessGrant.CircleGrants.TryGetValue(circleId.ToBase64(), out var _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
-                throw new YouverseClientException($"{dotYouId} is already member of circle");
+                throw new YouverseClientException($"{dotYouId} is already member of circle", YouverseClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
             var circleDefinition = _circleDefinitionService.GetCircle(circleId);
@@ -488,7 +488,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             if (members.Any())
             {
-                throw new YouverseClientException("Cannot delete a circle with members");
+                throw new YouverseClientException("Cannot delete a circle with members", YouverseClientErrorCode.CannotDeleteCircleWithMembers);
             }
 
             await _circleDefinitionService.Delete(circleId);

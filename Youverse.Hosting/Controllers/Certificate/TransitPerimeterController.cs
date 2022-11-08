@@ -52,7 +52,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
             this._stateItemId = await ProcessTransferKeyHeader(section);
 
-            // 
+            //
 
             await ProcessMetadataSection(await reader.ReadNextSectionAsync());
 
@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
             string json = await new StreamReader(section.Body).ReadToEndAsync();
             var transferKeyHeader = DotYouSystemSerializer.Deserialize<RsaEncryptedRecipientTransferInstructionSet>(json);
-            
+
             var transferStateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
             return transferStateItemId;
         }
@@ -145,19 +145,19 @@ namespace Youverse.Hosting.Controllers.Certificate
         {
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}");
+                throw new YouverseClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}", YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')");
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
             }
         }
 

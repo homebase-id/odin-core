@@ -18,7 +18,7 @@ using Youverse.Core.Storage;
 ///   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
-/// 
+///
 namespace Youverse.Core.Services.Authentication.Owner
 {
     /// <summary>
@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
             var noncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(new GuidId(key));
 
-            // TODO TEST Make sure an exception is thrown if it does not exist. 
+            // TODO TEST Make sure an exception is thrown if it does not exist.
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
-                throw new YouverseClientException("Token is invalid");
+                throw new YouverseClientException("Token is invalid", YouverseClientErrorCode.InvalidAuthToken);
             }
 
             var mk = await _secretService.GetMasterKey(loginToken, clientSecret);

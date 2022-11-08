@@ -56,13 +56,13 @@ public class TenantConfigService
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _cns.CreateSystemCircle();
-        
+
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
 
-        
+
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);
@@ -86,7 +86,7 @@ public class TenantConfigService
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
-            throw new YouverseClientException("Invalid flag name");
+            throw new YouverseClientException("Invalid flag name", YouverseClientErrorCode.InvalidFlagName);
         }
 
         var cfg = _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? new TenantSystemConfig();
@@ -107,7 +107,7 @@ public class TenantConfigService
                 break;
 
             default:
-                throw new YouverseClientException("Flag name is valid but not handled");
+                throw new YouverseClientException("Flag name is valid but not handled", YouverseClientErrorCode.UnknownFlagName);
         }
 
         _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);

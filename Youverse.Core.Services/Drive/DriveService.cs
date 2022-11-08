@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Drive
 
             if (request.OwnerOnly && request.AllowAnonymousReads)
             {
-                throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads");
+                throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads", YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
             }
 
             var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Drive
                 //driveAlias and type must be unique
                 if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
                 {
-                    throw new YouverseClientException("Drive alias and type must be unique");
+                    throw new YouverseClientException("Drive alias and type must be unique", YouverseClientErrorCode.DriveAliasAndTypeAlreadyExists);
                 }
 
                 var driveKey = new SymmetricKeyEncryptedAes(ref mk);
@@ -248,7 +248,7 @@ namespace Youverse.Core.Services.Drive
 
                 if (metadata.FileState == FileState.Deleted)
                 {
-                    throw new YouverseClientException("Cannot update deleted file");
+                    throw new YouverseClientException("Cannot update deleted file", YouverseClientErrorCode.CannotUpdateDeletedFile);
                 }
 
                 //TODO: determine if we need to see if it was previously deleted, then call this an error
@@ -585,7 +585,7 @@ namespace Youverse.Core.Services.Drive
             var success = LoadLongTermStorage(sd, out manager);
             if (!success)
             {
-                throw new YouverseClientException($"Could not load long term storage for drive {driveId}");
+                throw new YouverseClientException($"Could not load long term storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
             }
 
             return manager;
@@ -602,7 +602,7 @@ namespace Youverse.Core.Services.Drive
             var success = LoadTempStorage(sd, out manager);
             if (!success)
             {
-                throw new YouverseClientException($"Could not load temporary storage for drive {driveId}");
+                throw new YouverseClientException($"Could not load temporary storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
             }
 
             return manager;
