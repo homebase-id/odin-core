@@ -36,7 +36,7 @@ public class DriveManagementTests
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
             string name = "test drive 01";
             string metadata = "{some:'json'}";
-            
+
             var response = await svc.CreateDrive(new CreateDriveRequest()
             {
                 TargetDrive = targetDrive,
@@ -48,7 +48,7 @@ public class DriveManagementTests
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
 
-            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest(){PageNumber = 1, PageSize = 100});
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
             Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
@@ -75,11 +75,11 @@ public class DriveManagementTests
                 Metadata = metadata,
                 AllowAnonymousReads = false
             });
-            
+
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
 
-            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest(){PageNumber = 1, PageSize = 100});
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
             Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
@@ -94,6 +94,51 @@ public class DriveManagementTests
                 AllowAnonymousReads = false
             });
             Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode, $"Create drive with duplicate alias and type should have failed");
+        }
+    }
+
+    [Test]
+    public async Task CanUpdateDriveMetadata()
+    {
+        using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.DotYouId, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+            string name = "test drive 01";
+            string metadata = "{some:'json'}";
+
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = name,
+                Metadata = metadata,
+                AllowAnonymousReads = false
+            });
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            Assert.IsNotNull(response.Content);
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            var page = getDrivesResponse.Content;
+
+            Assert.IsTrue(page.Results.Any());
+            Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+
+            await svc.UpdateMetadata(new UpdateDriveDefinitionRequest()
+            {
+                TargetDrive = targetDrive,
+                Metadata = "ankles and toes"
+            });
+
+            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            var updatedDrivesPage = getUpdatedResponse.Content;
+            Assert.IsNotNull(updatedDrivesPage);
+
+            var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            Assert.IsTrue(updatedDrive.Metadata == "ankles and toes");
         }
     }
 }

@@ -24,5 +24,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
         [Post(RootEndpoint + "/setdrivemode")]
         Task<ApiResponse<bool>> SetDriveReadMode([Body] UpdateDriveDefinitionRequest request);
+        
+        [Post(RootEndpoint + "/updatemetadata")]
+        Task<ApiResponse<bool>> UpdateMetadata([Body] UpdateDriveDefinitionRequest request);
     }
 }
