@@ -147,6 +147,15 @@ namespace Youverse.Core.Services.Drive
             return Task.CompletedTask;
         }
 
+        public Task UpdateMetadata(Guid driveId, string metadata)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            StorageDrive storageDrive = this.GetDrive(driveId).GetAwaiter().GetResult();
+            storageDrive.Metadata = metadata;
+            _systemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+            return Task.CompletedTask;
+        }
+        
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {

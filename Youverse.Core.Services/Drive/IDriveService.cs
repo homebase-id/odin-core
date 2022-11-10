@@ -144,5 +144,7 @@ namespace Youverse.Core.Services.Drive
         /// TODO: I'm not certain this is the right place for this method
         /// </summary>
         Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata);
+
+        Task UpdateMetadata(Guid driveId, string metadata);
     }
 }
