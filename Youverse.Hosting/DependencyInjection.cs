@@ -161,7 +161,7 @@ namespace Youverse.Hosting
             // var logger = scope.Resolve<ILogger<Startup>>();
             // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
 
-            var registry = scope.Resolve<IIdentityContextRegistry>();
+            var registry = scope.Resolve<IIdentityRegistry>();
             var config = scope.Resolve<Configuration>();
             var ctx = scope.Resolve<TenantContext>();
 

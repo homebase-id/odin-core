@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Youverse.Provisioning.CertificateChallenge;
+using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning.Controllers.LetsEncrypt
 {

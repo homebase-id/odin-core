@@ -59,6 +59,10 @@ namespace Youverse.Hosting
 
         public class QuartzSection
         {
+            /// <summary>
+            /// Interval in minutes to scan the identity registry to check for certificates that need to be renewed
+            /// </summary>
+            public int CertificateRenewalCheckIntervalMinutes { get; }
             public int BackgroundJobStartDelaySeconds { get; }
             public bool EnableQuartzBackgroundService { get; }
 

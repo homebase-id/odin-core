@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Trie;
 using Youverse.Core.Util;
@@ -13,25 +14,25 @@ namespace Youverse.Core.Services.Registry
     /// </summary>
     /// Note: this is marked internal to ensure code running in a given instance 
     /// of any class in Youverse.Core.Services.* cannot access other Identities
-    public class DevelopmentIdentityContextRegistry : IIdentityContextRegistry
+    public class DevelopmentIdentityRegistry : IIdentityRegistry
     {
         private Trie<Guid> _identityMap = new Trie<Guid>();
 
-        public DevelopmentIdentityContextRegistry(string dataStoragePath, string tempDataStoragePath)
+        public DevelopmentIdentityRegistry(string tenantDataRootPath, string tempDataStoragePath)
         {
-            if (!Directory.Exists(dataStoragePath))
-                throw new InvalidDataException($"Could find or access path at [{dataStoragePath}]");
+            if (!Directory.Exists(tenantDataRootPath))
+                throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
 
             if (!Directory.Exists(tempDataStoragePath))
                 throw new InvalidDataException($"Could find or access path at [{tempDataStoragePath}]");
 
-            _dataStoragePath = dataStoragePath;
+            _tenantDataRootPath = tenantDataRootPath;
             _tempDataStoragePath = tempDataStoragePath;
         }
 
         //this 
         private readonly Dictionary<Guid, string> _certificates = new();
-        private readonly string _dataStoragePath;
+        private readonly string _tenantDataRootPath;
         private readonly string _tempDataStoragePath;
 
         public void Initialize()
@@ -50,7 +51,7 @@ namespace Youverse.Core.Services.Registry
             _certificates.Add(HashUtil.ReduceSHA256Hash("legolas-onekin-io"), "legolas.onekin.io");
             _certificates.Add(HashUtil.ReduceSHA256Hash("gimli-onekin-io"), "gimli.onekin.io");
             _certificates.Add(HashUtil.ReduceSHA256Hash("aragorn-onekin-io"), "aragorn.onekin.io");
-            
+
 
             foreach (var c in _certificates)
             {
@@ -65,8 +66,8 @@ namespace Youverse.Core.Services.Registry
             string domain = kvp.Value;
 
             //lookup certificate from source
-            Guid domainId = CertificateResolver.CalculateDomainId((DotYouIdentity) domain);
-            string domainRootPath = Path.Combine(_dataStoragePath, id.ToString(), "ssl", domainId.ToString());
+            Guid domainId = CertificateResolver.CalculateDomainId((DotYouIdentity)domain);
+            string domainRootPath = Path.Combine(_tenantDataRootPath, id.ToString(), "ssl", domainId.ToString());
             string destCertPath = Path.Combine(domainRootPath, "certificate.crt");
             string destKeyPath = Path.Combine(domainRootPath, "private.key");
 
@@ -109,5 +110,26 @@ namespace Youverse.Core.Services.Registry
 
             return key;
         }
+
+        public Task<bool> IsIdentityRegistered(string domain)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Add(IdentityRegistrationRequest reg)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IdentityRegistration> Get(string domainName)
+        {
+            throw new NotImplementedException();
+        }
+        
     }
 }

@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
 using Youverse.Provisioning.Services.Registration;
 
-namespace Youverse.Provisioning.Controllers
+namespace Youverse.Provisioning.Controllers.Registration
 {
     [ApiController]
     [Route("registration")]

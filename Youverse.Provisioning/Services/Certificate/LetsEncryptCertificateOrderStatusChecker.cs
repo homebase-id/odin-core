@@ -1,7 +1,6 @@
 using Certes;
 using Certes.Acme;
 using Certes.Acme.Resource;
-using Org.BouncyCastle.Math.EC;
 
 namespace Youverse.Provisioning.Services.Certificate
 {
@@ -11,12 +10,12 @@ namespace Youverse.Provisioning.Services.Certificate
     public class LetsEncryptCertificateOrderStatusChecker : BackgroundService
     {
         private readonly ILogger<LetsEncryptCertificateOrderStatusChecker> _logger;
-        private readonly ECCurve.Config _config;
+        private readonly ProvisioningConfig _config;
 
         private readonly CertificateOrderList _orderList;
         private readonly Dictionary<Guid, IChallengeContext> _openChallenges;
 
-        public LetsEncryptCertificateOrderStatusChecker(ILogger<LetsEncryptCertificateOrderStatusChecker> logger, CertificateOrderList orderList, ECCurve.Config config)
+        public LetsEncryptCertificateOrderStatusChecker(ILogger<LetsEncryptCertificateOrderStatusChecker> logger, CertificateOrderList orderList, ProvisioningConfig config)
         {
             _logger = logger;
             _orderList = orderList;

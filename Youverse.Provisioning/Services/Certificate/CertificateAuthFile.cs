@@ -1,6 +1,6 @@
 ﻿using Youverse.Core.Util;
 
-namespace Youverse.Provisioning.CertificateChallenge;
+namespace Youverse.Provisioning.Services.Certificate;
 
 /// <summary>
 /// Writes the certificate auth information for the AcmeChallenge to disk.

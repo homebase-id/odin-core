@@ -1,5 +1,7 @@
 using Dawn;
 using Youverse.Core;
+using Youverse.Core.Storage;
+using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 using Youverse.Provisioning.Controllers;
 using Youverse.Provisioning.Services.Certificate;
@@ -7,12 +9,50 @@ using Youverse.Provisioning.Services.Registry;
 
 namespace Youverse.Provisioning.Services.Registration
 {
-    public class RegistrationService : IRegistrationService, IDisposable
+    public class ReservationStorage
+    {
+        private readonly KeyValueDatabase _db;
+        private readonly SingleKeyValueStorage _storage;
+
+        public ReservationStorage()
+        {
+            string dbPath = "/tmp/reservations"; //TODO: read from config
+            string dbName = "reservations.db";
+            if (!Directory.Exists(dbPath))
+            {
+                Directory.CreateDirectory(dbPath!);
+            }
+
+            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+            _db = new KeyValueDatabase($"URI=file:{finalPath}");
+            _db.CreateDatabase(false);
+
+            _storage = new SingleKeyValueStorage(_db.tblKeyValue);
+        }
+
+        public Reservation Get(Guid id)
+        {
+            return _storage.Get<Reservation>(id);
+        }
+
+        public void Delete(Guid id)
+        {
+            _storage.Delete(id);
+        }
+
+        public void Save(Reservation reservation)
+        {
+            _storage.Upsert(reservation.DomainKey, reservation);
+        }
+    }
+
+    public class RegistrationService : IRegistrationService
     {
         private readonly ILogger<RegistrationService> _logger;
         private readonly IIdentityRegistry _registry;
         private readonly ProvisioningConfig _config;
-        private readonly LiteDBSingleCollectionStorage<Reservation> _reservationStorage;
+
+        private readonly ReservationStorage _reservationStorage;
         private readonly LiteDBSingleCollectionStorage<PendingRegistration> _pendingRegistrationStorage;
         private readonly ICertificateService _certificateService;
 
@@ -24,12 +64,6 @@ namespace Youverse.Provisioning.Services.Registration
             _certificateService = certificateService;
 
             const string reservationsCollection = "Reservations";
-            _reservationStorage = new LiteDBSingleCollectionStorage<Reservation>(
-                _logger,
-                Path.Combine(_config.DataRootPath, reservationsCollection),
-                reservationsCollection);
-
-            _reservationStorage.EnsureIndex(key => key.DomainKey, true);
 
             const string pendingRegistrationsCollection = "PendingRegistrations";
             _pendingRegistrationStorage = new LiteDBSingleCollectionStorage<PendingRegistration>(
@@ -45,7 +79,7 @@ namespace Youverse.Provisioning.Services.Registration
             Guard.Argument(registrationInfo, nameof(registrationInfo)).NotNull();
             Guard.Argument(registrationInfo.ReservationId, nameof(registrationInfo.ReservationId)).NotEqual(Guid.Empty);
 
-            var reservation = await _reservationStorage.Get(registrationInfo.ReservationId);
+            var reservation = _reservationStorage.Get(registrationInfo.ReservationId);
             if (IsReservationValid(reservation) == false)
             {
                 _logger.LogInformation($"Invalid Reservation:{registrationInfo.ReservationId}");
@@ -72,7 +106,7 @@ namespace Youverse.Provisioning.Services.Registration
 
             await _pendingRegistrationStorage.Save(registration);
             //delete the reservation because we copied it to the pending registration and rule like reservation expiration no longer apply
-            await _reservationStorage.Delete(registrationInfo.ReservationId);
+            _reservationStorage.Delete(registrationInfo.ReservationId);
 
             _logger.LogInformation($"Registration record saved:{registrationInfo.ReservationId}");
             return registration.Id;
@@ -149,7 +183,7 @@ namespace Youverse.Provisioning.Services.Registration
 
             //clean up
             await _pendingRegistrationStorage.Delete(reg.Id);
-            await _reservationStorage.Delete(reg.Reservation.Id);
+            _reservationStorage.Delete(reg.Reservation.Id);
 
             //TODO: what do i return here?
             return null;
@@ -174,17 +208,17 @@ namespace Youverse.Provisioning.Services.Registration
 
                 //TODO: need a background clean up job to remove old reservations; for now we will overwrite it
                 var key = HashUtil.ReduceSHA256Hash(request.DomainName);
-                var record = await _reservationStorage.FindOne(r => r.DomainKey == key);
+                var record = _reservationStorage.Get(key);
 
                 var result = new Reservation()
                 {
                     Id = record?.Id ?? Guid.NewGuid(),
                     Domain = request.DomainName,
                     CreatedTime = UnixTimeUtc.Now(),
-                    ExpiresTime =  UnixTimeUtc.Now().AddSeconds(Configuration.ReservationLength),
+                    ExpiresTime = UnixTimeUtc.Now().AddSeconds(Configuration.ReservationLength),
                 };
 
-                await _reservationStorage.Save(result);
+                _reservationStorage.Save(result);
 
                 return result;
             }
@@ -218,13 +252,7 @@ namespace Youverse.Provisioning.Services.Registration
 
         public async Task CancelReservation(Guid reservationId)
         {
-            await _reservationStorage.Delete(reservationId);
-        }
-
-        public void Dispose()
-        {
-            _reservationStorage?.Dispose();
-            _pendingRegistrationStorage?.Dispose();
+            _reservationStorage.Delete(reservationId);
         }
 
         private CertificateOrder PrepareOrder(RegistrationInfo registrationInfo, Reservation reservation)

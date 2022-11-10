@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Hosting;
@@ -18,6 +19,7 @@ using Youverse.Core.Logging.Hostname.Serilog;
 using Youverse.Core.Services.Registry;
 using Youverse.Hosting.IdentityRegistry;
 using Youverse.Hosting.Multitenant;
+using IdentityRegistration = Youverse.Core.Services.Registry.IdentityRegistration;
 
 namespace Youverse.Hosting
 {
@@ -25,7 +27,7 @@ namespace Youverse.Hosting
     {
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
-        private static IIdentityContextRegistry _registry;
+        private static IIdentityRegistry _registry;
 
         public static int Main(string[] args)
         {
@@ -89,8 +91,8 @@ namespace Youverse.Hosting
 
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
             _registry = cfg.Host.UseLocalCertificateRegistry
-                ? new DevelopmentIdentityContextRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
-                : new IdentityRegistryRpc(cfg);
+                ? new DevelopmentIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
+                : new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath);
 
             _registry.Initialize();
 
@@ -115,7 +117,7 @@ namespace Youverse.Hosting
                 .ConfigureServices(services =>
                 {
                     //TODO: I'm not sure it's a good idea to add this as a service.
-                    services.Add(new ServiceDescriptor(typeof(IIdentityContextRegistry), _registry));
+                    services.Add(new ServiceDescriptor(typeof(IIdentityRegistry), _registry));
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {

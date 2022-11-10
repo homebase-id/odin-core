@@ -1,19 +1,19 @@
 ﻿using Certes;
 using Certes.Acme;
-using Org.BouncyCastle.Math.EC;
+using Dawn;
 using Youverse.Core.Util;
 
 namespace Youverse.Provisioning.Services.Certificate
 {
     public class LetsEncryptCertificateService : ICertificateService
     {
-        private readonly ECCurve.Config _config;
+        private readonly ProvisioningConfig _config;
         private readonly CertificateOrderList _orderList;
         private const string BuiltinAccountPemPath = "builtin";
         private const string BuiltinAccountPemFilename = "letsencrypt.pem";
         private readonly ILogger<LetsEncryptCertificateService> _logger;
 
-        public LetsEncryptCertificateService(ECCurve.Config config, CertificateOrderList orderList, ILogger<LetsEncryptCertificateService> logger)
+        public LetsEncryptCertificateService(ProvisioningConfig config, CertificateOrderList orderList, ILogger<LetsEncryptCertificateService> logger)
         {
             _config = config;
             _orderList = orderList;

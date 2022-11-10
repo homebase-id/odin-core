@@ -23,7 +23,7 @@ namespace Youverse.Hosting.Tests
         private readonly OwnerApiTestUtils _ownerApi;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
-        private DevelopmentIdentityContextRegistry _registry;
+        private DevelopmentIdentityRegistry _registry;
 
         public WebScaffold(string folder)
         {
@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Tests
             this.DeleteData();
             this.DeleteLogs();
 
-            _registry = new DevelopmentIdentityContextRegistry(TestDataPath, TempDataPath);
+            _registry = new DevelopmentIdentityRegistry(TestDataPath, TempDataPath);
             _registry.Initialize();
 
             Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");

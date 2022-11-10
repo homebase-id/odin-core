@@ -19,6 +19,7 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
+using Youverse.Core.Services.Workers.Certificate;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -60,6 +61,7 @@ namespace Youverse.Hosting
                     // });
 
                     q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds);
+                    q.UseDefaultCertificateRenewalSchedule(config.Quartz.CertificateRenewalCheckIntervalMinutes);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });

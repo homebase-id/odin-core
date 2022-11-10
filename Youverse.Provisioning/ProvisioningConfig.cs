@@ -1,4 +1,5 @@
 ﻿using Youverse.Core.Util;
+using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning
 {
@@ -66,8 +67,9 @@ namespace Youverse.Provisioning
         /// </summary>
         public string CertificateAuthorityAssociatedEmail { get; set; }
         
+        public CertificateSigningRequest CertificateSigningRequest { get; set; }
         
-        public  CertificateSigningRequest { get; set; }
-        
+        public List<string> AllowedOrigins { get; set; }
+
     }
 }

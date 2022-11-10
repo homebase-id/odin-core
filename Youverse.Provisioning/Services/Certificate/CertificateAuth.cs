@@ -1,4 +1,4 @@
-namespace Youverse.Provisioning.CertificateChallenge
+namespace Youverse.Provisioning.Services.Certificate
 {
     /// <summary>
     /// Information for the AcmeChallenge
