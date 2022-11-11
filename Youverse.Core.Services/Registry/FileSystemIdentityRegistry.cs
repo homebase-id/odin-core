@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
@@ -35,7 +34,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public Task Add(IdentityRegistrationRequest request)
     {
-
         /*
          * By the time this method is called, the certificates already exist
          * so this needs to accept the certificate
@@ -46,7 +44,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
          *
          * well, there is a provisioning site that is managing the process of creating a wildcard domain
          * but what about creating it for a personal domain?
-         * 
          */
         var registration = new IdentityRegistration()
         {
