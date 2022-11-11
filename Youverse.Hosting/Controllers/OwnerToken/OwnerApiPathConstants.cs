@@ -23,8 +23,8 @@
         public const string DriveStorageV1 = DrivesV1 + "/files";
 
         public const string TransitV1 = BasePathV1 + "/transit";
-
-        public const string ProvisioningV1 = BasePathV1 + "/provisioning";
+        
+        public const string TransitQueryV1 = TransitV1 + "/query";
 
         public const string CirclesV1 = BasePathV1 + "/circles";
 

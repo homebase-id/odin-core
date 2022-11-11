@@ -312,7 +312,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         //     Assert.Inconclusive("WIP - testing this requires me to hack the server side and set the same global transit id");
         // }
 
-        [Test(Description = "Test basic transfer; includes thumbnails")]
+        [Test(Description = "")]
         public async Task CanSendTransferAndRecipientCanGetFilesByTag()
         {
             var sender = TestIdentities.Frodo;

@@ -1,6 +1,5 @@
 using System.Threading.Tasks;
 using Refit;
-using Youverse.Hosting.Controllers;
 
 namespace Youverse.Core.Services.Transit
 {
