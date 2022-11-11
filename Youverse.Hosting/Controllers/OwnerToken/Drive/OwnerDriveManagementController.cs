@@ -56,6 +56,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             await _driveService.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
             return true;
         }
+        
+        [HttpPost("updatemetadata")]
+        public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
+        {
+            var driveId = await _driveService.GetDriveIdByAlias(request.TargetDrive, true);
+            await _driveService.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata);
+            return true;
+        }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("type")]
@@ -81,5 +89,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowAnonymousReads { get; set; }
+        
+        public string Metadata { get; set; }
     }
 }

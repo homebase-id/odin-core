@@ -52,11 +52,11 @@ namespace Youverse.Core.Services.Transit
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
-                        throw new YouverseClientException("Transfer type not specified");
+                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
                     }
                     else
                     {
-                        throw new YouverseClientException("Invalid transfer type");
+                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
                     }
 
                     await _transitBoxService.MarkComplete(item.DriveId, item.Marker);
@@ -100,7 +100,7 @@ namespace Youverse.Core.Services.Transit
 
             if (null == metadata)
             {
-                throw new YouverseClientException("Metadata could not be serialized");
+                throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Transit
                     break;
 
                 default:
-                    throw new YouverseClientException("Invalid TransferFileType");
+                    throw new YouverseClientException("Invalid TransferFileType", YouverseClientErrorCode.InvalidTransferFileType);
             }
         }
 
@@ -164,7 +164,7 @@ namespace Youverse.Core.Services.Transit
         }
 
         /// <summary>
-        /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set 
+        /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTerm(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Transit
                     If sam's file does not have a globaltransitId, reject the transfer?
                     if frodo's file does not have a global transitId, reject the transfer?
              */
-            
+
             //validate there is not already a file with this id
             if (metadata.AppData.UniqueId.HasValue)
             {
@@ -215,8 +215,8 @@ namespace Youverse.Core.Services.Transit
                 }
                 //else there was no file by the global transit id
             }
-            
-            
+
+
             await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
 
         }

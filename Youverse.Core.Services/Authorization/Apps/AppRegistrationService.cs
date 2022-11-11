@@ -70,7 +70,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (appReg == null)
             {
-                throw new YouverseClientException("App must be registered to add a client");
+                throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
             }
 
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (appReg == null)
             {
-                throw new YouverseClientException("App must be registered to add a client");
+                throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
             }
 
             var (reg, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);

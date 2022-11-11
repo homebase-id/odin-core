@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == existingCircle)
             {
-                throw new YouverseClientException($"Invalid circle {newCircleDefinition.Id}");
+                throw new YouverseClientException($"Invalid circle {newCircleDefinition.Id}", YouverseClientErrorCode.UnknownId);
             }
 
             existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == circle)
             {
-                throw new YouverseClientException($"Invalid circle {id}");
+                throw new YouverseClientException($"Invalid circle {id}", YouverseClientErrorCode.UnknownId);
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
@@ -110,14 +110,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             _circleValueStorage.Delete(id);
             return Task.CompletedTask;
         }
-        
+
         public void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
         {
             if(null == driveGrantRequests)
             {
                 return;
             }
-            
+
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
                 if (driveId == null)
                 {
-                    throw new YouverseClientException("Invalid drive specified on DriveGrantRequest");
+                    throw new YouverseClientException("Invalid drive specified on DriveGrantRequest", YouverseClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
                 var drive = _driveService.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
@@ -136,7 +136,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 }
             }
         }
-        
+
         //
 
         private void AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
@@ -181,7 +181,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null != this.GetCircle(request.Id))
             {
-                throw new YouverseClientException("Circle with Id already exists");
+                throw new YouverseClientException("Circle with Id already exists", YouverseClientErrorCode.IdAlreadyExists);
             }
 
             var now = UnixTimeUtc.Now().milliseconds;

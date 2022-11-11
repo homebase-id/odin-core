@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.Acl
     public class AccessControlList
     {
         public static AccessControlList OwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
-        
+
         public SecurityGroupType RequiredSecurityGroup { get; set; }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.DotYouIdentityList?.Count() ?? 0) > 0)
                 {
-                    throw new YouverseClientException("Cannot specify circle or identity list when required security group is anonymous or owner");
+                    throw new YouverseClientException("Cannot specify circle or identity list when required security group is anonymous or owner", YouverseClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }
             }
 
@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0)
                 {
-                    throw new YouverseClientException("Cannot specify circle list when required security group is authenticated");
+                    throw new YouverseClientException("Cannot specify circle list when required security group is authenticated", YouverseClientErrorCode.CannotAllowCirclesOnAuthenticatedOnly);
                 }
             }
         }

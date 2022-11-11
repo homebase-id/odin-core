@@ -87,28 +87,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _contextAccessor.GetCurrent().AssertCanManageConnections();
 
             Guard.Argument(header, nameof(header)).NotNull();
-            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull().Require(r => r != _contextAccessor.GetCurrent().Caller.DotYouId, s => "Cannot send connection request to yourself");
+            Guard.Argument(header.Recipient, nameof(header.Recipient)).NotNull();
             Guard.Argument(header.Id, nameof(header.Id)).HasValue();
             Guard.Argument(header.ContactData, nameof(header.ContactData)).NotNull();
             header.ContactData.Validate();
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.DotYouId)
             {
-                throw new YouverseClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself");
+                throw new YouverseClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself", YouverseClientErrorCode.ConnectionRequestToYourself);
             }
-            
+
             var incomingRequest = await this.GetPendingRequest((DotYouIdentity)header.Recipient);
             if (null != incomingRequest)
             {
-                throw new YouverseClientException("You already have an incoming request from the recipient.");
+                throw new YouverseClientException("You already have an incoming request from the recipient.", YouverseClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
             }
 
             var existingRequest = await this.GetSentRequest((DotYouIdentity)header.Recipient);
             if (existingRequest != null)
             {
-                throw new YouverseClientException("You already sent a request to this recipient.");
+                throw new YouverseClientException("You already sent a request to this recipient.", YouverseClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
             }
-            
+
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
@@ -222,10 +222,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public async Task AcceptConnectionRequest(AcceptRequestHeader header)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
-            
+
             Guard.Argument(header, nameof(header)).NotNull();
             header.Validate();
-            
+
             var pendingRequest = await GetPendingRequest((DotYouIdentity)header.Sender);
             Guard.Argument(pendingRequest, nameof(pendingRequest)).NotNull($"No pending request was found from sender [{header.Sender}]");
             pendingRequest.Validate();

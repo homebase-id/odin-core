@@ -84,12 +84,12 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             if (fileId == Guid.Empty)
             {
-                throw new YouverseClientException("No file specified");
+                throw new YouverseClientException("No file specified", YouverseClientErrorCode.UnknownId);
             }
 
             if (!IsFileValid(fileId))
             {
-                throw new YouverseClientException("File does not contain all parts");
+                throw new YouverseClientException("File does not contain all parts", YouverseClientErrorCode.MissingUploadData);
             }
         }
 
@@ -285,7 +285,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private Task WriteFile(string targetFilePath, string tempFilePath, Stream stream)
         {
-            //TODO: this is probably highly inefficient and probably need to revisit 
+            //TODO: this is probably highly inefficient and probably need to revisit
             try
             {
                 //Process: if there's a file, we write to a temp file then rename.
