@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         //     return batch;
         // }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {

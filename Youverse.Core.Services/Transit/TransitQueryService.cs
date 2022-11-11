@@ -32,12 +32,12 @@ public class TransitQueryService
 
         if (queryBatchResponse.StatusCode == HttpStatusCode.Forbidden)
         {
-            throw new YouverseClientException("Remove server returned 403", YouverseClientErrorCode.RemoteServerReturnedForbidden);
+            throw new YouverseClientException("Remote server returned 403", YouverseClientErrorCode.RemoteServerReturnedForbidden);
         }
 
         if (queryBatchResponse.StatusCode == HttpStatusCode.InternalServerError)
         {
-            throw new YouverseClientException("Remove server returned 500", YouverseClientErrorCode.RemoteServerReturnedInternalServerError);
+            throw new YouverseClientException("Remote server returned 500", YouverseClientErrorCode.RemoteServerReturnedInternalServerError);
         }
 
         if (!queryBatchResponse.IsSuccessStatusCode || queryBatchResponse.Content == null)
@@ -45,8 +45,12 @@ public class TransitQueryService
             throw new YouverseSystemException($"Unhandled transit error response: {queryBatchResponse.StatusCode}");
         }
 
-        var batch = queryBatchResponse.Content.Batch;
+        if (queryBatchResponse.Content.Code != TransitResponseCode.Accepted)
+        {
+            throw new YouverseClientException("Remote Server Rejected", YouverseClientErrorCode.RemoteServerTransitRejected);
+        }
 
+        var batch = queryBatchResponse.Content.Batch;
         return new QueryBatchResult()
         {
             SearchResults = batch.SearchResults,

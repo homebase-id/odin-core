@@ -96,6 +96,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
             return new HostTransitQueryBatchResponse()
             {
+                Code = TransitResponseCode.Accepted,
                 Batch = new QueryBatchResponse()
                 {
                     IncludeMetadataHeader = batch.IncludeMetadataHeader,
