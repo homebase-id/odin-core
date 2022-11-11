@@ -113,6 +113,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
+            cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 

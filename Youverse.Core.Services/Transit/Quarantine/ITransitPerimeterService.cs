@@ -1,10 +1,8 @@
 using System;
-using System.Collections;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Quarantine
@@ -42,5 +40,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// Deletes a file that was linked with a GlobalTransitId
         /// </summary>
         Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId);
+
+        Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options);
     }
 }

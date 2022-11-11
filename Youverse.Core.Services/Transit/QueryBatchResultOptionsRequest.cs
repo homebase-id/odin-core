@@ -1,7 +1,6 @@
-using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite;
 
-namespace Youverse.Hosting.Controllers;
+namespace Youverse.Core.Services.Transit;
 
 public class QueryBatchResultOptionsRequest
 {

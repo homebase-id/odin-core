@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 
@@ -20,19 +21,23 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly IAppRegistrationService _appRegService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
+        private readonly IDriveQueryService _driveQueryService;
 
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
             ILogger<ITransitPerimeterService> logger,
             ITransitService transitService,
             IAppRegistrationService appRegService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService, IPublicKeyService publicKeyService) : base()
+            ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
+            IPublicKeyService publicKeyService,
+            IDriveQueryService driveQueryService) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
             _appRegService = appRegService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
             _publicKeyService = publicKeyService;
+            _driveQueryService = driveQueryService;
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -97,7 +102,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
-            
+
             if (item.HasAcquiredQuarantinedPart())
             {
                 //TODO: how do i know which filter quarantined it??
@@ -113,7 +118,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                
                 await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
@@ -144,6 +148,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
                     Message = "Server Error"
                 };
             }
+        }
+
+        public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
+            var results = _driveQueryService.GetBatch(driveId, qp, options);
+            return results;
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)
