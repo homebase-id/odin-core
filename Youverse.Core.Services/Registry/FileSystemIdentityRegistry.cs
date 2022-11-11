@@ -33,14 +33,36 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         throw new NotImplementedException();
     }
 
-    public Task Add(IdentityRegistrationRequest reg)
+    public Task Add(IdentityRegistrationRequest request)
     {
-        throw new NotImplementedException();
+
+        /*
+         * By the time this method is called, the certificates already exist
+         * so this needs to accept the certificate
+         * th question is
+         *
+         * what calls this method?
+         * when is it called?
+         *
+         * well, there is a provisioning site that is managing the process of creating a wildcard domain
+         * but what about creating it for a personal domain?
+         * 
+         */
+        var registration = new IdentityRegistration()
+        {
+            Id = Guid.NewGuid(),
+            DomainName = default,
+            CertificateRenewalInfo = null,
+            IsCertificateManaged = default,
+            PrivateKeyRelativePath = default,
+            FullChainCertificateRelativePath = default,
+            PublicKeyCertificateRelativePath = default
+        };
+
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions)
     {
-
         var domains = Directory.GetDirectories(_dataRoot);
 
         //TODO: get from DI

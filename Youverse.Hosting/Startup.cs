@@ -214,6 +214,10 @@ namespace Youverse.Hosting
             {
                 logger.LogInformation("Mapping SPA paths on local disk");
 
+                // route provisioning app on disk
+                // route acme-challenge-handler only on port 80
+                // 
+                // 
                 // app.MapWhen(ctx => ctx.Request.Host.Host.StartsWith("provisioning.", StringComparison.InvariantCultureIgnoreCase), provisioningApp =>
                 // {
                 //     provisioningApp.

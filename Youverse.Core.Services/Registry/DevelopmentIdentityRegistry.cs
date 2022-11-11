@@ -116,7 +116,7 @@ namespace Youverse.Core.Services.Registry
             throw new NotImplementedException();
         }
 
-        public Task Add(IdentityRegistrationRequest reg)
+        public Task Add(IdentityRegistrationRequest request)
         {
             throw new NotImplementedException();
         }

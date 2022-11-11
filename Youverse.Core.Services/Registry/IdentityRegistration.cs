@@ -11,6 +11,7 @@ namespace Youverse.Core.Services.Registry
     
     public class IdentityRegistration
     {
+
         private string _domainName;
         private Guid _domainKey;
 

@@ -21,8 +21,8 @@ namespace Youverse.Core.Services.Registry
         /// <summary>
         /// Adds an identity to this host
         /// </summary>
-        /// <param name="reg"></param>
-        Task Add(IdentityRegistrationRequest reg);
+        /// <param name="request"></param>
+        Task Add(IdentityRegistrationRequest request);
 
         /// <summary>
         /// Gets a list of <see cref="IdentityRegistration"/>s based on the paging options sorted by domain name ascending
