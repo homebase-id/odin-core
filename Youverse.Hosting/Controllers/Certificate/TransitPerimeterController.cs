@@ -8,13 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Authentication.Perimeter;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Controllers.Certificate
 {
@@ -88,6 +87,23 @@ namespace Youverse.Hosting.Controllers.Certificate
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
         {
             return await _perimeterService.DeleteLinkedFile(transitRequest.TargetDrive, transitRequest.GlobalTransitId);
+        }
+
+        [HttpPost("querybatch")]
+        public async Task<HostTransitQueryBatchResponse> QueryBatch(QueryBatchRequest request)
+        {
+            var batch = await _perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+
+            return new HostTransitQueryBatchResponse()
+            {
+                Code = TransitResponseCode.Accepted,
+                Batch = new QueryBatchResponse()
+                {
+                    IncludeMetadataHeader = batch.IncludeMetadataHeader,
+                    CursorState = batch.Cursor.ToState(),
+                    SearchResults = batch.SearchResults
+                }
+            };
         }
 
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)
