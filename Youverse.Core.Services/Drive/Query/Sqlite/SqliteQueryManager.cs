@@ -37,12 +37,12 @@ public class SqliteQueryManager : IDriveQueryManager
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
-        var cursor = options.Cursor;
-
+        var cursor = new UnixTimeUtcUnique(options.Cursor);
+        
         var results = _indexDb.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
-            stopAtModifiedUnixTimeSeconds: options.MaxDate,
+            stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
             requiredSecurityGroup: requiredSecurityGroup,
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
@@ -54,7 +54,7 @@ public class SqliteQueryManager : IDriveQueryManager
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList());
 
-        return Task.FromResult((cursor, results.AsEnumerable()));
+        return Task.FromResult((cursor.uniqueTime, results.AsEnumerable()));
     }
 
 
