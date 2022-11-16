@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Optimization.Cdn;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;

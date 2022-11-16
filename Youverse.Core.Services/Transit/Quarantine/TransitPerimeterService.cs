@@ -2,9 +2,12 @@ using Dawn;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
@@ -18,26 +21,27 @@ namespace Youverse.Core.Services.Transit.Quarantine
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitService _transitService;
-        private readonly IAppRegistrationService _appRegService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly IDriveQueryService _driveQueryService;
+        private readonly IDriveService _driveService;
+        private readonly IAppService _appService;
 
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
             ILogger<ITransitPerimeterService> logger,
             ITransitService transitService,
-            IAppRegistrationService appRegService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
             IPublicKeyService publicKeyService,
-            IDriveQueryService driveQueryService) : base()
+            IDriveQueryService driveQueryService, IDriveService driveService, IAppService appService) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
-            _appRegService = appRegService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
             _publicKeyService = publicKeyService;
             _driveQueryService = driveQueryService;
+            _driveService = driveService;
+            _appService = appService;
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -155,6 +159,49 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
             var results = _driveQueryService.GetBatch(driveId, qp, options);
             return results;
+        }
+
+        public async Task<ClientFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive),
+                FileId = fileId
+            };
+
+            var result = await _appService.GetClientEncryptedFileHeader(file);
+
+            return result;
+        }
+
+        public async Task<(string encryptedKeyHeader64, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive),
+                FileId = fileId
+            };
+
+            var header = await _appService.GetClientEncryptedFileHeader(file);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+            var payload = await _driveService.GetPayloadStream(file);
+
+            return (encryptedKeyHeader64, payload);
+        }
+        
+        public async Task<(string encryptedKeyHeader64, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
+        {
+            var file = new InternalDriveFileId()
+            {
+                DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive),
+                FileId = fileId
+            };
+            
+            var header = await _appService.GetClientEncryptedFileHeader(file);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+
+            var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+            return (encryptedKeyHeader64, thumb);
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

@@ -1,8 +1,5 @@
 using System;
-using System.IO;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Transit.Encryption
@@ -59,6 +56,27 @@ namespace Youverse.Core.Services.Transit.Encryption
             var empty = Guid.Empty.ToByteArray();
             var emptySba = empty.ToSensitiveByteArray();
             return EncryptKeyHeaderAes(KeyHeader.Empty(), empty, ref emptySba);
+        }
+
+        public string ToBase64()
+        {
+            byte[] versionBytes = BitConverter.GetBytes(this.EncryptionVersion);
+            var combinedBytes = ByteArrayUtil.Combine(this.Iv, this.EncryptedAesKey, versionBytes);
+            var encryptedKeyHeader64 = Convert.ToBase64String(combinedBytes);
+            combinedBytes.ToSensitiveByteArray().Wipe();
+            return encryptedKeyHeader64;
+        }
+
+        public static EncryptedKeyHeader FromBase64(string data64)
+        {
+            var bytes = Convert.FromBase64String(data64);
+            var (iv, encryptedAesKey, version) = ByteArrayUtil.Split(bytes, 16, 16, 4);
+            return new EncryptedKeyHeader()
+            {
+                Iv = iv,
+                EncryptedAesKey = encryptedAesKey,
+                EncryptionVersion = Convert.ToInt32(version)
+            };
         }
     }
 }

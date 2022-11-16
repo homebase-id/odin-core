@@ -1,10 +1,16 @@
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers;
 
-public class GetThumbnailRequest
+public class TransitGetThumbRequest : GetThumbnailRequest
 {
+    public string DotYouId { get; set; }
+}
+
+public class TransitExternalFileIdentifier
+{
+    public string DotYouId { get; set; }
+
     public ExternalFileIdentifier File { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
 }
