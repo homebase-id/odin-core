@@ -596,6 +596,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.That(getTransitPayloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(getTransitPayloadResponse.Content, Is.Not.Null);
 
+                var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+                Assert.IsTrue(payloadIsEncrypted);
+                
                 var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
 
@@ -624,6 +627,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getTransitThumbnailResponse.Content);
 
+                var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+                Assert.IsTrue(thumbnailIsEncrypted);
+                
                 var thumbnailSharedSecretKeyHeaderValue = getTransitThumbnailResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
