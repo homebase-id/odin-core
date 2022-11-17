@@ -70,12 +70,12 @@ namespace Youverse.Core.Services.Transit.Encryption
         public static EncryptedKeyHeader FromBase64(string data64)
         {
             var bytes = Convert.FromBase64String(data64);
-            var (iv, encryptedAesKey, version) = ByteArrayUtil.Split(bytes, 16, 16, 4);
+            var (iv, encryptedAesKey, version) = ByteArrayUtil.Split(bytes, 16, 48, 4);
             return new EncryptedKeyHeader()
             {
                 Iv = iv,
                 EncryptedAesKey = encryptedAesKey,
-                EncryptionVersion = Convert.ToInt32(version)
+                EncryptionVersion = BitConverter.ToInt32(version)
             };
         }
     }

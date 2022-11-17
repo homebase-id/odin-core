@@ -2,6 +2,7 @@ using Dawn;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -174,7 +175,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
+        public async Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
@@ -183,25 +184,33 @@ namespace Youverse.Core.Services.Transit.Quarantine
             };
 
             var header = await _appService.GetClientEncryptedFileHeader(file);
+
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
             var payload = await _driveService.GetPayloadStream(file);
 
-            return (encryptedKeyHeader64, payload);
+            return (encryptedKeyHeader64, header.FileMetadata.ContentType, payload);
         }
-        
-        public async Task<(string encryptedKeyHeader64, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
+
+        public async Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
         {
             var file = new InternalDriveFileId()
             {
                 DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive),
                 FileId = fileId
             };
-            
+
             var header = await _appService.GetClientEncryptedFileHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
+            var thumbnail = header.FileMetadata.AppData.AdditionalThumbnails.SingleOrDefault(t => t.PixelWidth == width && t.PixelHeight == height);
+
+            if (null == thumbnail)
+            {
+                return (null, null, null);
+            }
+
             var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, thumb);
+            return (encryptedKeyHeader64, thumbnail.ContentType, thumb);
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

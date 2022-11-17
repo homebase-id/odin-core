@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
@@ -23,6 +24,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -608,7 +610,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         }
 
         public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
-            bool encryptPayload = true)
+            bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 
@@ -616,7 +618,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
             {
-                var keyHeader = KeyHeader.NewRandom16();
+                keyHeader = keyHeader ?? KeyHeader.NewRandom16();
                 var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 fileMetadata.PayloadIsEncrypted = encryptPayload;
@@ -627,14 +629,27 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-                var payloadCipher = encryptPayload ? keyHeader.EncryptDataAesAsStream(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
-
+                var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray()); 
+                var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-                var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                ApiResponse<UploadResult> response;
+                if (thumbnail == null)
+                {
+                    response = await transitSvc.Upload(
+                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                        new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                }
+                else
+                {
+                    var thumbnailCipherBytes = encryptPayload ? keyHeader.EncryptDataAesAsStream(thumbnail.Content) : new MemoryStream(thumbnail.Content);
+                    response = await transitSvc.Upload(
+                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                        new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                        new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                }
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -644,14 +659,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(transferResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
 
-                keyHeader.AesKey.Wipe();
+                //keyHeader.AesKey.Wipe();
 
                 return new UploadTestUtilsContext()
                 {
                     InstructionSet = instructionSet,
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
-                    UploadedFile = transferResult.File
+                    UploadedFile = transferResult.File,
+                    PayloadCipher = payloadCipherBytes
                 };
             }
         }

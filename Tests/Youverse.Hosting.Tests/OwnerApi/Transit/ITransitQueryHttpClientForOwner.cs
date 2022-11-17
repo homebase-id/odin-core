@@ -1,6 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit
@@ -16,7 +20,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
         // Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 
         [Post(RootEndpoint + "/batch")]
-        Task<ApiResponse<QueryBatchResponse>> GetBatch(TransitQueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> GetBatch([Body]TransitQueryBatchRequest request);
         
+        [Post(RootEndpoint + "/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader([Body]TransitExternalFileIdentifier file);
+
+        [Post(RootEndpoint + "/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload([Body]TransitExternalFileIdentifier file);
+        
+        [Post(RootEndpoint + "/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail([Body]TransitGetThumbRequest request);
+
     }
 }

@@ -20,18 +20,18 @@ namespace Youverse.Core.Services.Transit
             params StreamPart[] thumbnail);
 
         [Post("/api/perimeter/transit/host/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body]DeleteLinkedFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteLinkedFileTransitRequest request);
 
         [Post("/api/perimeter/transit/host/querybatch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
 
         [Post("/api/perimeter/transit/host/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
 
         [Post("/api/perimeter/transit/host/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnail([Body] GetThumbnailRequest request);
+        Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);
 
         [Post("/api/perimeter/transit/host/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadStream(ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayloadStream([Body] ExternalFileIdentifier file);
     }
 }

@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             _transitQueryService = transitQueryService;
         }
 
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         // [HttpPost("modified")]
         // public async Task<QueryModifiedResult> GetModified([FromBody] QueryModifiedRequest request)
         // {
@@ -70,7 +70,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         /// <summary>
         /// Retrieves a file's encrypted payload from a remote identity server
         ///
-        /// The owner shared secret encrypted key header for the thumbnail is found in the header 'sharedSecretEncryptedHeader64'
+        /// The content type of the decrypted content is found in the header 'DecryptedContentType'
+        ///
+        /// The owner shared secret encrypted key header for the thumbnail is found in the header 'SharedSecretEncryptedHeader64'
         /// 
         /// This is a byte array where the first 16 bytes are the IV, second 16 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
@@ -78,19 +80,22 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (header, payload) = await _transitQueryService.GetPayloadStream((DotYouIdentity)request.DotYouId, request.File);
+            var (header, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((DotYouIdentity)request.DotYouId, request.File);
 
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, header.ToBase64());
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
         /// <summary>
         /// Retrieves an encrypted thumbnail from a remote identity server.  The available thumbnails are defined on the AppFileMeta.
+        ///
+        /// The content type of the decrypted content is found in the header 'DecryptedContentType'
         ///
         /// The owner shared secret encrypted key header for the thumbnail is found in the header 'sharedSecretEncryptedHeader64'
         /// 
@@ -100,13 +105,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
-            var (header, thumb) = await _transitQueryService.GetThumbnail((DotYouIdentity)request.DotYouId, request.File, request.Width, request.Height);
+            var (header, decryptedContentType, thumb) = await _transitQueryService.GetThumbnail((DotYouIdentity)request.DotYouId, request.File, request.Width, request.Height);
 
             if (thumb == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, header.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
         }

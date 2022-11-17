@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Services.Drive;
+﻿using System.IO;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests
@@ -25,5 +26,6 @@ namespace Youverse.Hosting.Tests
         /// </summary>
         public ExternalFileIdentifier UploadedFile { get; set; }
 
+        public byte[] PayloadCipher { get; set; }
     }
 }
