@@ -161,7 +161,7 @@ public class TransitQueryService
     {
         var newKey = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
-        var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, encryptedKeyHeader.Iv, ref newKey);
+        var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
         keyHeader.AesKey.Wipe();
 
         return newEncryptedKeyHeader;

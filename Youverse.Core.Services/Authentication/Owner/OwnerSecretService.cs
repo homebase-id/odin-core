@@ -118,7 +118,8 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             var result = _systemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
 
-            if (result == null || result.ListRSA == null)
+//            if (result == null || result.ListRSA == null) 
+            if (result == null || result.ListRSA == null || result.ListRSA.Count == 0 || result.ListRSA.TrueForAll(x => x.IsDead()))
             {
                 return await this.GenerateRsaKeyList();
             }
