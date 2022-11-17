@@ -63,13 +63,14 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader64, decryptedContentType, payload) = await _perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
+            var (encryptedKeyHeader64,payloadIsEncrypted, decryptedContentType, payload) = await _perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
 
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(TransitConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return new FileStreamResult(payload, "application/octet-stream");
@@ -84,19 +85,19 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            var (encryptedKeyHeader64, decryptedContentType,thumb) = await _perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
+            var (encryptedKeyHeader64,payloadIsEncrypted, decryptedContentType, thumb) = await _perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
             if (thumb == Stream.Null)
             {
                 return NotFound();
             }
 
-
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(TransitConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return new FileStreamResult(thumb, "application/octet-stream");
         }
-        
+
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
         {

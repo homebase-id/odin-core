@@ -175,7 +175,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
@@ -185,13 +185,18 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             var header = await _appService.GetClientEncryptedFileHeader(file);
 
+            if (header == null)
+            {
+                return (null, default, null, null);
+            }
+
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
             var payload = await _driveService.GetPayloadStream(file);
 
-            return (encryptedKeyHeader64, header.FileMetadata.ContentType, payload);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
 
-        public async Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
         {
             var file = new InternalDriveFileId()
             {
@@ -206,11 +211,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (null == thumbnail)
             {
-                return (null, null, null);
+                return (null, default, null, null);
             }
 
             var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, thumbnail.ContentType, thumb);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
         }
 
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)

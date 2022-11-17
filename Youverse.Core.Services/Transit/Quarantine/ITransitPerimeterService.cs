@@ -46,8 +46,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         Task<ClientFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
 
-        Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId);
+        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId);
 
-        Task<(string encryptedKeyHeader64, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width);
+        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width);
     }
 }

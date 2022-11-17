@@ -73,22 +73,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         /// The content type of the decrypted content is found in the header 'DecryptedContentType'
         ///
         /// The owner shared secret encrypted key header for the thumbnail is found in the header 'SharedSecretEncryptedHeader64'
-        /// 
+        ///
+        /// The flag indicating if the payload is encrypted is found in the header 'PayloadEncrypted'
         /// This is a byte array where the first 16 bytes are the IV, second 16 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (header, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((DotYouIdentity)request.DotYouId, request.File);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((DotYouIdentity)request.DotYouId, request.File);
 
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, header.ToBase64());
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -98,22 +100,25 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         /// The content type of the decrypted content is found in the header 'DecryptedContentType'
         ///
         /// The owner shared secret encrypted key header for the thumbnail is found in the header 'sharedSecretEncryptedHeader64'
-        /// 
+        ///
+        /// The flag indicating if the payload is encrypted is found in the header 'PayloadEncrypted'
         /// This is a byte array where the first 16 bytes are the IV, second 16 bytes are the EncryptedAESKey, and last 4 bytes is the encryption version
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
-            var (header, decryptedContentType, thumb) = await _transitQueryService.GetThumbnail((DotYouIdentity)request.DotYouId, request.File, request.Width, request.Height);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
+                await _transitQueryService.GetThumbnail((DotYouIdentity)request.DotYouId, request.File, request.Width, request.Height);
 
             if (thumb == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, header.ToBase64());
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
         }
     }

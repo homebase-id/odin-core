@@ -63,29 +63,41 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, string decryptedContentType, Stream payload)> GetPayloadStream(DotYouIdentity dotYouId, ExternalFileIdentifier file)
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(DotYouIdentity dotYouId,
+        ExternalFileIdentifier file)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
         var response = await httpClient.GetPayloadStream(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, null, null);
+            return (null, default, null, null);
         }
 
         AssertValidResponse(response);
 
         var decryptedContentType = response.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
         var ssHeader = response.Headers.GetValues(TransitConstants.IcrEncryptedSharedSecret64Header).Single();
-        
-        var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-        var ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+        }
+        else
+        {
+            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
         var stream = await response!.Content!.ReadAsStreamAsync();
 
-        return (ownerSharedSecretEncryptedKeyHeader, decryptedContentType, stream);
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, string decryptedContentType, Stream thumbnail)> GetThumbnail(DotYouIdentity dotYouId, ExternalFileIdentifier file,
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(DotYouIdentity dotYouId,
+        ExternalFileIdentifier file,
         int width, int height)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
@@ -99,19 +111,29 @@ public class TransitQueryService
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, null, null);
+            return (null, default, null, null);
         }
 
         AssertValidResponse(response);
 
         var decryptedContentType = response.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
 
-        var ssHeader = response.Headers.GetValues(TransitConstants.IcrEncryptedSharedSecret64Header).Single();
-        var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-        var ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
+        if (payloadIsEncrypted)
+        {
+            var ssHeader = response.Headers.GetValues(TransitConstants.IcrEncryptedSharedSecret64Header).Single();
+            var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+        }
+        else
+        {
+            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+        }
+
         var stream = await response!.Content!.ReadAsStreamAsync();
 
-        return (ownerSharedSecretEncryptedKeyHeader, decryptedContentType, stream);
+        return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(DotYouIdentity dotYouId)
