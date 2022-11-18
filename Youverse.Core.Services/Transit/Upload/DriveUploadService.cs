@@ -173,6 +173,14 @@ public class DriveUploadService
             throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner", YouverseClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
+        if (metadata.PayloadIsEncrypted)
+        {
+            if (keyHeader.Iv.ToList().TrueForAll(b => b == 0) || keyHeader.AesKey.GetKey().ToList().TrueForAll(b => b == 0))
+            {
+                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
+            }
+        }
+
         if (package.IsUpdateOperation)
         {
             //validate the file exists by the ID
