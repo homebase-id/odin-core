@@ -39,18 +39,9 @@ namespace Youverse.Core.Services.Authentication.Owner
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
-
-            var rsa = await _secretService.GetRsaKeyList();
-
-            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsa, out var keyListWasUpdated); // TODO
-
-            if (keyListWasUpdated)
-            {
-            }
-
-            var publicKey = key.publicPem();
-
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKey, key.crc32c);
+            var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
+            
+            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
             _systemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
             return nonce;
         }

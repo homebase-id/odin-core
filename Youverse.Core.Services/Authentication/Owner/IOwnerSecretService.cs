@@ -55,5 +55,10 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <returns></returns>
         Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray key);
 
+        /// <summary>
+        /// Gets the current RSA to be used for Authentication
+        /// </summary>
+        /// <returns></returns>
+        Task<(uint publicKeyCrc32C, string publicKeyPem)> GetCurrentAuthenticationRsaKey();
     }
 }

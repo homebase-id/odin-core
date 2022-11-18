@@ -89,6 +89,19 @@ namespace Youverse.Core.Services.Authentication.Owner
             return masterKey;
         }
 
+        public async Task<(uint publicKeyCrc32C, string publicKeyPem)> GetCurrentAuthenticationRsaKey()
+        {
+            var rsaKeyList = await this.GetRsaKeyList();
+            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
+
+            if (keyListWasUpdated)
+            {
+                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
+            }
+
+            return (key.crc32c, key.publicPem());
+        }
+
         public async Task<SaltsPackage> GetStoredSalts()
         {
             var pk = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
@@ -112,6 +125,11 @@ namespace Youverse.Core.Services.Authentication.Owner
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS); // TODO
             _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
             return rsaKeyList;
+        }
+
+        public async Task UpdateKeyList()
+        {
+            
         }
 
         public async Task<RsaFullKeyListData> GetRsaKeyList()
