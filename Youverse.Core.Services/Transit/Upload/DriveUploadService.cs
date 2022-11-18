@@ -175,7 +175,7 @@ public class DriveUploadService
 
         if (metadata.PayloadIsEncrypted)
         {
-            if (keyHeader.Iv.ToList().TrueForAll(b => b == 0) || keyHeader.AesKey.GetKey().ToList().TrueForAll(b => b == 0))
+            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
                 throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
             }
