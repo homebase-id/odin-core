@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Transit.Encryption
@@ -68,6 +69,16 @@ namespace Youverse.Core.Services.Transit.Encryption
                 Iv = Guid.Empty.ToByteArray(),
                 AesKey = Guid.Empty.ToByteArray().ToSensitiveByteArray()
             };
+        }
+
+        public byte[] Decrypt(byte[] encryptedData)
+        {
+            var aesKey = this.AesKey;
+            var bytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+                cipherText: encryptedData,
+                Key: ref aesKey,
+                IV: this.Iv);
+            return bytes;
         }
     }
 }

@@ -116,7 +116,7 @@ public class StaticFileContentService
                 
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
-                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData.AdditionalThumbnails)
+                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);

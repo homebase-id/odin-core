@@ -57,9 +57,11 @@ namespace Youverse.Hosting.Middleware
             IgnoredPathsForResponses = new List<string>
             {
                 "/api/owner/v1/drive/files/payload",
+                "/api/owner/v1/transit/query/payload",
                 "/api/apps/v1/drive/files/payload",
                 "/api/youauth/v1/drive/files/payload",
                 "/api/owner/v1/drive/files/thumb",
+                "/api/owner/v1/transit/query/thumb",
                 "/api/apps/v1/drive/files/thumb",
                 "/api/youauth/v1/drive/files/thumb",
                 "/cdn"

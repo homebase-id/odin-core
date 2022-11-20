@@ -17,7 +17,7 @@ public class FileQueryParams
 
     public IEnumerable<Guid> GroupId { get; set; } = null;
 
-    public TimeRange UserDate { get; set; } = null;
+    public UnixTimeUtcRange UserDate { get; set; } = null;
 
     public IEnumerable<Guid> ClientUniqueIdAtLeastOne { get; set; } = null;
     public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;

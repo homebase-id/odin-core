@@ -1,5 +1,8 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
+using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -17,9 +20,18 @@ namespace Youverse.Core.Services.Transit
             params StreamPart[] thumbnail);
 
         [Post("/api/perimeter/transit/host/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body]DeleteLinkedFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteLinkedFileTransitRequest request);
 
         [Post("/api/perimeter/transit/host/querybatch")]
-        Task<ApiResponse<HostTransitQueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
+
+        [Post("/api/perimeter/transit/host/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
+
+        [Post("/api/perimeter/transit/host/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);
+
+        [Post("/api/perimeter/transit/host/payload")]
+        Task<ApiResponse<HttpContent>> GetPayloadStream([Body] ExternalFileIdentifier file);
     }
 }

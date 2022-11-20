@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Registry
 
             if (key == Guid.Empty)
             {
-                throw new InvalidTenantClientException($"No tenant with domain [{domainName}]");
+                throw new InvalidTenantClientException($"No tenant with domain '{domainName}'");
             }
 
             return key;

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit.Encryption;
@@ -42,5 +43,11 @@ namespace Youverse.Core.Services.Transit.Quarantine
         Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId);
 
         Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options);
+
+        Task<ClientFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
+
+        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId);
+
+        Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width);
     }
 }
