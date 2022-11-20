@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
-    private string _dataRoot;
+    private readonly string _dataRoot;
 
     public FileSystemIdentityRegistry(string dataRoot)
     {
@@ -25,6 +25,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public Guid ResolveId(string domainName)
     {
+        throw new NotImplementedException();
     }
     
     public Task<bool> IsIdentityRegistered(string domain)
@@ -55,6 +56,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             FullChainCertificateRelativePath = default,
             PublicKeyCertificateRelativePath = default
         };
+        
+        throw new NotImplementedException();
+
 
     }
 
@@ -76,7 +80,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             Guid domainId = CertificateResolver.CalculateDomainId(dotYouId);
             var certificate = CertificateResolver.GetSslCertificate(_dataRoot, domainId, dotYouId);
         }
-        
+        throw new NotImplementedException();
+
     }
 
     public Task<IdentityRegistration> Get(string domainName)
@@ -86,8 +91,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     
     private string GetCertificatePath(DotYouIdentity dotYouId)
     {
-        string certificatePath = PathUtil.Combine(_dataRoot, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
-        string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
+        throw new NotImplementedException();
+
+        // string certificatePath = PathUtil.Combine(_dataRoot, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
+        // string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
     }
     
 }

@@ -1,3 +1,4 @@
+using Youverse.Core.Services.Registry;
 using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning.Services.Registration
@@ -14,8 +15,7 @@ namespace Youverse.Provisioning.Services.Registration
         /// Specifies the user requested the DI host manage the certificate
         /// </summary>
         public bool RequestedManagedCertificate { get; set; }
-        
-        
+
         public CertificateSigningRequest CertificateSigningRequest { get; set; }
     }
 }

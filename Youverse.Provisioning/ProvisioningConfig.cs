@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Util;
+﻿using Youverse.Core.Services.Registry;
+using Youverse.Core.Util;
 using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning
@@ -66,7 +67,7 @@ namespace Youverse.Provisioning
         /// The email addressed given to Certificate Authorities when users ask us to manage their certificates
         /// </summary>
         public string CertificateAuthorityAssociatedEmail { get; set; }
-        
+
         public CertificateSigningRequest CertificateSigningRequest { get; set; }
         
         public List<string> AllowedOrigins { get; set; }

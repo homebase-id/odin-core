@@ -14,7 +14,6 @@ public class ServicesConfiguration
         PrepareEnvironment(config);
 
         services.AddSingleton<ProvisioningConfig>(svc => config);
-        services.AddSingleton<IIdentityRegistry, IdentityRegistry>();
         services.AddSingleton<IRegistrationService, RegistrationService>();
         services.AddSingleton<ICertificateService, LetsEncryptCertificateService>();
 

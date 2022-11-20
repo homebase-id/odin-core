@@ -1,9 +1,10 @@
-﻿using Youverse.Core.Util;
+﻿using Youverse.Core.Services.Registry;
+using Youverse.Core.Util;
 using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning.Services.Registry
 {
-    public class IdentityRegistration
+    public class mIdentityRegistration
     {
         private string _domainName;
         private Guid _domainKey;

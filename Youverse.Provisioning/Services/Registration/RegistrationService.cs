@@ -1,22 +1,58 @@
 using Dawn;
 using Youverse.Core;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 using Youverse.Provisioning.Controllers;
 using Youverse.Provisioning.Services.Certificate;
-using Youverse.Provisioning.Services.Registry;
+
 
 namespace Youverse.Provisioning.Services.Registration
 {
+    public class PendingRegistrationStorage
+    {
+        private readonly KeyValueDatabase _db;
+        private readonly SingleKeyValueStorage _storage;
+
+        public PendingRegistrationStorage(string dbPath)
+        {
+            string dbName = "pending_reg.db";
+            if (!Directory.Exists(dbPath))
+            {
+                Directory.CreateDirectory(dbPath!);
+            }
+
+            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
+            _db = new KeyValueDatabase($"URI=file:{finalPath}");
+            _db.CreateDatabase(false);
+
+            _storage = new SingleKeyValueStorage(_db.tblKeyValue);
+        }
+
+        public PendingRegistration? Get(Guid id)
+        {
+            return _storage.Get<PendingRegistration>(id);
+        }
+
+        public void Delete(Guid id)
+        {
+            _storage.Delete(id);
+        }
+
+        public void Save(PendingRegistration reservation)
+        {
+            _storage.Upsert(reservation.DomainKey, reservation);
+        }
+    }
+
     public class ReservationStorage
     {
         private readonly KeyValueDatabase _db;
         private readonly SingleKeyValueStorage _storage;
 
-        public ReservationStorage()
+        public ReservationStorage(string dbPath)
         {
-            string dbPath = "/tmp/reservations"; //TODO: read from config
             string dbName = "reservations.db";
             if (!Directory.Exists(dbPath))
             {
@@ -53,7 +89,7 @@ namespace Youverse.Provisioning.Services.Registration
         private readonly ProvisioningConfig _config;
 
         private readonly ReservationStorage _reservationStorage;
-        private readonly LiteDBSingleCollectionStorage<PendingRegistration> _pendingRegistrationStorage;
+        private readonly PendingRegistrationStorage _pendingRegistrationStorage;
         private readonly ICertificateService _certificateService;
 
         public RegistrationService(ILogger<RegistrationService> logger, IIdentityRegistry registry, ProvisioningConfig config, ICertificateService certificateService)
@@ -62,14 +98,9 @@ namespace Youverse.Provisioning.Services.Registration
             _registry = registry;
             _config = config;
             _certificateService = certificateService;
-
-            const string reservationsCollection = "Reservations";
-
-            const string pendingRegistrationsCollection = "PendingRegistrations";
-            _pendingRegistrationStorage = new LiteDBSingleCollectionStorage<PendingRegistration>(
-                _logger,
-                Path.Combine(config.DataRootPath, pendingRegistrationsCollection),
-                pendingRegistrationsCollection);
+            
+            _reservationStorage = new ReservationStorage(config.DataRootPath);
+            _pendingRegistrationStorage = new PendingRegistrationStorage(config.DataRootPath);
         }
 
         public async Task<Guid> StartRegistration(RegistrationInfo registrationInfo)
@@ -104,7 +135,7 @@ namespace Youverse.Provisioning.Services.Registration
                 Reservation = reservation
             };
 
-            await _pendingRegistrationStorage.Save(registration);
+            _pendingRegistrationStorage.Save(registration);
             //delete the reservation because we copied it to the pending registration and rule like reservation expiration no longer apply
             _reservationStorage.Delete(registrationInfo.ReservationId);
 
@@ -114,7 +145,7 @@ namespace Youverse.Provisioning.Services.Registration
 
         public async Task<RegistrationStatus> GetRegistrationStatus(Guid pendingRegistrationId)
         {
-            var reg = await _pendingRegistrationStorage.Get(pendingRegistrationId);
+            var reg = _pendingRegistrationStorage.Get(pendingRegistrationId);
 
             if (null == reg)
             {
@@ -141,7 +172,7 @@ namespace Youverse.Provisioning.Services.Registration
 
         public async Task<object> FinalizeRegistration(Guid pendingRegistrationId)
         {
-            var reg = await _pendingRegistrationStorage.Get(pendingRegistrationId);
+            var reg = _pendingRegistrationStorage.Get(pendingRegistrationId);
             var isReady = await _certificateService.IsCertificateIsReady(reg.OrderId);
             if (!isReady)
             {
@@ -179,10 +210,11 @@ namespace Youverse.Provisioning.Services.Registration
             await File.WriteAllTextAsync(identReg.PrivateKeyRelativePath, certContent.PrivateKey);
             await File.WriteAllTextAsync(identReg.FullChainCertificateRelativePath, certContent.FullChain);
 
-            await _registry.Add(identReg);
+            throw new NotImplementedException("update the registry");
+            // await _registry.Add(identReg);
 
             //clean up
-            await _pendingRegistrationStorage.Delete(reg.Id);
+            _pendingRegistrationStorage.Delete(reg.Id);
             _reservationStorage.Delete(reg.Reservation.Id);
 
             //TODO: what do i return here?
@@ -199,33 +231,26 @@ namespace Youverse.Provisioning.Services.Registration
                 await CancelReservation(request.PreviousReservationId.GetValueOrDefault());
             }
 
-            try
-            {
-                if (!await IsAvailable(request.DomainName))
-                {
-                    throw new ReservationFailedException("Already Reserved");
-                }
-
-                //TODO: need a background clean up job to remove old reservations; for now we will overwrite it
-                var key = HashUtil.ReduceSHA256Hash(request.DomainName);
-                var record = _reservationStorage.Get(key);
-
-                var result = new Reservation()
-                {
-                    Id = record?.Id ?? Guid.NewGuid(),
-                    Domain = request.DomainName,
-                    CreatedTime = UnixTimeUtc.Now(),
-                    ExpiresTime = UnixTimeUtc.Now().AddSeconds(Configuration.ReservationLength),
-                };
-
-                _reservationStorage.Save(result);
-
-                return result;
-            }
-            catch (DuplicateKeyException)
+            if (!await IsAvailable(request.DomainName))
             {
                 throw new ReservationFailedException("Already Reserved");
             }
+
+            //TODO: need a background clean up job to remove old reservations; for now we will overwrite it
+            var key = HashUtil.ReduceSHA256Hash(request.DomainName);
+            var record = _reservationStorage.Get(key);
+
+            var result = new Reservation()
+            {
+                Id = record?.Id ?? Guid.NewGuid(),
+                Domain = request.DomainName,
+                CreatedTime = UnixTimeUtc.Now(),
+                ExpiresTime = UnixTimeUtc.Now().AddSeconds(Configuration.ReservationLength),
+            };
+
+            _reservationStorage.Save(result);
+
+            return result;
         }
 
         public async Task<bool> IsAvailable(string domain)
@@ -234,20 +259,20 @@ namespace Youverse.Provisioning.Services.Registration
 
             //check reserved domains
             var id = HashUtil.ReduceSHA256Hash(domain);
-            var reservation = await _reservationStorage.FindOne(r => r.DomainKey == id);
+            var reservation = _reservationStorage.Get(id);
 
             if (IsReservationValid(reservation))
             {
                 return false;
             }
 
-            var pendingReg = await _pendingRegistrationStorage.FindOne(pr => pr.DomainKey == id);
+            var pendingReg = _pendingRegistrationStorage.Get(id);
             if (null != pendingReg)
             {
                 return false;
             }
 
-            return await _registry.IsDomainRegistered(domain) == false;
+            return await _registry.IsIdentityRegistered(domain) == false;
         }
 
         public async Task CancelReservation(Guid reservationId)

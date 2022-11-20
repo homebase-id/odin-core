@@ -17,9 +17,7 @@ using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Logging.Hostname.Serilog;
 using Youverse.Core.Services.Registry;
-using Youverse.Hosting.IdentityRegistry;
 using Youverse.Hosting.Multitenant;
-using IdentityRegistration = Youverse.Core.Services.Registry.IdentityRegistration;
 
 namespace Youverse.Hosting
 {

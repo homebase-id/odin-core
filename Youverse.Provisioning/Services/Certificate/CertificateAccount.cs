@@ -1,4 +1,6 @@
-﻿namespace Youverse.Provisioning.Services.Certificate
+﻿using Youverse.Core.Services.Registry;
+
+namespace Youverse.Provisioning.Services.Certificate
 {
     /// <summary>
     /// Account information used when creating or renewing SSL certificates
